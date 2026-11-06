@@ -15,17 +15,14 @@ import { useSimilarVibeTracks } from "@/hooks/useSimilarVibeTracks";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { fetchTracksByIds, type TrackBatchRef } from "@/services/internalApi/tracks";
+import { blendSuggestionSources, rankSuggestions } from "@/lib/rankSuggestions";
 
 type Props = {
   track: Track;
 };
 
 type SourceType = "ai" | "similar" | "vibe";
-
-type MergedTrack = Track & {
-  _sources: SourceType[];
-  _score: number;
-};
+type MergedTrack = Track & { _sources: SourceType[]; _score: number; distance?: number };
 
 function keyOf(track: Pick<Track, "track_id" | "friend_id">): string {
   return `${track.track_id}:${track.friend_id}`;
@@ -61,50 +58,43 @@ export default function RelatedTracksSection({ track }: Props) {
     enabled: ready,
   });
 
-  const merged = useMemo<MergedTrack[]>(() => {
-    const baseKey = keyOf(track);
-    const map = new Map<string, MergedTrack>();
-
-    const add = (item: Track, source: SourceType, score: number) => {
-      const k = keyOf(item);
-      if (k === baseKey) return;
-      const existing = map.get(k);
-      if (!existing) {
-        map.set(k, {
-          ...item,
-          _sources: [source],
-          _score: score,
-        });
-        return;
-      }
-      if (!existing._sources.includes(source)) {
-        existing._sources.push(source);
-      }
-      existing._score += score;
-    };
-
+  const ranked = useMemo(() => {
     const recs = recQuery.data ?? [];
-    recs.forEach((item, idx) => {
-      const rankScore = 1 - idx / Math.max(recs.length, 1);
-      add(item, "ai", 0.8 * rankScore);
-    });
-
     const similar = similarQuery.data?.tracks ?? [];
-    similar.forEach((item: Track & { distance?: number }, idx: number) => {
-      const distanceScore = Math.max(0, 1 - (item.distance ?? 1));
-      const rankScore = 1 - idx / Math.max(similar.length, 1);
-      add(item, "similar", distanceScore * 0.75 + rankScore * 0.25);
-    });
-
     const vibes = vibeQuery.data?.tracks ?? [];
-    vibes.forEach((item: Track & { distance?: number }, idx: number) => {
-      const distanceScore = Math.max(0, 1 - (item.distance ?? 1));
-      const rankScore = 1 - idx / Math.max(vibes.length, 1);
-      add(item, "vibe", distanceScore * 0.75 + rankScore * 0.25);
+    const blend = blendSuggestionSources<Track & { distance?: number }>([
+      {
+        name: "ai",
+        tracks: recs,
+        score: (_item, idx, count) => 0.8 * (1 - idx / Math.max(count, 1)),
+      },
+      {
+        name: "similar",
+        tracks: similar,
+        score: (item, idx, count) =>
+          Math.max(0, 1 - (item.distance ?? 1)) * 0.75 + (1 - idx / Math.max(count, 1)) * 0.25,
+      },
+      {
+        name: "vibe",
+        tracks: vibes,
+        score: (item, idx, count) =>
+          Math.max(0, 1 - (item.distance ?? 1)) * 0.75 + (1 - idx / Math.max(count, 1)) * 0.25,
+      },
+    ]);
+    const result = rankSuggestions(blend, {
+      seed: track,
+      filters: { compatibleKey: true, bpmWithinSixPercent: true },
     });
-
-    return [...map.values()].sort((a, b) => b._score - a._score);
+    return {
+      ...result,
+      tracks: result.tracks.map((item) => ({
+        ...item,
+        _sources: ((item as Track & { _sources?: SourceType[] })._sources ?? []) as SourceType[],
+        _score: (item as Track & { _score?: number })._score ?? 0,
+      })),
+    };
   }, [track, recQuery.data, similarQuery.data, vibeQuery.data]);
+  const merged = ranked.tracks;
 
   const hydrateRefs = useMemo<TrackBatchRef[]>(
     () =>
@@ -212,14 +202,44 @@ export default function RelatedTracksSection({ track }: Props) {
           Could not load related tracks.
         </Text>
       ) : displayTracks.length === 0 ? (
-        <Text color="fg.muted" fontSize="sm">
-          {scope === "library"
-            ? "No related tracks in this library. Try All libraries."
-            : "No related tracks found."}
-        </Text>
+        <>
+          {ranked.hiddenByFilters > 0 && (
+            <Text color="fg.muted" fontSize="sm" mb={2}>
+              {ranked.hiddenByFilters} hidden by filters
+            </Text>
+          )}
+          <Text color="fg.muted" fontSize="sm">
+            {scope === "library"
+              ? "No related tracks in this library. Try All libraries."
+              : "No related tracks found."}
+          </Text>
+        </>
       ) : (
         <>
+          {ranked.hiddenByFilters > 0 && (
+            <Text color="fg.muted" fontSize="sm" mb={2}>
+              {ranked.hiddenByFilters} hidden by filters
+            </Text>
+          )}
           {isMobile ? <RelatedTrackList {...rowProps} /> : <RelatedTrackTable {...rowProps} />}
+          {ranked.folds.map((group) => (
+            <details key={group.release}>
+              <summary>
+                +{group.tracks.length} more from {group.release}
+              </summary>
+              {group.tracks.map((item) => (
+                <Text
+                  key={`${item.track_id}:${item.friend_id}`}
+                  color="fg.muted"
+                  fontSize="sm"
+                  pl={4}
+                  py={1}
+                >
+                  {item.title} — {item.artist}
+                </Text>
+              ))}
+            </details>
+          ))}
 
           {remaining > 0 && (
             <Flex justify="center" mt={4}>

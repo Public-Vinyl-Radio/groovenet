@@ -11,6 +11,7 @@ import { useRecommendationsQuery, type RecommendedTrack } from "@/hooks/useRecom
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
+import { rankSuggestions } from "@/lib/rankSuggestions";
 
 export interface PlaylistRecommendationsProps {
   playlist: Track[];
@@ -30,21 +31,32 @@ export default function PlaylistRecommendations({
     enabled: ready,
   });
   const { appendToQueue } = usePlaybackPlayer();
+  const ranked = rankSuggestions(recs, {
+    seed: playlist.at(-1) ?? ({} as Track),
+    playlist,
+    seedMode: "playlist",
+    filters: { compatibleKey: true, bpmWithinSixPercent: true },
+  });
 
   return (
     <Box mt={0}>
       <Flex justify="flex-end" mb={3}>
         <SuggestionScopeToggle value={scope} onChange={setScope} />
       </Flex>
-      {!ready || isLoading ? null : recs.length === 0 ? (
+      {!ready || isLoading ? null : ranked.tracks.length === 0 ? (
         <Text color="fg.muted" fontSize="sm">
           {scope === "library"
             ? "No suggestions in this library. Try All libraries."
             : "No suggestions found."}
         </Text>
       ) : null}
+      {ranked.hiddenByFilters > 0 && (
+        <Text color="fg.muted" fontSize="sm" mb={2}>
+          {ranked.hiddenByFilters} hidden by filters
+        </Text>
+      )}
       <Box display="flex" flexDirection="column" gap={2}>
-        {recs.map((rec: RecommendedTrack, i: number) => (
+        {ranked.tracks.map((rec: RecommendedTrack, i: number) => (
           <TrackResultStore
             key={`recommendation-${rec.track_id}-${i}`}
             trackId={rec.track_id}
@@ -96,6 +108,24 @@ export default function PlaylistRecommendations({
           />
         ))}
       </Box>
+      {ranked.folds.map((group) => (
+        <details key={group.release}>
+          <summary>
+            +{group.tracks.length} more from {group.release}
+          </summary>
+          {group.tracks.map((item) => (
+            <Text
+              key={`${item.track_id}:${item.friend_id}`}
+              color="fg.muted"
+              fontSize="sm"
+              pl={4}
+              py={1}
+            >
+              {item.title} — {item.artist}
+            </Text>
+          ))}
+        </details>
+      ))}
     </Box>
   );
 }

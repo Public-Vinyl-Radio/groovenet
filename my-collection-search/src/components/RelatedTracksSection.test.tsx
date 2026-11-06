@@ -228,9 +228,8 @@ describe("RelatedTracksSection layout", () => {
       error: null,
     });
     renderWithProviders(<RelatedTracksSection track={track} />);
-    await screen.findByText("Clash");
-    expect(screen.getByText("Key clash")).toBeTruthy();
-    expect(screen.getByText("\u22125")).toBeTruthy();
+    await screen.findByText("1 hidden by filters");
+    expect(screen.queryByText("Clash")).toBeNull();
     expect(screen.getAllByLabelText("No BPM")).toHaveLength(1);
     expect(screen.queryAllByText("Adjacent")).toHaveLength(0);
   });
