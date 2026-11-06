@@ -165,6 +165,7 @@ export function stackItemRow(item: RecordCareStackItem): RecordCareQueueItem {
     title: item.album_title ?? "Unknown album",
     artist: item.album_artist ?? "",
     thumbnail: item.album_thumbnail,
+    library_identifier: item.library_identifier,
     inner_sleeve_type: item.inner_sleeve_type,
     added_at: null,
   };

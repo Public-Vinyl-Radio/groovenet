@@ -30,6 +30,8 @@ import {
   useRecordCareStackMutations,
   useRecordCareSummaryQuery,
 } from "@/hooks/useRecordCareQuery";
+import { useTrackViewMode } from "@/hooks/useTrackViewMode";
+import { sortByShelfCode } from "@/components/chores/shelfOrder";
 import { DEFAULT_TARGET_SLEEVE } from "@/lib/recordCare";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -51,8 +53,10 @@ const panelId = (tab: string) => `chores-panel-${tab}`;
 const triggerId = (tab: string) => `chores-tab-${tab}`;
 const tabLabel = { fontSize: "xs", letterSpacing: "0.06em", px: { md: 4 } } as const;
 
-function toRow(item: RecordCareQueueItem, meta?: string): ChoreRowData {
+function toRow(item: RecordCareQueueItem, friendId: number, meta?: string): ChoreRowData {
   return {
+    code: item.library_identifier,
+    editHref: `/albums/${encodeURIComponent(item.release_id)}/edit?friend_id=${friendId}`,
     key: rowKey(item),
     title: item.title,
     artist: item.artist,
@@ -118,6 +122,20 @@ function ChorePageContent() {
   const [undoError, setUndoError] = React.useState<string | null>(null);
 
   const stack = stackQuery.data ?? null;
+  // Grid by default, and the choice is this viewer's; phones keep the switch too.
+  const stackView = useTrackViewMode({
+    storageKey: "choresStackViewMode",
+    defaultMode: "card",
+    phonesAlwaysCards: false,
+  });
+  // Shelf order (#1009); which records are in the stack is the server's choice.
+  const stackRows = React.useMemo(
+    () =>
+      sortByShelfCode(stack?.items ?? [], (item) => item.library_identifier).map((item) =>
+        toRow(stackItemRow(item), friendId),
+      ),
+    [stack, friendId],
+  );
   const stackKeys = React.useMemo(
     () => new Set(stack?.items.map((item) => rowKey(item)) ?? []),
     [stack],
@@ -327,7 +345,8 @@ function ChorePageContent() {
             id="chores-stack"
             title={stack.stack_no !== null ? `STACK ${stack.stack_no} · PULLED` : "PULLED STACK"}
             reason="Up next, in queue order."
-            rows={stack.items.map((item) => toRow(stackItemRow(item)))}
+            rows={stackRows}
+            view={{ mode: stackView.viewMode, onChange: stackView.setViewMode }}
             {...shared}
           />
         )}
@@ -336,7 +355,7 @@ function ChorePageContent() {
           title="SPUN RECENTLY · NEVER CLEANED"
           reason="Played records wear first."
           rows={queue.spun_recently.items.map((item) =>
-            toRow(item, spunMeta(item.spin_count, item.window_label)),
+            toRow(item, friendId, spunMeta(item.spin_count, item.window_label)),
           )}
           {...shared}
         />
@@ -345,7 +364,7 @@ function ChorePageContent() {
           title="NEW ARRIVALS"
           reason="Clean before the first play."
           rows={queue.new_arrivals.items.map((item) =>
-            toRow(item, item.added_at ? addedMeta(item.added_at, timeZone) : undefined),
+            toRow(item, friendId, item.added_at ? addedMeta(item.added_at, timeZone) : undefined),
           )}
           {...shared}
         />
@@ -353,7 +372,7 @@ function ChorePageContent() {
           id="chores-backlog"
           title="BACKLOG · A–Z"
           reason="Everything else, never cleaned."
-          rows={queue.backlog.items.map((item) => toRow(item))}
+          rows={queue.backlog.items.map((item) => toRow(item, friendId))}
           more={
             backlogRemaining > 0
               ? {

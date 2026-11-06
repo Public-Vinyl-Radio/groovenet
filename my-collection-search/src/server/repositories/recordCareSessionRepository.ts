@@ -160,6 +160,7 @@ export class RecordCareSessionRepository {
         a.artist AS album_artist,
         CASE WHEN a.release_id IS NULL THEN NULL ELSE ${coverUrlSql("a", true)} END
           AS album_thumbnail,
+        a.library_identifier,
         COALESCE(c.inner_sleeve_type, d.inner_sleeve_type) AS inner_sleeve_type,
         COALESCE(c.last_cleaned_at, d.last_cleaned_at) AS last_cleaned_at
       FROM record_care_session_items i

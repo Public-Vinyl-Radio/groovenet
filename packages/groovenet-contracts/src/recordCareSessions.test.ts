@@ -30,6 +30,7 @@ const session = {
       album_title: "Album",
       album_artist: "Artist",
       album_thumbnail: null,
+      library_identifier: "S-013",
       inner_sleeve_type: null,
       last_cleaned_at: null,
     },

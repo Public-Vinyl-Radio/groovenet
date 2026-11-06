@@ -19,7 +19,7 @@ export type CleaningHistory = {
 
 // Keep exactly the care views' scope, including albums with no live copy row.
 const scope = `WITH scope AS (${CARE_SCOPE_SQL}), copies AS (
-  SELECT scope.*, a.date_added,
+  SELECT scope.*, a.date_added, a.library_identifier,
     (SELECT min(ra.occurred_at) FROM record_actions ra
      WHERE ra.copy_id = scope.copy_id AND ra.action_type = 'cleaned' AND ra.voided_at IS NULL) AS first_cleaned
   FROM scope JOIN albums a ON a.friend_id = scope.friend_id AND a.release_id = scope.release_id
@@ -33,7 +33,7 @@ export const recordCareQueueSql = `${scope}, spins AS (
   GROUP BY e.release_id
 ), grouped AS (
   SELECT c.copy_id, c.release_id, c.album_title AS title, c.album_artist AS artist,
-    c.album_thumbnail AS thumbnail, c.inner_sleeve_type,
+    c.album_thumbnail AS thumbnail, c.library_identifier, c.inner_sleeve_type,
     c.date_added AT TIME ZONE 'UTC' AS added_at,
     coalesce(s.spin_count, 0) AS spin_count, s.last_spin_at,
     CASE WHEN s.spin_count > 0 THEN 'spun_recently'

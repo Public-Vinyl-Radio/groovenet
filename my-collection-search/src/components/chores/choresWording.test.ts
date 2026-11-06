@@ -118,6 +118,7 @@ describe("chores wording", () => {
       album_title: null,
       album_artist: null,
       album_thumbnail: null,
+      library_identifier: null,
       inner_sleeve_type: null,
       last_cleaned_at: null,
     };

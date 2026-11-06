@@ -76,10 +76,10 @@ describe("Chores page", () => {
     expect(api.getRecordCareQueue).toHaveBeenCalledWith({ friend_id: 7, limit: 20 });
     expect(screen.getByRole("tab", { name: "TO DO · 402" })).toBeTruthy();
     expect(screen.getByTestId("chores-overview")).toBeTruthy();
-    expect(checkbox(/Album 1/).textContent).toContain("SPUN 3× IN OCT");
-    expect(checkbox(/Album 3/).textContent).toContain("ADDED OCT 17");
-    expect(checkbox(/Album 4/).textContent).toContain("Sleeve unknown");
-    expect(checkbox(/Album 5/).textContent).not.toContain("Sleeve unknown");
+    expect(checkbox(/Album 1/).closest("li")!.textContent).toContain("SPUN 3× IN OCT");
+    expect(checkbox(/Album 3/).closest("li")!.textContent).toContain("ADDED OCT 17");
+    expect(checkbox(/Album 4/).closest("li")!.textContent).toContain("Sleeve unknown");
+    expect(checkbox(/Album 5/).closest("li")!.textContent).not.toContain("Sleeve unknown");
     expect(screen.getByRole("article", { name: "BACKLOG · A–Z" })).toBeTruthy();
     expect(screen.getByText("THIS MONTH · 11 RECORDS · 2 SESSIONS")).toBeTruthy();
   });
@@ -147,6 +147,60 @@ describe("Chores page", () => {
     expect(api.discardRecordCareStack).not.toHaveBeenCalled();
   });
 
+  describe("pulled stack", () => {
+    const withCodes = () => {
+      const stack = stackFixture([1, 2, 3, 4]);
+      const codes = ["S-013", "LP-100", null, "LP001"];
+      stack.items.forEach((item, i) => (item.library_identifier = codes[i]));
+      api.listRecordCareStacks.mockResolvedValue({ ...noStack, items: [stack] });
+    };
+    const stackGroup = () => screen.findByRole("article", { name: "STACK 2 · PULLED" });
+
+    beforeEach(() => localStorage.removeItem("choresStackViewMode"));
+
+    it("shows cards in shelf order by default, records without a code last", async () => {
+      withCodes();
+      renderWithProviders(<ChorePage />);
+      const group = await stackGroup();
+      const names = within(group)
+        .getAllByRole("checkbox")
+        .map((box) => box.getAttribute("aria-label"));
+      expect(names).toEqual([
+        "LP001, Album 4, Artist 4",
+        "LP-100, Album 2, Artist 2",
+        "S-013, Album 1, Artist 1",
+        "No ID, Album 3, Artist 3",
+      ]);
+      expect(
+        within(group)
+          .getByRole("link", { name: /No ID for Album 3/ })
+          .getAttribute("href"),
+      ).toBe("/albums/rel-3/edit?friend_id=7");
+    });
+
+    it("remembers a switch to the list, and its checkboxes still select", async () => {
+      withCodes();
+      const { user } = renderWithProviders(<ChorePage />);
+      const group = await stackGroup();
+      await user.click(screen.getByText("List"));
+      expect(localStorage.getItem("choresStackViewMode")).toBe("row");
+      const box = within(group).getByRole("checkbox", { name: /Album 2/ });
+      expect(box.getAttribute("aria-checked")).toBe("true");
+      await user.click(box);
+      expect(box.getAttribute("aria-checked")).toBe("false");
+    });
+
+    it("opens in the list when that was the saved choice", async () => {
+      localStorage.setItem("choresStackViewMode", "row");
+      withCodes();
+      renderWithProviders(<ChorePage />);
+      const group = await stackGroup();
+      await waitFor(() =>
+        expect(within(group).getByRole("radio", { name: "List", checked: true })).toBeTruthy(),
+      );
+    });
+  });
+
   it("pulls a stack as the web app and selects it", async () => {
     const stack = stackFixture([6, 7]);
     api.pullRecordCareStack.mockResolvedValue({ stack, created: true });
@@ -203,7 +257,7 @@ describe("Chores page", () => {
     queue.new_arrivals.items[0] = { ...queue.new_arrivals.items[0], added_at: null };
     api.getRecordCareQueue.mockResolvedValue(queue);
     await renderPage();
-    expect(checkbox(/Album 3/).textContent).not.toContain("ADDED");
+    expect(checkbox(/Album 3/).closest("li")!.textContent).not.toContain("ADDED");
   });
 
   it("restores an open stack on load, selected", async () => {

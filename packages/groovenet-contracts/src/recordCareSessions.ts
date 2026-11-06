@@ -36,6 +36,9 @@ export const recordCareStackItemSchema = z.object({
   album_title: z.string().nullable().meta({ description: "Null once the album has left" }),
   album_artist: z.string().nullable(),
   album_thumbnail: z.string().nullable(),
+  library_identifier: z.string().nullable().meta({
+    description: "Shelf code the album is filed under; null if none or the album has left",
+  }),
   inner_sleeve_type: sleeveTypeSchema.nullable(),
   last_cleaned_at: dateTime().nullable(),
 });
