@@ -85,6 +85,19 @@
 ## UI conventions
 
 - Display art goes through `artworkOf` (client) / `coverUrlSql` (server): `audio_file_album_art_url` first, then `album_thumbnail`, then the placeholder.
+- **Page headers (#995):** one `PageHeader` per page and one h1, supplied by
+  `PageHeader.Title`. Keep raw Chakra `Heading as="h1"` inside
+  `components/layout/PageHeader/` only; ESLint enforces this boundary. Use
+  Display 600 at 28/36 on desktop and 20/24 in the phone bar. Put an optional
+  count or summary on the title baseline in the Labels face, 13/20, muted.
+  Close the header with a 2px ink rule on desktop and phones; tabs replace the
+  rule when present. Context, title, actions, tabs and toolbar compose from
+  `PageHeader` parts. The audited route inventory and migration notes are in
+  [`docs/design/headers-audit.md`](docs/design/headers-audit.md).
+- **Section headings (#995):** use `SectionHeading` for display-face section
+  titles at 18/24, with `level` choosing h2 or h3. Use `SectionLabel` for
+  Labels-face strips, overlines and bars; choose its variant and explicit line
+  height. The recap strip is a `SectionLabel`, not a `SectionHeading`.
 
 Storybook: run `just storybook` separately from the repo root for component dev
 on port 6006; set runtime `STORYBOOK_URL=http://localhost:6006` in the dev app.

@@ -1,5 +1,11 @@
 # Headers audit
 
+The adopted page-header and section-heading decisions are maintained as
+implementation conventions in [`../CLAUDE.md`](../CLAUDE.md#ui-conventions).
+That is the current reference for the one-h1 rule, title and meta typography,
+closing rule, and `SectionHeading` / `SectionLabel` split. The inventory below
+records the pre-migration audit snapshot and design context.
+
 Audit for #958, companion to #957. Snapshot: `chore/header-audit`, based on `4d251e22` (2026-11-02). This records the existing UI; it changes no product component, page, or theme. The badge audit is not on this checkout's `origin/main`, so this document establishes its own inventory / groups / conflicts / suggestion structure.
 
 ## Scope and method
