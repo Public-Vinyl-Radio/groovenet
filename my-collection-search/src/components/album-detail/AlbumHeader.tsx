@@ -156,16 +156,8 @@ export default function AlbumHeader({
 
   const badges = (
     <Flex flexWrap="wrap" alignItems="center" gap="6px" mt={isMobile ? 0 : "4px"}>
-      <GenreBadgeList
-        items={discogsGenreBadges(genres, genreLookup)}
-        kind="discogs-genre"
-        scope="albums"
-      />
-      <GenreBadgeList
-        items={discogsGenreBadges(styles, genreLookup)}
-        kind="discogs-style"
-        scope="albums"
-      />
+      <GenreBadgeList items={discogsGenreBadges(genres, genreLookup)} kind="discogs-genre" />
+      <GenreBadgeList items={discogsGenreBadges(styles, genreLookup)} kind="discogs-style" />
       {isMobile ? (
         <Box flex={1} />
       ) : (

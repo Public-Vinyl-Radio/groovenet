@@ -421,12 +421,12 @@ describe("TrackResult dense layouts", () => {
     expect(screen.getByRole("link", { name: denseTrack.artist }).getAttribute("href")).toBe(
       `/albums?q=${encodeURIComponent(denseTrack.artist)}&friend_id=${denseTrack.friend_id}`,
     );
-    expect(
-      (await screen.findByRole("link", { name: "Search tracks in Jazz" })).getAttribute("href"),
-    ).toBe("/tracks?genre=jazz");
-    expect(
-      (await screen.findByRole("link", { name: "Search tracks in Cumbia" })).getAttribute("href"),
-    ).toBe("/tracks?genre=cumbia");
+    expect((await screen.findByRole("link", { name: "Open Jazz" })).getAttribute("href")).toBe(
+      "/genres/jazz",
+    );
+    expect((await screen.findByRole("link", { name: "Open Cumbia" })).getAttribute("href")).toBe(
+      "/genres/cumbia",
+    );
     expect(screen.getByText("2 playlists")).toBeTruthy();
     expect(screen.getByText("crate-owner")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Has notes" })).toBeTruthy();
@@ -809,7 +809,7 @@ describe("TrackResult row layout (#685)", () => {
     );
 
     const tag = within(screen.getByTestId("track-genres")).getByText("Rock en Español");
-    expect(tag.getAttribute("title")).toBe("Rock en Español");
+    expect(tag.getAttribute("title")).toBe("Open Rock en Español");
   });
 
   it("wraps genre tags on the card instead of shrinking them", () => {

@@ -4,7 +4,7 @@ import React from "react";
 import NextLink from "next/link";
 import { Box, Flex, type ConditionalValue } from "@chakra-ui/react";
 import { CategoryTag, CountTag, type TagSize } from "@/components/ui/RoleTags";
-import { genreSearchHref, type GenreBadgeItem, type GenreSearchScope } from "@/lib/genres/links";
+import { genreHref, type GenreBadgeItem } from "@/lib/genres/links";
 
 /**
  * Which field a badge shows. All three look the same, a Category tag (#963);
@@ -15,19 +15,17 @@ export type GenreBadgeKind = "track" | "discogs-genre" | "discogs-style";
 export type GenreBadgeProps = {
   item: GenreBadgeItem;
   kind: GenreBadgeKind;
-  /** Track search for track rows, album search for album cards (#376). */
-  scope: GenreSearchScope;
   size?: ConditionalValue<TagSize>;
   /** How many records carry it (the playlist stats), shown as "Cumbia · 12". */
   count?: number;
 };
 
 /**
- * A genre that opens search filtered by it (#376). A value the taxonomy
+ * A genre that opens its genre page (#376, #1013). A value the taxonomy
  * doesn't know, an unreconciled `local_tags` entry, stays plain text with a
  * dashed ring.
  */
-export default function GenreBadge({ item, kind, scope, size = "sm", count }: GenreBadgeProps) {
+export default function GenreBadge({ item, kind, size = "sm", count }: GenreBadgeProps) {
   const text = count === undefined ? item.label : `${item.label} · ${count.toLocaleString()}`;
   if (!item.slug) {
     return (
@@ -44,11 +42,11 @@ export default function GenreBadge({ item, kind, scope, size = "sm", count }: Ge
   return (
     <CategoryTag asChild size={size}>
       <NextLink
-        href={genreSearchHref(item.slug, scope)}
+        href={genreHref(item.slug)}
         // Rows have their own click and selection handlers; a badge is its own target.
         onClick={(event) => event.stopPropagation()}
-        aria-label={`Search ${scope} in ${item.label}`}
-        title={text}
+        aria-label={`Open ${item.label}`}
+        title={`Open ${item.label}`}
       >
         {text}
       </NextLink>
@@ -73,7 +71,6 @@ export function GenreBadgeList({
 export type GenreBadgeRowProps = {
   items: GenreBadgeItem[];
   kind: GenreBadgeKind;
-  scope: GenreSearchScope;
   /** Badges kept on the one-line mobile row before folding the rest into "+N" (#470). */
   mobileLimit?: number;
   size?: GenreBadgeProps["size"];
@@ -100,14 +97,13 @@ const tagEllipsis = {
 export function GenreBadgeRow({
   items,
   kind,
-  scope,
   mobileLimit = 3,
   size,
   "data-testid": testId,
 }: GenreBadgeRowProps) {
   if (items.length === 0) return null;
   const overflow = Math.max(0, items.length - mobileLimit);
-  const badge = { kind, scope, size };
+  const badge = { kind, size };
   const mobileItems = overflow > 0 ? items.slice(0, mobileLimit) : items;
 
   return (

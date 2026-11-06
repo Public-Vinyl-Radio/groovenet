@@ -118,7 +118,7 @@ describe("CommandPalette (#472)", () => {
     mocks.searchAlbums.mockResolvedValue({ hits: [] });
   });
 
-  it("shows a genre's open and search actions, and opens it on select", async () => {
+  it("shows one row per genre, and opens the genre page on select", async () => {
     mocks.searchTracks.mockResolvedValue({ hits: [track()] });
     const { user } = renderWithProviders(<CommandPalette />);
 
@@ -126,8 +126,7 @@ describe("CommandPalette (#472)", () => {
 
     expect(await screen.findByText("Shoegaze")).toBeTruthy();
     expect(screen.getAllByText(/Rock › Shoegaze · 12 tracks/).length).toBeGreaterThan(0);
-    expect(screen.getByText("Search Tracks in Shoegaze")).toBeTruthy();
-    expect(screen.getByText("Search Albums in Shoegaze")).toBeTruthy();
+    expect(screen.queryByText(/Search (Tracks|Albums) in Shoegaze/)).toBeNull();
 
     await user.click(screen.getByText("Shoegaze"));
     expect(mocks.push).toHaveBeenCalledWith("/genres/shoegaze");
@@ -138,30 +137,6 @@ describe("CommandPalette (#472)", () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "shoegazer");
     expect(await screen.findByText("Shoegaze")).toBeTruthy();
-  });
-
-  it("opens the genre's track search href", async () => {
-    const { user } = renderWithProviders(<CommandPalette />);
-    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "shoe");
-    await screen.findByText("Shoegaze");
-
-    await user.click(screen.getByText("Search Tracks in Shoegaze"));
-    expect(mocks.push).toHaveBeenCalledWith("/tracks?genre=shoegaze");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
-      command: "search_genre_tracks",
-    });
-  });
-
-  it("opens the genre's album search href", async () => {
-    const { user } = renderWithProviders(<CommandPalette />);
-    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "shoe");
-    await screen.findByText("Shoegaze");
-
-    await user.click(screen.getByText("Search Albums in Shoegaze"));
-    expect(mocks.push).toHaveBeenCalledWith("/albums?genre=shoegaze");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
-      command: "search_genre_albums",
-    });
   });
 
   it("lists album matches and opens one", async () => {

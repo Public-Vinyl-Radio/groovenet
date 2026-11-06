@@ -1,6 +1,7 @@
 import React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import NextLink from "next/link";
+import { genreHref } from "@/lib/genres/links";
 import { Box, Flex, Grid, Heading, Stack, Text, chakra } from "@chakra-ui/react";
 import { LuEllipsisVertical } from "react-icons/lu";
 import {
@@ -97,9 +98,9 @@ function CategoryRole() {
       {sizes.map((size) => (
         <React.Fragment key={size}>
           <Row label={`linked · ${size}`}>
-            {["Cumbia", "Chicha", "Bossa nova"].map((genre) => (
-              <CategoryTag key={genre} asChild size={size}>
-                <NextLink href={`/tracks?genre=${genre.toLowerCase()}`}>{genre}</NextLink>
+            {["Cumbia", "Chicha", "Bossa nova"].map((label) => (
+              <CategoryTag key={label} asChild size={size}>
+                <NextLink href={genreHref(label.toLowerCase())}>{label}</NextLink>
               </CategoryTag>
             ))}
           </Row>
