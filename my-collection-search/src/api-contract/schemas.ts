@@ -48,6 +48,26 @@ import {
 } from "@groovenet/contracts";
 import { z } from "zod";
 import {
+  genreProposalActionSchema as sharedGenreProposalActionSchema,
+  genreProposalMethodSchema as sharedGenreProposalMethodSchema,
+  genreProposalStatusSchema as sharedGenreProposalStatusSchema,
+  genreReconciliationRunRequestSchema,
+  genreReconciliationRunSchema as sharedGenreReconciliationRunSchema,
+  genreProposalSchema as sharedGenreProposalSchema,
+  genreProposalQuerySchema as sharedGenreProposalQuerySchema,
+  genreProposalListResponseSchema as sharedGenreProposalListResponseSchema,
+  genreProposalUpdateSchema as sharedGenreProposalUpdateSchema,
+  genreProposalDecisionRequestSchema,
+  genreProposalSnapshotSchema as sharedGenreProposalSnapshotSchema,
+  genreProposalDecisionResponseSchema as sharedGenreProposalDecisionResponseSchema,
+  genreProposalRestoreRequestSchema,
+  genreProposalRestoreResponseSchema as sharedGenreProposalRestoreResponseSchema,
+  genreProposalTracksResponseSchema as sharedGenreProposalTracksResponseSchema,
+  genreProposalApplyRequestSchema,
+  genreProposalApplyResponseSchema as sharedGenreProposalApplyResponseSchema,
+  genreReconciliationCoverageSchema as sharedGenreReconciliationCoverageSchema,
+} from "@groovenet/contracts";
+import {
   albumArtMatchStatusSchema,
   albumArtSourceSchema,
   albumAppleMusicArtPreviewSchema,
@@ -1830,201 +1850,62 @@ export const setDerivationViewQuerySchema = z.object({
 
 // ─── Genre reconciliation (#372) ─────────────────────────────────────────────
 
-/** A timestamptz column: pg hands back a Date; the wire carries ISO 8601. */
-const timestampSchema = z.preprocess(
+export const genreProposalActionSchema = sharedGenreProposalActionSchema;
+export const genreProposalMethodSchema = sharedGenreProposalMethodSchema;
+export const genreProposalStatusSchema = sharedGenreProposalStatusSchema;
+export const genreReconciliationRunBodySchema = genreReconciliationRunRequestSchema;
+const reconciliationTimestampSchema = z.preprocess(
   (value) => (value instanceof Date ? value.toISOString() : value),
   z.string(),
 );
-
-export const genreProposalActionSchema = z.enum(["map", "new_genre", "descriptor", "drop"]);
-export const genreProposalMethodSchema = z.enum(["exact", "ai", "manual"]);
-export const genreProposalStatusSchema = z.enum(["pending", "accepted", "rejected", "edited"]);
-
-export const genreReconciliationRunBodySchema = z
-  .object({
-    ai: z.boolean().optional(),
-    new_genre_min_tracks: z.number().int().min(1).optional(),
-    limit: z.number().int().min(1).nullable().optional(),
-    refresh: z.boolean().optional(),
-    friend_id: z.number().int().min(1).nullable().optional(),
-  })
-  .strict();
-
-export const genreReconciliationRunSchema = z.object({
-  id: z.string().uuid(),
-  status: z.enum(["running", "completed", "failed"]),
-  options: z.object({
-    ai: z.boolean(),
-    new_genre_min_tracks: z.number().int(),
-    limit: z.number().int().nullable(),
-    refresh: z.boolean(),
-    // Runs from before the friend scope have no friend_id: they covered everyone.
-    friend_id: z.number().int().nullable().default(null),
-  }),
-  model: z.string().nullable(),
-  distinct_values: z.number().int(),
-  exact_matches: z.number().int(),
-  kept: z.number().int(),
-  ai_pending: z.number().int(),
-  ai_proposed: z.number().int(),
-  ai_failed: z.number().int(),
-  ai_batches: z.number().int(),
-  input_tokens: z.number().int(),
-  output_tokens: z.number().int(),
-  cost_usd: z.number(),
-  error: z.string().nullable(),
-  started_at: timestampSchema,
-  updated_at: timestampSchema,
-  finished_at: timestampSchema.nullable(),
-});
-
-export const genreProposalSchema = z.object({
-  id: z.string().uuid(),
-  value_normalized: z.string(),
-  raw_examples: z.array(z.string()),
-  track_count: z.number().int(),
-  action: genreProposalActionSchema,
-  target_genre_ids: z.array(z.string().uuid()),
-  target_genres: z.array(
-    z.object({ id: z.string().uuid(), name: z.string(), parent_name: z.string().nullable() }),
-  ),
-  proposed_genre_name: z.string().nullable(),
-  proposed_parent_id: z.string().uuid().nullable(),
-  proposed_parent_name: z.string().nullable(),
-  confidence: z.number().nullable(),
-  method: genreProposalMethodSchema,
-  status: genreProposalStatusSchema,
-  run_id: z.string().uuid().nullable(),
-  created_genre_id: z.string().uuid().nullable(),
-  applied_at: timestampSchema.nullable(),
-  created_at: timestampSchema,
-  updated_at: timestampSchema,
-});
-
-export const genreProposalListQuerySchema = z.object({
-  status: genreProposalStatusSchema.optional(),
-  action: genreProposalActionSchema.optional(),
-  method: genreProposalMethodSchema.optional(),
+export const genreReconciliationRunSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const run = value as Record<string, unknown>;
+  return {
+    ...run,
+    started_at: reconciliationTimestampSchema.parse(run.started_at),
+    updated_at: reconciliationTimestampSchema.parse(run.updated_at),
+    finished_at:
+      run.finished_at == null ? null : reconciliationTimestampSchema.parse(run.finished_at),
+  };
+}, sharedGenreReconciliationRunSchema);
+export const genreProposalSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object") return value;
+  const proposal = value as Record<string, unknown>;
+  return {
+    ...proposal,
+    applied_at:
+      proposal.applied_at == null ? null : reconciliationTimestampSchema.parse(proposal.applied_at),
+    created_at: reconciliationTimestampSchema.parse(proposal.created_at),
+    updated_at: reconciliationTimestampSchema.parse(proposal.updated_at),
+  };
+}, sharedGenreProposalSchema);
+export const genreProposalListQuerySchema = sharedGenreProposalQuerySchema.extend({
   min_tracks: intFromInputSchema.pipe(z.number().int().min(0)).optional(),
   limit: intFromInputSchema.pipe(z.number().int().min(1).max(500)).optional(),
   offset: intFromInputSchema.pipe(z.number().int().min(0)).optional(),
 });
-
-export const genreProposalListResponseSchema = z.object({
+export const genreProposalListResponseSchema = sharedGenreProposalListResponseSchema.extend({
   proposals: z.array(genreProposalSchema),
-  total: z.number().int(),
 });
-
-const genreProposalChangeFields = {
-  status: genreProposalStatusSchema.optional(),
-  action: genreProposalActionSchema.optional(),
-  target_genres: z.array(z.string().trim().min(1)).max(10).optional(),
-  proposed_genre_name: z.string().nullable().optional(),
-  proposed_parent_id: z.string().uuid().nullable().optional(),
-};
-const hasChange = (value: Record<string, unknown>) =>
-  Object.entries(value).some(([key, field]) => key !== "id" && field !== undefined);
-
-export const genreProposalUpdateBodySchema = z
-  .object(genreProposalChangeFields)
-  .strict()
-  .refine(hasChange, { message: "Nothing to update" });
-
-export const genreProposalDecisionsBodySchema = z
-  .object({
-    decisions: z
-      .array(
-        z
-          .object({ id: z.string().uuid(), ...genreProposalChangeFields })
-          .strict()
-          .refine(hasChange, { message: "Nothing to update" }),
-      )
-      .min(1)
-      .max(500),
-  })
-  .strict();
-
-export const genreProposalSnapshotSchema = z.object({
-  id: z.string().uuid(),
-  status: genreProposalStatusSchema,
-  action: genreProposalActionSchema,
-  target_genre_ids: z.array(z.string().uuid()),
-  proposed_genre_name: z.string().nullable(),
-  proposed_parent_id: z.string().uuid().nullable(),
-  method: genreProposalMethodSchema,
-});
-
-export const genreProposalDecisionsResponseSchema = z.object({
-  proposals: z.array(genreProposalSchema),
-  previous: z.array(genreProposalSnapshotSchema),
-});
-
-export const genreProposalRestoreBodySchema = z
-  .object({ snapshots: z.array(genreProposalSnapshotSchema.strict()).min(1).max(500) })
-  .strict();
-
-export const genreProposalRestoreResponseSchema = z.object({ restored: z.number().int() });
-
+export const genreProposalUpdateBodySchema = sharedGenreProposalUpdateSchema;
+export const genreProposalDecisionsBodySchema = genreProposalDecisionRequestSchema;
+export const genreProposalSnapshotSchema = sharedGenreProposalSnapshotSchema;
+export const genreProposalDecisionsResponseSchema =
+  sharedGenreProposalDecisionResponseSchema.extend({ proposals: z.array(genreProposalSchema) });
+export const genreProposalRestoreBodySchema = genreProposalRestoreRequestSchema;
+export const genreProposalRestoreResponseSchema = sharedGenreProposalRestoreResponseSchema;
 export const genreProposalTracksQuerySchema = z.object({
   friend_id: intFromInputSchema.pipe(z.number().int().min(1)).optional(),
   limit: intFromInputSchema.pipe(z.number().int().min(1).max(20)).optional(),
 });
-
-export const genreProposalTracksResponseSchema = z.object({
-  tracks: z.array(
-    z.object({
-      track_id: z.string(),
-      friend_id: z.number().int(),
-      title: z.string(),
-      artist: z.string(),
-      album: z.string().nullable(),
-      styles: z.array(z.string()),
-    }),
-  ),
-});
-
-export const genreProposalApplyBodySchema = z
-  .object({
-    ids: z.array(z.string().uuid()).min(1).optional(),
-    friend_id: z.number().int().min(1).optional(),
-  })
-  .strict();
-
+export const genreProposalTracksResponseSchema = sharedGenreProposalTracksResponseSchema;
+export const genreProposalApplyBodySchema = genreProposalApplyRequestSchema;
+export const genreProposalApplyResponseSchema = sharedGenreProposalApplyResponseSchema;
 export const genreReconciliationCoverageQuerySchema = z.object({
   friend_id: intFromInputSchema.pipe(z.number().int().min(1)).optional(),
 });
-
-export const genreProposalApplyResponseSchema = z.object({
-  proposals_applied: z.number().int(),
-  tracks_linked: z.number().int(),
-  descriptors_added: z.number().int(),
-  aliases_added: z.number().int(),
-  genres_created: z.number().int(),
-  skipped: z.array(z.object({ id: z.string().uuid(), value: z.string(), reason: z.string() })),
-});
-
-const countsOf = <T extends string>(keys: readonly T[]) =>
-  z.object(
-    Object.fromEntries(keys.map((key) => [key, z.number().int()])) as Record<T, z.ZodNumber>,
-  );
-
-export const genreReconciliationCoverageSchema = z.object({
-  tracks: z.object({
-    with_local_tags: z.number().int(),
-    with_genres: z.number().int(),
-    descriptors_only: z.number().int(),
-    no_genre: z.number().int(),
-    unresolved: z.number().int(),
-  }),
-  values: z.object({
-    distinct: z.number().int(),
-    proposed: z.number().int(),
-    exact: z.number().int(),
-    exact_share: z.number(),
-    by_status: countsOf(genreProposalStatusSchema.options),
-    by_action: countsOf(genreProposalActionSchema.options),
-  }),
-});
+export const genreReconciliationCoverageSchema = sharedGenreReconciliationCoverageSchema;
 
 // Player browser sessions carry no worker credentials.
 export const playerWebSessionSchema = z.object({ authorized: z.boolean() });

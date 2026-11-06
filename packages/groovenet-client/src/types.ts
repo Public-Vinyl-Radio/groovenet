@@ -113,154 +113,23 @@ export type {
 } from "@groovenet/contracts";
 
 // ── Genre reconciliation (#372) ─────────────────────────────────────────────
-
-export type GenreProposalAction = "map" | "new_genre" | "descriptor" | "drop";
-export type GenreProposalMethod = "exact" | "ai" | "manual";
-export type GenreProposalStatus = "pending" | "accepted" | "rejected" | "edited";
-
-export interface GenreReconciliationRequest {
-  /** false proposes exact matches only. Default true. */
-  ai?: boolean;
-  /** Fewest tracks a value needs before the model may propose a new genre. Default 10. */
-  new_genre_min_tracks?: number;
-  /** Most values sent to the model this run. */
-  limit?: number | null;
-  /** Re-ask the model for values with a pending AI proposal. */
-  refresh?: boolean;
-  /** Only this friend's tracks; omit or null for every friend. */
-  friend_id?: number | null;
-}
-
-export interface GenreReconciliationRun {
-  id: string;
-  status: "running" | "completed" | "failed";
-  options: {
-    ai: boolean;
-    new_genre_min_tracks: number;
-    limit: number | null;
-    refresh: boolean;
-    friend_id: number | null;
-  };
-  model: string | null;
-  distinct_values: number;
-  exact_matches: number;
-  kept: number;
-  ai_pending: number;
-  ai_proposed: number;
-  ai_failed: number;
-  ai_batches: number;
-  input_tokens: number;
-  output_tokens: number;
-  cost_usd: number;
-  error: string | null;
-  started_at: string;
-  updated_at: string;
-  finished_at: string | null;
-}
-
-export interface GenreProposal {
-  id: string;
-  value_normalized: string;
-  raw_examples: string[];
-  track_count: number;
-  action: GenreProposalAction;
-  target_genre_ids: string[];
-  target_genres: Array<{ id: string; name: string; parent_name: string | null }>;
-  proposed_genre_name: string | null;
-  proposed_parent_id: string | null;
-  proposed_parent_name: string | null;
-  confidence: number | null;
-  method: GenreProposalMethod;
-  status: GenreProposalStatus;
-  run_id: string | null;
-  created_genre_id: string | null;
-  applied_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GenreProposalQuery {
-  status?: GenreProposalStatus;
-  action?: GenreProposalAction;
-  method?: GenreProposalMethod;
-  /** Only values on at least this many tracks, as counted by the latest run. */
-  min_tracks?: number;
-  limit?: number;
-  offset?: number;
-}
-
-export interface GenreProposalListResponse {
-  proposals: GenreProposal[];
-  total: number;
-}
-
-export interface GenreProposalUpdate {
-  status?: GenreProposalStatus;
-  action?: GenreProposalAction;
-  /** Genre ids, or names resolved through the taxonomy. */
-  target_genres?: string[];
-  proposed_genre_name?: string | null;
-  proposed_parent_id?: string | null;
-}
-
-export interface GenreProposalDecision extends GenreProposalUpdate {
-  id: string;
-}
-
-/** A proposal's reviewable state, as undo restores it. */
-export type GenreProposalSnapshot = Pick<
+export type {
+  GenreProposalAction,
+  GenreProposalMethod,
+  GenreProposalStatus,
+  GenreReconciliationRequest,
+  GenreReconciliationRun,
   GenreProposal,
-  | "id"
-  | "status"
-  | "action"
-  | "target_genre_ids"
-  | "proposed_genre_name"
-  | "proposed_parent_id"
-  | "method"
->;
-
-export interface GenreProposalDecisionResult {
-  /** Each proposal after the decision, in request order. */
-  proposals: GenreProposal[];
-  /** Each proposal before it; pass to restoreGenreProposals to undo. */
-  previous: GenreProposalSnapshot[];
-}
-
-export interface GenreProposalTrack {
-  track_id: string;
-  friend_id: number;
-  title: string;
-  artist: string;
-  album: string | null;
-  styles: string[];
-}
-
-export interface GenreProposalApplyResult {
-  proposals_applied: number;
-  tracks_linked: number;
-  descriptors_added: number;
-  aliases_added: number;
-  genres_created: number;
-  skipped: Array<{ id: string; value: string; reason: string }>;
-}
-
-export interface GenreReconciliationCoverage {
-  tracks: {
-    with_local_tags: number;
-    with_genres: number;
-    descriptors_only: number;
-    no_genre: number;
-    unresolved: number;
-  };
-  values: {
-    distinct: number;
-    proposed: number;
-    exact: number;
-    exact_share: number;
-    by_status: Record<GenreProposalStatus, number>;
-    by_action: Record<GenreProposalAction, number>;
-  };
-}
+  GenreProposalQuery,
+  GenreProposalListResponse,
+  GenreProposalUpdate,
+  GenreProposalDecision,
+  GenreProposalSnapshot,
+  GenreProposalDecisionResult,
+  GenreProposalTrack,
+  GenreProposalApplyResult,
+  GenreReconciliationCoverage,
+} from "@groovenet/contracts";
 
 export interface YoutubeVideo {
   id: string;

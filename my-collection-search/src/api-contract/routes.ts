@@ -3464,186 +3464,14 @@ const genreMutationContracts: ApiContractRoute[] = (
 
 // ─── Genre reconciliation (#372) ─────────────────────────────────────────────
 
-const proposalActionEnum = { type: "string", enum: ["map", "new_genre", "descriptor", "drop"] };
-const proposalMethodEnum = { type: "string", enum: ["exact", "ai", "manual"] };
-const proposalStatusEnum = { type: "string", enum: ["pending", "accepted", "rejected", "edited"] };
-const nullableUuid = { type: ["string", "null"], format: "uuid" };
-const nullableString = { type: ["string", "null"] };
-const dateTime = { type: "string", format: "date-time" };
+const proposalActionEnum = componentRef("GenreProposalAction");
+const proposalMethodEnum = componentRef("GenreProposalMethod");
+const proposalStatusEnum = componentRef("GenreProposalStatus");
+const genreReconciliationRunSchemaObject = componentRef("GenreReconciliationRun");
+const genreProposalSchemaObject = componentRef("GenreProposal");
+const genreProposalSnapshotSchemaObject = componentRef("GenreProposalSnapshot");
+const genreReconciliationCoverageSchemaObject = componentRef("GenreReconciliationCoverage");
 const integer = { type: "integer" };
-
-const genreReconciliationRunSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    id: genreUuid,
-    status: { type: "string", enum: ["running", "completed", "failed"] },
-    options: {
-      type: "object",
-      properties: {
-        ai: { type: "boolean" },
-        new_genre_min_tracks: integer,
-        limit: { type: ["integer", "null"] },
-        refresh: { type: "boolean" },
-        friend_id: {
-          type: ["integer", "null"],
-          description: "The run's scope; null for every friend",
-        },
-      },
-      required: ["ai", "new_genre_min_tracks", "limit", "refresh", "friend_id"],
-    },
-    model: nullableString,
-    distinct_values: { ...integer, description: "Distinct normalised local_tags values" },
-    exact_matches: {
-      ...integer,
-      description: "Values proposed by exact taxonomy name or alias match",
-    },
-    kept: { ...integer, description: "Values whose reviewed or pending proposal was kept" },
-    ai_pending: {
-      ...integer,
-      description: "Values left for a later run (AI off, or over `limit`)",
-    },
-    ai_proposed: integer,
-    ai_failed: integer,
-    ai_batches: integer,
-    input_tokens: integer,
-    output_tokens: integer,
-    cost_usd: { type: "number" },
-    error: nullableString,
-    started_at: dateTime,
-    updated_at: dateTime,
-    finished_at: { type: ["string", "null"], format: "date-time" },
-  },
-  required: [
-    "id",
-    "status",
-    "options",
-    "model",
-    "distinct_values",
-    "exact_matches",
-    "kept",
-    "ai_pending",
-    "ai_proposed",
-    "ai_failed",
-    "ai_batches",
-    "input_tokens",
-    "output_tokens",
-    "cost_usd",
-    "error",
-    "started_at",
-    "updated_at",
-    "finished_at",
-  ],
-};
-
-const genreProposalSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    id: genreUuid,
-    value_normalized: { type: "string" },
-    raw_examples: { type: "array", items: { type: "string" } },
-    track_count: integer,
-    action: proposalActionEnum,
-    target_genre_ids: { type: "array", items: genreUuid },
-    target_genres: {
-      type: "array",
-      description: "Target genres that still exist, in order",
-      items: {
-        type: "object",
-        properties: { id: genreUuid, name: { type: "string" }, parent_name: nullableString },
-        required: ["id", "name", "parent_name"],
-      },
-    },
-    proposed_genre_name: { ...nullableString, description: "For new_genre: the genre to create" },
-    proposed_parent_id: nullableUuid,
-    proposed_parent_name: nullableString,
-    confidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
-    method: proposalMethodEnum,
-    status: proposalStatusEnum,
-    run_id: nullableUuid,
-    created_genre_id: nullableUuid,
-    applied_at: { type: ["string", "null"], format: "date-time" },
-    created_at: dateTime,
-    updated_at: dateTime,
-  },
-  required: [
-    "id",
-    "value_normalized",
-    "raw_examples",
-    "track_count",
-    "action",
-    "target_genre_ids",
-    "target_genres",
-    "proposed_genre_name",
-    "proposed_parent_id",
-    "proposed_parent_name",
-    "confidence",
-    "method",
-    "status",
-    "run_id",
-    "created_genre_id",
-    "applied_at",
-    "created_at",
-    "updated_at",
-  ],
-};
-
-const genreProposalSnapshotSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    id: genreUuid,
-    status: proposalStatusEnum,
-    action: proposalActionEnum,
-    target_genre_ids: { type: "array", items: genreUuid },
-    proposed_genre_name: nullableString,
-    proposed_parent_id: nullableUuid,
-    method: proposalMethodEnum,
-  },
-  required: [
-    "id",
-    "status",
-    "action",
-    "target_genre_ids",
-    "proposed_genre_name",
-    "proposed_parent_id",
-    "method",
-  ],
-  additionalProperties: false,
-};
-
-const countsObject = (keys: string[]) => ({
-  type: "object",
-  properties: Object.fromEntries(keys.map((key) => [key, integer])),
-  required: keys,
-});
-
-const genreReconciliationCoverageSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    tracks: {
-      ...countsObject([
-        "with_local_tags",
-        "with_genres",
-        "descriptors_only",
-        "no_genre",
-        "unresolved",
-      ]),
-      description: "Every track with local_tags is in exactly one of the last four buckets",
-    },
-    values: {
-      type: "object",
-      properties: {
-        distinct: integer,
-        proposed: integer,
-        exact: integer,
-        exact_share: { type: "number", minimum: 0, maximum: 1 },
-        by_status: countsObject(["pending", "accepted", "rejected", "edited"]),
-        by_action: countsObject(["map", "new_genre", "descriptor", "drop"]),
-      },
-      required: ["distinct", "proposed", "exact", "exact_share", "by_status", "by_action"],
-    },
-  },
-  required: ["tracks", "values"],
-};
 
 const reconciliationError = (description: string) => ({
   description,
@@ -3666,40 +3494,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: false,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                ai: {
-                  type: "boolean",
-                  default: true,
-                  description: "false proposes exact matches only",
-                },
-                new_genre_min_tracks: {
-                  type: "integer",
-                  minimum: 1,
-                  default: 10,
-                  description:
-                    "Fewest tracks a value needs before the model may propose a new genre for it",
-                },
-                limit: {
-                  type: ["integer", "null"],
-                  minimum: 1,
-                  description: "Most values sent to the model this run",
-                },
-                refresh: {
-                  type: "boolean",
-                  default: false,
-                  description: "Re-ask the model for values with a pending AI proposal",
-                },
-                friend_id: {
-                  type: ["integer", "null"],
-                  minimum: 1,
-                  description:
-                    "Only this friend's tracks; omit or null for every friend. Proposals stay global, but their track counts then describe this scope.",
-                },
-              },
-              additionalProperties: false,
-            },
+            schema: componentRef("GenreReconciliationRunRequest"),
           },
         },
       },
@@ -3844,25 +3639,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              description:
-                "Changing action, target_genres or the proposed genre marks the proposal `edited` (method `manual`), which apply treats like `accepted`.",
-              properties: {
-                status: proposalStatusEnum,
-                action: proposalActionEnum,
-                target_genres: {
-                  type: "array",
-                  maxItems: 10,
-                  items: { type: "string", minLength: 1 },
-                  description:
-                    "Genre ids, or names resolved through the taxonomy's names and aliases",
-                },
-                proposed_genre_name: nullableString,
-                proposed_parent_id: nullableUuid,
-              },
-              additionalProperties: false,
-            },
+            schema: componentRef("GenreProposalUpdate"),
             example: { action: "map", target_genres: ["Cumbia"] },
           },
         },
@@ -3893,24 +3670,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: false,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                ids: {
-                  type: "array",
-                  minItems: 1,
-                  items: genreUuid,
-                  description: "Only these proposals; all accepted and edited ones when omitted",
-                },
-                friend_id: {
-                  type: "integer",
-                  minimum: 1,
-                  description:
-                    "Only link this friend's tracks; aliases and created genres are global either way",
-                },
-              },
-              additionalProperties: false,
-            },
+            schema: componentRef("GenreProposalApplyRequest"),
           },
         },
       },
@@ -3919,36 +3679,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
           description: "What was written. Repeatable: a second apply adds only what is new.",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  proposals_applied: integer,
-                  tracks_linked: integer,
-                  descriptors_added: integer,
-                  aliases_added: integer,
-                  genres_created: integer,
-                  skipped: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: genreUuid,
-                        value: { type: "string" },
-                        reason: { type: "string" },
-                      },
-                      required: ["id", "value", "reason"],
-                    },
-                  },
-                },
-                required: [
-                  "proposals_applied",
-                  "tracks_linked",
-                  "descriptors_added",
-                  "aliases_added",
-                  "genres_created",
-                  "skipped",
-                ],
-              },
+              schema: componentRef("GenreProposalApplyResponse"),
             },
           },
         },
@@ -3970,37 +3701,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                decisions: {
-                  type: "array",
-                  minItems: 1,
-                  maxItems: 500,
-                  description:
-                    "Each is a PATCH /api/genres/proposals/{id} body plus the id. All or none are written.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: genreUuid,
-                      status: proposalStatusEnum,
-                      action: proposalActionEnum,
-                      target_genres: {
-                        type: "array",
-                        maxItems: 10,
-                        items: { type: "string", minLength: 1 },
-                      },
-                      proposed_genre_name: nullableString,
-                      proposed_parent_id: nullableUuid,
-                    },
-                    required: ["id"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-              required: ["decisions"],
-              additionalProperties: false,
-            },
+            schema: componentRef("GenreProposalDecisionRequest"),
             example: {
               decisions: [{ id: "6df3a956-f05c-4ef2-a218-0813d0ca7c47", status: "accepted" }],
             },
@@ -4044,20 +3745,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                snapshots: {
-                  type: "array",
-                  minItems: 1,
-                  maxItems: 500,
-                  items: genreProposalSnapshotSchemaObject,
-                  description: "`previous` from a decisions response",
-                },
-              },
-              required: ["snapshots"],
-              additionalProperties: false,
-            },
+            schema: componentRef("GenreProposalRestoreRequest"),
           },
         },
       },
@@ -4066,7 +3754,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
           description: "How many proposals still existed and were restored",
           content: {
             "application/json": {
-              schema: { type: "object", properties: { restored: integer }, required: ["restored"] },
+              schema: componentRef("GenreProposalRestoreResponse"),
             },
           },
         },
@@ -4106,31 +3794,7 @@ const genreReconciliationContracts: ApiContractRoute[] = [
           description: "Tracks whose local_tags contain the value",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  tracks: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        track_id: { type: "string" },
-                        friend_id: integer,
-                        title: { type: "string" },
-                        artist: { type: "string" },
-                        album: nullableString,
-                        styles: {
-                          type: "array",
-                          items: { type: "string" },
-                          description: "The album's Discogs styles",
-                        },
-                      },
-                      required: ["track_id", "friend_id", "title", "artist", "album", "styles"],
-                    },
-                  },
-                },
-                required: ["tracks"],
-              },
+              schema: componentRef("GenreProposalTracksResponse"),
             },
           },
         },
