@@ -18,6 +18,22 @@ export type {
 } from "@groovenet/contracts";
 
 export type {
+  Job,
+  JobData,
+  JobDetails,
+  JobEvent,
+  JobLogsResponse,
+  JobOutcomeResponse,
+  JobState,
+  JobStateFilter,
+  JobsClearResponse,
+  JobsListQuery,
+  JobsListResponse,
+  JobsPagination,
+  JobsSummary,
+} from "@groovenet/contracts";
+
+export type {
   BackupPolicy,
   BackupPolicyUpdate,
   BackupPolicyGetResponse,

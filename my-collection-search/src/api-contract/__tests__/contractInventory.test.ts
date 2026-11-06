@@ -17,6 +17,7 @@ import {
   trackJsonSchemas,
   backupJsonSchemas,
   genreReconciliationJsonSchemas,
+  jobJsonSchemas,
 } from "@groovenet/contracts";
 import { getOpenApiDocument } from "../openapi";
 
@@ -76,6 +77,7 @@ const SHARED_COMPONENTS = new Set(
     ...playerJsonSchemas,
     ...backupJsonSchemas,
     ...genreReconciliationJsonSchemas,
+    ...jobJsonSchemas,
   }),
 );
 

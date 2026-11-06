@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import NextLink from "next/link";
-import { Box, Card, Flex, Link, Progress, SimpleGrid, Text, VStack } from "@chakra-ui/react";
+import { Box, Card, Flex, Progress, SimpleGrid, Text, VStack } from "@chakra-ui/react";
 
 import GenreBadge from "@/components/GenreBadge";
 import { MetaTag } from "@/components/ui/RoleTags";
@@ -10,7 +9,6 @@ import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import {
   countGenreBadges,
   discogsGenreBadges,
-  genreSearchHref,
   primaryGenreBadges,
   type GenreBadgeCount,
   type GenreBadgeItem,
@@ -135,7 +133,6 @@ function CountedGenreBadges({
           item={item}
           count={item.count}
           kind={kind}
-          scope="tracks"
           size={size}
         />
       ))}
@@ -181,20 +178,7 @@ export default function PlaylistStatsPanel({ tracks }: { tracks: Track[] }) {
           {topGenre && (
             <>
               <Text color="fg.muted">·</Text>
-              {topGenre.slug ? (
-                <Link
-                  asChild
-                  focusVisibleRing="outside"
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={`Search tracks in ${topGenre.label}`}
-                >
-                  <NextLink href={genreSearchHref(topGenre.slug, "tracks")}>
-                    {topGenre.label}
-                  </NextLink>
-                </Link>
-              ) : (
-                <Text>{topGenre.label}</Text>
-              )}
+              <GenreBadge item={topGenre} kind="track" />
             </>
           )}
           <Text color="accent.fg" ml="auto" fontWeight="medium">

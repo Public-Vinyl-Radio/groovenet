@@ -28,7 +28,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | spins | 6 | Client and CLI already declared `SpinSession` and friends by hand. |
 | done | settings (AI prompt, appearance, recommendations, gamdl) | 10 | Flat settings documents. |
 | done | backups | 10 | Settings + status payloads; one binary download stays an exception. |
-| 5 | background jobs | 5 | Job entity also shapes the SSE events. |
+| done | background jobs | 5 | Job entity also shapes the SSE events. |
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
 | done | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
 | 8 | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
@@ -110,12 +110,12 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/genres/reconciliation/runs/{id}` | genre reconciliation | contracts | #1019 |
 | GET | `/api/health` | system | #552 | Auto-discovered only; no contract entry yet. |
 | GET | `/api/health/backup` | backups | contracts |  |
-| DELETE | `/api/jobs` | background jobs | #552 |  |
-| GET | `/api/jobs` | background jobs | #552 |  |
-| GET | `/api/jobs/{jobId}` | background jobs | #552 |  |
-| GET | `/api/jobs/{jobId}/logs` | background jobs | #552 | Auto-discovered only; no contract entry yet. |
-| POST | `/api/jobs/{jobId}/outcome` | background jobs | #552 |  |
-| GET | `/api/jobs/events` | background jobs | exception | Server-sent event stream; event payloads follow the job entity, migrated with background jobs. |
+| DELETE | `/api/jobs` | background jobs | contracts |  |
+| GET | `/api/jobs` | background jobs | contracts |  |
+| GET | `/api/jobs/{jobId}` | background jobs | contracts |  |
+| GET | `/api/jobs/{jobId}/logs` | background jobs | contracts | Contract entry added with the migration. |
+| POST | `/api/jobs/{jobId}/outcome` | background jobs | contracts | Bodyless; response shared with `download-worker`'s Python client. |
+| GET | `/api/jobs/events` | background jobs | exception | Server-sent event stream; event payloads are the shared `JobEvent` schema. |
 | GET | `/api/openapi.json` | API docs | exception | Serves the generated spec itself. |
 | GET | `/api/openapi.mobile.json` | API docs | exception | Serves the generated spec itself. |
 | DELETE | `/api/playlists` | playlists | contracts |  |

@@ -106,10 +106,10 @@ describe("PlaylistStatsPanel (#480)", () => {
 
     const genreCard = await findDesktopCard("Top Genres");
     const link = within(genreCard).getByRole("link", {
-      name: "Search tracks in Latin",
+      name: "Open Latin",
       hidden: true,
     });
-    expect(link.getAttribute("href")).toBe("/tracks?genre=latin");
+    expect(link.getAttribute("href")).toBe("/genres/latin");
   });
 
   it("leaves a label the taxonomy doesn't know as a plain, non-link badge", async () => {
@@ -126,15 +126,15 @@ describe("PlaylistStatsPanel (#480)", () => {
     const trackGenreCard = await findDesktopCard("Top track genres");
     // Track 1's track_genres "Cumbia" and track 2's style fallback "Cumbia" are the same genre.
     const cumbia = within(trackGenreCard).getByRole("link", {
-      name: "Search tracks in Cumbia",
+      name: "Open Cumbia",
       hidden: true,
     });
-    expect(cumbia.getAttribute("href")).toBe("/tracks?genre=cumbia");
+    expect(cumbia.getAttribute("href")).toBe("/genres/cumbia");
     const chicha = within(trackGenreCard).getByRole("link", {
-      name: "Search tracks in Chicha",
+      name: "Open Chicha",
       hidden: true,
     });
-    expect(chicha.getAttribute("href")).toBe("/tracks?genre=chicha");
+    expect(chicha.getAttribute("href")).toBe("/genres/chicha");
   });
 
   it("shows an empty state when no track has a genre", async () => {
@@ -147,15 +147,15 @@ describe("PlaylistStatsPanel (#480)", () => {
   it("links the top genre in the mobile collapsed summary", async () => {
     renderPanel();
 
-    const summaryLink = await screen.findByRole("link", { name: "Search tracks in Latin" });
-    expect(summaryLink.getAttribute("href")).toBe("/tracks?genre=latin");
+    const summaryLink = await screen.findByRole("link", { name: "Open Latin" });
+    expect(summaryLink.getAttribute("href")).toBe("/genres/latin");
     expect(summaryLink.textContent).toBe("Latin");
   });
 
   it("is keyboard focusable", async () => {
     const { user } = renderPanel();
 
-    const summaryLink = await screen.findByRole("link", { name: "Search tracks in Latin" });
+    const summaryLink = await screen.findByRole("link", { name: "Open Latin" });
     await user.tab();
     expect(document.activeElement).toBe(summaryLink);
   });
@@ -164,7 +164,7 @@ describe("PlaylistStatsPanel (#480)", () => {
     const { user } = renderPanel();
 
     expect(screen.getByText("Show stats")).toBeTruthy();
-    const summaryLink = await screen.findByRole("link", { name: "Search tracks in Latin" });
+    const summaryLink = await screen.findByRole("link", { name: "Open Latin" });
     await user.click(summaryLink);
     expect(screen.getByText("Show stats")).toBeTruthy();
   });

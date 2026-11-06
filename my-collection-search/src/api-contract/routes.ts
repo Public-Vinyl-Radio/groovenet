@@ -132,6 +132,8 @@ import {
   genreProposalTracksQuerySchema,
   genreProposalTracksResponseSchema,
   jobDetailsResponseSchema,
+  jobLogsResponseSchema,
+  jobOutcomeResponseSchema,
   jobsClearResponseSchema,
   jobsEventsSseResponseSchema,
   jobsListQuerySchema,
@@ -4460,38 +4462,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Jobs list",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  jobs: { type: "array", items: { type: "object", additionalProperties: true } },
-                  summary: {
-                    type: "object",
-                    properties: {
-                      total: { type: "integer" },
-                      waiting: { type: "integer" },
-                      active: { type: "integer" },
-                      completed: { type: "integer" },
-                      failed: { type: "integer" },
-                    },
-                    required: ["total", "waiting", "active", "completed", "failed"],
-                  },
-                  pagination: {
-                    type: "object",
-                    properties: {
-                      limit: { type: "integer" },
-                      offset: { type: "integer" },
-                      total_filtered: { type: "integer" },
-                      has_more: { type: "boolean" },
-                    },
-                    required: ["limit", "offset", "total_filtered", "has_more"],
-                  },
-                },
-                required: ["jobs", "summary"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("JobsListResponse") } },
         },
         "500": {
           description: "Server error",
@@ -4512,18 +4483,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Jobs cleared",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean" },
-                  message: { type: "string" },
-                },
-                required: ["success", "message"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("JobsClearResponse") } },
         },
         "500": {
           description: "Server error",
@@ -4552,71 +4512,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Job details",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  id: { type: "string", example: "job_8f21c4" },
-                  name: { type: "string", example: "download-audio" },
-                  state: {
-                    type: "string",
-                    // The handler maps queued -> waiting and processing ->
-                    // active before returning; these are the only values.
-                    enum: ["waiting", "active", "completed", "failed"],
-                    example: "completed",
-                  },
-                  queue: {
-                    type: "string",
-                    description: 'Always "download"; this API exposes one queue.',
-                    example: "download",
-                  },
-                  data: {
-                    type: "object",
-                    description: "The job payload. Extra keys vary by job_type.",
-                    properties: {
-                      track_id: { type: "string", example: "trk_001" },
-                      friend_id: { type: "integer", example: 1 },
-                      release_id: { type: "string", example: "rel_4471" },
-                      job_type: { type: "string", example: "download-audio" },
-                      downloader: { type: "string", example: "gamdl" },
-                      source_url_key: { type: "string", example: "apple_music_url" },
-                    },
-                    additionalProperties: true,
-                  },
-                  progress: { type: "number", example: 100 },
-                  returnvalue: {
-                    type: ["object", "array", "string", "number", "boolean", "null"],
-                    example: { local_audio_url: "/audio/trk_001.m4a" },
-                  },
-                  finishedOn: {
-                    type: "number",
-                    description: "Epoch milliseconds.",
-                    example: 1771329678000,
-                  },
-                  processedOn: {
-                    type: "number",
-                    description: "Epoch milliseconds.",
-                    example: 1771329604000,
-                  },
-                  failedReason: {
-                    type: "string",
-                    example: "gamdl error: Track not found on Apple Music",
-                  },
-                  attemptsMade: { type: "integer", example: 1 },
-                  delay: { type: "number", example: 0 },
-                  timestamp: {
-                    type: "number",
-                    description: "Epoch milliseconds when the job was enqueued.",
-                    example: 1771329600000,
-                  },
-                  opts: { type: "object", additionalProperties: true },
-                  logs: { type: "array", items: { type: "object", additionalProperties: true } },
-                },
-                required: ["id", "name", "state", "queue", "data", "progress", "attemptsMade"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("JobDetails") } },
         },
         "400": {
           description: "Missing job id",
@@ -4634,12 +4530,32 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "getJobLogs",
+    method: "get",
+    path: "/api/jobs/{jobId}/logs",
+    summary: "Get worker log lines for a job (a status summary when none were buffered)",
+    tags: ["Jobs"],
+    successSchema: jobLogsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/jobs/{jobId}/logs"),
+      responses: {
+        "200": {
+          description: "Log lines, oldest first",
+          content: { "application/json": { schema: componentRef("JobLogsResponse") } },
+        },
+        "400": jsonError("Missing job id"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
     operationId: "reportJobOutcome",
     method: "post",
     path: "/api/jobs/{jobId}/outcome",
     summary: "download-worker announcing that a job has ended, for analytics",
     tags: ["Jobs"],
-    successSchema: z.unknown(),
+    successSchema: jobOutcomeResponseSchema,
     errorSchema: apiErrorSchema,
     // No body: the job's record in Redis is authoritative (#345).
     openapi: {
@@ -4647,21 +4563,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Whether this call recorded the outcome",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  reported: {
-                    type: "boolean",
-                    description:
-                      "False for a job already reported, or one that downloaded nothing.",
-                    example: true,
-                  },
-                },
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("JobOutcomeResponse") } },
         },
         "404": jsonError("No such job"),
         "409": jsonError("The job has not finished"),
@@ -4680,7 +4582,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       responses: {
         "200": {
           description:
-            "Server-sent events stream used by the UI to react to completed/failed jobs without polling. Initial event data is `connected`.",
+            "Server-sent events stream used by the UI to react to completed/failed jobs without polling. Initial event data is `connected`; every later `data:` payload is a `JobEvent`.",
           content: {
             "text/event-stream": {
               schema: {

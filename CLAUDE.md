@@ -3,6 +3,8 @@
 Vinyl collection manager for DJs: a Next.js app over Postgres, with Python
 services for audio analysis, downloads and playlist optimisation.
 
+For human contribution requirements, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 `AGENTS.md` is a symlink to this file, so Codex and Claude Code read the same
 guidance. Each service has its own `CLAUDE.md` with the detail for that service;
 Claude Code loads those automatically when you work in the directory. Start

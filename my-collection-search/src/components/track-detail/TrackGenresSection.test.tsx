@@ -41,14 +41,12 @@ describe("TrackGenresSection", () => {
     });
 
     const section = screen.getByTestId("track-genres-section");
+    expect(within(section).getByRole("link", { name: "Open Cumbia" }).getAttribute("href")).toBe(
+      "/genres/cumbia",
+    );
     expect(
-      within(section).getByRole("link", { name: "Search tracks in Cumbia" }).getAttribute("href"),
-    ).toBe("/tracks?genre=cumbia");
-    expect(
-      (await within(section).findByRole("link", { name: "Search tracks in Latin" })).getAttribute(
-        "href",
-      ),
-    ).toBe("/tracks?genre=latin");
+      (await within(section).findByRole("link", { name: "Open Latin" })).getAttribute("href"),
+    ).toBe("/genres/latin");
     expect(within(section).getByText("Unmapped Style").closest("a")).toBeNull();
   });
 

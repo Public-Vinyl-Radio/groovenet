@@ -6,29 +6,27 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 import GenreBadge, { GenreBadgeList, GenreBadgeRow } from "./GenreBadge";
 
 describe("GenreBadge", () => {
-  it("links a taxonomy genre to track search filtered by its slug", () => {
-    renderWithProviders(
-      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />,
-    );
+  it("links a taxonomy genre to its genre page", () => {
+    renderWithProviders(<GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" />);
 
-    const link = screen.getByRole("link", { name: "Search tracks in Cumbia" });
-    expect(link.getAttribute("href")).toBe("/tracks?genre=cumbia");
+    const link = screen.getByRole("link", { name: "Open Cumbia" });
+    expect(link.getAttribute("href")).toBe("/genres/cumbia");
     expect(link.textContent).toBe("Cumbia");
   });
 
-  it("links album badges to album search", () => {
+  it("links a Discogs badge to its genre page too", () => {
     renderWithProviders(
-      <GenreBadge item={{ label: "Latin", slug: "latin" }} kind="discogs-genre" scope="albums" />,
+      <GenreBadge item={{ label: "Latin", slug: "latin" }} kind="discogs-genre" />,
     );
 
-    expect(screen.getByRole("link").getAttribute("href")).toBe("/albums?genre=latin");
+    expect(screen.getByRole("link").getAttribute("href")).toBe("/genres/latin");
   });
 
   it("leaves a value outside the taxonomy as plain text, marked as unreconciled for a track", () => {
     renderWithProviders(
       <>
-        <GenreBadge item={{ label: "Feminist Anthem", slug: null }} kind="track" scope="tracks" />
-        <GenreBadge item={{ label: "Odd Style", slug: null }} kind="discogs-style" scope="tracks" />
+        <GenreBadge item={{ label: "Feminist Anthem", slug: null }} kind="track" />
+        <GenreBadge item={{ label: "Odd Style", slug: null }} kind="discogs-style" />
       </>,
     );
 
@@ -44,7 +42,7 @@ describe("GenreBadge", () => {
     const onRowClick = vi.fn();
     const { user } = renderWithProviders(
       <div onClick={onRowClick}>
-        <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />
+        <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" />
       </div>,
     );
 
@@ -55,7 +53,7 @@ describe("GenreBadge", () => {
 
   it("is reachable by keyboard", async () => {
     const { user } = renderWithProviders(
-      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" scope="tracks" />,
+      <GenreBadge item={{ label: "Cumbia", slug: "cumbia" }} kind="track" />,
     );
 
     await user.tab();
@@ -72,7 +70,6 @@ describe("GenreBadgeList", () => {
           { label: "Chicha", slug: null },
         ]}
         kind="track"
-        scope="tracks"
       />,
     );
 
@@ -84,7 +81,7 @@ describe("GenreBadgeList", () => {
 describe("GenreBadgeRow (#470)", () => {
   it("renders nothing for an empty list", () => {
     const { container } = renderWithProviders(
-      <GenreBadgeRow items={[]} kind="track" scope="tracks" data-testid="row" />,
+      <GenreBadgeRow items={[]} kind="track" data-testid="row" />,
     );
 
     expect(container.querySelector('[data-testid="row"]')).toBeNull();
@@ -98,7 +95,7 @@ describe("GenreBadgeRow (#470)", () => {
           { label: "Chicha", slug: null },
         ]}
         kind="track"
-        scope="tracks"
+
         data-testid="row"
       />,
     );
@@ -117,7 +114,7 @@ describe("GenreBadgeRow (#470)", () => {
           { label: "Merengue", slug: null },
         ]}
         kind="track"
-        scope="tracks"
+
         mobileLimit={3}
       />,
     );
@@ -133,20 +130,20 @@ describe("GenreBadgeRow (#470)", () => {
         <GenreBadge
           item={{ label: "Latin", slug: "latin" }}
           kind="discogs-genre"
-          scope="tracks"
+
           count={12}
         />
         <GenreBadge
           item={{ label: "Odd", slug: null }}
           kind="discogs-style"
-          scope="tracks"
+
           count={3}
         />
       </>,
     );
-    const link = screen.getByRole("link", { name: "Search tracks in Latin" });
+    const link = screen.getByRole("link", { name: "Open Latin" });
     expect(link.textContent).toBe("Latin · 12");
-    expect(link.getAttribute("title")).toBe("Latin · 12");
+    expect(link.getAttribute("title")).toBe("Open Latin");
     const plain = screen.getByText("Odd · 3");
     expect(plain.getAttribute("title")).toBe("Odd");
   });
@@ -163,7 +160,7 @@ describe("GenreBadgeRow badge props (#722)", () => {
           { label: "Merengue", slug: null },
         ]}
         kind="track"
-        scope="tracks"
+
         size="xs"
         data-testid="row"
       />,

@@ -5,7 +5,7 @@ import {
   buildGenreLookup,
   countGenreBadges,
   discogsGenreBadges,
-  genreSearchHref,
+  genreHref,
   matchGenresForPalette,
   primaryGenreBadges,
   trackGenreBadges,
@@ -61,14 +61,13 @@ describe("buildGenreLookup", () => {
   });
 });
 
-describe("genreSearchHref", () => {
-  it("opens track search at the root and album search under /albums", () => {
-    expect(genreSearchHref("cumbia", "tracks")).toBe("/tracks?genre=cumbia");
-    expect(genreSearchHref("cumbia", "albums")).toBe("/albums?genre=cumbia");
+describe("genreHref", () => {
+  it("opens the genre page", () => {
+    expect(genreHref("cumbia")).toBe("/genres/cumbia");
   });
 
   it("encodes the slug", () => {
-    expect(genreSearchHref("r&b", "tracks")).toBe("/tracks?genre=r%26b");
+    expect(genreHref("r&b / dub")).toBe("/genres/r%26b%20%2F%20dub");
   });
 });
 

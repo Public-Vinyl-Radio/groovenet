@@ -13,3 +13,4 @@ export * from "./genres.js";
 export * from "./genreReconciliation.js";
 export * from "./settings.js";
 export * from "./backups.js";
+export * from "./jobs.js";

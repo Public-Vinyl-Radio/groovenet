@@ -52,21 +52,15 @@ export const trackSearchGetQuerySchema = trackSearchQuerySchema
     genre: genreQueryParamSchema,
   });
 
-export const jobInfoSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    state: z.enum(["waiting", "active", "completed", "failed"]),
-    progress: z.number(),
-    data: z.object({}).passthrough(),
-    returnvalue: z.unknown().optional(),
-    finishedOn: z.number().optional(),
-    failedReason: z.string().optional(),
-    attemptsMade: z.number().int(),
-    processedOn: z.number().optional(),
-    queue: z.string(),
-  })
-  .passthrough();
+export {
+  jobSchema as jobInfoSchema,
+  jobDetailsSchema,
+  jobEventSchema,
+  jobLogsResponseSchema,
+  jobOutcomeResponseSchema,
+  jobsClearResponseSchema,
+  jobsListResponseSchema,
+} from "@groovenet/contracts";
 
 export const localPlaybackControlBodySchema = z.object({
   action: z.enum(["play", "pause", "resume", "stop", "seek", "volume"]),

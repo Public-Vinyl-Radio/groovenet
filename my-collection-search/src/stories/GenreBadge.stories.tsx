@@ -9,7 +9,6 @@ const meta: Meta<typeof GenreBadge> = {
   args: {
     item: { label: "Cumbia", slug: "cumbia" },
     kind: "track",
-    scope: "tracks",
     size: "sm",
   },
 };
@@ -17,7 +16,7 @@ const meta: Meta<typeof GenreBadge> = {
 export default meta;
 type Story = StoryObj<typeof GenreBadge>;
 
-/** A track genre in the taxonomy: links to `/tracks?genre=cumbia`. */
+/** A track genre in the taxonomy: links to `/genres/cumbia`. */
 export const LinkedTrackGenre: Story = {};
 
 /** An unreconciled `local_tags` value: plain text, drawn subtle. */
@@ -26,20 +25,19 @@ export const UnreconciledTrackGenre: Story = {
 };
 
 export const DiscogsGenre: Story = {
-  args: { item: { label: "Latin", slug: "latin" }, kind: "discogs-genre", scope: "albums" },
+  args: { item: { label: "Latin", slug: "latin" }, kind: "discogs-genre" },
 };
 
 export const DiscogsStyle: Story = {
   args: {
     item: { label: "Bossa Nova", slug: "bossa-nova" },
     kind: "discogs-style",
-    scope: "albums",
   },
 };
 
 /** A Discogs value the taxonomy has no name or alias for. */
 export const UnmappedDiscogsStyle: Story = {
-  args: { item: { label: "Unmapped Style", slug: null }, kind: "discogs-style", scope: "albums" },
+  args: { item: { label: "Unmapped Style", slug: null }, kind: "discogs-style" },
 };
 
 /** Tab onto a badge to see the focus ring. */
@@ -61,13 +59,13 @@ export const MixedRowCompact: Story = {
     <Flex gap={1.5} flexWrap="wrap">
       <GenreBadgeList
         kind="discogs-genre"
-        scope="tracks"
+
         size="xs"
         items={[{ label: "Latin", slug: "latin" }]}
       />
       <GenreBadgeList
         kind="discogs-style"
-        scope="tracks"
+
         size="xs"
         items={[
           { label: "Cumbia", slug: "cumbia" },
@@ -76,7 +74,7 @@ export const MixedRowCompact: Story = {
       />
       <GenreBadgeList
         kind="track"
-        scope="tracks"
+
         size="xs"
         items={[
           { label: "Psychedelic Cumbia", slug: "psychedelic-cumbia" },

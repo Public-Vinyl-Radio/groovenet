@@ -349,7 +349,7 @@ function GenreList({
         },
       }}
     >
-      <GenreBadgeList items={shown} kind={kind} scope="tracks" />
+      <GenreBadgeList items={shown} kind={kind} />
       {overflow > 0 && (
         <CountTag data-overflow="" size="sm" flexShrink={0}>
           +{overflow}
@@ -748,16 +748,16 @@ export default function TrackResult({
                 <GenreBadgeList
                   items={discogsGenres.slice(0, 4)}
                   kind="discogs-genre"
-                  scope="tracks"
+
                   size="xs"
                 />
                 <GenreBadgeList
                   items={discogsStyles.slice(0, 4)}
                   kind="discogs-style"
-                  scope="tracks"
+
                   size="xs"
                 />
-                <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" />
+                <GenreBadgeList items={trackGenres} kind="track" size="xs" />
               </Flex>
             )}
         </Flex>
@@ -881,16 +881,16 @@ export default function TrackResult({
                 <GenreBadgeList
                   items={discogsGenres.slice(0, 4)}
                   kind="discogs-genre"
-                  scope="tracks"
+
                   size="xs"
                 />
                 <GenreBadgeList
                   items={discogsStyles.slice(0, 4)}
                   kind="discogs-style"
-                  scope="tracks"
+
                   size="xs"
                 />
-                <GenreBadgeList items={trackGenres} kind="track" scope="tracks" size="xs" />
+                <GenreBadgeList items={trackGenres} kind="track" size="xs" />
               </Flex>
             )}
           {footer && <Box mt={1}>{footer}</Box>}
@@ -1384,7 +1384,7 @@ export default function TrackResult({
                 data-testid="track-genres"
                 items={genreBadges.items}
                 kind={genreBadges.kind}
-                scope="tracks"
+
                 size={{ base: "xs", md: "sm" }}
               />
             </Box>

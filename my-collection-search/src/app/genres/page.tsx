@@ -14,11 +14,12 @@ import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrackGenreFacets } from "@/hooks/useTrackGenreFacets";
 import { useRecentAlbumsQuery } from "@/hooks/useRecentAlbumsQuery";
 import { countGenreTree, type CountedGenreNode } from "@/lib/genres/tree";
+import { genreHref } from "@/lib/genres/links";
 import { arrivalGenreSummary } from "@/lib/genres/discovery";
 import { flattenGenreTree } from "@/lib/genres/options";
 import { useUsername } from "@/providers/UsernameProvider";
 
-const genreHref = (entry: CountedGenreNode) => `/genres/${encodeURIComponent(entry.node.slug)}`;
+const entryHref = (entry: CountedGenreNode) => genreHref(entry.node.slug);
 // Semantic fills repeat for large taxonomies; names and counts identify every segment.
 const fills = ["fg", "fg.muted", "border", "bg.muted", "bg.subtle"];
 
@@ -80,7 +81,7 @@ function GenreRows({ entries, depth = 0 }: { entries: CountedGenreNode[]; depth?
           borderBottomWidth="rule"
           borderColor="border"
         >
-          <NextLink href={genreHref(entry)}>
+          <NextLink href={entryHref(entry)}>
             <Text fontWeight={depth === 0 ? "semibold" : "normal"}>{entry.node.name}</Text>
             <Text fontFamily="label" fontSize="sm" color="fg.muted">
               {entry.count.toLocaleString()}
@@ -148,7 +149,7 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
         {entries.map((entry, index) => (
           <Box as="li" key={entry.node.id} minW={0}>
             <Link asChild display="flex" minH="44px" gap={2} w="full" fontSize="sm">
-              <NextLink href={genreHref(entry)}>
+              <NextLink href={entryHref(entry)}>
                 <Box
                   aria-hidden="true"
                   boxSize="14px"

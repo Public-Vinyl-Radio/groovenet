@@ -178,15 +178,15 @@ describe("album page genre badges", () => {
     queryClient.setQueryData(queryKeys.genreTree(), taxonomy);
 
     const link = await screen.findByRole("link", {
-      name: "Search albums in Electronic",
+      name: "Open Electronic",
       hidden: true,
     });
-    expect(link.getAttribute("href")).toBe("/albums?genre=electronic");
+    expect(link.getAttribute("href")).toBe("/genres/electronic");
     expect(
-      (
-        await screen.findByRole("link", { name: "Search albums in Trip-Hop", hidden: true })
-      ).getAttribute("href"),
-    ).toBe("/albums?genre=electronic");
+      (await screen.findByRole("link", { name: "Open Trip-Hop", hidden: true })).getAttribute(
+        "href",
+      ),
+    ).toBe("/genres/electronic");
     expect(screen.getByText("Trip Hop").closest("a")).toBeNull();
   });
 

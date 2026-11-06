@@ -64,7 +64,7 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
       minW={0}
       css={tagCss}
     >
-      <GenreBadgeList items={trackGenres} kind="track" scope="tracks" />
+      <GenreBadgeList items={trackGenres} kind="track" />
       {trackGenres.length === 0 && (
         <Text as="span" fontSize="sm" color="fg.muted">
           No genres yet
@@ -83,8 +83,8 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
           Album
         </Text>
       )}
-      <GenreBadgeList items={discogsGenres} kind="discogs-genre" scope="tracks" />
-      <GenreBadgeList items={discogsStyles} kind="discogs-style" scope="tracks" />
+      <GenreBadgeList items={discogsGenres} kind="discogs-genre" />
+      <GenreBadgeList items={discogsStyles} kind="discogs-style" />
     </Flex>
   );
 }
