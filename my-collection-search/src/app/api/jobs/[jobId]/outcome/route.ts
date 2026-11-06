@@ -1,3 +1,4 @@
+import type { JobOutcomeResponse } from "@groovenet/contracts";
 import { NextResponse } from "next/server";
 import { analytics } from "@/lib/analytics/server";
 import { redisJobService, type JobStatus } from "@/server/services/redisJobService";
@@ -8,6 +9,8 @@ const URL_KINDS = {
   youtube_url: "youtube",
   soundcloud_url: "soundcloud",
 } as const;
+
+const reported = (value: boolean): JobOutcomeResponse => ({ reported: value });
 
 type Downloader = (typeof DOWNLOADERS)[number];
 
@@ -44,11 +47,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
       typeof urlKey === "string" &&
       urlKey in URL_KINDS;
     if (job.job_type !== "download" || (job.status === "completed" && !downloaded)) {
-      return NextResponse.json({ reported: false });
+      return NextResponse.json(reported(false));
     }
 
     if (!(await redisJobService.markOutcomeReported(jobId))) {
-      return NextResponse.json({ reported: false });
+      return NextResponse.json(reported(false));
     }
 
     if (job.status === "completed") {
@@ -70,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
         { request },
       );
     }
-    return NextResponse.json({ reported: true });
+    return NextResponse.json(reported(true));
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error reporting job outcome:", err);

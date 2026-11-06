@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { JobEvent } from "@groovenet/contracts";
 import { redisJobService } from "@/server/services/redisJobService";
 
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
               knownCompletedJobs.add(job.job_id);
 
               // Send job completion event
-              const eventData = JSON.stringify({
+              const event: JobEvent = {
                 type: job.status === "completed" ? "job_completed" : "error",
                 job_id: job.job_id,
                 track_id: job.track_id,
@@ -35,7 +36,8 @@ export async function GET(request: NextRequest) {
                 result: job.result,
                 message: job.error,
                 timestamp: Date.now(),
-              });
+              };
+              const eventData = JSON.stringify(event);
 
               controller.enqueue(encoder.encode(`data: ${eventData}\n\n`));
             }
@@ -50,11 +52,12 @@ export async function GET(request: NextRequest) {
         } catch (error) {
           console.error("Error checking jobs in SSE:", error);
           // Send error event but continue
-          const errorData = JSON.stringify({
+          const errorEvent: JobEvent = {
             type: "error",
             message: "Error checking job status",
             timestamp: Date.now(),
-          });
+          };
+          const errorData = JSON.stringify(errorEvent);
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
         }
       }, 10000);

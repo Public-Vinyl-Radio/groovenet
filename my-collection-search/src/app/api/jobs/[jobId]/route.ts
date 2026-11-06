@@ -1,3 +1,4 @@
+import type { JobDetails } from "@groovenet/contracts";
 import { NextResponse } from "next/server";
 import { redisJobService } from "@/server/services/redisJobService";
 
@@ -15,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ jobI
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const jobDetails = {
+    const jobDetails: JobDetails = {
       id: jobStatus.job_id,
       name: jobStatus.name || jobStatus.job_type || "download-audio",
       state:
