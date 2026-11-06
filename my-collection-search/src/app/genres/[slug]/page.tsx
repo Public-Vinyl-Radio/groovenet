@@ -18,6 +18,9 @@ import {
 import { MetaTag } from "@/components/ui/RoleTags";
 import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
+import TrackActionsMenu from "@/components/TrackActionsMenu";
+import { useTrack } from "@/hooks/useTrack";
+import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import GenreBpmSpread from "@/components/genres/GenreBpmSpread";
 import { GenreCrate } from "@/components/genres/GenreCrate";
 import PageHeader from "@/components/layout/PageHeader";
@@ -39,6 +42,20 @@ const GENRE_LIST_CAP = 10;
 
 const GENRES_CRUMB = { label: "Genres", href: "/genres" };
 
+/** A track row with the same ⋯ menu as track search. */
+function GenreTrackRow({ trackId, friendId }: { trackId: string; friendId: number }) {
+  const track = useTrack(trackId, friendId);
+  return (
+    <TrackResultStore
+      trackId={trackId}
+      friendId={friendId}
+      layout="row"
+      showUsername={false}
+      buttons={track ? [<TrackActionsMenu key="menu" track={track} />] : undefined}
+    />
+  );
+}
+
 function GenreContent({
   page,
   friendId,
@@ -49,9 +66,7 @@ function GenreContent({
   const { genre, counts, stats } = page;
   const isThin = counts.albums_total < THIN_GENRE_ALBUM_THRESHOLD;
   const relatedTitle = isThin ? "Neighbouring crates" : "Related genres";
-  const [view, setView] = React.useState<GenreView>("albums");
-  const [aliasesOpen, setAliasesOpen] = React.useState(false);
-  const aliasesId = React.useId();
+  const [view, setView] = React.useState<GenreView>("tracks");
   // ssr: false reads the real viewport on the first render. This component only
   // mounts once the page query has resolved on the client, so there is no
   // hydration mismatch, and the page size (part of the query key) never flips
@@ -60,6 +75,13 @@ function GenreContent({
   const albumPageSize = isDesktop ? DESKTOP_ALBUM_PAGE_SIZE : PHONE_ALBUM_PAGE_SIZE;
   const results = useGenreResults(genre.slug, friendId, view, albumPageSize);
   const playback = useGenrePlayback(genre.slug, friendId);
+  const { fetchNextPage } = results;
+  const loadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const sentinelRef = useInfiniteScrollSentinel({
+    hasMore: results.hasNextPage,
+    loading: results.isFetchingNextPage,
+    onLoadMore: loadMore,
+  });
   const refs = results.data?.pages.flatMap((page) => page.refs) ?? [];
   const emptySlots = (columns: number) =>
     refs.length === 0 ? columns : (columns - (refs.length % columns)) % columns;
@@ -178,35 +200,6 @@ function GenreContent({
             {playback.problem}
           </Text>
         )}
-        {genre.aliases.length > 0 && (
-          <Flex align="start" gap={2} minW={0}>
-            <Text
-              id={aliasesId}
-              flex={1}
-              minW={0}
-              fontSize="sm"
-              color="fg.muted"
-              truncate={!aliasesOpen}
-              overflowWrap="anywhere"
-              py={3}
-            >
-              <Box as="span" fontFamily="label" fontSize="xs" textTransform="uppercase">
-                Also matches{" "}
-              </Box>
-              {genre.aliases.join(", ")}
-            </Text>
-            <Button
-              minH="44px"
-              variant="plain"
-              aria-controls={aliasesId}
-              aria-expanded={aliasesOpen}
-              onClick={() => setAliasesOpen(!aliasesOpen)}
-              textDecoration="underline"
-            >
-              {aliasesOpen ? "Less" : "More"}
-            </Button>
-          </Flex>
-        )}
         <Grid
           templateColumns={{ base: "minmax(0, 1fr)", xl: "minmax(0, 1fr) 300px" }}
           gap={{ base: 7, xl: 8 }}
@@ -321,12 +314,10 @@ function GenreContent({
                       css={{ containerType: "inline-size" }}
                     >
                       {refs.map((ref) => (
-                        <TrackResultStore
+                        <GenreTrackRow
                           key={`${ref.id}:${ref.friend_id}`}
                           trackId={ref.id}
                           friendId={ref.friend_id}
-                          layout="row"
-                          showUsername={false}
                         />
                       ))}
                     </Box>
@@ -351,15 +342,8 @@ function GenreContent({
                 </Button>
               </Box>
             )}
-            {results.hasNextPage && (
-              <Button
-                minH="44px"
-                loading={results.isFetchingNextPage}
-                disabled={results.isFetchingNextPage}
-                onClick={() => void results.fetchNextPage()}
-              >
-                Load more {view}
-              </Button>
+            {results.hasNextPage && !results.error && (
+              <Box ref={sentinelRef} h="1px" data-testid="genre-results-sentinel" />
             )}
           </Stack>
           <Stack as="aside" aria-label="Genre insights" gap={7} minW={0} pe={1.5}>

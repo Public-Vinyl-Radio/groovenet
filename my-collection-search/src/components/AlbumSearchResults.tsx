@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect } from "react";
 import { Box, Flex, Grid, Spinner, Text, Button } from "@chakra-ui/react";
 import { useAlbumsInfiniteQuery } from "@/hooks/useAlbumsQuery";
 import { useAlbumsByRefs } from "@/hooks/useAlbum";
+import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import AlbumResult, { ALBUM_MISSING_TAGS, type AlbumMissingKey } from "./AlbumResult";
 import AlbumTable from "./AlbumTable";
 import { useSearchParams } from "next/navigation";
@@ -28,7 +29,6 @@ export default function AlbumSearchResults({
   onSortChange?: (sort: string) => void;
 }) {
   const searchParams = useSearchParams();
-  const observerTarget = useRef<HTMLDivElement>(null);
 
   const query = searchParams.get("q") || "";
   const sort = searchParams.get("sort") || DEFAULT_ALBUM_SORT;
@@ -72,28 +72,12 @@ export default function AlbumSearchResults({
   const albums =
     albumsFromStore.length > 0 || albumsFromQuery.length === 0 ? albumsFromStore : albumsFromQuery;
 
-  // Intersection observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+  const observerTarget = useInfiniteScrollSentinel({
+    hasMore: Boolean(hasNextPage),
+    loading: isFetchingNextPage,
+    onLoadMore: loadMore,
+  });
 
   if (isLoading) {
     return (
