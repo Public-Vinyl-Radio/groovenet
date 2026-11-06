@@ -135,6 +135,18 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     onModified?.(); // Mark as modified
   };
 
+  // Insert a track at an index (appended when the index is past the end). Local until saved.
+  const insertTrack = (track: Track, index: number) => {
+    if (track.friend_id == null) return;
+    clearSortPositionChanges();
+    const trackRefs = getTrackIds();
+    const at = Math.max(0, Math.min(index, trackRefs.length));
+    const newRefs = [...trackRefs];
+    newRefs.splice(at, 0, { track_id: track.track_id, friend_id: track.friend_id });
+    updateTrackRefs(newRefs);
+    onModified?.();
+  };
+
   // Mutation for removing a single track instance from playlist by index
   const removeTrackMutation = useMutation({
     mutationFn: async (indexToRemove: number) => {
@@ -345,6 +357,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
 
   return {
     moveTrack,
+    insertTrack,
     removeFromPlaylist,
     addToPlaylist,
     clearPlaylist,

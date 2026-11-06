@@ -1,12 +1,10 @@
 "use client";
 
-import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
-
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Box, EmptyState, Flex, VStack, Skeleton, Button } from "@chakra-ui/react";
-import { StatusTag } from "@/components/ui/RoleTags";
+import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import { useQueryClient } from "@tanstack/react-query";
-import { FiHeadphones, FiSave } from "react-icons/fi";
+import { FiHeadphones, FiSave, FiZap } from "react-icons/fi";
 
 import TrackViewToggle from "@/components/TrackViewToggle";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
@@ -20,7 +18,7 @@ import PlaylistActionsMenu from "./PlaylistActionsMenu";
 import { usePlaylistSaveDialog } from "@/hooks/usePlaylistSaveDialog";
 import { usePlaylistMutations } from "@/hooks/usePlaylistMutations";
 import { usePlaylistActions } from "@/hooks/usePlaylistActions";
-import PlaylistRecommendations from "./PlaylistRecommendations";
+import SuggestionsPanel, { type SuggestionSeedRef } from "@/components/SuggestionsPanel";
 import { Track } from "@/types/track";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
@@ -63,8 +61,8 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   // New mutation and action hooks
   const {
     moveTrack,
+    insertTrack,
     removeFromPlaylist,
-    addToPlaylist,
     sortGreedy,
     sortGenetic,
     sortCohesiveBlocks,
@@ -82,15 +80,19 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     Dialog: SaveDialog,
     open: openSaveDialog,
     saveExisting,
-  } = usePlaylistSaveDialog(playlistId, () => setHasUnsavedChanges(false));
+  } = usePlaylistSaveDialog(playlistId, () => {
+    setHasUnsavedChanges(false);
+    setJustAdded([]);
+  });
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState("");
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState("");
-  const [recommendationsModalOpen, setRecommendationsModalOpen] = useState(false);
-  const [recommendationsPlaylistSnapshot, setRecommendationsPlaylistSnapshot] = useState<Track[]>(
-    [],
-  );
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  // The track suggestions follow; null suggests for the whole playlist.
+  const [suggestionSeed, setSuggestionSeed] = useState<SuggestionSeedRef | null>(null);
+  // Suggestions added since the last save, marked "Just added" in the list.
+  const [justAdded, setJustAdded] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
@@ -259,23 +261,56 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       : null;
   }, [queue, queueIndex, tracksPlaylist]);
 
+  const suggestAfter = React.useCallback((track: Track) => {
+    if (track.friend_id == null) return;
+    setSuggestionSeed({ track_id: track.track_id, friend_id: track.friend_id });
+    setSuggestionsOpen(true);
+  }, []);
+
   // Render function for playlist item menu buttons
   const renderPlaylistButtons = React.useCallback(
     (track: Track | undefined, idx: number) => {
-      return track ? (
-        <PlaylistItemMenu
-          key="menu"
-          idx={idx}
-          total={tracksPlaylist.length}
-          track={track}
-          moveTrack={moveTrack}
-          removeFromPlaylist={removeFromPlaylist}
-          size="xs"
-        />
-      ) : null;
+      if (!track) return null;
+      const isSeed =
+        suggestionsOpen &&
+        suggestionSeed?.track_id === track.track_id &&
+        suggestionSeed?.friend_id === track.friend_id;
+      const isNew = justAdded.includes(`${track.track_id}:${track.friend_id}`);
+      return (
+        <React.Fragment key="menu">
+          {isSeed && <CategoryTag size="sm">Suggesting after</CategoryTag>}
+          {isNew && (
+            <StatusTag size="sm" tone="success">
+              Just added
+            </StatusTag>
+          )}
+          <PlaylistItemMenu
+            idx={idx}
+            total={tracksPlaylist.length}
+            track={track}
+            moveTrack={moveTrack}
+            onSuggestAfter={suggestAfter}
+            removeFromPlaylist={removeFromPlaylist}
+            size="xs"
+          />
+        </React.Fragment>
+      );
     },
-    [tracksPlaylist.length, moveTrack, removeFromPlaylist],
+    [
+      tracksPlaylist.length,
+      moveTrack,
+      removeFromPlaylist,
+      suggestAfter,
+      suggestionsOpen,
+      suggestionSeed,
+      justAdded,
+    ],
   );
+
+  const addSuggestion = (track: Track, index: number) => {
+    insertTrack(track, index);
+    setJustAdded((list) => [...list, `${track.track_id}:${track.friend_id}`]);
+  };
 
   // Import JSON and append to this playlist
   const handleImportJson = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -370,10 +405,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       isCohesiveBlocksSorting={isCohesiveBlocksSorting}
       onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
       onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
-      onOpenRecommendations={() => {
-        setRecommendationsPlaylistSnapshot([...tracks]);
-        setRecommendationsModalOpen(true);
-      }}
+      onOpenRecommendations={() => setSuggestionsOpen(true)}
       enqueuePlaylist={() =>
         replacePlaylist(tracks, {
           autoplay: true,
@@ -405,18 +437,29 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       />
       <PageHeader.Title meta={meta}>{displayName}</PageHeader.Title>
       <PageHeader.Actions
-        actions={
-          hasUnsavedChanges && playlistId
+        actions={[
+          ...(trackCount > 0
+            ? [
+                {
+                  label: "Suggestions",
+                  icon: <FiZap />,
+                  onClick: () => setSuggestionsOpen((open) => !open),
+                  pressed: suggestionsOpen,
+                  phone: "menu" as const,
+                },
+              ]
+            : []),
+          ...(hasUnsavedChanges && playlistId
             ? [
                 {
                   label: "Save changes",
                   icon: <FiSave />,
                   onClick: saveExisting,
-                  desktop: "hidden",
+                  desktop: "hidden" as const,
                 },
               ]
-            : []
-        }
+            : []),
+        ]}
         phone={actionsMenu}
         desktop={actionsMenu}
       />
@@ -479,130 +522,104 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   return (
     <>
       {header}
-      <Flex align="flex-start" w="100%">
-        <Box flex="1">
-          <Flex align="center" gap={2} flexWrap="wrap">
-            {hasUnsavedChanges && (
-              <StatusTag tone="analysis" size="sm" display={{ base: "none", md: "inline-flex" }}>
-                Unsaved changes
-              </StatusTag>
-            )}
-          </Flex>
-        </Box>
-        <Flex gap={2} align="flex-start">
-          {hasUnsavedChanges && playlistId && (
-            <Button
-              size="sm"
-              colorPalette="accent"
-              display={{ base: "none", md: "inline-flex" }}
-              onClick={saveExisting}
-            >
-              Save Changes
-            </Button>
-          )}
-          {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
-        </Flex>
-      </Flex>
-      {playlistId && <SetDetailsPanel playlistId={playlistId} />}
-      <PlaylistStatsPanel tracks={tracks} />
-      <Box overflowY="auto">
-        <DraggableTrackList
-          tracksPlaylist={tracksPlaylist}
-          tracks={tracks}
-          moveTrack={moveTrack}
-          droppableId="playlist-droppable"
-          renderTrackButtons={renderPlaylistButtons}
-          currentTrackIndex={layout === "row" ? playingIndex : undefined}
-          trackResultProps={{
-            playlistCount: playlistCounts,
-            layout,
-            onRowClick:
-              layout === "row"
-                ? (_track, idx) => replacePlaylist(tracks, { autoplay: true, startIndex: idx })
-                : undefined,
-          }}
-          sortPositionChanges={sortPositionChanges}
-        />
-        {hasUnsavedChanges && playlistId && (
-          <Box display={{ base: "block", md: "none" }} h="92px" />
-        )}
-        {/* <PlaylistRecommendations
-          playlist={tracks}
-          onAddToPlaylist={addToPlaylist}
-        /> */}
-        <SaveDialog />
-        <NamePlaylistDialog
-          open={duplicateDialogOpen}
-          name={duplicateName}
-          setName={setDuplicateName}
-          trackCount={tracksPlaylist.length}
-          confirmLabel="Duplicate Playlist"
-          onConfirm={handleDuplicatePlaylist}
-          onCancel={() => setDuplicateDialogOpen(false)}
-        />
-        <NamePlaylistDialog
-          open={renameDialogOpen}
-          name={renameName}
-          setName={setRenameName}
-          confirmLabel="Rename Playlist"
-          onConfirm={handleRenamePlaylist}
-          onCancel={() => setRenameDialogOpen(false)}
-        />
-        <input
-          type="file"
-          accept=".json,application/json"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          onChange={handleImportJson}
-        />
-        <FriendSelectDialog
-          open={friendSelectDialogOpen}
-          selectedFriendId={selectedFriendId}
-          setSelectedFriendId={(id) => setSelectedFriendId(id)}
-          trackCount={pendingImport?.tracks.length}
-          onConfirm={handleFriendSelectConfirm}
-          onCancel={handleFriendSelectCancel}
-        />
-
-        {/* AI Recommendations Modal */}
-        <RetroDialog
-          open={recommendationsModalOpen}
-          onOpenChange={setRecommendationsModalOpen}
-          maxW="xl"
-          header={
-            <Flex flex="1" minW={0} gap={3} align="center" flexWrap="wrap">
-              <RetroDialogTitle
-                flex="1"
-                fontFamily="label"
-                fontSize="13px"
-                textTransform="uppercase"
-              >
-                AI Recommendations
-              </RetroDialogTitle>
-              <Button
-                minH="44px"
-                variant="outline"
-                color="bg"
-                borderColor="bg"
-                _hover={{ bg: "transparent", opacity: 0.75 }}
-                onClick={() => setRecommendationsPlaylistSnapshot([...tracks])}
-              >
-                Refresh
-              </Button>
+      <Flex direction={{ base: "column", xl: "row" }} align="flex-start" gap={4} w="100%">
+        <Box flex="1" minW={{ xl: "560px" }} w="100%">
+          <Flex align="flex-start" w="100%">
+            <Box flex="1">
+              <Flex align="center" gap={2} flexWrap="wrap">
+                {hasUnsavedChanges && (
+                  <StatusTag
+                    tone="analysis"
+                    size="sm"
+                    display={{ base: "none", md: "inline-flex" }}
+                  >
+                    Unsaved changes
+                  </StatusTag>
+                )}
+              </Flex>
+            </Box>
+            <Flex gap={2} align="flex-start">
+              {hasUnsavedChanges && playlistId && (
+                <Button
+                  size="sm"
+                  colorPalette="accent"
+                  display={{ base: "none", md: "inline-flex" }}
+                  onClick={saveExisting}
+                >
+                  Save Changes
+                </Button>
+              )}
+              {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
             </Flex>
-          }
-        >
-          <Box p={4}>
-            {recommendationsModalOpen && (
-              <PlaylistRecommendations
-                playlist={recommendationsPlaylistSnapshot}
-                limit={50}
-                onAddToPlaylist={addToPlaylist}
-              />
+          </Flex>
+          {playlistId && <SetDetailsPanel playlistId={playlistId} />}
+          <PlaylistStatsPanel tracks={tracks} />
+          <Box overflowY="auto">
+            <DraggableTrackList
+              tracksPlaylist={tracksPlaylist}
+              tracks={tracks}
+              moveTrack={moveTrack}
+              droppableId="playlist-droppable"
+              renderTrackButtons={renderPlaylistButtons}
+              currentTrackIndex={layout === "row" ? playingIndex : undefined}
+              trackResultProps={{
+                playlistCount: playlistCounts,
+                layout,
+                onRowClick:
+                  layout === "row"
+                    ? (_track, idx) => replacePlaylist(tracks, { autoplay: true, startIndex: idx })
+                    : undefined,
+              }}
+              sortPositionChanges={sortPositionChanges}
+            />
+            {hasUnsavedChanges && playlistId && (
+              <Box display={{ base: "block", md: "none" }} h="92px" />
             )}
+            <SaveDialog />
+            <NamePlaylistDialog
+              open={duplicateDialogOpen}
+              name={duplicateName}
+              setName={setDuplicateName}
+              trackCount={tracksPlaylist.length}
+              confirmLabel="Duplicate Playlist"
+              onConfirm={handleDuplicatePlaylist}
+              onCancel={() => setDuplicateDialogOpen(false)}
+            />
+            <NamePlaylistDialog
+              open={renameDialogOpen}
+              name={renameName}
+              setName={setRenameName}
+              confirmLabel="Rename Playlist"
+              onConfirm={handleRenamePlaylist}
+              onCancel={() => setRenameDialogOpen(false)}
+            />
+            <input
+              type="file"
+              accept=".json,application/json"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={handleImportJson}
+            />
+            <FriendSelectDialog
+              open={friendSelectDialogOpen}
+              selectedFriendId={selectedFriendId}
+              setSelectedFriendId={(id) => setSelectedFriendId(id)}
+              trackCount={pendingImport?.tracks.length}
+              onConfirm={handleFriendSelectConfirm}
+              onCancel={handleFriendSelectCancel}
+            />
           </Box>
-        </RetroDialog>
-      </Box>
+        </Box>
+        {suggestionsOpen && (
+          <SuggestionsPanel
+            playlist={tracks}
+            seed={suggestionSeed}
+            onSeedChange={setSuggestionSeed}
+            onAdd={addSuggestion}
+            onClose={() => setSuggestionsOpen(false)}
+          />
+        )}
+      </Flex>
     </>
   );
 };

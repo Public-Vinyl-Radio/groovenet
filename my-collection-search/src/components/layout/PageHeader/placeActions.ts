@@ -9,6 +9,8 @@ export type HeaderAction = {
   onClick: () => void;
   /** The one solid button on desktop. Only the first primary action gets it. */
   primary?: boolean;
+  /** A toggle: set while it is on, exposed as `aria-pressed`. */
+  pressed?: boolean;
   /** Greyed out while a save/run is in flight. */
   disabled?: boolean;
   /** In flight: a spinner on the desktop button, and disabled at both widths. */

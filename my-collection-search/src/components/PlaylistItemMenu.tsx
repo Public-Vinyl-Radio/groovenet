@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import NextLink from "next/link";
-import { Box, Button, Dialog, Flex, Menu, Portal } from "@chakra-ui/react";
+import { Box, Button, Menu } from "@chakra-ui/react";
 import {
   FiArrowDown,
   FiArrowUp,
@@ -11,12 +11,12 @@ import {
   FiMoreVertical,
   FiPlus,
   FiTrash,
+  FiZap,
 } from "react-icons/fi";
 import type { Track } from "@/types/track";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import PlaylistTrackActionsModal from "@/components/PlaylistTrackActionsModal";
 import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
-import PlaylistRecommendations from "./PlaylistRecommendations";
 import { analyzeTrackAsync } from "@/services/internalApi/tracks";
 import { cleanSoundcloudUrl } from "@/lib/url";
 import { toaster } from "@/components/ui/toaster";
@@ -26,6 +26,8 @@ export interface PlaylistItemMenuProps {
   total: number;
   track: Track;
   moveTrack: (fromIdx: number, toIdx: number) => void;
+  /** Opens the Suggestions panel seeded with this track. */
+  onSuggestAfter?: (track: Track) => void;
   removeFromPlaylist: (indexToRemove: number) => void;
   size?: "xs" | "sm" | "md" | "lg";
 }
@@ -35,6 +37,7 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
   total,
   track,
   moveTrack,
+  onSuggestAfter,
   removeFromPlaylist,
   size = "xs",
 }) => {
@@ -43,8 +46,6 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
   const isLast = idx === total - 1;
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [recommendationsModalOpen, setRecommendationsModalOpen] = useState(false);
-  const [recommendationsTrackSnapshot, setRecommendationsTrackSnapshot] = useState<Track[]>([]);
   const [fetchAudioLoading, setFetchAudioLoading] = useState(false);
 
   const canFetchAudio =
@@ -53,10 +54,7 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
 
   const editHref = `/tracks/${encodeURIComponent(track.track_id)}/edit?friend_id=${track.friend_id}`;
 
-  const openRecommendations = () => {
-    setRecommendationsTrackSnapshot([track]);
-    setRecommendationsModalOpen(true);
-  };
+  const suggestAfter = onSuggestAfter ? () => onSuggestAfter(track) : undefined;
 
   const handleFetchAudio = async () => {
     if (!track.friend_id) {
@@ -124,7 +122,9 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
                 ]
               : []),
           ]}
-          discover={[{ label: "AI recommendations", onClick: openRecommendations }]}
+          discover={
+            suggestAfter ? [{ label: "Suggest after this track", onClick: suggestAfter }] : []
+          }
           danger={[{ label: "Remove from playlist", onClick: () => removeFromPlaylist(idx) }]}
         />
       </Box>
@@ -162,9 +162,11 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
                   <FiDownload /> {fetchAudioLoading ? "Fetching Audio..." : "Fetch Audio"}
                 </Menu.Item>
               )}
-              <Menu.Item onSelect={openRecommendations} value="recommendations">
-                <FiPlus /> AI Recommendations
-              </Menu.Item>
+              {suggestAfter && (
+                <Menu.Item onSelect={suggestAfter} value="suggest-after">
+                  <FiZap /> Suggest after this track
+                </Menu.Item>
+              )}
               {menuDivider}
               <Menu.Item
                 onSelect={() => removeFromPlaylist(idx)}
@@ -180,43 +182,6 @@ export const PlaylistItemMenu: React.FC<PlaylistItemMenuProps> = ({
       </Box>
 
       {playlistDialog}
-
-      <Dialog.Root
-        open={recommendationsModalOpen}
-        onOpenChange={(e) => setRecommendationsModalOpen(e.open)}
-        size="xl"
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Flex justify="space-between" align="center" width="100%">
-                  <Dialog.Title>AI Recommendations for {track.title}</Dialog.Title>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setRecommendationsTrackSnapshot([track])}
-                    mr={8}
-                  >
-                    Refresh
-                  </Button>
-                </Flex>
-              </Dialog.Header>
-              <Dialog.Body maxH="70vh" overflowY="auto">
-                {recommendationsModalOpen && (
-                  <PlaylistRecommendations
-                    playlist={recommendationsTrackSnapshot}
-                    limit={50}
-                    onAddToPlaylist={(t) => openForTrack(t)}
-                  />
-                )}
-              </Dialog.Body>
-              <Dialog.CloseTrigger />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
     </>
   );
 };

@@ -16,7 +16,6 @@ vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
 }));
 vi.mock("@/services/internalApi/tracks", () => ({ analyzeTrackAsync: mocks.analyzeTrackAsync }));
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toast } }));
-vi.mock("./PlaylistRecommendations", () => ({ default: () => <div>recs</div> }));
 
 import PlaylistItemMenu from "./PlaylistItemMenu";
 
@@ -33,6 +32,7 @@ const track = {
 function setup(props: Partial<React.ComponentProps<typeof PlaylistItemMenu>> = {}) {
   const moveTrack = vi.fn();
   const removeFromPlaylist = vi.fn();
+  const onSuggestAfter = vi.fn();
   const rendered = renderWithProviders(
     <PlaylistItemMenu
       idx={1}
@@ -40,10 +40,11 @@ function setup(props: Partial<React.ComponentProps<typeof PlaylistItemMenu>> = {
       track={track}
       moveTrack={moveTrack}
       removeFromPlaylist={removeFromPlaylist}
+      onSuggestAfter={onSuggestAfter}
       {...props}
     />,
   );
-  return { ...rendered, moveTrack, removeFromPlaylist };
+  return { ...rendered, moveTrack, removeFromPlaylist, onSuggestAfter };
 }
 
 async function openModal(user: ReturnType<typeof setup>["user"]) {
@@ -109,24 +110,31 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
     expect(screen.queryByRole("button", { name: "Fetch audio" })).toBeNull();
   });
 
-  it("links Edit to the track edit page and opens recommendations", async () => {
-    const { user } = setup();
+  it("links Edit to the track edit page and suggests after the track", async () => {
+    const { user, onSuggestAfter } = setup();
     await openModal(user);
     expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(
       "/tracks/t1/edit?friend_id=7",
     );
-    await user.click(screen.getByRole("button", { name: "AI recommendations" }));
-    expect(await screen.findByText("recs")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Suggest after this track" }));
+    expect(onSuggestAfter).toHaveBeenCalledWith(track);
   });
 });
 
 describe("PlaylistItemMenu desktop dropdown", () => {
-  it("opens recommendations from the menu", async () => {
-    const { user } = setup();
+  it("suggests after the track from the menu", async () => {
+    const { user, onSuggestAfter } = setup();
     await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[1]);
     await user.click(
-      await screen.findByRole("menuitem", { name: /AI Recommendations/, hidden: true }),
+      await screen.findByRole("menuitem", { name: /Suggest after this track/, hidden: true }),
     );
-    expect(await screen.findByText("recs")).toBeTruthy();
+    expect(onSuggestAfter).toHaveBeenCalledWith(track);
+  });
+
+  it("offers no suggest entry without a handler", async () => {
+    const { user } = setup({ onSuggestAfter: undefined });
+    await user.click(screen.getAllByRole("button", { name: "Track actions", hidden: true })[1]);
+    await screen.findByRole("menuitem", { name: /Edit/, hidden: true });
+    expect(screen.queryByRole("menuitem", { name: /Suggest after/, hidden: true })).toBeNull();
   });
 });

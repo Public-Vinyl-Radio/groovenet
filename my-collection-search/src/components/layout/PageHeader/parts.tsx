@@ -183,6 +183,7 @@ export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderAc
               boxSize={headerTarget}
               minW={headerTarget}
               onClick={action.onClick}
+              aria-pressed={action.pressed}
               disabled={action.disabled || action.loading}
             >
               {action.icon}
@@ -222,6 +223,7 @@ export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderAc
               variant={action === placed.solid ? "solid" : action.ghost ? "ghost" : "outline"}
               {...(action.ghost && action !== placed.solid && { borderColor: "transparent" })}
               onClick={action.onClick}
+              aria-pressed={action.pressed}
               disabled={action.disabled}
               loading={action.loading}
             >
