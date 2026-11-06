@@ -20,6 +20,7 @@ import SearchModeMenu from "@/components/search/SearchModeMenu";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 import { useSearchResults } from "@/hooks/useSearchResults";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
+import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import { useTrack } from "@/hooks/useTrack";
 import FilterChips from "@/components/FilterChips";
 import {
@@ -329,21 +330,11 @@ const SearchResults: React.FC = () => {
     onReset: handleClearAllFilters,
   };
 
-  const observer = React.useRef<IntersectionObserver | null>(null);
-  const bottomSentinelRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!hasMore) return;
-    if (!bottomSentinelRef.current) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingMore) {
-        loadMore();
-      }
-    });
-    observer.current.observe(bottomSentinelRef.current);
-    return () => observer.current?.disconnect();
-  }, [trackInfo.length, hasMore, loadMore, loadingMore]);
+  const bottomSentinelRef = useInfiniteScrollSentinel({
+    hasMore: Boolean(hasMore),
+    loading: Boolean(loadingMore),
+    onLoadMore: loadMore,
+  });
 
   // Debounced input state
   const [debouncedValue, setDebouncedValue] = React.useState(query);
