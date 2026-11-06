@@ -30,7 +30,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | backups | 10 | Settings + status payloads; one binary download stays an exception. |
 | done | background jobs | 5 | Job entity also shapes the SSE events. |
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
-| 7 | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
+| done | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
 | done | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
 | 9 | providers & Discogs | 8 | External-provider passthroughs; least shared shape. |
 | 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
@@ -99,15 +99,15 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/genres/{id}/aliases` | genres | contracts |  |
 | POST | `/api/genres/{id}/merge` | genres | contracts |  |
 | GET | `/api/genres/{id}/similar` | genres | contracts |  |
-| GET | `/api/genres/proposals` | genre reconciliation | #552 |  |
-| PATCH | `/api/genres/proposals/{id}` | genre reconciliation | #552 |  |
-| GET | `/api/genres/proposals/{id}/tracks` | genre reconciliation | #552 |  |
-| POST | `/api/genres/proposals/apply` | genre reconciliation | #552 |  |
-| POST | `/api/genres/proposals/decisions` | genre reconciliation | #552 |  |
-| POST | `/api/genres/proposals/restore` | genre reconciliation | #552 |  |
-| GET | `/api/genres/reconciliation/coverage` | genre reconciliation | #552 |  |
-| POST | `/api/genres/reconciliation/runs` | genre reconciliation | #552 |  |
-| GET | `/api/genres/reconciliation/runs/{id}` | genre reconciliation | #552 |  |
+| GET | `/api/genres/proposals` | genre reconciliation | contracts | #1019 |
+| PATCH | `/api/genres/proposals/{id}` | genre reconciliation | contracts | #1019 |
+| GET | `/api/genres/proposals/{id}/tracks` | genre reconciliation | contracts | #1019 |
+| POST | `/api/genres/proposals/apply` | genre reconciliation | contracts | #1019 |
+| POST | `/api/genres/proposals/decisions` | genre reconciliation | contracts | #1019 |
+| POST | `/api/genres/proposals/restore` | genre reconciliation | contracts | #1019 |
+| GET | `/api/genres/reconciliation/coverage` | genre reconciliation | contracts | #1019 |
+| POST | `/api/genres/reconciliation/runs` | genre reconciliation | contracts | #1019 |
+| GET | `/api/genres/reconciliation/runs/{id}` | genre reconciliation | contracts | #1019 |
 | GET | `/api/health` | system | #552 | Auto-discovered only; no contract entry yet. |
 | GET | `/api/health/backup` | backups | contracts |  |
 | DELETE | `/api/jobs` | background jobs | contracts |  |
