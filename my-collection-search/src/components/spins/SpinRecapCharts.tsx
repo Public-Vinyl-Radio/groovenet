@@ -24,6 +24,7 @@ import {
   WEEKDAYS,
 } from "./recapCharts";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { genreHref } from "@/lib/genres/links";
 import { SpinArt } from "./listeningLogParts";
 import { Bar, DIGITAL_HATCH, inkTint, SplitSegments, Swatch } from "./recapParts";
 import { formatMonthName } from "./spinMonth";
@@ -252,10 +253,7 @@ export function RecapGenreMix({
                     textDecoration="none"
                     _hover={{ bg: "bg.muted", textDecoration: "none" }}
                   >
-                    <NextLink
-                      href={`/genres/${encodeURIComponent(row.genreId)}`}
-                      aria-label={spoken}
-                    >
+                    <NextLink href={genreHref(row.genreId)} aria-label={spoken}>
                       {content}
                       <Box as="span" display={{ base: "inline-flex", md: "none" }}>
                         <FiChevronRight aria-hidden="true" />

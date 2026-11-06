@@ -12,7 +12,7 @@ import { useGenreTaxonomyQuery, useGenreLookup } from "@/hooks/useGenreTaxonomyQ
 import { importPlaylist } from "@/services/internalApi/playlists";
 import { searchTracks } from "@/services/internalApi/tracks";
 import { searchAlbums, getAlbumWithTracks } from "@/services/internalApi/albums";
-import { matchGenresForPalette, genreSearchHref } from "@/lib/genres/links";
+import { matchGenresForPalette, genreHref } from "@/lib/genres/links";
 import type { GenreOption } from "@/lib/genres/options";
 import { isTrackSearchMode } from "@/components/search/searchModes";
 import type { Album, Track } from "@/types/track";
@@ -252,19 +252,7 @@ export default function CommandPalette() {
 
   const onOpenGenre = (genre: GenreOption) => {
     used("open_genre");
-    router.push(`/genres/${encodeURIComponent(genre.slug)}`);
-    close();
-  };
-
-  const onSearchGenreTracks = (genre: GenreOption) => {
-    used("search_genre_tracks");
-    router.push(genreSearchHref(genre.slug, "tracks"));
-    close();
-  };
-
-  const onSearchGenreAlbums = (genre: GenreOption) => {
-    used("search_genre_albums");
-    router.push(genreSearchHref(genre.slug, "albums"));
+    router.push(genreHref(genre.slug));
     close();
   };
 
@@ -453,44 +441,19 @@ export default function CommandPalette() {
                     ? `${genre.parent_name} › ${genre.name}`
                     : genre.name;
                   return (
-                    <React.Fragment key={`genre-${genre.id}`}>
-                      <Command.Item
-                        value={`${trimmedQuery} open genre ${genre.name}`}
-                        onSelect={() => onOpenGenre(genre)}
-                        className={styles.item}
-                      >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>{genre.name}</span>
-                          <span className={styles.itemMeta}>
-                            Open Genre · {breadcrumb} · {genre.track_count} tracks
-                          </span>
-                        </div>
-                      </Command.Item>
-                      <Command.Item
-                        value={`${trimmedQuery} search tracks in genre ${genre.name}`}
-                        onSelect={() => onSearchGenreTracks(genre)}
-                        className={styles.item}
-                      >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>Search Tracks in {genre.name}</span>
-                          <span className={styles.itemMeta}>
-                            {breadcrumb} · {genre.track_count} tracks
-                          </span>
-                        </div>
-                      </Command.Item>
-                      <Command.Item
-                        value={`${trimmedQuery} search albums in genre ${genre.name}`}
-                        onSelect={() => onSearchGenreAlbums(genre)}
-                        className={styles.item}
-                      >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>Search Albums in {genre.name}</span>
-                          <span className={styles.itemMeta}>
-                            {breadcrumb} · {genre.track_count} tracks
-                          </span>
-                        </div>
-                      </Command.Item>
-                    </React.Fragment>
+                    <Command.Item
+                      key={`genre-${genre.id}`}
+                      value={`${trimmedQuery} open genre ${genre.name}`}
+                      onSelect={() => onOpenGenre(genre)}
+                      className={styles.item}
+                    >
+                      <div className={styles.itemLabel}>
+                        <span className={styles.itemTitle}>{genre.name}</span>
+                        <span className={styles.itemMeta}>
+                          Open Genre · {breadcrumb} · {genre.track_count} tracks
+                        </span>
+                      </div>
+                    </Command.Item>
                   );
                 })}
               </Command.Group>

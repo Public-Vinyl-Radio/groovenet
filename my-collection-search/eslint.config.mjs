@@ -63,6 +63,25 @@ const BADGE_SYNTAX_RULES = [
   },
 ];
 
+// A genre tag is GenreBadge, and a genre page URL comes from genreHref (#1013).
+// links.ts and GenreBadge.tsx (which define them) and tests are exempt below.
+// The URL selector matches a template literal containing `/genres/`; the tag
+// selector matches by variable name, so it catches the obvious cases only.
+const GENRE_MESSAGE =
+  "Genre tags are GenreBadge (@/components/GenreBadge), and genre page URLs come from genreHref (@/lib/genres/links) (#1013).";
+const GENRE_SYNTAX_RULES = [
+  {
+    selector: "TemplateElement[value.raw=/(^|[^a-z])\\/genres\\//]",
+    message: GENRE_MESSAGE,
+  },
+  {
+    // CategoryTag fed a genre label: `genre`, `genres`, `styles` or a badge item.
+    selector:
+      "JSXElement[openingElement.name.name='CategoryTag']:has(JSXExpressionContainer Identifier[name=/^(genre|genres|style|styles|genreName)$/])",
+    message: GENRE_MESSAGE,
+  },
+];
+
 const ANALYTICS_MESSAGE = "Use @/lib/analytics/client or @/lib/analytics/server instead.";
 const ANALYTICS_PATHS = ["posthog-js", "posthog-node"].map((name) => ({
   name,
@@ -86,6 +105,18 @@ const eslintConfig = [
       // pattern here (e.g. dropping local_tags before returning a track);
       // the unused destructured sibling isn't a real unused variable.
       "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
+      "no-restricted-syntax": [
+        "error",
+        ...SYNTAX_RULES,
+        ...BADGE_SYNTAX_RULES,
+        ...GENRE_SYNTAX_RULES,
+      ],
+    },
+  },
+  {
+    // The two files that define genre tags and URLs.
+    files: ["src/lib/genres/links.ts", "src/components/GenreBadge.tsx", "**/*.test.{ts,tsx}"],
+    rules: {
       "no-restricted-syntax": ["error", ...SYNTAX_RULES, ...BADGE_SYNTAX_RULES],
     },
   },

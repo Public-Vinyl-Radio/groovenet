@@ -121,7 +121,7 @@ export function GenreCell({ track }: { track: Track }) {
         },
       }}
     >
-      <GenreBadgeList items={items.slice(0, 1)} kind={kind} scope="tracks" />
+      <GenreBadgeList items={items.slice(0, 1)} kind={kind} />
       {overflow > 0 && (
         <CountTag data-overflow="" size="sm" flexShrink={0}>
           +{overflow}

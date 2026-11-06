@@ -9,9 +9,6 @@ export type GenreLookup = ReadonlyMap<string, string>;
 /** A genre badge as rendered: its text, and the slug it links to, if any. */
 export type GenreBadgeItem = { label: string; slug: string | null };
 
-/** Which search a badge opens: track search lives at `/`, album search at `/albums`. */
-export type GenreSearchScope = "tracks" | "albums";
-
 /**
  * Every taxonomy name and alias, keyed the way the genre filter (#375)
  * matches them, so a raw Discogs value resolves to exactly the genre that
@@ -37,9 +34,9 @@ export function buildGenreLookup(nodes: GenreTreeNode[]): GenreLookup {
   return lookup;
 }
 
-export function genreSearchHref(slug: string, scope: GenreSearchScope): string {
-  const query = `genre=${encodeURIComponent(slug)}`;
-  return scope === "albums" ? `/albums?${query}` : `/tracks?${query}`;
+/** The genre's page. The one place a `/genres/<slug>` URL is built. */
+export function genreHref(slug: string): string {
+  return `/genres/${encodeURIComponent(slug)}`;
 }
 
 /** Name/alias keys, with spaces and hyphens dropped, so "post punk", "post-punk"

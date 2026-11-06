@@ -6,6 +6,7 @@ import React from "react";
 import NextLink from "next/link";
 import { Box, Button, Link, Text } from "@chakra-ui/react";
 import type { GenrePageRef } from "@/api-contract/schemas";
+import { genreHref } from "@/lib/genres/links";
 import { rankedSubgenres } from "@/lib/genres/discovery";
 import type { CountedGenreNode } from "@/lib/genres/tree";
 
@@ -22,7 +23,7 @@ export function GenreBarRows({
       {genres.map((genre) => (
         <Box as="li" key={genre.id}>
           <Link asChild display="flex" minH="44px" gap={3} fontSize="sm">
-            <NextLink href={`/genres/${encodeURIComponent(genre.slug)}`}>
+            <NextLink href={genreHref(genre.slug)}>
               <Text flex={1} minW={0} overflowWrap="anywhere">
                 {genre.name}
               </Text>
@@ -178,7 +179,7 @@ export function GenreIndexCrate({
   return (
     <GenreCrate
       title={entry.node.name}
-      href={`/genres/${encodeURIComponent(entry.node.slug)}`}
+      href={genreHref(entry.node.slug)}
       count={entry.count}
       genres={rankedSubgenres(entry)
         .slice(0, 5)

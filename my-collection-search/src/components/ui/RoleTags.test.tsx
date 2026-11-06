@@ -58,11 +58,11 @@ describe("role tags", () => {
   it("renders a linked category as its child, with no count", () => {
     renderWithProviders(
       <CategoryTag asChild count={4} unreconciled>
-        <NextLink href="/tracks?genre=cumbia">Cumbia</NextLink>
+        <NextLink href="/genres/cumbia">Cumbia</NextLink>
       </CategoryTag>,
     );
     const link = screen.getByRole("link", { name: "Cumbia" });
-    expect(link.getAttribute("href")).toBe("/tracks?genre=cumbia");
+    expect(link.getAttribute("href")).toBe("/genres/cumbia");
     expect(link.textContent).toBe("Cumbia");
   });
 

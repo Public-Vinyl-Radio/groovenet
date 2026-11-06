@@ -138,8 +138,8 @@ export default function AlbumResult({
 
   const genreBadges = (size: "xs" | "sm") => (
     <>
-      <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size={size} />
-      <GenreBadgeList items={displayStyles} kind="discogs-style" scope="albums" size={size} />
+      <GenreBadgeList items={displayGenres} kind="discogs-genre" size={size} />
+      <GenreBadgeList items={displayStyles} kind="discogs-style" size={size} />
     </>
   );
 
@@ -157,7 +157,7 @@ export default function AlbumResult({
           key={`${kind}:${item.label}`}
           item={item}
           kind={kind}
-          scope="albums"
+
           size="sm"
         />
       ))}
@@ -254,7 +254,7 @@ export default function AlbumResult({
                 : undefined
             }
           >
-            <GenreBadgeList items={displayGenres} kind="discogs-genre" scope="albums" size="sm" />
+            <GenreBadgeList items={displayGenres} kind="discogs-genre" size="sm" />
           </Flex>
         </Box>
       </Flex>

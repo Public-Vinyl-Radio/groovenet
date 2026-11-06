@@ -25,6 +25,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import { useGenrePageQuery } from "@/hooks/useGenrePageQuery";
 import { useGenreResults, type GenreView } from "@/hooks/useGenreResults";
 import { useGenrePlayback } from "@/hooks/useGenrePlayback";
+import { genreHref } from "@/lib/genres/links";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { GenrePageResponse } from "@/api-contract/schemas";
 
@@ -108,7 +109,7 @@ function GenreContent({
             GENRES_CRUMB,
             ...page.ancestors.map((ancestor) => ({
               label: ancestor.name,
-              href: `/genres/${encodeURIComponent(ancestor.slug)}`,
+              href: genreHref(ancestor.slug),
             })),
             { label: genre.name },
           ]}
