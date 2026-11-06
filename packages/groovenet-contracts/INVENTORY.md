@@ -31,7 +31,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | background jobs | 5 | Job entity also shapes the SSE events. |
 | done | genres | 7 | Recursive `GenreTreeNode` moves out of `routes.ts`. |
 | 7 | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
-| 8 | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
+| done | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
 | 9 | providers & Discogs | 8 | External-provider passthroughs; least shared shape. |
 | 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
 | 11 | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only today; need contract entries first. |
@@ -78,11 +78,11 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
 | POST | `/api/discogs/verify-manifests` | providers & Discogs | #552 |  |
 | GET | `/api/docs` | API docs | exception | Swagger UI HTML page, not a resource. |
-| POST | `/api/embeddings/backfill` | embeddings | #552 |  |
-| GET | `/api/embeddings/backfill/{runId}` | embeddings | #552 |  |
-| GET | `/api/embeddings/queue` | embeddings | #552 |  |
-| POST | `/api/embeddings/queue/retry` | embeddings | #552 |  |
-| GET | `/api/embeddings/status` | embeddings | #552 |  |
+| POST | `/api/embeddings/backfill` | embeddings | contracts |  |
+| GET | `/api/embeddings/backfill/{runId}` | embeddings | contracts |  |
+| GET | `/api/embeddings/queue` | embeddings | contracts |  |
+| POST | `/api/embeddings/queue/retry` | embeddings | contracts |  |
+| GET | `/api/embeddings/status` | embeddings | contracts |  |
 | GET | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
 | PATCH | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
 | POST | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
@@ -133,8 +133,8 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/providers/discogs/release-lookup` | providers & Discogs | #552 |  |
 | POST | `/api/providers/openai/track-metadata` | providers & Discogs | #552 |  |
 | POST | `/api/providers/youtube/music-search` | providers & Discogs | #552 |  |
-| GET | `/api/recommendations/candidates` | recommendations | #552 |  |
-| POST | `/api/recommendations/candidates` | recommendations | #552 |  |
+| GET | `/api/recommendations/candidates` | recommendations | contracts |  |
+| POST | `/api/recommendations/candidates` | recommendations | contracts |  |
 | POST | `/api/record-actions` | record care | contracts |  |
 | DELETE | `/api/record-actions/{id}` | record care | contracts |  |
 | GET | `/api/record-care/sessions` | record care | contracts |  |
@@ -172,8 +172,8 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/settings/backup/status` | backups | contracts |  |
 | GET | `/api/settings/default-library` | friends & library settings | contracts |  |
 | PUT | `/api/settings/default-library` | friends & library settings | contracts |  |
-| GET | `/api/settings/embedding-model` | embeddings | #552 |  |
-| PATCH | `/api/settings/embedding-model` | embeddings | #552 |  |
+| GET | `/api/settings/embedding-model` | embeddings | contracts |  |
+| PATCH | `/api/settings/embedding-model` | embeddings | contracts |  |
 | GET | `/api/settings/gamdl` | settings | contracts |  |
 | PUT | `/api/settings/gamdl` | settings | contracts |  |
 | PUT | `/api/settings/gamdl-cookies` | settings | contracts |  |

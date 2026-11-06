@@ -571,6 +571,49 @@ describe("shared background job components", () => {
   });
 });
 
+describe("shared embedding and recommendation components", () => {
+  it("references shared components for every embedding and recommendation operation", () => {
+    const doc = getOpenApiDocument();
+    type Content = Record<string, { schema?: { $ref?: string } }>;
+    type Op = {
+      requestBody?: { content?: Content };
+      responses: Record<string, { content?: Content }>;
+    };
+    const op = (path: string, method: string) => (doc.paths[path] as Record<string, Op>)[method];
+    const ref = (c?: Content) => c?.["application/json"]?.schema?.$ref;
+    const response = [
+      ["/api/embeddings/backfill", "post", "200", "EmbeddingBackfillDryRun"],
+      ["/api/embeddings/backfill", "post", "202", "EmbeddingBackfillRun"],
+      ["/api/embeddings/backfill/{runId}", "get", "200", "EmbeddingBackfillRun"],
+      ["/api/embeddings/queue", "get", "200", "EmbeddingQueueStatus"],
+      ["/api/embeddings/queue/retry", "post", "200", "EmbeddingQueueRetryResponse"],
+      ["/api/embeddings/status", "get", "200", "EmbeddingStatus"],
+      ["/api/recommendations/candidates", "get", "200", "RecommendationsResponse"],
+      ["/api/recommendations/candidates", "post", "200", "RecommendationsResponse"],
+      ["/api/settings/embedding-model", "get", "200", "EmbeddingModelSettingsList"],
+      ["/api/settings/embedding-model", "patch", "200", "EmbeddingModelSettings"],
+    ] as const;
+    for (const [path, method, status, name] of response) {
+      expect(ref(op(path, method).responses[status].content)).toBe(`#/components/schemas/${name}`);
+    }
+    const request = [
+      ["/api/embeddings/backfill", "post", "EmbeddingBackfillRequest"],
+      ["/api/embeddings/queue/retry", "post", "EmbeddingQueueRetryRequest"],
+      ["/api/recommendations/candidates", "post", "RecommendationsBatchRequest"],
+      ["/api/settings/embedding-model", "patch", "EmbeddingModelUpdateRequest"],
+    ] as const;
+    for (const [path, method, name] of request) {
+      expect(ref(op(path, method).requestBody?.content)).toBe(`#/components/schemas/${name}`);
+    }
+    expect(doc.components.schemas.EmbeddingKind).toMatchObject({
+      enum: ["identity", "audio_vibe", "context"],
+    });
+    expect(doc.components.schemas.EmbeddingBackfillRequest).toMatchObject({
+      properties: { scope: { enum: ["missing", "all", "release", "track"] } },
+    });
+  });
+});
+
 describe("shared genre taxonomy components", () => {
   it.each([
     ["/api/genres", "get", "200", "GenreTreeResponse", undefined],

@@ -80,14 +80,7 @@ export type ContextMatch = Pick<
  * tracks, `audio_vibe` for audio similarity, `context` for natural-language
  * retrieval (#408).
  */
-export type EmbeddingModelKind = "identity" | "audio_vibe" | "context";
-
-export type EmbeddingModelSettings = {
-  embedding_type: EmbeddingModelKind;
-  target_model: string;
-  target_dims: number;
-  serving_model: string;
-  serving_dims: number;
-  /** Template version reads filter to; the target is the code's constant (#407). */
-  serving_template_version: number;
-};
+export type {
+  EmbeddingKind as EmbeddingModelKind,
+  EmbeddingModelSettings,
+} from "@groovenet/contracts";

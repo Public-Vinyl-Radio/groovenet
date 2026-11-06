@@ -362,7 +362,8 @@ describe("runEmbeddingsBackfill()", () => {
 function status(overrides: Partial<EmbeddingStatus> = {}): EmbeddingStatus {
   return {
     total_tracks: 100,
-    missing: { identity: 0, audio_vibe: 2 },
+    missing: { identity: 0, audio_vibe: 2, context: 0 },
+    by_model: { identity: [], audio_vibe: [], context: [] },
     ...overrides,
   };
 }

@@ -271,31 +271,6 @@ const appearanceExample = {
   corners: "square",
 };
 
-const recommendationCandidateSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    trackId: { type: "string" },
-    friendId: { type: "integer" },
-    simIdentity: { type: ["number", "null"] },
-    simAudio: { type: ["number", "null"] },
-    metadata: {
-      type: "object",
-      additionalProperties: true,
-      properties: {
-        title: { type: "string" },
-        artist: { type: "string" },
-        album: { type: "string" },
-        bpm: { type: ["number", "null"] },
-        key: { type: ["string", "null"] },
-        genres: { type: "array", items: { type: "string" } },
-        styles: { type: "array", items: { type: "string" } },
-      },
-    },
-  },
-  required: ["trackId", "friendId", "simIdentity", "simAudio", "metadata"],
-  additionalProperties: true,
-};
-
 const playlistsListExample = [
   {
     id: 42,
@@ -1260,41 +1235,17 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
       requestBody: {
         required: false,
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                scope: {
-                  type: "string",
-                  enum: ["missing", "all", "release", "track"],
-                },
-                types: {
-                  type: "array",
-                  items: { type: "string", enum: ["identity", "audio_vibe", "context"] },
-                },
-                friend_id: { type: "integer" },
-                release_id: { type: "string" },
-                track_ids: { type: "array", items: { type: "string" } },
-                limit: { type: "integer" },
-                force: { type: "boolean" },
-                dry_run: { type: "boolean" },
-              },
-            },
-          },
+          "application/json": { schema: componentRef("EmbeddingBackfillRequest") },
         },
       },
       responses: {
         "200": {
           description: "Dry run: counts only, nothing enqueued",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingBackfillDryRun") } },
         },
         "202": {
           description: "Run queued",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingBackfillRun") } },
         },
         "400": {
           description: "Invalid scope",
@@ -1320,9 +1271,7 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Run counters",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingBackfillRun") } },
         },
         "404": {
           description: "Run not found or expired",
@@ -1356,9 +1305,7 @@ const embeddingsBackfillContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Missing-embedding counts",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingStatus") } },
         },
         "500": {
           description: "Server error",
@@ -1383,9 +1330,7 @@ const embeddingsQueueContracts: ApiContractRoute[] = [
         "200": {
           description:
             "Lane depths, retry/paused/failed state, drain rate and ETA, kind breakdown and active backfill runs",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingQueueStatus") } },
         },
         "500": {
           description: "Server error",
@@ -1406,24 +1351,12 @@ const embeddingsQueueContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                ids: { type: "array", items: { type: "string" } },
-              },
-              required: ["ids"],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("EmbeddingQueueRetryRequest") } },
       },
       responses: {
         "200": {
           description: "Retried ids and any that were no longer in the failed list",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingQueueRetryResponse") } },
         },
         "400": {
           description: "Invalid body",
@@ -1451,11 +1384,7 @@ const embeddingModelSettingsContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "One row per kind",
-          content: {
-            "application/json": {
-              schema: { type: "array", items: { type: "object", additionalProperties: true } },
-            },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingModelSettingsList") } },
         },
         "500": {
           description: "Server error",
@@ -1477,32 +1406,13 @@ const embeddingModelSettingsContracts: ApiContractRoute[] = [
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              required: ["embedding_type", "field", "model", "dims"],
-              properties: {
-                embedding_type: { type: "string", enum: ["identity", "audio_vibe", "context"] },
-                field: { type: "string", enum: ["target", "serving"] },
-                model: { type: "string" },
-                dims: { type: "integer" },
-                template_version: {
-                  type: "integer",
-                  minimum: 1,
-                  description:
-                    "Serving only: the template version reads switch to (#407). Omit to keep the current one.",
-                },
-              },
-            },
-          },
+          "application/json": { schema: componentRef("EmbeddingModelUpdateRequest") },
         },
       },
       responses: {
         "200": {
           description: "Updated row",
-          content: {
-            "application/json": { schema: { type: "object", additionalProperties: true } },
-          },
+          content: { "application/json": { schema: componentRef("EmbeddingModelSettings") } },
         },
         "400": {
           description: "Invalid body",
@@ -5822,44 +5732,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Recommendation candidates",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  seedTrackId: { type: "string" },
-                  seedFriendId: { type: "integer" },
-                  seedEmbeddings: {
-                    type: "object",
-                    properties: {
-                      identity: { type: "boolean" },
-                      audio: { type: "boolean" },
-                    },
-                    required: ["identity", "audio"],
-                  },
-                  scope: {
-                    type: "string",
-                    enum: ["library", "all"],
-                    description:
-                      "The scope these candidates came from, after applying the saved setting.",
-                  },
-                  libraryFriendId: {
-                    type: ["integer", "null"],
-                    description:
-                      "The library candidates were limited to; null when every library was searched.",
-                  },
-                  candidates: { type: "array", items: recommendationCandidateSchemaObject },
-                  stats: { type: "object", additionalProperties: true },
-                },
-                required: [
-                  "seedTrackId",
-                  "seedFriendId",
-                  "seedEmbeddings",
-                  "scope",
-                  "libraryFriendId",
-                  "candidates",
-                  "stats",
-                ],
-                additionalProperties: true,
-              },
+              schema: componentRef("RecommendationsResponse"),
               examples: {
                 recommendationCandidates: {
                   summary: "Combined mode",
@@ -5925,41 +5798,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
       requestBody: {
         required: true,
         content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                tracks: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      track_id: { type: "string" },
-                      friend_id: { type: "integer" },
-                    },
-                    required: ["track_id", "friend_id"],
-                  },
-                  minItems: 1,
-                  maxItems: 100,
-                },
-                limit_identity: { type: "integer", default: 200 },
-                limit_audio: { type: "integer", default: 200 },
-                ivfflat_probes: { type: "integer", default: 10 },
-                scope: {
-                  type: "string",
-                  enum: ["library", "all"],
-                  description:
-                    "`library` keeps candidates to `library_friend_id`'s library; `all` searches every library. Omitted, that library's saved setting applies.",
-                },
-                library_friend_id: {
-                  type: "integer",
-                  description: "Defaults to the first seed track's library.",
-                },
-              },
-              required: ["tracks"],
-              additionalProperties: false,
-            },
-          },
+          "application/json": { schema: componentRef("RecommendationsBatchRequest") },
         },
       },
       responses: {
@@ -5967,44 +5806,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description: "Recommendation candidates",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  seedTrackId: { type: "string" },
-                  seedFriendId: { type: "integer" },
-                  seedEmbeddings: {
-                    type: "object",
-                    properties: {
-                      identity: { type: "boolean" },
-                      audio: { type: "boolean" },
-                    },
-                    required: ["identity", "audio"],
-                  },
-                  scope: {
-                    type: "string",
-                    enum: ["library", "all"],
-                    description:
-                      "The scope these candidates came from, after applying the saved setting.",
-                  },
-                  libraryFriendId: {
-                    type: ["integer", "null"],
-                    description:
-                      "The library candidates were limited to; null when every library was searched.",
-                  },
-                  candidates: { type: "array", items: recommendationCandidateSchemaObject },
-                  stats: { type: "object", additionalProperties: true },
-                },
-                required: [
-                  "seedTrackId",
-                  "seedFriendId",
-                  "seedEmbeddings",
-                  "scope",
-                  "libraryFriendId",
-                  "candidates",
-                  "stats",
-                ],
-                additionalProperties: true,
-              },
+              schema: componentRef("RecommendationsResponse"),
             },
           },
         },
