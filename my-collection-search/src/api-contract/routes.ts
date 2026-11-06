@@ -14,7 +14,13 @@ import {
   recordCareProgressResponseSchema,
 } from "./recordCareQueue";
 import { playerContracts } from "./players";
-import { playlistDeleteResponseSchema } from "@groovenet/contracts";
+import {
+  healthResponseSchema,
+  playlistDeleteResponseSchema,
+  statusResponseSchema,
+  updateCheckResponseSchema,
+  versionResponseSchema,
+} from "@groovenet/contracts";
 import {
   aiPromptSettingsGetResponseSchema,
   aiPromptSettingsPutBodySchema,
@@ -3235,6 +3241,75 @@ const backupContracts: ApiContractRoute[] = [
     },
   },
   {
+    operationId: "getHealth",
+    method: "get",
+    path: "/api/health",
+    summary: "Liveness probe",
+    tags: ["Health"],
+    successSchema: healthResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "The server is up. Does no database or Redis work.",
+          content: { "application/json": { schema: componentRef("HealthResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getStatus",
+    method: "get",
+    path: "/api/status",
+    summary: "Reachability of the app and the services behind it",
+    tags: ["Health"],
+    successSchema: statusResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "One entry per probed service; a failed probe is reported, not thrown",
+          content: { "application/json": { schema: componentRef("StatusResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getVersion",
+    method: "get",
+    path: "/api/version",
+    summary: "Running version and build metadata",
+    tags: ["Health"],
+    successSchema: versionResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Version, commit sha, build time and node environment",
+          content: { "application/json": { schema: componentRef("VersionResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getUpdateCheck",
+    method: "get",
+    path: "/api/update-check",
+    summary: "Compare the running version with the latest GitHub release",
+    tags: ["Health"],
+    successSchema: updateCheckResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description:
+            "Always 200; a GitHub failure is reported in `error` with `updateAvailable` false",
+          content: { "application/json": { schema: componentRef("UpdateCheckResponse") } },
+        },
+      },
+    },
+  },
+  {
     operationId: "getBackupHealth",
     method: "get",
     path: "/api/health/backup",
@@ -5503,7 +5578,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
         "200": {
           description: "Libraries, the server's own account first",
           content: {
-            "application/json": { schema: z.toJSONSchema(librariesListResponseSchema) },
+            "application/json": { schema: componentRef("LibrariesListResponse") },
           },
         },
         "500": {

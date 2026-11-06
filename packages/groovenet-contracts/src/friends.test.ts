@@ -7,6 +7,7 @@ import {
   friendCreateSchema,
   friendJsonSchemas,
   friendListResponseSchema,
+  librariesListResponseSchema,
 } from "./friends.js";
 
 describe("friend and library settings contracts", () => {
@@ -45,5 +46,25 @@ describe("friend and library settings contracts", () => {
     expect(friendJsonSchemas.DefaultLibrarySettingsUpdate.additionalProperties).toBeUndefined();
     expect(friendJsonSchemas.Friend.additionalProperties).toBe(false);
     expect(friendJsonSchemas.DefaultLibrarySettings.required).toEqual(["friend_id"]);
+  });
+
+  it("validates libraries with their stats and the server account", () => {
+    const body = {
+      account_username: null,
+      results: [
+        { id: 1, username: "owner", is_account: true, release_count: 4, last_synced_at: null },
+      ],
+    };
+    expect(librariesListResponseSchema.parse(body)).toEqual(body);
+    expect(
+      librariesListResponseSchema.safeParse({
+        ...body,
+        results: [{ ...body.results[0], release_count: -1 }],
+      }).success,
+    ).toBe(false);
+    expect(friendJsonSchemas.LibrariesListResponse.required).toEqual([
+      "results",
+      "account_username",
+    ]);
   });
 });

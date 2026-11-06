@@ -34,7 +34,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
 | 9 | providers & Discogs | 8 | External-provider passthroughs; least shared shape. |
 | 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
-| 11 | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only today; need contract entries first. |
+| done | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only; contract entries added. |
 
 The remaining `#551` rows are track operations outside this issue's scope. #551
 is closed; #606 owns them (its album half is migrated).
@@ -91,7 +91,7 @@ is closed; #606 owns them (its album half is migrated).
 | DELETE | `/api/friends` | friends & library settings | exception | Plain-text progress stream; the `username` query is validated in the app. |
 | GET | `/api/friends` | friends & library settings | contracts |  |
 | POST | `/api/friends` | friends & library settings | contracts |  |
-| GET | `/api/friends/libraries` | friends & library settings | #552 | Settings-only view with stats; app-local schema. |
+| GET | `/api/friends/libraries` | friends & library settings | contracts |  |
 | GET | `/api/genres` | genres | contracts |  |
 | POST | `/api/genres` | genres | contracts |  |
 | GET | `/api/genres/{id}` | genres | contracts |  |
@@ -108,7 +108,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/genres/reconciliation/coverage` | genre reconciliation | contracts | #1019 |
 | POST | `/api/genres/reconciliation/runs` | genre reconciliation | contracts | #1019 |
 | GET | `/api/genres/reconciliation/runs/{id}` | genre reconciliation | contracts | #1019 |
-| GET | `/api/health` | system | #552 | Auto-discovered only; no contract entry yet. |
+| GET | `/api/health` | system | contracts |  |
 | GET | `/api/health/backup` | backups | contracts |  |
 | DELETE | `/api/jobs` | background jobs | contracts |  |
 | GET | `/api/jobs` | background jobs | contracts |  |
@@ -189,7 +189,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/home` | home | contracts | `home.ts`; playlists scoped by track membership. |
 | GET | `/api/spins/recap` | Spins | contracts | Monthly recap (#862) |
 | GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
-| GET | `/api/status` | system | #552 | Auto-discovered only; no contract entry yet. |
+| GET | `/api/status` | system | contracts |  |
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
@@ -207,8 +207,8 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/tracks/search` | tracks | contracts |  |
 | GET | `/api/tracks/search/facets` | tracks | contracts |  |
 | POST | `/api/tracks/upload` | tracks | exception | `multipart/form-data` request (a binary `file` part), which has no Zod or JSON Schema form; the route reads `formData()`. The inline OpenAPI documents the form fields and response (#606). |
-| GET | `/api/update-check` | system | #552 | Auto-discovered only; no contract entry yet. |
-| GET | `/api/version` | system | #552 | Auto-discovered only; no contract entry yet. |
+| GET | `/api/update-check` | system | contracts |  |
+| GET | `/api/version` | system | contracts |  |
 
 ## Server players (#693)
 

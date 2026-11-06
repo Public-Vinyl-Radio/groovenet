@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import { NextResponse } from "next/server";
+import type { VersionResponse } from "@groovenet/contracts";
 
 import pkg from "../../../../package.json";
 
@@ -29,10 +30,11 @@ function localGitSha(): string | null {
 export async function GET() {
   const version = process.env.APP_VERSION || process.env.IMAGE_TAG || pkg.version || "unknown";
 
-  return NextResponse.json({
+  const body: VersionResponse = {
     version,
     gitSha: process.env.GIT_SHA ?? localGitSha(),
     builtAt: process.env.BUILD_TIME ?? null,
     nodeEnv: process.env.NODE_ENV ?? "development",
-  });
+  };
+  return NextResponse.json(body);
 }

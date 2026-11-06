@@ -165,6 +165,8 @@ import {
   friendCreateSchema,
   friendListResponseSchema,
   friendSchema as sharedFriendSchema,
+  librariesListResponseSchema,
+  libraryWithStatsSchema,
   cleaningMethodSchema as sharedCleaningMethodSchema,
   recordActionCreateObjectSchema,
   recordActionDetailsSchema as sharedRecordActionDetailsSchema,
@@ -444,21 +446,7 @@ export const friendDeleteQuerySchema = z.object({
   username: z.string().min(1),
 });
 
-/** A library on Settings → Libraries: a friends row with what it holds and when it last synced. */
-export const libraryWithStatsSchema = friendSchema.extend({
-  /** The server's own Discogs account (`DISCOGS_USERNAME`), which can't be removed. */
-  is_account: z.boolean(),
-  /** Albums in Postgres for this library. */
-  release_count: z.number().int().nonnegative(),
-  /** When its manifest was last written by a sync; null before the first sync. */
-  last_synced_at: z.string().nullable(),
-});
-
-export const librariesListResponseSchema = z.object({
-  results: z.array(libraryWithStatsSchema),
-  /** `DISCOGS_USERNAME`, or null when the server has none. */
-  account_username: z.string().nullable(),
-});
+export { libraryWithStatsSchema, librariesListResponseSchema };
 
 // Discogs usernames are letters, digits, dots, hyphens and underscores.
 export const discogsUsernameSchema = z
