@@ -406,44 +406,11 @@ export interface IdentitySimilarityQuery extends SimilarityQuery {
   tags?: string;
 }
 
-export interface RecommendationCandidate {
-  trackId: string;
-  friendId: number;
-  simIdentity: number | null;
-  simAudio: number | null;
-  metadata: {
-    title: string;
-    artist: string;
-    album: string;
-    year?: string | null;
-    bpm?: number | null;
-    key?: string | null;
-    danceability?: number | null;
-    energy?: number | null;
-    tags: string[];
-    genreRefs: Array<{ id: string; parentId: string | null }>;
-    styles: string[];
-    genres: string[];
-    starRating?: number | null;
-    moodHappy?: number | null;
-    moodSad?: number | null;
-    moodRelaxed?: number | null;
-    moodAggressive?: number | null;
-  };
-}
-
-export interface RecommendationCandidatesResponse {
-  seedTrackId: string;
-  seedFriendId: number;
-  seedEmbeddings: { identity: boolean; audio: boolean };
-  candidates: RecommendationCandidate[];
-  stats: {
-    identityCount: number;
-    audioCount: number;
-    unionCount: number;
-    timingMs: { identityQuery: number; audioQuery: number; total: number };
-  };
-}
+export type {
+  RecommendationCandidate,
+  RecommendationsResponse as RecommendationCandidatesResponse,
+  RecommendationsBatchBody as RecommendationCandidatesBatchBody,
+} from "@groovenet/contracts";
 
 export interface RecommendationCandidatesQuery {
   limit_identity?: number;
@@ -495,44 +462,20 @@ export interface FingerprintIndexRun {
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
-/** `context` is the natural-language retrieval embedding (#408). */
-export type EmbeddingJobKind = "identity" | "audio_vibe" | "context";
-export type EmbeddingBackfillScope = "missing" | "all" | "release" | "track";
-
-export interface EmbeddingBackfillRequest {
-  scope?: EmbeddingBackfillScope;
-  types?: EmbeddingJobKind[];
-  friend_id?: number;
-  release_id?: string;
-  track_ids?: string[];
-  limit?: number;
-  force?: boolean;
-  dry_run?: boolean;
-}
-
-/** Counters for one backfill run, same shape as `FingerprintIndexRun` minus the fingerprint fields. */
-export interface EmbeddingBackfillRun {
-  run_id: string;
-  queued: number;
-  success: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-  started_at: number;
-  updated_at: number;
-  complete: boolean;
-}
-
-export interface EmbeddingBackfillDryRun {
-  dry_run: true;
-  total: number;
-  by_type: Record<EmbeddingJobKind, number>;
-}
-
-export interface EmbeddingStatus {
-  total_tracks: number;
-  missing: Record<EmbeddingJobKind, number>;
-}
+export type {
+  EmbeddingKind as EmbeddingJobKind,
+  EmbeddingBackfillScope,
+  EmbeddingsBackfillRequest as EmbeddingBackfillRequest,
+  EmbeddingsBackfillRun as EmbeddingBackfillRun,
+  EmbeddingsBackfillDryRun as EmbeddingBackfillDryRun,
+  EmbeddingsStatus as EmbeddingStatus,
+  EmbeddingModelCoverage,
+  EmbeddingModelSettings,
+  EmbeddingModelUpdate,
+  EmbeddingQueueStatus,
+  EmbeddingQueueFailedJob,
+  EmbeddingQueueRetryResponse,
+} from "@groovenet/contracts";
 
 // ─── Vinyl pipeline debug (#299) ──────────────────────────────────────────────
 
