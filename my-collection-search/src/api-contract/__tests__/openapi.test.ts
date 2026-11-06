@@ -542,6 +542,35 @@ describe("shared backup components", () => {
   });
 });
 
+describe("shared background job components", () => {
+  it("references shared components for every JSON job operation", () => {
+    const doc = getOpenApiDocument();
+    type Op = {
+      responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }>;
+    };
+    const ref = (path: string, method: string) =>
+      (doc.paths[path] as Record<string, Op>)[method].responses["200"]?.content?.[
+        "application/json"
+      ]?.schema?.$ref;
+    const cases = [
+      ["/api/jobs", "get", "JobsListResponse"],
+      ["/api/jobs", "delete", "JobsClearResponse"],
+      ["/api/jobs/{jobId}", "get", "JobDetails"],
+      ["/api/jobs/{jobId}/logs", "get", "JobLogsResponse"],
+      ["/api/jobs/{jobId}/outcome", "post", "JobOutcomeResponse"],
+    ] as const;
+    for (const [path, method, name] of cases) {
+      expect(ref(path, method)).toBe(`#/components/schemas/${name}`);
+    }
+    expect(doc.components.schemas.JobEvent).toMatchObject({
+      properties: { type: { enum: ["job_completed", "error"] } },
+    });
+    expect(doc.components.schemas.JobDetails).toMatchObject({
+      properties: { state: { enum: ["waiting", "active", "completed", "failed"] } },
+    });
+  });
+});
+
 describe("shared genre taxonomy components", () => {
   it.each([
     ["/api/genres", "get", "200", "GenreTreeResponse", undefined],

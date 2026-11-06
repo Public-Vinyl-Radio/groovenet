@@ -1,3 +1,4 @@
+import type { JobsClearResponse } from "@groovenet/contracts";
 import { NextResponse } from "next/server";
 import { jobsApiService } from "@/server/services/jobsApiService";
 
@@ -5,10 +6,11 @@ export async function DELETE() {
   try {
     await jobsApiService.clearAllJobs();
 
-    return NextResponse.json({
+    const body: JobsClearResponse = {
       success: true,
       message: "All queue data cleared successfully",
-    });
+    };
+    return NextResponse.json(body);
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error("Error clearing queues:", err);

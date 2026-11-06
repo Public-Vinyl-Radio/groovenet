@@ -10,6 +10,11 @@ import {
 export { intFromInputSchema, nonNegativeIntFromInputSchema } from "@groovenet/contracts/coercion";
 import { homeQuerySchema as sharedHomeQuerySchema, homeResponseSchema } from "@groovenet/contracts";
 import {
+  jobEventSchema,
+  jobStateFilterSchema,
+  jobsListQuerySchema as sharedJobsListQuerySchema,
+} from "@groovenet/contracts";
+import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
@@ -368,95 +373,29 @@ export const defaultLibrarySettingsPutBodySchema = defaultLibrarySettingsUpdateS
 
 export const defaultLibrarySettingsPutResponseSchema = defaultLibrarySettingsUpdateResponseSchema;
 
-export const jobsListQuerySchema = z.object({
+// Wire shapes are shared; the query adds the text coercion and defaults.
+export {
+  jobSchema as jobInfoSchema,
+  jobDataSchema,
+  jobDetailsSchema as jobDetailsResponseSchema,
+  jobsSummarySchema,
+  jobsPaginationSchema,
+  jobsListResponseSchema,
+  jobsClearResponseSchema,
+  jobLogsResponseSchema,
+  jobOutcomeResponseSchema,
+  jobEventSchema as jobsEventsSseEnvelopeSchema,
+} from "@groovenet/contracts";
+
+export const jobsListQuerySchema = sharedJobsListQuerySchema.extend({
   limit: nonNegativeIntFromInputSchema.optional().default(100),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
-  state: z.enum(["all", "waiting", "active", "completed", "failed"]).optional().default("all"),
-});
-
-export const jobDataSchema = z
-  .object({
-    track_id: z.string(),
-    friend_id: z.number().int(),
-    release_id: z.string().nullable().optional(),
-    job_type: z.string().optional(),
-    apple_music_url: z.string().optional(),
-    youtube_url: z.string().optional(),
-    soundcloud_url: z.string().optional(),
-    title: z.string().nullable().optional(),
-    artist: z.string().nullable().optional(),
-    album: z.string().nullable().optional(),
-    year: z.union([z.string(), z.number()]).nullable().optional(),
-    album_thumbnail: z.string().nullable().optional(),
-    discogs_url: z.string().nullable().optional(),
-    local_audio_url: z.string().nullable().optional(),
-    library_identifier: z.string().nullable().optional(),
-    username: z.string().nullable().optional(),
-  })
-  .passthrough();
-
-export const jobInfoSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    state: z.enum(["waiting", "active", "completed", "failed"]),
-    progress: z.number(),
-    data: jobDataSchema,
-    returnvalue: z.unknown().optional(),
-    finishedOn: z.number().optional(),
-    failedReason: z.string().optional(),
-    attemptsMade: z.number().int(),
-    processedOn: z.number().optional(),
-    queue: z.string(),
-  })
-  .passthrough();
-
-export const jobsSummarySchema = z.object({
-  total: z.number().int(),
-  waiting: z.number().int(),
-  active: z.number().int(),
-  completed: z.number().int(),
-  failed: z.number().int(),
-});
-
-export const jobsPaginationSchema = z.object({
-  limit: z.number().int(),
-  offset: z.number().int(),
-  total_filtered: z.number().int(),
-  has_more: z.boolean(),
-});
-
-export const jobsListResponseSchema = z.object({
-  jobs: z.array(jobInfoSchema),
-  summary: jobsSummarySchema,
-  pagination: jobsPaginationSchema.optional(),
-});
-
-export const jobsClearResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-});
-
-export const jobsEventsSseEnvelopeSchema = z.object({
-  type: z.enum(["job_completed", "error"]),
-  job_id: z.string().optional(),
-  track_id: z.string().optional(),
-  friend_id: z.number().int().optional(),
-  result: z.unknown().optional(),
-  message: z.string().optional(),
-  timestamp: z.number().int(),
+  state: jobStateFilterSchema.optional().default("all"),
 });
 
 export const jobsEventsSseResponseSchema = z.object({
   stream: z.string(),
-  events: z.array(jobsEventsSseEnvelopeSchema),
-});
-
-export const jobDetailsResponseSchema = jobInfoSchema.extend({
-  delay: z.number().optional(),
-  timestamp: z.number().optional(),
-  opts: z.record(z.string(), z.unknown()).optional(),
-  logs: z.array(z.unknown()).optional(),
+  events: z.array(jobEventSchema),
 });
 
 export const friendSchema = sharedFriendSchema;
