@@ -632,6 +632,32 @@ describe("shared embedding and recommendation components", () => {
   });
 });
 
+describe("shared system components", () => {
+  it.each([
+    ["/api/health", "HealthResponse"],
+    ["/api/status", "StatusResponse"],
+    ["/api/version", "VersionResponse"],
+    ["/api/update-check", "UpdateCheckResponse"],
+    ["/api/friends/libraries", "LibrariesListResponse"],
+  ])("references a shared component for GET %s", (path, name) => {
+    const doc = getOpenApiDocument();
+    expect(doc.paths[path].get).toMatchObject({
+      responses: {
+        "200": {
+          content: { "application/json": { schema: { $ref: `#/components/schemas/${name}` } } },
+        },
+      },
+    });
+    expect((doc.paths[path].get as { tags: string[] }).tags).not.toContain("AutoDiscovered");
+  });
+
+  it("publishes the service status enum", () => {
+    expect(getOpenApiDocument().components.schemas.ServiceHealth).toMatchObject({
+      properties: { status: { enum: ["up", "down", "unknown"] } },
+    });
+  });
+});
+
 describe("shared genre taxonomy components", () => {
   it.each([
     ["/api/genres", "get", "200", "GenreTreeResponse", undefined],

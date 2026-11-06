@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { UpdateCheckResponse } from "@groovenet/contracts";
 
 import pkg from "../../../../package.json";
 
@@ -31,17 +32,17 @@ export async function GET() {
   const current = currentVersion();
   const currentSemver = parseSemver(current);
 
-  const base = {
+  const base: UpdateCheckResponse = {
     current,
     // In dev/sha/"latest" builds the running version isn't a real release, so
     // we can't meaningfully compare.
     comparable: currentSemver !== null,
-    latest: null as string | null,
+    latest: null,
     updateAvailable: false,
-    releaseUrl: null as string | null,
-    releaseName: null as string | null,
-    publishedAt: null as string | null,
-    error: null as string | null,
+    releaseUrl: null,
+    releaseName: null,
+    publishedAt: null,
+    error: null,
   };
 
   try {

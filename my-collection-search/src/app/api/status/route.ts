@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { ServiceHealth, ServiceStatus, StatusResponse } from "@groovenet/contracts";
 
 import { dbQuery } from "@/lib/serverDb";
 import { getRedisConnection } from "@/lib/redis";
@@ -10,16 +11,6 @@ import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 // here with short timeouts and report reachability only.
 
 export const dynamic = "force-dynamic";
-
-type ServiceStatus = "up" | "down" | "unknown";
-
-interface ServiceHealth {
-  service: string;
-  status: ServiceStatus;
-  latencyMs: number | null;
-  detail?: string;
-  meta?: Record<string, unknown>;
-}
 
 const TIMEOUT_MS = 3000;
 
@@ -124,5 +115,6 @@ export async function GET() {
     embeddingQueueHealth(),
   ]);
 
-  return NextResponse.json({ services, checkedAt: new Date().toISOString() });
+  const body: StatusResponse = { services, checkedAt: new Date().toISOString() };
+  return NextResponse.json(body);
 }

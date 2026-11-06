@@ -8,7 +8,9 @@ physical-copy record care (`recordCare.ts`), genre taxonomy (`genres.ts`),
 settings (`settings.ts`: AI prompt, appearance, suggestion scope, GAMDL),
 backups (`backups.ts`), background jobs (`jobs.ts`), embeddings and their
 queue and model settings (`embeddings.ts`), recommendation candidates
-(`recommendations.ts`) and the provider and Discogs operations (`providers.ts`, including the release-export types `DiscogsRelease` and `ProcessedTrack`).
+(`recommendations.ts`), system probes (`system.ts`: health, status,
+version, update check) and the provider and Discogs operations (`providers.ts`,
+including the release-export types `DiscogsRelease` and `ProcessedTrack`).
 
 [`INVENTORY.md`](INVENTORY.md) lists every published API operation with its
 family and migration status, and the order the remaining families follow.
