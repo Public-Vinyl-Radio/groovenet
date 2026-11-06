@@ -10,6 +10,16 @@ import {
 export { intFromInputSchema, nonNegativeIntFromInputSchema } from "@groovenet/contracts/coercion";
 import { homeQuerySchema as sharedHomeQuerySchema, homeResponseSchema } from "@groovenet/contracts";
 import {
+  embeddingModelUpdateObjectSchema,
+  embeddingsBackfillObjectSchema,
+  embeddingsStatusQuerySchema as sharedEmbeddingsStatusQuerySchema,
+  recommendationSeedTrackSchema as sharedRecommendationSeedTrackSchema,
+  recommendationsBatchBodySchema as sharedRecommendationsBatchBodySchema,
+  recommendationsQuerySchema as sharedRecommendationsQuerySchema,
+  refineEmbeddingsBackfillBody,
+  requireServingForTemplateVersion,
+} from "@groovenet/contracts";
+import {
   jobEventSchema,
   jobStateFilterSchema,
   jobsListQuerySchema as sharedJobsListQuerySchema,
@@ -651,22 +661,20 @@ const recommendationScopeParams = {
   library_friend_id: intFromInputSchema.optional(),
 };
 
-export const recommendationsQuerySchema = z.object({
-  track_id: z.string().min(1),
+export const recommendationsQuerySchema = sharedRecommendationsQuerySchema.extend({
   friend_id: intFromInputSchema,
-  mode: z.enum(["combined", "identity", "audio"]).optional().default("combined"),
+  mode: sharedRecommendationsQuerySchema.shape.mode.default("combined"),
   limit_identity: intFromInputSchema.optional().default(200),
   limit_audio: intFromInputSchema.optional().default(200),
   ivfflat_probes: intFromInputSchema.optional().default(10),
   ...recommendationScopeParams,
 });
 
-export const recommendationSeedTrackSchema = z.object({
-  track_id: z.string().min(1),
+export const recommendationSeedTrackSchema = sharedRecommendationSeedTrackSchema.extend({
   friend_id: intFromInputSchema,
 });
 
-export const recommendationsBatchBodySchema = z.object({
+export const recommendationsBatchBodySchema = sharedRecommendationsBatchBodySchema.extend({
   tracks: z.array(recommendationSeedTrackSchema).min(1).max(100),
   limit_identity: intFromInputSchema.optional().default(200),
   limit_audio: intFromInputSchema.optional().default(200),
@@ -674,63 +682,11 @@ export const recommendationsBatchBodySchema = z.object({
   ...recommendationScopeParams,
 });
 
-export const seedEmbeddingsSchema = z.object({
-  identity: z.boolean(),
-  audio: z.boolean(),
-});
-
-export const recommendationCandidateSchema = z.object({
-  trackId: z.string(),
-  friendId: z.number().int(),
-  simIdentity: z.number().nullable(),
-  simAudio: z.number().nullable(),
-  metadata: z
-    .object({
-      bpm: z.number().nullable(),
-      key: z.string().nullable(),
-      keyConfidence: z.number().nullable(),
-      tempoConfidence: z.number().nullable(),
-      eraBucket: z.string().nullable(),
-      tags: z.array(z.string()),
-      genreRefs: z.array(z.object({ id: z.string(), parentId: z.string().nullable() })),
-      styles: z.array(z.string()),
-      energy: z.number().nullable(),
-      danceability: z.number().nullable(),
-      title: z.string(),
-      artist: z.string(),
-      album: z.string(),
-      year: z.string().nullable(),
-      genres: z.array(z.string()),
-      starRating: z.number().nullable(),
-      albumThumbnail: z.string().nullable(),
-      moodHappy: z.number().nullable(),
-      moodSad: z.number().nullable(),
-      moodRelaxed: z.number().nullable(),
-      moodAggressive: z.number().nullable(),
-    })
-    .passthrough(),
-});
-
-export const recommendationsResponseSchema = z.object({
-  seedTrackId: z.string(),
-  seedFriendId: z.number().int(),
-  seedEmbeddings: seedEmbeddingsSchema,
-  /** The scope these candidates were drawn from, after applying the saved setting. */
-  scope: recommendationScopeSchema,
-  /** The library they were limited to; null when every library was searched. */
-  libraryFriendId: z.number().int().nullable(),
-  candidates: z.array(recommendationCandidateSchema),
-  stats: z.object({
-    identityCount: z.number().int(),
-    audioCount: z.number().int(),
-    unionCount: z.number().int(),
-    timingMs: z.object({
-      identityQuery: z.number().int(),
-      audioQuery: z.number().int(),
-      total: z.number().int(),
-    }),
-  }),
-});
+export {
+  seedEmbeddingsSchema,
+  recommendationCandidateSchema,
+  recommendationsResponseSchema,
+} from "@groovenet/contracts";
 
 export const durationBackfillQueueErrorSchema = z.object({
   track_id: z.string(),
@@ -1299,169 +1255,50 @@ export const fingerprintIndexRunSchema = z.object({
   complete: z.boolean(),
 });
 
-// ─── Embeddings backfill (#388) ───────────────────────────────────────────────
+// ─── Embeddings (#388, #451, #386) ────────────────────────────────────────────
 
-const embeddingJobKindSchema = z.enum(["identity", "audio_vibe", "context"]);
+export {
+  embeddingsBackfillRunSchema,
+  embeddingsBackfillDryRunSchema,
+  embeddingsBackfillResponseSchema,
+  embeddingsStatusSchema,
+  embeddingQueueLaneDepthsSchema,
+  embeddingQueueKindCountsSchema,
+  embeddingQueueActiveRunSchema,
+  embeddingQueueFailedJobSchema,
+  embeddingQueueStatusSchema,
+  embeddingQueueRetryBodySchema,
+  embeddingQueueRetryResponseSchema,
+  embeddingModelSettingsSchema,
+  embeddingModelSettingsListSchema,
+} from "@groovenet/contracts";
+export { embeddingKindSchema as embeddingModelKindSchema } from "@groovenet/contracts";
 
-/**
- * Which tracks to resolve. Exactly one of `track_ids`/`release_id` is
- * required for their matching scope, same shape as the fingerprint index body.
- */
-export const embeddingsBackfillBodySchema = z
-  .object({
-    scope: z.enum(["missing", "all", "release", "track"]).default("missing"),
-    types: z.array(embeddingJobKindSchema).min(1).optional(),
+/** The route accepts text for the numeric fields; the shared schema is the wire shape. */
+export const embeddingsBackfillBodySchema = embeddingsBackfillObjectSchema
+  .extend({
     friend_id: intFromInputSchema.optional(),
-    release_id: z.string().min(1).optional(),
-    track_ids: z.array(z.string().min(1)).min(1).optional(),
     limit: intFromInputSchema.optional(),
-    // Orthogonal to scope, like the fingerprint index body: even a `release`
-    // or `track` scope only fills what's missing by default, and `all`
-    // implies it regardless of what's passed here.
-    force: z.boolean().optional(),
-    dry_run: z.boolean().optional(),
   })
-  .superRefine((value, ctx) => {
-    if (value.scope === "track" && !value.track_ids?.length) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "scope 'track' requires track_ids",
-      });
-    }
-    if (value.scope === "release" && !value.release_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "scope 'release' requires release_id",
-      });
-    }
-  });
+  .superRefine(refineEmbeddingsBackfillBody);
 
-export const embeddingsBackfillRunSchema = z.object({
-  run_id: z.string(),
-  queued: z.number().int(),
-  success: z.number().int(),
-  skipped: z.number().int(),
-  failed: z.number().int(),
-  errors: z.array(z.string()),
-  started_at: z.number().int(),
-  updated_at: z.number().int(),
-  complete: z.boolean(),
-});
-
-export const embeddingsBackfillDryRunSchema = z.object({
-  dry_run: z.literal(true),
-  total: z.number().int(),
-  by_type: z.object({
-    identity: z.number().int(),
-    audio_vibe: z.number().int(),
-    context: z.number().int(),
-  }),
-});
-
-const embeddingModelCoverageSchema = z.array(
-  z.object({
-    model: z.string(),
-    dims: z.number().int(),
-    template_version: z.number().int(),
-    count: z.number().int(),
-  }),
-);
-
-export const embeddingsStatusSchema = z.object({
-  total_tracks: z.number().int(),
-  /** Tracks with no row at the target model and current template version (#407). */
-  missing: z.object({
-    identity: z.number().int(),
-    audio_vibe: z.number().int(),
-    context: z.number().int(),
-  }),
-  /** Row counts per model and template version, for watching a switch's backfill reach coverage (#386, #407). */
-  by_model: z.object({
-    identity: embeddingModelCoverageSchema,
-    audio_vibe: embeddingModelCoverageSchema,
-    context: embeddingModelCoverageSchema,
-  }),
-});
-
-export const embeddingsStatusQuerySchema = z.object({
+export const embeddingsStatusQuerySchema = sharedEmbeddingsStatusQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
 });
 
-// ─── Embeddings queue status (#451) ───────────────────────────────────────────
-
-export const embeddingQueueLaneDepthsSchema = z.object({
-  interactive: z.number().int(),
-  sync: z.number().int(),
-  bulk: z.number().int(),
-});
-
-export const embeddingQueueKindCountsSchema = z.object({
-  identity: z.number().int(),
-  audio_vibe: z.number().int(),
-  context: z.number().int(),
-});
-
-export const embeddingQueueActiveRunSchema = z.object({
-  run_id: z.string(),
-  queued: z.number().int(),
-  success: z.number().int(),
-  skipped: z.number().int(),
-  failed: z.number().int(),
-  started_at: z.number().int(),
-  updated_at: z.number().int(),
-});
-
-export const embeddingQueueFailedJobSchema = z.object({
-  id: z.string(),
-  track_id: z.string(),
-  friend_id: z.number().int(),
-  kind: embeddingJobKindSchema,
-  run_id: z.string().optional(),
-  attempts: z.number().int(),
-  error: z.string(),
-  failed_at: z.number().int(),
-});
-
-export const embeddingQueueStatusSchema = z.object({
-  lanes: embeddingQueueLaneDepthsSchema,
-  retrying: z.number().int(),
-  failed_count: z.number().int(),
-  paused: z.boolean(),
-  pause_reason: z.string().optional(),
-  last_error: z.string().optional(),
-  interval_seconds: z.number().int(),
-  batch_size: z.number().int(),
-  drain_rate_per_minute: z.number(),
-  eta_seconds: z.number().int().nullable(),
-  by_kind: embeddingQueueKindCountsSchema,
-  by_kind_sampled: z.boolean(),
-  active_backfill_runs: z.array(embeddingQueueActiveRunSchema),
-  failed: z.array(embeddingQueueFailedJobSchema),
-});
-
-export const embeddingQueueRetryBodySchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-});
-
-export const embeddingQueueRetryResponseSchema = z.object({
-  retried: z.array(z.string()),
-  not_found: z.array(z.string()),
-});
-
-// ─── Embedding model settings (#386) ──────────────────────────────────────────
-
-export const embeddingModelKindSchema = z.enum(["identity", "audio_vibe", "context"]);
-
-export const embeddingModelSettingsSchema = z.object({
-  embedding_type: embeddingModelKindSchema,
-  target_model: z.string(),
-  target_dims: z.number().int(),
-  serving_model: z.string(),
-  serving_dims: z.number().int(),
-  serving_template_version: z.number().int(),
-});
-
-export const embeddingModelSettingsListSchema = z.array(embeddingModelSettingsSchema);
+/**
+ * One field at a time, by design: `target` is "what new jobs embed with
+ * from now on" and `serving` is "what similarity queries read right now" —
+ * flipping both together is how a model switch would skip the coexistence
+ * step it's built for. Text coercion for `dims` and `template_version`
+ * stays here.
+ */
+export const embeddingModelUpdateBodySchema = embeddingModelUpdateObjectSchema
+  .extend({
+    dims: intFromInputSchema.pipe(z.number().positive()),
+    template_version: intFromInputSchema.pipe(z.number().int().positive()).optional(),
+  })
+  .refine(...requireServingForTemplateVersion);
 
 // ─── Genre taxonomy (#370) ───────────────────────────────────────────────────
 
@@ -1501,30 +1338,6 @@ export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({
 
 export { trackGenreFacetsResponseSchema };
 export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
-
-/**
- * One field at a time, by design: `target` is "what new jobs embed with
- * from now on" and `serving` is "what similarity queries read right now" —
- * flipping both together is how a model switch would skip the coexistence
- * step it's built for.
- */
-export const embeddingModelUpdateBodySchema = z
-  .object({
-    embedding_type: embeddingModelKindSchema,
-    field: z.enum(["target", "serving"]),
-    model: z.string().min(1),
-    dims: intFromInputSchema.pipe(z.number().positive()),
-    /**
-     * Serving only: the template version reads switch to once its backfill is
-     * complete (#407). Omit to keep the current one. Target needs none — new
-     * jobs always embed with the code's current template.
-     */
-    template_version: intFromInputSchema.pipe(z.number().int().positive()).optional(),
-  })
-  .refine((body) => body.field === "serving" || body.template_version === undefined, {
-    message: "template_version only applies to field: serving",
-    path: ["template_version"],
-  });
 
 // ─── Audio ingest retention (#269) ────────────────────────────────────────────
 

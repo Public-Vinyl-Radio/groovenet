@@ -14,3 +14,5 @@ export * from "./genreReconciliation.js";
 export * from "./settings.js";
 export * from "./backups.js";
 export * from "./jobs.js";
+export * from "./embeddings.js";
+export * from "./recommendations.js";
