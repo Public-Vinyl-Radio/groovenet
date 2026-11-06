@@ -24,3 +24,11 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      - name: Test app latest release helper
+        run: node --test .github/scripts/mark-app-release-latest.test.mjs
+      - name: Mark the app release as latest
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: node .github/scripts/mark-app-release-latest.mjs
