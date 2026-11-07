@@ -3,6 +3,9 @@ import { dbPool, dbQuery } from "@/lib/serverDb";
 import { artistRepository } from "../artistRepository";
 import { artistPageRepository as repo } from "../artistPageRepository";
 import { getArtistPage } from "@/server/services/artistPageService";
+import { artistListRepository } from "../artistListRepository";
+import { artistCreditRepository } from "../artistCreditRepository";
+import { withArtistCredits } from "@/server/services/artistCreditService";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const usernames = ["artist-page-test-a", "artist-page-test-b"];
@@ -158,5 +161,59 @@ describe("ArtistPageRepository against Postgres", () => {
     expect(page?.top_tracks_by).toBe("spins");
     expect((await getArtistPage(slugs[1], friendB))?.albums).toEqual([]);
     expect((await getArtistPage(slugs[2], friendA))?.artist.is_placeholder).toBe(true);
+  });
+});
+
+describe("artist list and credits against Postgres (#710)", () => {
+  dbTest("lists a friend's artists with counts, placeholders only on request", async () => {
+    const all = { q: "", friendId: friendA, includePlaceholders: false };
+    const page = await artistListRepository.search(all, 50, 0);
+    expect(page.map((a) => [a.slug, a.album_count, a.track_count])).toEqual([
+      [slugs[1], 1, 2],
+      [slugs[0], 1, 2],
+    ]);
+    await expect(artistListRepository.count(all)).resolves.toBe(2);
+    const withPlaceholders = await artistListRepository.search(
+      { ...all, includePlaceholders: true },
+      50,
+      0,
+    );
+    expect(withPlaceholders.map((a) => a.slug)).toContain(slugs[2]);
+    const b = await artistListRepository.search({ ...all, friendId: friendB }, 50, 0);
+    expect(b.map((a) => a.slug)).toEqual([slugs[0]]);
+  });
+
+  dbTest("searches by name and by alias, exact matches first, and pages", async () => {
+    const scoped = { friendId: friendA, includePlaceholders: false };
+    const byAlias = await artistListRepository.search({ ...scoped, q: "mirlos" }, 50, 0);
+    expect(byAlias.map((a) => a.slug)).toEqual([slugs[0]]);
+    const byName = await artistListRepository.search({ ...scoped, q: "juaneco y" }, 50, 0);
+    expect(byName.map((a) => a.slug)).toEqual([slugs[1]]);
+    const second = await artistListRepository.search({ ...scoped, q: "" }, 1, 1);
+    expect(second.map((a) => a.slug)).toEqual([slugs[0]]);
+    await expect(artistListRepository.search({ ...scoped, q: "100%" }, 50, 0)).resolves.toEqual([]);
+  });
+
+  dbTest("reads credits in order, tracks falling back to their album", async () => {
+    const albums = await artistCreditRepository.forAlbums([
+      { id: "artist-page-own", friend_id: friendA },
+    ]);
+    expect(albums.get(`${friendA}:artist-page-own`)?.map((c) => c.slug)).toEqual([
+      slugs[0],
+      slugs[1],
+    ]);
+    const { tracks } = await withArtistCredits(
+      [],
+      [
+        { track_id: "artist-page-t2", friend_id: friendA, release_id: "artist-page-comp" },
+        { track_id: "artist-page-none", friend_id: friendA, release_id: "artist-page-own" },
+      ],
+    );
+    expect(tracks[0].artists.map((c) => [c.slug, c.position, c.is_placeholder])).toEqual([
+      [slugs[0], 0, false],
+      [slugs[1], 1, false],
+      [slugs[2], 2, true],
+    ]);
+    expect(tracks[1].artists.map((c) => c.slug)).toEqual([slugs[0], slugs[1]]);
   });
 });

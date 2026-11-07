@@ -1,3 +1,4 @@
+import { addArtistsBrowseCommands } from "./artistsBrowse.js";
 import { addArtistsReviewCommand } from "./artistsReview.js";
 import { Command } from "commander";
 import type { ArtistReconcileResponse, GroovenetClient } from "@groovenet/client";
@@ -9,9 +10,9 @@ import { consoleIO, makeClient, type FingerprintLibraryIO } from "./fingerprintL
 import { resolveFriendId, type FriendScopeOptions } from "./genres.js";
 
 /**
- * `groovenet artists` (epic #700). `reconcile` is the one-off backfill that
- * links existing albums and tracks to artists (#705); reviewing the queue it
- * prints is #706.
+ * `groovenet artists` (epic #700). `list`, `show` and `albums` browse them
+ * (#710); `reconcile` is the one-off backfill that links existing albums and
+ * tracks to artists (#705); reviewing the queue it prints is #706.
  */
 
 export type ArtistsIO = FingerprintLibraryIO;
@@ -84,6 +85,7 @@ export async function runArtistReconcile(
 export function addArtistsCommands(program: Command): void {
   const artists = program.command("artists").description("Artists shared across collections");
 
+  addArtistsBrowseCommands(artists);
   addArtistsReviewCommand(artists);
 
   artists

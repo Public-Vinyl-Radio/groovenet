@@ -59,6 +59,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/albums/artwork/review` | albums | contracts |  |
 | POST | `/api/albums/create` | albums | contracts |  |
 | POST | `/api/albums/upsert` | albums | contracts |  |
+| GET | `/api/artists` | artists | contracts | `artists.ts`; search by name or alias, with counts (#710). |
 | POST | `/api/artists/reconcile` | artists | contracts | `artists.ts`; links albums and tracks to artists, dry run (#705). |
 | GET | `/api/artists/review` | artists | contracts | Review queue and source evidence (#706). |
 | POST | `/api/artists/review` | artists | contracts | Manual decisions, dry runs, and reversible merges (#706). |

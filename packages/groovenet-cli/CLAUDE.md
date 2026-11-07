@@ -31,7 +31,8 @@ fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
 system              orphans [--scan] (read-only audio-volume orphan report)
-artists             reconcile [--dry-run] | review (interactive or action flags)
+artists             list | show | albums | reconcile [--dry-run]
+                    review (interactive or action flags)
 records             clean | sleeve | log (release or --stack N) | copies
                     (add | label | remove) history | void (--session) | care
                     [--summary] | queue | stack | sessions | progress

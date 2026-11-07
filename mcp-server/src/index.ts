@@ -13,6 +13,7 @@ import {
   type TrackSearchMode,
   type TrackSearchQuery,
   type PlaylistOptimizerMode,
+  type ArtistPageResponse,
 } from "@groovenet/client";
 import dotenv from "dotenv";
 import { captureException, initSentry } from "./observability.js";
@@ -51,6 +52,71 @@ const tools = [
           minimum: 1,
           description:
             "Maximum related genres to return (server default: 20; fewer may be available)",
+        },
+      },
+      required: ["slug"],
+    },
+  },
+  {
+    name: "search_artists",
+    description:
+      "Search artists by name or any alias they are credited under, with how many albums and tracks credit them. Artists are shared across friends; with a friend scope only that collection's artists are listed. Use the returned slug with get_artist or get_artist_albums.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Name or alias substring; exact matches rank first" },
+        friend_id: {
+          type: "integer",
+          description: "Scope to this friend's collection (default: DEFAULT_FRIEND_ID)",
+        },
+        all_friends: {
+          type: "boolean",
+          description: "Read every friend's collection instead of one",
+        },
+        include_placeholders: {
+          type: "boolean",
+          description: "Include placeholder credits such as Various and Unknown Artist",
+        },
+        limit: { type: "integer", minimum: 1, maximum: 200, description: "Page size (default 50)" },
+        offset: { type: "integer", minimum: 0, description: "Page offset" },
+      },
+    },
+  },
+  {
+    name: "get_artist",
+    description:
+      "One artist by slug: counts (albums, appearances, tracks, spins, years), other spellings, genres, collaborators, their albums and top tracks in the chosen collection. Placeholders (Various) come back flagged with nothing listed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", minLength: 1, description: "Artist slug from search_artists" },
+        friend_id: {
+          type: "integer",
+          description: "Scope to this friend's collection (default: DEFAULT_FRIEND_ID)",
+        },
+        all_friends: {
+          type: "boolean",
+          description: "Read every friend's collection instead of one",
+        },
+      },
+      required: ["slug"],
+    },
+  },
+  {
+    name: "get_artist_albums",
+    description:
+      "Albums by an artist: albums credited to them first, then compilations they appear on, with the side positions of their tracks there and play counts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", minLength: 1, description: "Artist slug from search_artists" },
+        friend_id: {
+          type: "integer",
+          description: "Scope to this friend's collection (default: DEFAULT_FRIEND_ID)",
+        },
+        all_friends: {
+          type: "boolean",
+          description: "Read every friend's collection instead of one",
         },
       },
       required: ["slug"],
@@ -678,8 +744,10 @@ interface ToolArgs {
   artist?: string;
   album?: string;
   isrc?: string;
-  // similarity
+  // similarity, artists
   slug?: string;
+  all_friends?: boolean;
+  include_placeholders?: boolean;
   era?: string;
   country?: string;
   tags?: string;
@@ -705,6 +773,35 @@ interface ToolArgs {
 
 function jsonResult(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+/** One friend unless `all_friends`; artists are shared, their albums are not. */
+function artistScope(args: ToolArgs): number | undefined {
+  if (args.all_friends && args.friend_id !== undefined)
+    throw new Error("Pass friend_id or all_friends, not both");
+  return args.all_friends ? undefined : (args.friend_id ?? DEFAULT_FRIEND_ID);
+}
+
+function artistSlug(args: ToolArgs): string {
+  if (typeof args.slug !== "string" || args.slug.trim().length === 0)
+    throw new Error("slug is required and must be a nonempty string");
+  return args.slug.trim();
+}
+
+/** Albums without the full entity: enough to identify, play or open them. */
+function artistAlbumSummaries(page: ArtistPageResponse) {
+  return page.albums.map((a) => ({
+    release_id: a.release_id,
+    friend_id: a.friend_id,
+    title: a.title,
+    artist: a.artist,
+    year: a.year ?? null,
+    label: a.label ?? null,
+    library_identifier: a.library_identifier ?? null,
+    credit: a.appears_on_tracks > 0 ? "appears_on" : "album",
+    appears_on_positions: a.appears_on_positions,
+    play_count: a.play_count,
+  }));
 }
 
 async function recordHistory(copyId: number, friendId: number, includeVoided?: boolean) {
@@ -791,6 +888,45 @@ async function handleToolCall(name: string, args: ToolArgs) {
     });
   }
   switch (name) {
+    case "search_artists": {
+      const friendId = artistScope(args);
+      return jsonResult(
+        await client.searchArtists({
+          ...(args.query ? { q: args.query } : {}),
+          ...(friendId !== undefined ? { friend_id: friendId } : {}),
+          ...(args.include_placeholders ? { include_placeholders: true } : {}),
+          ...(args.limit !== undefined ? { limit: args.limit } : {}),
+          ...(args.offset !== undefined ? { offset: args.offset } : {}),
+        }),
+      );
+    }
+    case "get_artist": {
+      const page = await client.getArtist(artistSlug(args), artistScope(args));
+      return jsonResult({
+        artist: page.artist,
+        aliases: page.aliases,
+        counts: page.counts,
+        genres: page.genres,
+        collaborators: page.collaborators,
+        albums: artistAlbumSummaries(page),
+        top_tracks_by: page.top_tracks_by,
+        top_tracks: page.top_tracks.slice(0, 20).map((t) => ({
+          track_id: t.track_id,
+          friend_id: t.friend_id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          position: t.position ?? null,
+          bpm: t.bpm ?? null,
+          key: t.key ?? null,
+          play_count: t.play_count,
+        })),
+      });
+    }
+    case "get_artist_albums": {
+      const page = await client.getArtist(artistSlug(args), artistScope(args));
+      return jsonResult({ artist: page.artist, albums: artistAlbumSummaries(page) });
+    }
     case "get_similar_genres": {
       if (typeof args.slug !== "string" || args.slug.trim().length === 0) {
         throw new Error("slug is required and must be a nonempty string");

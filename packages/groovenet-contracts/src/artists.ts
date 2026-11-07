@@ -126,9 +126,43 @@ export type ArtistPageQuery = z.infer<typeof artistPageQuerySchema>;
 export type ArtistCollaborator = z.infer<typeof artistCollaboratorSchema>;
 export type ArtistPageResponse = z.infer<typeof artistPageResponseSchema>;
 
+/** `GET /api/artists` (#710): search the artist list, by name or any alias. */
+export const artistListQuerySchema = z.object({
+  q: z.string().optional(),
+  friend_id: z.number().int().optional(),
+  include_placeholders: z.boolean().optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+  offset: z.number().int().min(0).optional(),
+});
+
+export const artistListItemSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  sort_name: z.string(),
+  slug: z.string(),
+  discogs_artist_id: z.string().nullable(),
+  is_placeholder: z.boolean(),
+  album_count: count.meta({ description: "Albums credited to the artist on the album itself" }),
+  track_count: count.meta({
+    description: "Tracks credited to the artist directly, not through their album",
+  }),
+});
+
+export const artistListResponseSchema = z.object({
+  items: z.array(artistListItemSchema),
+  total: count,
+  limit: z.number().int(),
+  offset: z.number().int(),
+  query: z.string(),
+});
+export type ArtistListQuery = z.infer<typeof artistListQuerySchema>;
+export type ArtistListItem = z.infer<typeof artistListItemSchema>;
+export type ArtistListResponse = z.infer<typeof artistListResponseSchema>;
+
 export const artistJsonSchemas = {
   ArtistReconcileRequest: z.toJSONSchema(artistReconcileRequestSchema),
   ArtistReconcileResponse: z.toJSONSchema(artistReconcileResponseSchema),
+  ArtistListResponse: z.toJSONSchema(artistListResponseSchema),
   ArtistPageResponse: z.toJSONSchema(artistPageResponseSchema, {
     io: "input",
     // Entities are shared components; keep them inline rather than local refs.

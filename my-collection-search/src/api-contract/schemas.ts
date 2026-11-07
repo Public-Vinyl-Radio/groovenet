@@ -28,6 +28,7 @@ import {
 import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   artistPageQuerySchema as sharedArtistPageQuerySchema,
+  artistListQuerySchema as sharedArtistListQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
 import {
@@ -1193,6 +1194,15 @@ export {
 export type { ArtistCollaborator, ArtistPageResponse } from "@groovenet/contracts";
 export const artistPageQuerySchema = sharedArtistPageQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
+});
+export { artistCreditRefSchema, artistListResponseSchema } from "@groovenet/contracts";
+export type { ArtistCreditRef, ArtistListItem, ArtistListResponse } from "@groovenet/contracts";
+export const artistListQuerySchema = sharedArtistListQuerySchema.extend({
+  q: z.string().trim().max(200).optional().default(""),
+  friend_id: intFromInputSchema.optional(),
+  include_placeholders: booleanFlagSchema.optional().default(false),
+  limit: intFromInputSchema.pipe(z.number().int().min(1).max(200)).optional().default(50),
+  offset: nonNegativeIntFromInputSchema.optional().default(0),
 });
 
 export { trackGenreFacetsResponseSchema };

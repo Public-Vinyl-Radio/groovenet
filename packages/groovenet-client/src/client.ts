@@ -94,6 +94,9 @@ import type {
   EmbeddingStatus,
   StorageResponse,
   OrphansQuery,
+  ArtistListQuery,
+  ArtistListResponse,
+  ArtistPageResponse,
   ArtistReconcileRequest,
   ArtistReconcileResponse,
   OrphansResponse,
@@ -942,6 +945,28 @@ export class GroovenetClient {
    */
   async reconcileArtists(request: ArtistReconcileRequest = {}): Promise<ArtistReconcileResponse> {
     return this.request<ArtistReconcileResponse>("POST", "/artists/reconcile", request);
+  }
+
+  /**
+   * Search artists by name or any alias (#710). With `friend_id`, only the
+   * artists credited in that collection, counted there. Placeholders such as
+   * Various are left out unless `include_placeholders`.
+   */
+  async searchArtists(query: ArtistListQuery = {}): Promise<ArtistListResponse> {
+    return this.request<ArtistListResponse>("GET", "/artists", undefined, query);
+  }
+
+  /**
+   * One artist by slug (#707): header, counts, albums (credited first, then
+   * appearances), top tracks, genres and collaborators, scoped to `friendId`.
+   */
+  async getArtist(slug: string, friendId?: number): Promise<ArtistPageResponse> {
+    return this.request<ArtistPageResponse>(
+      "GET",
+      `/artists/${encodeURIComponent(slug)}`,
+      undefined,
+      { friend_id: friendId },
+    );
   }
 
   // ── Storage orphans (#1052) ────────────────────────────────────────────────

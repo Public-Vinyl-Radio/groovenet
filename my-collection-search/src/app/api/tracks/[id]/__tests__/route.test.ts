@@ -6,6 +6,26 @@ const { mockSoftDelete, mockFindWithFallback } = vi.hoisted(() => ({
   mockFindWithFallback: vi.fn(),
 }));
 
+vi.mock("@/server/services/artistCreditService", () => ({
+  // A plain function, so resetAllMocks keeps it: every row gets one credit.
+  withArtistCredits: async (albums: object[], tracks: object[]) => {
+    const artists = [
+      {
+        id: 4,
+        name: "A",
+        slug: "a",
+        is_placeholder: false,
+        role: "primary",
+        position: 0,
+        credited_as: "A",
+      },
+    ];
+    return {
+      albums: albums.map((a) => ({ ...a, artists })),
+      tracks: tracks.map((t) => ({ ...t, artists })),
+    };
+  },
+}));
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: {
     softDeleteTrack: mockSoftDelete,
@@ -109,7 +129,9 @@ describe("GET /api/tracks/[id]", () => {
     mockFindWithFallback.mockResolvedValueOnce(track);
     const res = await GET(makeReq("?friend_id=1"), makeParams());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(track);
+    const body = await res.json();
+    expect(body).toMatchObject(track);
+    expect(body.artists).toEqual([expect.objectContaining({ slug: "a", role: "primary" })]);
   });
 
   it("serialises Date columns and 500s on a row that breaks the contract", async () => {
