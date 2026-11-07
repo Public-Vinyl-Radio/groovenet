@@ -21,7 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@sentry/node": "^11.4.0",
+    "@sentry/node": "^11.11.0",
     "@groovenet/client": "*",
     "@groovenet/player": "*",
     "@modelcontextprotocol/sdk": "^1.32.0",
