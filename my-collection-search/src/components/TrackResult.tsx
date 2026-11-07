@@ -3,8 +3,8 @@
 import { artworkOf } from "@/components/player/trackMeta";
 import Cover from "@/components/Cover";
 import React, { useState } from "react";
-import NextLink from "next/link";
 import ArtistLink from "./ArtistLink";
+import { TrackTitleLink } from "./TrackIdentity";
 import AlbumLink from "./AlbumLink";
 import TrackPlaylistUsage from "./TrackPlaylistUsage";
 import {
@@ -12,7 +12,6 @@ import {
   Flex,
   Grid,
   Text,
-  Link,
   Icon,
   RatingGroup,
   Checkbox,
@@ -547,7 +546,6 @@ export default function TrackResult({
     setLocalRating(track.star_rating ?? 0);
   }, [track.star_rating]);
 
-  const trackHref = `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`;
   const hasNotes = Boolean(track.notes?.trim());
 
   // Data quality indicators. `hasVectors === undefined` means the endpoint
@@ -672,9 +670,8 @@ export default function TrackResult({
         </Box>
         <Flex direction="column" flex="1" minW={0}>
           <Flex align="center" gap={1.5} minW={0}>
-            <Link
-              as={NextLink}
-              href={trackHref}
+            <TrackTitleLink
+              track={track}
               onClick={stopRowEvent}
               onMouseDown={stopRowEvent}
               fontSize="sm"
@@ -684,10 +681,7 @@ export default function TrackResult({
               textOverflow="ellipsis"
               whiteSpace="nowrap"
               minW={0}
-              _hover={{ textDecoration: "underline" }}
-            >
-              {track.title}
-            </Link>
+            />
             {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
             {showRating && (
               <Box flexShrink={0} onClick={stopRowEvent} onMouseDown={stopRowEvent}>
@@ -807,9 +801,8 @@ export default function TrackResult({
         <ArtworkPlay track={track} size={{ base: "60px", md: "80px" }} iconSize={6} />
         <Flex direction="column" flex={1} minW={0} gap={1}>
           <Flex alignItems="center" gap={1.5} minW={0}>
-            <Link
-              as={NextLink}
-              href={trackHref}
+            <TrackTitleLink
+              track={track}
               title={track.title}
               fontSize={{ base: "md", md: "lg" }}
               fontWeight="bold"
@@ -817,10 +810,7 @@ export default function TrackResult({
               textOverflow="ellipsis"
               whiteSpace="nowrap"
               minW={0}
-              _hover={{ textDecoration: "underline" }}
-            >
-              {track.title}
-            </Link>
+            />
             {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
             {score !== undefined && (
               <StatusTag
@@ -965,9 +955,8 @@ export default function TrackResult({
         >
           <Flex direction="column" gap={0} minW={0} overflow="hidden">
             <Flex alignItems="center" gap={1.5} minW={0}>
-              <Link
-                as={NextLink}
-                href={trackHref}
+              <TrackTitleLink
+                track={track}
                 title={track.title}
                 display="block"
                 fontSize="15px"
@@ -977,10 +966,7 @@ export default function TrackResult({
                 textOverflow="ellipsis"
                 whiteSpace="nowrap"
                 minW={0}
-                _hover={{ textDecoration: "underline" }}
-              >
-                {track.title}
-              </Link>
+              />
               {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
               {score !== undefined && (
                 <StatusTag
@@ -1155,9 +1141,8 @@ export default function TrackResult({
         <Flex alignItems="flex-start" gap={2} minW={0}>
           <Flex direction="column" flex={1} minW={0}>
             <Flex alignItems="center" gap={1.5} minW={0} pr={{ base: "32px", md: 0 }}>
-              <Link
-                as={NextLink}
-                href={trackHref}
+              <TrackTitleLink
+                track={track}
                 title={track.title}
                 display="block"
                 fontFamily="heading"
@@ -1168,10 +1153,7 @@ export default function TrackResult({
                 textOverflow="ellipsis"
                 whiteSpace="nowrap"
                 minW={0}
-                _hover={{ textDecoration: "underline" }}
-              >
-                {track.title}
-              </Link>
+              />
               {score !== undefined && (
                 <StatusTag
                   tone={score > 90 ? "success" : score > 75 ? "analysis" : "missing"}

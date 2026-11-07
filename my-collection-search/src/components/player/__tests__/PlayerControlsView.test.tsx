@@ -124,6 +124,14 @@ describe("PlayerControlsView — docked desktop bar", () => {
       </PlaylistPlayerProvider>,
     );
 
+  it("links the title, artist and cover of the playing track", () => {
+    renderBar({ currentTrack: { ...sampleTrack, track_id: "t9", friend_id: 4, release_id: "77" } });
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs).toContain(`/tracks/t9?friend_id=4`);
+    expect(hrefs).toContain(`/albums/77?friend_id=4`);
+    expect(hrefs).toContain(`/albums?q=${encodeURIComponent(sampleTrack.artist)}&friend_id=4`);
+  });
+
   it("joins previous, play-pause and next in one transport strip", () => {
     renderBar({ canPrev: true });
     const strip = screen.getByRole("group", { name: "Transport" });

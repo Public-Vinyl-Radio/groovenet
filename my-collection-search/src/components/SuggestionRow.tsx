@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Button, Flex, IconButton, Text } from "@chakra-ui/react";
 import { FiCheck, FiPlay, FiPlus } from "react-icons/fi";
 import Cover from "@/components/Cover";
+import TrackIdentity, { TrackCoverLink } from "@/components/TrackIdentity";
 import { artworkOf } from "@/components/player/trackMeta";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import { BpmCell } from "@/components/RelatedTrackRows";
@@ -73,7 +74,6 @@ export default function SuggestionRow({
 }: SuggestionRowProps) {
   const mix = describeMix(seed, track);
   const reason = suggestionReason(seed, track);
-  const byline = [track.artist, compact ? null : track.album].filter(Boolean).join(" · ");
   return (
     <Flex
       as="li"
@@ -88,19 +88,17 @@ export default function SuggestionRow({
       borderRadius="md"
       data-added={added || undefined}
     >
-      <Box display={compact ? "none" : { base: "none", sm: "block" }}>
-        <Cover src={artworkOf(track)} alt="" size="48px" />
-      </Box>
-      <Box display={compact ? "block" : { base: "block", sm: "none" }}>
-        <Cover src={artworkOf(track)} alt="" size="44px" />
-      </Box>
+      <TrackCoverLink track={track}>
+        <Box display={compact ? "none" : { base: "none", sm: "block" }}>
+          <Cover src={artworkOf(track)} alt="" size="48px" />
+        </Box>
+        <Box display={compact ? "block" : { base: "block", sm: "none" }}>
+          <Cover src={artworkOf(track)} alt="" size="44px" />
+        </Box>
+      </TrackCoverLink>
       <Flex direction="column" gap="2px" flex={1} minW={0}>
-        <Text fontWeight="semibold" fontSize="15px" lineHeight="20px" truncate>
-          {track.title}
-        </Text>
-        <Text fontSize="12px" lineHeight="16px" color="fg.muted" truncate>
-          {byline}
-        </Text>
+        {/* The phone sheet is dense: the title is the way to the track, artist stays text. */}
+        <TrackIdentity track={track} hideAlbum={compact} links={compact ? "title" : "all"} />
         <Flex flexWrap="wrap" alignItems="center" gap={1.5} mt="2px">
           <BpmCell track={track} delta={mix.bpmDelta} />
           <KeyFit seed={seed} track={track} />

@@ -158,3 +158,15 @@ describe("AlbumTracklist phone", () => {
     expect(within(list).getByRole("button", { name: "Actions for Song B1" })).toBeTruthy();
   });
 });
+
+describe("AlbumTracklist links", () => {
+  it("links each title to its track and a compilation artist to the albums search", () => {
+    setup(false);
+    expect(screen.getByRole("link", { name: "Song A1" }).getAttribute("href")).toBe(
+      "/tracks/t-A1?friend_id=1",
+    );
+    expect(screen.getByRole("link", { name: "Guest" }).getAttribute("href")).toBe(
+      "/albums?q=Guest&friend_id=1",
+    );
+  });
+});

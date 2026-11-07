@@ -298,6 +298,17 @@ an invalid value the browser drops, so it fails silently.
   the block itself for standard-density rows, numbers them with `listPosition`,
   and gives the lifted row its own outline); `onRowClick` fires only for clicks
   on bare row, never on links, buttons or popovers.
+- **Track identity (#1063):** a track's title, artist, album and cover go through
+  the shared parts in `components/TrackIdentity.tsx` (`TrackIdentity`,
+  `TrackTitleLink`, `TrackCoverLink`, `trackHref`), never hand-built links or
+  plain text. Title → `/tracks/{id}`, artist → `ArtistLink` (the one place
+  `artistHref` changes for artist pages), album → `AlbumLink`; a part missing its
+  id is plain text. Links stop propagation, so a clickable or draggable row fires
+  `onRowClick` only on bare row. The cover link is `aria-hidden` and `tabIndex={-1}`:
+  never two tab stops for one target. Dense phone rows pass `links="title"` or
+  `"none"`. Pickers, menus, dialogs, toasts and forms stay plain text, and a link is
+  never nested in a button (give the row a sibling overlay button instead, as
+  `QueueList` does).
 - **Track cards** (`TrackResult`, the default `layout`; #722): the container is a 2px
   `border.ink` outline with `shadow-md`, so a grid of them needs `padding: 0 6px 6px 0`
   and a 20px gap (14px between stacked cards; the card carries `mb: 14px`, a caller with

@@ -13,6 +13,8 @@ import Artwork from "@/components/player/Artwork";
 import ProgressSlider from "@/components/player/ProgressSlider";
 import MiniProgressLine from "@/components/player/MiniProgressLine";
 import RetroSlider from "@/components/player/RetroSlider";
+import ArtistLink from "@/components/ArtistLink";
+import { TrackCoverLink, TrackTitleLink } from "@/components/TrackIdentity";
 import QueueList from "@/components/player/QueueList";
 import { PlayOnRow } from "@/components/player/PlaybackOutput";
 import ServerNotice from "@/components/player/ServerNotice";
@@ -175,7 +177,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
           </Flex>
           <ServerSessionStrip />
           <Box flex="1" minH={0} overflowY="auto">
-            <QueueList {...model.list} />
+            <QueueList {...model.list} links />
           </Box>
         </chakra.aside>
         <SaveDialog />
@@ -247,13 +249,25 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                   pb="16px"
                 >
                   <Box alignSelf="center" w="min(calc(100% - 6px), 340px)" flexShrink={0}>
-                    <Artwork
-                      playing={model.transport.isPlaying}
-                      src={artworkOf(track)}
-                      alt={artworkAlt(track)}
-                      fill
-                      shadow
-                    />
+                    {track ? (
+                      <TrackCoverLink track={track}>
+                        <Artwork
+                          playing={model.transport.isPlaying}
+                          src={artworkOf(track)}
+                          alt={artworkAlt(track)}
+                          fill
+                          shadow
+                        />
+                      </TrackCoverLink>
+                    ) : (
+                      <Artwork
+                        playing={model.transport.isPlaying}
+                        src={artworkOf(track)}
+                        alt={artworkAlt(track)}
+                        fill
+                        shadow
+                      />
+                    )}
                   </Box>
                   <Box>
                     <Text
@@ -263,10 +277,14 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       fontWeight="semibold"
                       lineClamp={2}
                     >
-                      {track?.title ?? "No track playing"}
+                      {track ? <TrackTitleLink track={track} /> : "No track playing"}
                     </Text>
                     <Text fontSize="16px" lineHeight="22px" color="fg.muted" lineClamp={1}>
-                      {track?.artist ?? "—"}
+                      {track ? (
+                        <ArtistLink artist={track.artist} friendId={track.friend_id} />
+                      ) : (
+                        "—"
+                      )}
                     </Text>
                     {trackMetaLine(track) && (
                       <Text

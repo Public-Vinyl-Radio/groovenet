@@ -159,4 +159,31 @@ describe("QueueList", () => {
     renderList(0, { playlist: [track(0, { key: null })] });
     expect(screen.queryByText("7A")).toBeNull();
   });
+
+  it("links the playing track's title to its page; artist stays text without links", () => {
+    renderList(2, { playlist: [track(0, { release_id: "r0" }), track(1), track(2)] });
+    const now = screen.getByTestId("queue-now-playing");
+    expect(within(now).getByRole("link", { name: "Title 2" }).getAttribute("href")).toBe(
+      "/tracks/t2?friend_id=1",
+    );
+    expect(within(now).queryByRole("link", { name: "Artist 2" })).toBeNull();
+    // Rows play on tap: nothing inside them is a link on phones.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("links title and artist in every row when links are on, without playing the row", async () => {
+    const { user, playTrack } = renderList(0, { links: true });
+    expect(screen.getByRole("link", { name: "Title 1" }).getAttribute("href")).toBe(
+      "/tracks/t1?friend_id=1",
+    );
+    expect(screen.getByRole("link", { name: "Artist 1" }).getAttribute("href")).toBe(
+      "/albums?q=Artist%201&friend_id=1",
+    );
+    // The play key is its own layer, so a link is not nested in a button.
+    expect(screen.getByRole("link", { name: "Title 1" }).closest("button")).toBeNull();
+    await user.click(screen.getByRole("link", { name: "Title 1" }));
+    expect(playTrack).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Play Title 1 by Artist 1" }));
+    expect(playTrack).toHaveBeenCalledWith(1);
+  });
 });

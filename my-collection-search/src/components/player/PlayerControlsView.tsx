@@ -10,6 +10,7 @@ import ProgressSlider from "@/components/player/ProgressSlider";
 import Artwork from "@/components/player/Artwork";
 import ArtistLink from "@/components/ArtistLink";
 import AlbumLink from "@/components/AlbumLink";
+import { TrackTitleLink } from "@/components/TrackIdentity";
 import MiniProgressLine from "@/components/player/MiniProgressLine";
 import RetroSlider from "@/components/player/RetroSlider";
 import { OutputButton, OutputTag } from "@/components/player/PlaybackOutput";
@@ -194,8 +195,14 @@ export default function PlayerControlsView({
             maxW="100%"
             lineClamp={1}
             title={primaryText}
+            // Chakra's Link is inline-flex, which defeats the parent's line clamp.
+            css={{ "& > a": { display: "inline" } }}
           >
-            {primaryText}
+            {!isQueueFinished && currentTrack ? (
+              <TrackTitleLink track={currentTrack} />
+            ) : (
+              primaryText
+            )}
           </Text>
           <Text
             color="fg.muted"
