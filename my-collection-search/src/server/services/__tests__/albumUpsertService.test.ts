@@ -9,6 +9,10 @@ import {
 import type { DiscogsRelease } from "@groovenet/contracts";
 import type { Album } from "@/types/track";
 
+vi.mock("@/server/repositories/artistImportRepository", () => ({
+  artistImportRepository: { importAlbumCredits: vi.fn(), importTrackCredits: vi.fn() },
+}));
+
 // ─── mocks ────────────────────────────────────────────────────────────────────
 
 const albumRepo = vi.hoisted(() => ({

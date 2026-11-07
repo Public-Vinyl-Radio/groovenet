@@ -30,6 +30,10 @@ vi.mock("@/server/repositories/trackRepository", () => ({
 
 import { upsertTracks } from "../trackUpsertService";
 
+vi.mock("@/server/repositories/artistImportRepository", () => ({
+  artistImportRepository: { importAlbumCredits: vi.fn(), importTrackCredits: vi.fn() },
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function track(overrides: Partial<DiscogsTrack> = {}): DiscogsTrack {

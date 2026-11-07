@@ -1,3 +1,5 @@
+import { importArtistCredits } from "@/lib/artists/importCredits";
+import { artistImportRepository } from "@/server/repositories/artistImportRepository";
 import { friendRepository } from "@/server/repositories/friendRepository";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import type { Track } from "@/types/track";
@@ -54,7 +56,14 @@ export async function upsertTracks(tracks: DiscogsTrack[]): Promise<TrackUpsertR
 
       const row = await trackRepository.upsertDiscogsTrackByTrackIdUsername(track, friendId);
       // A null row is an intentional no-op for a soft-deleted track.
-      if (row) upserted.push(row);
+      if (row) {
+        await artistImportRepository.importTrackCredits(
+          track.track_id,
+          friendId,
+          track.artist_credits ?? importArtistCredits(undefined, track.artist),
+        );
+        upserted.push(row);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errors.push({

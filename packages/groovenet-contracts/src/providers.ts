@@ -7,7 +7,11 @@ import { trackGenreSchema } from "./tracks.js";
 
 // ─── Discogs release exports ────────────────────────────────────────────────
 
-const discogsArtistRefSchema = z.object({ name: z.string() });
+const discogsArtistRefSchema = z.object({
+  name: z.string(),
+  id: z.union([z.string(), z.number()]).optional(),
+  join: z.string().optional(),
+});
 
 /** A track of a Discogs release export, as the app's sync writes it to disk. */
 export const processedTrackSchema = z

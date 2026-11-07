@@ -1,0 +1,124 @@
+import { createHash } from "node:crypto";
+import type { PoolClient } from "pg";
+import { withDbTransaction } from "@/lib/serverDb";
+import { normaliseArtistName } from "@/lib/artists/normalization";
+import type { ImportArtistCredit } from "@/lib/artists/importCredits";
+
+/** Import only owns automatic credits. Manual credits are the review tool's override. */
+export class ArtistImportRepository {
+  async importAlbumCredits(
+    releaseId: string,
+    friendId: number,
+    credits: ImportArtistCredit[],
+  ): Promise<void> {
+    await withDbTransaction(async (db) => {
+      const { rows } = await db.query<{ id: number }>(
+        "SELECT id FROM albums WHERE release_id = $1 AND friend_id = $2 FOR UPDATE",
+        [releaseId, friendId],
+      );
+      if (!rows[0]) throw new Error("Cannot credit a missing album");
+      await this.importCredits(db, "album_artists", ["album_id"], [rows[0].id], credits);
+    });
+  }
+
+  async importTrackCredits(
+    trackId: string,
+    friendId: number,
+    credits: ImportArtistCredit[],
+  ): Promise<void> {
+    await withDbTransaction(async (db) => {
+      await db.query("SELECT id FROM tracks WHERE track_id = $1 AND friend_id = $2 FOR UPDATE", [
+        trackId,
+        friendId,
+      ]);
+      await this.importCredits(
+        db,
+        "track_artists",
+        ["track_id", "friend_id"],
+        [trackId, friendId],
+        credits,
+      );
+    });
+  }
+
+  private async importCredits(
+    db: PoolClient,
+    table: string,
+    columns: string[],
+    keys: (string | number)[],
+    credits: ImportArtistCredit[],
+  ): Promise<void> {
+    const where = columns.map((column, i) => `${column} = $${i + 1}`).join(" AND ");
+    const manual = await db.query(
+      `SELECT 1 FROM ${table} WHERE ${where} AND source = 'manual'`,
+      keys,
+    );
+    if (manual.rows.length) return;
+
+    // Serialize identity resolution across friends and concurrent album/track imports.
+    // Unlike an ON CONFLICT retry, this also protects the alias-to-identity decision.
+    await db.query("SELECT pg_advisory_xact_lock(704, 0)");
+    await db.query(`DELETE FROM ${table} WHERE ${where} AND source IN ('discogs', 'legacy')`, keys);
+    for (const credit of credits) {
+      const artistId = await this.resolveArtist(db, credit);
+      const params = [
+        ...keys,
+        artistId,
+        credit.role,
+        credit.position,
+        credit.credited_as,
+        credit.source,
+      ];
+      await db.query(
+        `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "source"].join(", ")})
+         VALUES (${params.map((_, i) => `$${i + 1}`).join(", ")})
+         ON CONFLICT DO NOTHING`,
+        params,
+      );
+    }
+  }
+
+  private async resolveArtist(db: PoolClient, credit: ImportArtistCredit): Promise<number> {
+    const normalized = normaliseArtistName(credit.name);
+    // Placeholder synonyms have one identity. Numbered Discogs homonyms stay distinct.
+    const identity = credit.is_placeholder ? credit.name : (credit.discogs_artist_id ?? normalized);
+    const slug = `artist-${createHash("sha256")
+      .update(
+        `${credit.is_placeholder ? "placeholder" : credit.discogs_artist_id ? "discogs" : "legacy"}:${identity}`,
+      )
+      .digest("hex")}`;
+    const { rows } = await db.query<{ id: number }>(
+      `SELECT a.id FROM artists a
+       WHERE ($1::bigint IS NOT NULL AND a.discogs_artist_id = $1)
+          OR a.slug = $2
+          OR (EXISTS (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND aa.alias_normalized = $3)
+              AND ($1::bigint IS NULL OR a.discogs_artist_id IS NULL))
+       ORDER BY (a.discogs_artist_id = $1) DESC NULLS LAST, a.id LIMIT 1`,
+      [credit.discogs_artist_id, slug, normalized],
+    );
+    let id = rows[0]?.id;
+    if (id == null) {
+      const created = await db.query<{ id: number }>(
+        `INSERT INTO artists (name, sort_name, slug, discogs_artist_id, is_placeholder)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [credit.name, credit.sort_name, slug, credit.discogs_artist_id, credit.is_placeholder],
+      );
+      id = created.rows[0].id;
+    } else if (credit.discogs_artist_id) {
+      await db.query(
+        "UPDATE artists SET discogs_artist_id = $2 WHERE id = $1 AND discogs_artist_id IS NULL",
+        [id, credit.discogs_artist_id],
+      );
+    }
+    // A shared spelling can name two Discogs identities. Keep the original alias;
+    // ids still resolve both correctly, and legacy credits remain reviewable.
+    await db.query(
+      `INSERT INTO artist_aliases (artist_id, alias, alias_normalized) VALUES ($1, $2, $3)
+       ON CONFLICT (alias_normalized) DO NOTHING`,
+      [id, credit.credited_as, normaliseArtistName(credit.credited_as) || normalized],
+    );
+    return id;
+  }
+}
+
+export const artistImportRepository = new ArtistImportRepository();
