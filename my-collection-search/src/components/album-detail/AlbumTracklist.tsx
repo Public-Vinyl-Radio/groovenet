@@ -1,8 +1,9 @@
 "use client";
 
+import ArtistLink from "@/components/ArtistLink";
+import { TrackTitleLink } from "@/components/TrackIdentity";
 import React from "react";
-import NextLink from "next/link";
-import { Box, Button, Flex, Link, SegmentGroup, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, SegmentGroup, Text } from "@chakra-ui/react";
 import { FaPlay } from "react-icons/fa";
 import { FiPlay } from "react-icons/fi";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -25,8 +26,6 @@ type Props = {
 
 const ALL = "all";
 
-const trackHref = (t: Track) =>
-  `/tracks/${encodeURIComponent(t.track_id)}?friend_id=${t.friend_id}`;
 const rowKey = (t: Track, i: number) => `${t.track_id}:${t.friend_id}:${i}`;
 
 /** "6 tracks · 21:41" */
@@ -112,22 +111,18 @@ function TitleCell({ track, albumArtist }: { track: Track; albumArtist: string }
   return (
     <Box minW={0}>
       <Flex alignItems="center" gap={2} minW={0}>
-        <Link
-          as={NextLink}
-          href={trackHref(track)}
+        <TrackTitleLink
+          track={track}
           title={track.title}
           display="block"
           minW={0}
           fontWeight="semibold"
           fontSize="17px"
           lineHeight="24px"
-          _hover={{ textDecoration: "underline" }}
           overflow="hidden"
           textOverflow="ellipsis"
           whiteSpace="nowrap"
-        >
-          {track.title}
-        </Link>
+        />
         {track.notes?.trim() && <NotesIndicator notes={track.notes} />}
       </Flex>
       {showArtist && (
@@ -140,7 +135,7 @@ function TitleCell({ track, albumArtist }: { track: Track; albumArtist: string }
           textOverflow="ellipsis"
           whiteSpace="nowrap"
         >
-          {track.artist}
+          <ArtistLink artist={track.artist} friendId={track.friend_id} />
         </Text>
       )}
     </Box>

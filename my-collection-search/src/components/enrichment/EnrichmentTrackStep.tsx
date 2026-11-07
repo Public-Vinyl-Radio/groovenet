@@ -1,4 +1,7 @@
 "use client";
+import ArtistLink from "@/components/ArtistLink";
+import AlbumLink from "@/components/AlbumLink";
+import { TrackCoverLink, TrackTitleLink } from "@/components/TrackIdentity";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import Cover from "@/components/Cover";
 import React, { useEffect, useState } from "react";
@@ -226,16 +229,20 @@ export default function EnrichmentTrackStep({
     <Flex direction="column" gap={6}>
       {/* Track Identity */}
       <Flex gap={4} align="flex-start">
-        <Cover src={artworkSrc} alt={track.title} size="72px" />
+        <TrackCoverLink track={track}>
+          <Cover src={artworkSrc} alt={track.title} size="72px" />
+        </TrackCoverLink>
         <Box>
           <Text fontWeight="bold" fontSize="lg" lineClamp={1}>
-            {track.title}
+            <TrackTitleLink track={track} />
           </Text>
           <Text color="fg.muted" fontSize="sm">
-            {track.artist}
+            <ArtistLink artist={track.artist} friendId={track.friend_id} />
           </Text>
           <Text color="fg.subtle" fontSize="sm">
-            {track.album}
+            <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
+              {track.album}
+            </AlbumLink>
             {track.year ? ` (${track.year})` : ""}
           </Text>
         </Box>

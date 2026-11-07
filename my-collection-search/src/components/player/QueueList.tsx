@@ -8,6 +8,7 @@ import { LuGripVertical, LuMusic } from "react-icons/lu";
 import type { Track } from "@/types/track";
 import { camelotOf } from "@/lib/mixCompat";
 import Artwork from "@/components/player/Artwork";
+import TrackIdentity from "@/components/TrackIdentity";
 import { artworkAlt, artworkOf, trackDurationLabel } from "@/components/player/trackMeta";
 
 type Props = {
@@ -16,6 +17,8 @@ type Props = {
   moveTrack: (fromIndex: number, toIndex: number) => void;
   removeTrack: (index: number) => void;
   playTrack: (index: number) => void;
+  /** Link title and artist to their pages. Off on phones, where tapping a row plays it. */
+  links?: boolean;
 };
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
@@ -53,16 +56,15 @@ function TrackFigures({ track }: { track: Track }) {
   );
 }
 
-function TrackText({ track }: { track: Track }) {
+function TrackText({ track, links = "none" }: { track: Track; links?: "all" | "title" | "none" }) {
   return (
-    <Flex direction="column" flex="1" minW={0}>
-      <Text fontSize="15px" lineHeight="20px" fontWeight="semibold" truncate title={track.title}>
-        {track.title}
-      </Text>
-      <Text fontSize="13px" lineHeight="18px" color="fg.muted" truncate title={track.artist}>
-        {track.artist}
-      </Text>
-    </Flex>
+    <TrackIdentity
+      track={track}
+      links={links}
+      hideAlbum
+      titleProps={{ fontSize: "15px", lineHeight: "20px" }}
+      bylineProps={{ fontSize: "13px", lineHeight: "18px" }}
+    />
   );
 }
 
@@ -101,7 +103,9 @@ function QueueSection({
   tracks,
   removeTrack,
   playTrack,
+  links,
 }: {
+  links: boolean;
   id: string;
   offset: number;
   tracks: Track[];
@@ -152,14 +156,36 @@ function QueueSection({
                     >
                       <LuGripVertical size={16} />
                     </Box>
-                    <RowButton
-                      onClick={() => playTrack(index)}
-                      aria-label={`Play ${track.title} by ${track.artist}`}
+                    {/* The play key is a sibling layer, so links in the row aren't nested in a button. */}
+                    <Box
+                      position="relative"
+                      flex="1"
+                      minW={0}
+                      minH="60px"
+                      display="flex"
+                      alignItems="center"
+                      gap="10px"
                     >
-                      <Artwork src={artworkOf(track)} alt="" size="44px" />
-                      <TrackText track={track} />
-                      <TrackFigures track={track} />
-                    </RowButton>
+                      <RowButton
+                        position="absolute"
+                        inset={0}
+                        onClick={() => playTrack(index)}
+                        aria-label={`Play ${track.title} by ${track.artist}`}
+                      />
+                      <Box
+                        pointerEvents="none"
+                        display="flex"
+                        alignItems="center"
+                        gap="10px"
+                        flex="1"
+                        minW={0}
+                        css={{ "& a": { pointerEvents: "auto", position: "relative" } }}
+                      >
+                        <Artwork src={artworkOf(track)} alt="" size="44px" />
+                        <TrackText track={track} links={links ? "all" : "none"} />
+                        <TrackFigures track={track} />
+                      </Box>
+                    </Box>
                     <IconKey
                       aria-label={`Remove ${track.title} from queue`}
                       onClick={() => removeTrack(index)}
@@ -190,6 +216,7 @@ export default function QueueList({
   moveTrack,
   removeTrack,
   playTrack,
+  links = false,
 }: Props) {
   const current = currentTrackIndex === null ? null : (playlist[currentTrackIndex] ?? null);
   const nextOffset = currentTrackIndex === null ? 0 : currentTrackIndex + 1;
@@ -247,7 +274,7 @@ export default function QueueList({
             bg="bg.panel"
           >
             <Artwork playing src={artworkOf(current)} alt={artworkAlt(current)} size="48px" />
-            <TrackText track={current} />
+            <TrackText track={current} links={links ? "all" : "title"} />
             <TrackFigures track={current} />
           </Flex>
         </>
@@ -262,6 +289,7 @@ export default function QueueList({
               tracks={upNext}
               removeTrack={removeTrack}
               playTrack={playTrack}
+              links={links}
             />
           </>
         )}
@@ -274,6 +302,7 @@ export default function QueueList({
               tracks={played}
               removeTrack={removeTrack}
               playTrack={playTrack}
+              links={links}
             />
           </>
         )}

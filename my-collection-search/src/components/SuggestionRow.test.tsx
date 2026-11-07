@@ -40,7 +40,7 @@ describe("SuggestionRow", () => {
     );
     expect(screen.getByText("Key fits")).toBeTruthy();
     expect(screen.getByText("Similar sound")).toBeTruthy();
-    expect(screen.getByText("Bo · Day")).toBeTruthy();
+    expect(screen.getByText("Day")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add Next after Seed" }));
     fireEvent.click(screen.getByRole("button", { name: "Preview Next" }));
     expect(onAdd).toHaveBeenCalledWith(cand);
@@ -105,5 +105,34 @@ describe("SuggestionFoldRow", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "+3 more from Night" }));
     expect(onExpand).toHaveBeenCalled();
+  });
+
+  it("links title, artist, album and cover to their pages", () => {
+    renderWithChakra(
+      <ul>
+        <SuggestionRow seed={base} track={cand} onAdd={vi.fn()} />
+      </ul>,
+    );
+    const href = (name: string) => screen.getByRole("link", { name }).getAttribute("href");
+    expect(href("Next")).toBe("/tracks/b?friend_id=1");
+    expect(href("Bo")).toBe("/albums?q=Bo&friend_id=1");
+    expect(href("Day")).toBe("/albums/2?friend_id=1");
+    // The cover is a second, hidden way to the album: never a second tab stop.
+    const cover = document.querySelector('a[aria-hidden="true"]');
+    expect(cover?.getAttribute("href")).toBe("/albums/2?friend_id=1");
+    expect(cover?.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("links only the title in the phone sheet's compact form", () => {
+    renderWithChakra(
+      <ul>
+        <SuggestionRow seed={base} track={cand} compact onAdd={vi.fn()} />
+      </ul>,
+    );
+    expect(screen.getByRole("link", { name: "Next" }).getAttribute("href")).toBe(
+      "/tracks/b?friend_id=1",
+    );
+    expect(screen.queryByRole("link", { name: "Bo" })).toBeNull();
+    expect(screen.getByText("Bo")).toBeTruthy();
   });
 });
