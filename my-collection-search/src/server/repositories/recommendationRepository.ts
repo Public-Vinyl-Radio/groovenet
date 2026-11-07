@@ -81,6 +81,7 @@ const CANDIDATE_COLUMNS = `
           t.mood_relaxed,
           t.mood_aggressive,
           t.star_rating,
+          t.local_audio_url,
           ${coverUrlSql("t")} AS album_thumbnail`;
 
 function buildSeedValues(seedTracks: SeedTrackPair[]): {

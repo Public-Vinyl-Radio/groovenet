@@ -83,6 +83,18 @@ describe("SuggestionRow", () => {
   });
 });
 
+describe("SuggestionRow compact", () => {
+  it("drops the album from the byline", () => {
+    renderWithChakra(
+      <ul>
+        <SuggestionRow seed={base} track={cand} onAdd={vi.fn()} compact />
+      </ul>,
+    );
+    expect(screen.queryByText("Bo · Day")).toBeNull();
+    expect(screen.getByText("Bo")).toBeTruthy();
+  });
+});
+
 describe("SuggestionFoldRow", () => {
   it("expands", () => {
     const onExpand = vi.fn();

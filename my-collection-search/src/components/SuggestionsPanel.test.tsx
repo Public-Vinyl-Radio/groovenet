@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React, { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, screen, within } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
 const mocks = vi.hoisted(() => ({
@@ -13,9 +13,13 @@ const mocks = vi.hoisted(() => ({
     setScope: vi.fn(),
   },
   recommendations: vi.fn(),
+  replacePlaylist: vi.fn(),
 }));
 
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist }),
+}));
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 
 import SuggestionsPanel, { type SuggestionSeedRef } from "./SuggestionsPanel";
@@ -256,3 +260,186 @@ describe("SuggestionsPanel", () => {
     expect(onSeedChange).toHaveBeenCalledWith({ track_id: "p2", friend_id: 4 });
   });
 });
+
+describe("SuggestionsPanel preview", () => {
+  it("plays a suggestion that has audio, and offers nothing for one that has none", async () => {
+    mocks.recommendations.mockReturnValue({
+      data: [rec("r1", { local_audio_url: "/a.mp3" }), rec("r2")],
+      isLoading: false,
+    });
+    const { user } = renderWithProviders(
+      <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
+    );
+    expect(screen.queryByRole("button", { name: "Preview Title r2" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Preview Title r1" }));
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith(
+      [expect.objectContaining({ track_id: "r1" })],
+      { autoplay: true, startIndex: 0 },
+    );
+  });
+});
+
+describe("SuggestionsPanel as a phone sheet", () => {
+  beforeEach(() => setViewportWidth(390));
+  afterEach(() => setViewportWidth(1280));
+
+  const seedP1 = { track_id: "p1", friend_id: 4 };
+
+  it("opens as a sheet with the chips in one row, not the docked panel", async () => {
+    renderWithProviders(<Harness initialSeed={seedP1} />);
+    expect(await screen.findByTestId("suggestions-sheet")).toBeTruthy();
+    expect(screen.queryByTestId("suggestions-panel")).toBeNull();
+    const filters = screen.getByRole("group", { name: "Filters" });
+    for (const name of ["Whole playlist", "Compatible key", "BPM ±6%", "This library"]) {
+      expect(within(filters).getByRole("button", { name })).toBeTruthy();
+    }
+    expect(screen.queryByText("After a track")).toBeNull();
+  });
+
+  it("adds without closing and counts the adds in the footer", async () => {
+    const onClose = vi.fn();
+    const { user } = renderWithProviders(
+      <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
+    );
+    await screen.findByTestId("suggestions-sheet");
+    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
+      "0 added after Title p1",
+    );
+    await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
+    await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p1" }));
+    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
+      "2 added after Title p1",
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("suggestions-sheet")).toBeTruthy();
+  });
+
+  it("switches to the whole playlist and back with the chip", async () => {
+    const onSeedChange = vi.fn();
+    const { user, rerender } = renderWithProviders(
+      <SuggestionsPanel
+        playlist={[p1, p2]}
+        seed={seedP1}
+        onSeedChange={onSeedChange}
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Whole playlist" }));
+    expect(onSeedChange).toHaveBeenLastCalledWith(null);
+    rerender(
+      <SuggestionsPanel
+        playlist={[p1, p2]}
+        seed={null}
+        onSeedChange={onSeedChange}
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
+      "0 added after the playlist",
+    );
+    await user.click(screen.getByRole("button", { name: "Whole playlist" }));
+    expect(onSeedChange).toHaveBeenLastCalledWith({ track_id: "p2", friend_id: 4 });
+  });
+
+  it("toggles filters and scope from the chips", async () => {
+    const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
+    const key = await screen.findByRole("button", { name: "Compatible key" });
+    expect(key.getAttribute("aria-pressed")).toBe("true");
+    await user.click(key);
+    expect(key.getAttribute("aria-pressed")).toBe("false");
+    const bpm = screen.getByRole("button", { name: "BPM ±6%" });
+    await user.click(bpm);
+    expect(bpm.getAttribute("aria-pressed")).toBe("false");
+    await user.click(screen.getByRole("button", { name: "All libraries" }));
+    expect(mocks.scope.setScope).toHaveBeenCalledWith("all");
+  });
+
+  it("closes with Done and with the close button", async () => {
+    const onClose = vi.fn();
+    const { user } = renderWithProviders(
+      <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Close suggestions" }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes on Escape", async () => {
+    const onClose = vi.fn();
+    const { user } = renderWithProviders(
+      <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
+    );
+    await screen.findByTestId("suggestions-sheet");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("closes when the handle is dragged down far enough, not for a short drag", async () => {
+    const onClose = vi.fn();
+    renderWithProviders(<SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />);
+    const handle = await screen.findByTestId("suggestions-sheet-handle");
+    fireEvent.pointerDown(handle, { clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientY: 130, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerMove(handle, { clientY: 400, pointerId: 1 });
+    fireEvent.pointerDown(handle, { clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientY: 260, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("traps focus inside and returns it to the trigger on close", async () => {
+    const { user } = renderWithProviders(<Trigger />);
+    const trigger = screen.getByRole("button", { name: "Open suggestions" });
+    await user.click(trigger);
+    const sheet = await screen.findByTestId("suggestions-sheet");
+    await waitFor(() => expect(sheet.contains(document.activeElement)).toBe(true));
+    for (let i = 0; i < 25; i++) {
+      await user.tab();
+      expect(sheet.contains(document.activeElement)).toBe(true);
+    }
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByTestId("suggestions-sheet")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+});
+
+function SuggestionsPanelHarness({
+  onClose,
+  initialSeed,
+}: {
+  onClose: () => void;
+  initialSeed: SuggestionSeedRef;
+}) {
+  const [playlist, setPlaylist] = useState<Track[]>([p1, p2, p3]);
+  const [seed, setSeed] = useState<SuggestionSeedRef | null>(initialSeed);
+  return (
+    <SuggestionsPanel
+      playlist={playlist}
+      seed={seed}
+      onSeedChange={setSeed}
+      onAdd={(track, index) =>
+        setPlaylist((list) => [...list.slice(0, index), track, ...list.slice(index)])
+      }
+      onClose={onClose}
+    />
+  );
+}
+
+function Trigger() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Open suggestions</button>
+      {open && (
+        <SuggestionsPanelHarness
+          onClose={() => setOpen(false)}
+          initialSeed={{ track_id: "p1", friend_id: 4 }}
+        />
+      )}
+    </>
+  );
+}

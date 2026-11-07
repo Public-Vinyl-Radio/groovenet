@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { sampleTrack, trackInPlaylist } from "@/stories/fixtures/track";
 
@@ -271,15 +271,28 @@ describe("PlaylistViewer page header", () => {
 describe("PlaylistViewer suggestions panel", () => {
   it("toggles the panel from the header, pressed while it is open", async () => {
     const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
-    const toggle = await screen.findByRole("button", { name: "Suggestions", hidden: true });
+    const desktop = within(await screen.findByTestId("page-header-desktop-actions"));
     expect(screen.queryByTestId("panel")).toBeNull();
-    await user.click(toggle);
+    await user.click(desktop.getByRole("button", { name: /Suggestions/, hidden: true }));
     expect(await screen.findByTestId("panel")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Suggestions", pressed: true, hidden: true }),
+      desktop.getByRole("button", { name: /Suggestions/, pressed: true, hidden: true }),
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "close panel" }));
     expect(screen.queryByTestId("panel")).toBeNull();
+  });
+
+  it("on phones is one icon beside the page's own menu, not a second ⋯ menu", async () => {
+    setViewportWidth(390);
+    try {
+      renderWithProviders(<PlaylistViewer playlistId={1} />);
+      const phone = within(await screen.findByTestId("page-header-phone-actions"));
+      expect(phone.getByRole("button", { name: "Suggestions" })).toBeTruthy();
+      expect(phone.queryByRole("button", { name: "More actions" })).toBeNull();
+      expect(phone.getAllByTestId("actions-menu")).toHaveLength(1);
+    } finally {
+      setViewportWidth(1280);
+    }
   });
 
   it("opens from the actions menu", async () => {

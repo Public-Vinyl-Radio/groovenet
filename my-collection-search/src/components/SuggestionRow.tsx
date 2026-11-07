@@ -25,6 +25,8 @@ export type SuggestionRowProps = {
   onPreview?: (track: Track) => void;
   /** Already added: the row shows ✓ ADDED and stays where it is. */
   added?: boolean;
+  /** The phone sheet's form: no album in the byline, 44px cover. */
+  compact?: boolean;
 };
 
 function KeyFit({ seed, track }: { seed: Track; track: Track }) {
@@ -64,10 +66,11 @@ export default function SuggestionRow({
   onAdd,
   onPreview,
   added = false,
+  compact = false,
 }: SuggestionRowProps) {
   const mix = describeMix(seed, track);
   const reason = suggestionReason(seed, track);
-  const byline = [track.artist, track.album].filter(Boolean).join(" · ");
+  const byline = [track.artist, compact ? null : track.album].filter(Boolean).join(" · ");
   return (
     <Flex
       as="li"
@@ -82,10 +85,10 @@ export default function SuggestionRow({
       borderRadius="md"
       data-added={added || undefined}
     >
-      <Box display={{ base: "none", sm: "block" }}>
+      <Box display={compact ? "none" : { base: "none", sm: "block" }}>
         <Cover src={artworkOf(track)} alt="" size="48px" />
       </Box>
-      <Box display={{ base: "block", sm: "none" }}>
+      <Box display={compact ? "block" : { base: "block", sm: "none" }}>
         <Cover src={artworkOf(track)} alt="" size="44px" />
       </Box>
       <Flex direction="column" gap="2px" flex={1} minW={0}>
@@ -139,12 +142,20 @@ export type SuggestionFoldRowProps = {
   onExpand: () => void;
 };
 
-/** "+N more from <album>": the folded tail of a group. */
+/** "+N more": the folded tail of a group. The album stays in the name and tooltip, off the row, where a long title overflowed. */
 export function SuggestionFoldRow({ count, source, onExpand }: SuggestionFoldRowProps) {
   return (
     <Box as="li" listStyleType="none">
-      <Button variant="ghost" size="sm" minH="44px" w="full" onClick={onExpand}>
-        +{count} more from {source}
+      <Button
+        variant="ghost"
+        size="sm"
+        minH="44px"
+        w="full"
+        aria-label={`+${count} more from ${source}`}
+        title={source}
+        onClick={onExpand}
+      >
+        +{count} more
       </Button>
     </Box>
   );

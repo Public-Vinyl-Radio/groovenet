@@ -445,7 +445,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
                   icon: <FiZap />,
                   onClick: () => setSuggestionsOpen((open) => !open),
                   pressed: suggestionsOpen,
-                  phone: "menu" as const,
                 },
               ]
             : []),
