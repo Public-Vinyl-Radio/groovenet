@@ -89,6 +89,8 @@ import type {
   EmbeddingStatus,
   StorageResponse,
   OrphansQuery,
+  ArtistReconcileRequest,
+  ArtistReconcileResponse,
   OrphansResponse,
   OrphanScanStartResponse,
   DetectionListResponse,
@@ -915,6 +917,16 @@ export class GroovenetClient {
     return this.request<EmbeddingStatus>("GET", "/embeddings/status", undefined, {
       friend_id: friendId,
     });
+  }
+
+  // ── Artists (#700) ─────────────────────────────────────────────────────────
+
+  /**
+   * Link existing albums and tracks to artists (#705). Synchronous and
+   * idempotent; `dry_run` reports counts and the review queue without writing.
+   */
+  async reconcileArtists(request: ArtistReconcileRequest = {}): Promise<ArtistReconcileResponse> {
+    return this.request<ArtistReconcileResponse>("POST", "/artists/reconcile", request);
   }
 
   // ── Storage orphans (#1052) ────────────────────────────────────────────────
