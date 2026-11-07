@@ -130,6 +130,8 @@ import {
   gamdlSettingsQuerySchema,
   genreTreeResponseSchema,
   genrePageQuerySchema,
+  artistPageQuerySchema,
+  artistPageResponseSchema,
   genrePageResponseSchema,
   genreSimilarResponseSchema,
   genreSimilarQuerySchema,
@@ -6154,6 +6156,44 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: { "application/json": { schema: componentRef("SpinAggregateResult") } },
         },
         "400": jsonError("Invalid payload"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "getArtist",
+    method: "get",
+    path: "/api/artists/{slug}",
+    summary: "One artist's page: albums, top tracks, genres and collaborators",
+    tags: ["Artists"],
+    querySchema: artistPageQuerySchema,
+    successSchema: artistPageResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "slug",
+          in: "path",
+          required: true,
+          description: "Artist slug",
+          schema: { type: "string" },
+        },
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          description: "Scope the lists to one collection",
+          schema: { type: "integer" },
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "The artist. Lists show what the chosen collection holds; placeholder artists come back flagged and empty",
+          content: { "application/json": { schema: componentRef("ArtistPageResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "404": jsonError("Unknown artist"),
         "500": jsonError("Server error"),
       },
     },

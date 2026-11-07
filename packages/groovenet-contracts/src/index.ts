@@ -10,6 +10,7 @@ export * from "./recordCareSessions.js";
 export * from "./spins.js";
 export * from "./players.js";
 export * from "./genres.js";
+export * from "./artists.js";
 export * from "./genreReconciliation.js";
 export * from "./settings.js";
 export * from "./backups.js";
@@ -19,7 +20,6 @@ export * from "./recommendations.js";
 export * from "./providers.js";
 export * from "./system.js";
 export * from "./storage.js";
-export * from "./artists.js";
 export * from "./vinylIngest.js";
 export * from "./setDerivation.js";
 

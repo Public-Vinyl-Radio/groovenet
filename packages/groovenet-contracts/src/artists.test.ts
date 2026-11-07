@@ -46,6 +46,7 @@ describe("artist reconcile contracts", () => {
     expect(Object.keys(artistJsonSchemas)).toEqual([
       "ArtistReconcileRequest",
       "ArtistReconcileResponse",
+      "ArtistPageResponse",
     ]);
   });
 });

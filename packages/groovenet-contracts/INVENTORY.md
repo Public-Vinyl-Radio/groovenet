@@ -97,6 +97,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/friends/libraries` | friends & library settings | contracts |  |
 | GET | `/api/genres` | genres | contracts |  |
 | POST | `/api/genres` | genres | contracts |  |
+| GET | `/api/artists/{slug}` | artists | contracts | `artists.ts`; the artist page (#707). |
 | GET | `/api/genres/{id}` | genres | contracts |  |
 | PATCH | `/api/genres/{id}` | genres | contracts |  |
 | POST | `/api/genres/{id}/aliases` | genres | contracts |  |

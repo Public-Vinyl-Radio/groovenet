@@ -24,6 +24,8 @@ export const queryKeys = {
   genreTree: () => ["genres", "tree"] as const,
   genrePage: (slug: string, friend_id?: number) =>
     ["genres", "page", slug, friend_id ?? null] as const,
+  artistPage: (slug: string, friend_id?: number) =>
+    ["artists", "page", slug, friend_id ?? null] as const,
   genreResults: (
     slug: string,
     friendId: number | undefined,

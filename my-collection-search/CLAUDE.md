@@ -1040,6 +1040,19 @@ manual credit exists, so a re-import cannot undo a review or recreate the
 merged source artist. Automatic replacement owns only `discogs` and `legacy`
 credits; canonical names and existing aliases stay under review-tool control.
 
+## Artist page
+
+`/artists/[slug]` (#707) reads `GET /api/artists/{slug}?friend_id=`
+(`artistPageService`, `artistPageRepository`). The artist is shared; every list
+follows the albums' and tracks' owner, so the page shows what the current
+friend can see. Albums credited on the album come first; albums where the artist
+is credited only on tracks carry `appears_on_tracks` and render as "Appears on".
+Top tracks rank by spins (vinyl and digital), else album order
+(`top_tracks_by: "albums"`). Placeholders (`is_placeholder`) come back flagged
+and empty, and the page redirects to the album search. Collaborators never
+include placeholders. Entities go to the Zustand stores; React Query keeps refs.
+Artist-name links across the app (`artistHref`) are #708.
+
 ## Artist reconcile (#705)
 
 `POST /api/artists/reconcile` (`groovenet artists reconcile`) backfills
