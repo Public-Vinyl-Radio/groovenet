@@ -101,6 +101,8 @@ The script copies:
 - `app/public/uploads/album-covers` -> covers volume
 - `app/dumps` -> dumps volume
 
+Bind-mounted targets (such as the shared `~/groovenet-covers` folder used by dev stacks) are copied no-clobber under a `.restore.lock` directory, so parallel restores are serialized and existing files are never overwritten. Named volumes are copied with `cp -a`.
+
 It also supports fallback folder layouts (`audio`, `public/uploads/album-covers`, `dumps`).
 
 ## 6) Restore PostgreSQL from dump
