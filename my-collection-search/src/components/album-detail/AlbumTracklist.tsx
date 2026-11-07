@@ -135,7 +135,7 @@ function TitleCell({ track, albumArtist }: { track: Track; albumArtist: string }
           textOverflow="ellipsis"
           whiteSpace="nowrap"
         >
-          <ArtistLink artist={track.artist} friendId={track.friend_id} />
+          <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id} />
         </Text>
       )}
     </Box>

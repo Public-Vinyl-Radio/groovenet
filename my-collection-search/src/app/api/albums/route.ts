@@ -7,6 +7,7 @@ import {
   albumSearchResponseSchema,
   albumUpdateFieldsSchema,
 } from "@/api-contract/schemas";
+import { withArtistCredits } from "@/server/services/artistCreditService";
 import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { withDbTransaction } from "@/lib/serverDb";
@@ -77,10 +78,14 @@ export async function GET(request: NextRequest) {
       genreFilter: genreResolution.filter,
     });
     const addedGenres = genreResolution.added ?? [];
+    const { albums: credited } = await withArtistCredits(
+      response.hits as { release_id: string; friend_id: number }[],
+      [],
+    );
     return NextResponse.json(
       albumSearchResponseSchema.parse({
         ...response,
-        hits: response.hits.map(toWireRow),
+        hits: credited.map(toWireRow),
         ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
       }),
     );

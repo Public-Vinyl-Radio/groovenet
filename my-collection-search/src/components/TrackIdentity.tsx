@@ -8,7 +8,10 @@ import ArtistLink from "@/components/ArtistLink";
 import type { Track } from "@/types/track";
 
 /** What the link parts read off a track. */
-export type TrackIdentityTrack = Pick<Track, "track_id" | "title" | "artist" | "album"> &
+export type TrackIdentityTrack = Pick<
+  Track,
+  "track_id" | "title" | "artist" | "album" | "artists"
+> &
   Partial<Pick<Track, "release_id" | "friend_id">>;
 
 /** The track page. `friend_id` rides along where the app's track links carry it. */
@@ -142,6 +145,7 @@ export default function TrackIdentity({
             {track.artist ? (
               <ArtistLink
                 artist={track.artist}
+                credits={track.artists}
                 friendId={track.friend_id}
                 stopPropagation={stopPropagation}
               />

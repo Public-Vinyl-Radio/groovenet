@@ -1,3 +1,23 @@
+vi.mock("@/server/services/artistCreditService", () => ({
+  // A plain function, so resetAllMocks keeps it: every row gets one credit.
+  withArtistCredits: async (albums: object[], tracks: object[]) => {
+    const artists = [
+      {
+        id: 4,
+        name: "A",
+        slug: "a",
+        is_placeholder: false,
+        role: "primary",
+        position: 0,
+        credited_as: "A",
+      },
+    ];
+    return {
+      albums: albums.map((a) => ({ ...a, artists })),
+      tracks: tracks.map((t) => ({ ...t, artists })),
+    };
+  },
+}));
 vi.mock("@/server/services/trackEmbeddingSyncService", () => ({ syncIdentityEmbeddings: vi.fn() }));
 vi.mock("@/server/services/genreSimilarityService", () => ({
   triggerGenreSimilarityRefresh: vi.fn(),
@@ -146,7 +166,26 @@ describe("GET /api/albums", () => {
     };
     mockSearchAlbums.mockResolvedValueOnce(page);
     const res = await GET(getReq());
-    expect(await res.json()).toEqual(page);
+    // The search hits carry their structured artist credits (#708).
+    expect(await res.json()).toEqual({
+      ...page,
+      hits: [
+        {
+          ...page.hits[0],
+          artists: [
+            {
+              id: 4,
+              name: "A",
+              slug: "a",
+              is_placeholder: false,
+              role: "primary",
+              position: 0,
+              credited_as: "A",
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it("serialises Date columns and 500s on a row that breaks the contract", async () => {

@@ -236,7 +236,12 @@ export default function AlbumResult({
             </NextLink>
           </Link>
           <Text fontSize="sm" color="fg.muted" truncate title={resolvedAlbum.artist}>
-            {resolvedAlbum.artist}
+            <ArtistLink
+              artist={resolvedAlbum.artist}
+              credits={resolvedAlbum.artists}
+              friendId={resolvedAlbum.friend_id}
+              stopPropagation
+            />
           </Text>
           <Flex
             gap={1}
@@ -286,10 +291,16 @@ export default function AlbumResult({
               >
                 {resolvedAlbum.title}
               </Link>
-              <ArtistLink artist={resolvedAlbum.artist} friendId={resolvedAlbum.friend_id}>
-                <Text fontSize="14px" lineHeight="20px" fontWeight="500" {...ellipsis}>
-                  {resolvedAlbum.artist}
-                </Text>
+              <ArtistLink
+                artist={resolvedAlbum.artist}
+                credits={resolvedAlbum.artists}
+                friendId={resolvedAlbum.friend_id}
+              >
+                {(text) => (
+                  <Text fontSize="14px" lineHeight="20px" fontWeight="500" {...ellipsis}>
+                    {text}
+                  </Text>
+                )}
               </ArtistLink>
               <Text fontSize="13px" lineHeight="18px" color="fg.muted" {...ellipsis}>
                 {[resolvedAlbum.label, displayYear].filter(Boolean).join(" · ")}
@@ -366,15 +377,21 @@ export default function AlbumResult({
         >
           {resolvedAlbum.title}
         </Link>
-        <ArtistLink artist={resolvedAlbum.artist} friendId={resolvedAlbum.friend_id}>
-          <Text
-            fontSize={{ base: "14px", md: "16px" }}
-            lineHeight={{ base: "20px", md: "24px" }}
-            fontWeight="500"
-            {...ellipsis}
-          >
-            {resolvedAlbum.artist}
-          </Text>
+        <ArtistLink
+          artist={resolvedAlbum.artist}
+          credits={resolvedAlbum.artists}
+          friendId={resolvedAlbum.friend_id}
+        >
+          {(text) => (
+            <Text
+              fontSize={{ base: "14px", md: "16px" }}
+              lineHeight={{ base: "20px", md: "24px" }}
+              fontWeight="500"
+              {...ellipsis}
+            >
+              {text}
+            </Text>
+          )}
         </ArtistLink>
         <Text
           fontSize={{ base: "13px", md: "14px" }}

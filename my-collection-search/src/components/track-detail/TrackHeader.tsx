@@ -313,7 +313,11 @@ export default function TrackHeader({
               overflowWrap="anywhere"
               css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
             >
-              <ArtistLink artist={track.artist} friendId={track.friend_id} />
+              <ArtistLink
+                artist={track.artist}
+                credits={track.artists}
+                friendId={track.friend_id}
+              />
             </Text>
             {hasNotes && <NotesIndicator notes={track.notes as string} />}
           </Flex>
