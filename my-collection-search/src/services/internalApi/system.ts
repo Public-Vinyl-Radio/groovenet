@@ -4,6 +4,7 @@ import type {
   ServiceHealth,
   ServiceStatus,
   StatusResponse,
+  StorageResponse,
   UpdateCheckResponse,
   VersionResponse,
 } from "@groovenet/contracts";
@@ -24,6 +25,12 @@ export function fetchStatusInfo(): Promise<StatusInfo> {
 
 export function fetchUpdateInfo(): Promise<UpdateInfo> {
   return http<UpdateInfo>("/api/update-check");
+}
+
+export type StorageInfo = StorageResponse;
+
+export function fetchStorageInfo(): Promise<StorageInfo> {
+  return http<StorageInfo>("/api/system/storage");
 }
 
 export function fetchStorageOrphans(limit = 5): Promise<OrphansResponse> {

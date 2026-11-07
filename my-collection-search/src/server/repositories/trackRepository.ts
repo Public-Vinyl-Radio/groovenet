@@ -164,7 +164,48 @@ export type AudioBackfillCandidate = {
   audio_probed_at: Date | string | null;
 };
 
+export type StorageStats = {
+  tracks: number;
+  by_source: {
+    source: NonNullable<TrackAudioFileFields["audio_source"]> | null;
+    files: number;
+    size_bytes: number;
+  }[];
+  by_codec: { codec: string | null; lossless: boolean | null; files: number; size_bytes: number }[];
+};
+
 export class TrackRepository {
+  /** Local-file counts and sizes grouped by stored metadata, never by walking the disk (#1051). */
+  async getStorageStats(): Promise<StorageStats> {
+    const files = `deleted_at IS NULL AND local_audio_url IS NOT NULL AND local_audio_url <> ''`;
+    const [tracks, source, codec] = await Promise.all([
+      dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM tracks WHERE deleted_at IS NULL`),
+      dbQuery<{ source: StorageStats["by_source"][number]["source"]; files: string; size: string }>(
+        `SELECT audio_source AS source, COUNT(*) AS files, COALESCE(SUM(audio_size_bytes), 0) AS size
+           FROM tracks WHERE ${files} GROUP BY audio_source ORDER BY size DESC, files DESC`,
+      ),
+      dbQuery<{ codec: string | null; lossless: boolean | null; files: string; size: string }>(
+        `SELECT audio_codec AS codec, bool_or(audio_lossless) AS lossless, COUNT(*) AS files,
+                COALESCE(SUM(audio_size_bytes), 0) AS size
+           FROM tracks WHERE ${files} GROUP BY audio_codec ORDER BY size DESC, files DESC`,
+      ),
+    ]);
+    return {
+      tracks: Number(tracks.rows[0]?.count ?? 0),
+      by_source: source.rows.map((r) => ({
+        source: r.source,
+        files: Number(r.files),
+        size_bytes: Number(r.size),
+      })),
+      by_codec: codec.rows.map((r) => ({
+        codec: r.codec,
+        lossless: r.lossless,
+        files: Number(r.files),
+        size_bytes: Number(r.size),
+      })),
+    };
+  }
+
   /** Live tracks with a local file, for the audio-metadata backfill (#1049). */
   async listAudioBackfillCandidates(friendId?: number): Promise<AudioBackfillCandidate[]> {
     const { rows } = await dbQuery<AudioBackfillCandidate>(

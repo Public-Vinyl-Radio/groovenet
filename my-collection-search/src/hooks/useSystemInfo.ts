@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/queryKeys";
-import { fetchStatusInfo, fetchUpdateInfo, fetchVersionInfo } from "@/services/internalApi/system";
+import {
+  fetchStatusInfo,
+  fetchStorageInfo,
+  fetchUpdateInfo,
+  fetchVersionInfo,
+} from "@/services/internalApi/system";
 
 export function useVersionInfo() {
   return useQuery({
@@ -25,5 +30,13 @@ export function useUpdateInfo() {
     queryKey: queryKeys.updateCheck(),
     queryFn: fetchUpdateInfo,
     staleTime: 60 * 60_000, // upstream is cached ~1h; no need to poll faster
+  });
+}
+
+export function useStorageInfo() {
+  return useQuery({
+    queryKey: queryKeys.storage(),
+    queryFn: fetchStorageInfo,
+    staleTime: 60_000,
   });
 }

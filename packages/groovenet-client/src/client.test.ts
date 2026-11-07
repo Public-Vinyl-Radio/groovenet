@@ -1459,6 +1459,22 @@ describe("GroovenetClient embeddings endpoints (#388)", () => {
   });
 });
 
+describe("GroovenetClient system storage", () => {
+  it("reads storage totals", async () => {
+    const client = clientReturning({ totals: { files: 3 } });
+
+    const storage = await client.getSystemStorage();
+
+    expect(storage.totals.files).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/system/storage",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient vinyl debug endpoints", () => {
   it("lists detections with defaults", async () => {
     const client = clientReturning({ detections: [], count: 0 });

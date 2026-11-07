@@ -970,3 +970,25 @@ describe("listAudioBackfillCandidates()", () => {
     expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
   });
 });
+
+describe("TrackRepository.getStorageStats", () => {
+  it("aggregates counts and sizes as numbers", async () => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [{ count: "9" }] })
+      .mockResolvedValueOnce({ rows: [{ source: "upload", files: "2", size: "300" }] })
+      .mockResolvedValueOnce({
+        rows: [{ codec: "flac", lossless: true, files: "2", size: "300" }],
+      });
+    expect(await makeRepo().getStorageStats()).toEqual({
+      tracks: 9,
+      by_source: [{ source: "upload", files: 2, size_bytes: 300 }],
+      by_codec: [{ codec: "flac", lossless: true, files: 2, size_bytes: 300 }],
+    });
+    expect(dbQuery.mock.calls[1][0]).toContain("deleted_at IS NULL");
+  });
+
+  it("defaults to zero tracks", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect((await makeRepo().getStorageStats()).tracks).toBe(0);
+  });
+});

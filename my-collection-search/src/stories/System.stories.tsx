@@ -63,6 +63,28 @@ const meta: Meta<typeof SystemPage> = {
           ].map((service, i) => ({ service, status: "up", latencyMs: i * 8 })),
           checkedAt: "2026-11-01T12:00:00Z",
         });
+      if (url.endsWith("/api/system/storage"))
+        return Response.json({
+          totals: {
+            tracks: 120,
+            files: 90,
+            size_bytes: 4.2e9,
+            lossless_files: 30,
+            lossless_size_bytes: 3e9,
+            unprobed_files: 10,
+          },
+          by_source: [
+            { source: "apple_music", files: 60, size_bytes: 3e9 },
+            { source: "upload", files: 20, size_bytes: 1.2e9 },
+            { source: null, files: 10, size_bytes: 0 },
+          ],
+          by_codec: [
+            { codec: "flac", lossless: true, files: 30, size_bytes: 3e9 },
+            { codec: "aac", lossless: false, files: 50, size_bytes: 1.2e9 },
+            { codec: null, lossless: null, files: 10, size_bytes: 0 },
+          ],
+          disk: { total_bytes: 5e11, audio_bytes: 4.2e9, other_bytes: 1e11, free_bytes: 3.9e11 },
+        });
       if (url.endsWith("/api/update-check"))
         return Response.json({ comparable: true, updateAvailable: false, error: null });
       if (url.endsWith("/api/settings/backup")) {

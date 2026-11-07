@@ -3,7 +3,11 @@ import React from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-const api = vi.hoisted(() => ({ fetchStorageOrphans: vi.fn(), startStorageOrphanScan: vi.fn() }));
+const api = vi.hoisted(() => ({
+  fetchStorageOrphans: vi.fn(),
+  startStorageOrphanScan: vi.fn(),
+  fetchStorageInfo: vi.fn(() => new Promise(() => {})),
+}));
 vi.mock("@/services/internalApi/system", () => api);
 import SystemStorage, { formatBytes } from "./SystemStorage";
 

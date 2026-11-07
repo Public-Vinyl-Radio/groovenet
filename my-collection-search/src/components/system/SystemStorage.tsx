@@ -9,6 +9,7 @@ import {
   type OrphansResponse,
 } from "@/services/internalApi/system";
 import SystemRow from "./SystemRow";
+import StorageOverview from "./StorageOverview";
 
 const PREVIEW = 5;
 const ALL = 500;
@@ -71,6 +72,7 @@ export default function SystemStorage() {
       <SectionLabel variant="strip" mb={4}>
         STORAGE
       </SectionLabel>
+      <StorageOverview />
       <SystemRow
         label="Orphans"
         help="Audio files no track points at, and tracks pointing at missing files. Listing only: nothing is deleted."

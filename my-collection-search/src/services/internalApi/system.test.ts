@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { http } from "@/services/http";
-import { fetchStorageOrphans, startStorageOrphanScan } from "./system";
+import { fetchStorageInfo, fetchStorageOrphans, startStorageOrphanScan } from "./system";
 vi.mock("@/services/http", () => ({ http: vi.fn() }));
 it("reads orphans with a page size", async () => {
   vi.mocked(http).mockResolvedValue({ running: false });
@@ -13,4 +13,9 @@ it("starts a scan with POST", async () => {
   vi.mocked(http).mockResolvedValue({ started: true, running: true });
   await startStorageOrphanScan();
   expect(http).toHaveBeenCalledWith("/api/system/storage/orphans/scan", { method: "POST" });
+});
+it("fetches storage info", async () => {
+  vi.mocked(http).mockResolvedValue({ totals: {} });
+  expect(await fetchStorageInfo()).toEqual({ totals: {} });
+  expect(http).toHaveBeenCalledWith("/api/system/storage");
 });

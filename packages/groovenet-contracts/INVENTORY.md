@@ -190,6 +190,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/spins/recap` | Spins | contracts | Monthly recap (#862) |
 | GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
 | GET | `/api/status` | system | contracts |  |
+| GET | `/api/system/storage` | system | contracts | Stored `audio_size_bytes` aggregate plus `statfs` of the audio volume (#1051). |
 | GET | `/api/system/storage/orphans` | system | contracts | `storage.ts`; latest orphan scan, paged (#1052). |
 | POST | `/api/system/storage/orphans/scan` | system | contracts | `storage.ts`; starts a background scan (#1052). |
 | PATCH | `/api/tracks` | tracks | contracts |  |

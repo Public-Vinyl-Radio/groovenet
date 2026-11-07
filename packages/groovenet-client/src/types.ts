@@ -435,6 +435,7 @@ export type {
   RecordCareQueueItem,
 } from "@groovenet/contracts";
 
+export type { StorageResponse } from "@groovenet/contracts";
 // Storage orphan scan (#1052).
 export type {
   MissingFileTrack,
