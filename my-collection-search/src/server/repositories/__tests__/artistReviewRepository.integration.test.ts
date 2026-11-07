@@ -149,8 +149,22 @@ dbTest(
     const guest = (await artists.findByAlias("Review test New guest"))!.id;
     await importer.importTrackCredits("review-A2", friend, original());
     expect(await artists.listTrackCredits("review-A2", friend)).toEqual([
-      { artist_id: lead, role: "primary", position: 0, credited_as: "Lead", source: "manual" },
-      { artist_id: guest, role: "featured", position: 1, credited_as: "Guest", source: "manual" },
+      {
+        artist_id: lead,
+        role: "primary",
+        position: 0,
+        credited_as: "Lead",
+        joiner: null,
+        source: "manual",
+      },
+      {
+        artist_id: guest,
+        role: "featured",
+        position: 1,
+        credited_as: "Guest",
+        joiner: null,
+        source: "manual",
+      },
     ]);
     await review.decide({ action: "merge", artist_id: lead, target_id: c });
     await importer.importTrackCredits("review-A3", friend, original());
@@ -191,8 +205,22 @@ dbTest(
       ],
     });
     expect(await artists.listAlbumCredits(album)).toEqual([
-      { artist_id: c, role: "primary", position: 0, credited_as: "Lead", source: "manual" },
-      { artist_id: b, role: "featured", position: 1, credited_as: "New", source: "manual" },
+      {
+        artist_id: c,
+        role: "primary",
+        position: 0,
+        credited_as: "Lead",
+        joiner: null,
+        source: "manual",
+      },
+      {
+        artist_id: b,
+        role: "featured",
+        position: 1,
+        credited_as: "New",
+        joiner: null,
+        source: "manual",
+      },
     ]);
   },
 );

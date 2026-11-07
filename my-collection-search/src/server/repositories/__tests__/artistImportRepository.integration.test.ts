@@ -95,6 +95,7 @@ describe("artist import on Postgres", () => {
         role: "primary" as const,
         position: 0,
         credited_as: "Reviewed",
+        joiner: null,
         source: "manual" as const,
       },
     ];
