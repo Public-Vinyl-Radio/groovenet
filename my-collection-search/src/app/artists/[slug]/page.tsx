@@ -413,6 +413,12 @@ export default function ArtistPage() {
   const router = useRouter();
   const { friend } = useUsername();
   const query = useArtistPageQuery(slug, friend?.id);
+  const currentSlug = query.data?.artist.slug;
+  React.useEffect(() => {
+    // An old slug (including the former hash form) resolves; show the readable URL.
+    if (currentSlug && currentSlug !== slug)
+      router.replace(`/artists/${encodeURIComponent(currentSlug)}`);
+  }, [currentSlug, slug, router]);
   const placeholder = query.data?.artist.is_placeholder ? query.data.artist.name : null;
   React.useEffect(() => {
     // Various and Unknown Artist have no page: search albums for the name instead.

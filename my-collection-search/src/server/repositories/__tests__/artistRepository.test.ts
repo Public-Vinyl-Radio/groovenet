@@ -61,6 +61,13 @@ describe("artists", () => {
     expect(await lookup()).toBeNull();
     expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining(`${column} = $1`), [value]);
   });
+  it("finds an artist by a former slug too", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [artist] });
+    await repo.findBySlug("artist-abc");
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("FROM artist_slug_history"), [
+      "artist-abc",
+    ]);
+  });
   it("adds an alias without stealing another artist's spelling key", async () => {
     const alias = { artist_id: 1, alias: "The Strokes", alias_normalized: "strokes" };
     dbQuery.mockResolvedValueOnce({ rows: [alias] }).mockResolvedValueOnce({ rows: [] });

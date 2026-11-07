@@ -220,6 +220,7 @@ it("uses an explicit sort name when creating a split artist", async () => {
   expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO artists"), [
     "The New",
     "New, The",
+    "the-new",
     expect.stringMatching(/^artist-/),
   ]);
 });

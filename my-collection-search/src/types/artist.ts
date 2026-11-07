@@ -3,6 +3,7 @@ export type Artist = {
   name: string;
   sort_name: string;
   slug: string;
+  identity_key: string | null;
   discogs_artist_id: string | null;
   apple_artist_id: string | null;
   is_placeholder: boolean;

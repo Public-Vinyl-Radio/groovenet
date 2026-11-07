@@ -25,6 +25,7 @@ it("matches slug or id and follows merges to the survivor", async () => {
   expect(sql).toContain("WITH RECURSIVE requested");
   expect(sql).toContain("ar.slug = lower(v.value)");
   expect(sql).toContain("ar.id::text = v.value");
+  expect(sql).toContain("artist_slug_history h");
   expect(sql).toContain("JOIN artists ar ON ar.id = r.merged_into");
   expect(sql).toContain("WHERE r.merged_into IS NULL");
 });

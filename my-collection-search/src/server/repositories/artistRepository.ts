@@ -25,7 +25,14 @@ export class ArtistRepository {
   }
 
   async findBySlug(slug: string): Promise<Artist | null> {
-    const { rows } = await dbQuery<Artist>("SELECT * FROM artists WHERE slug = $1", [slug]);
+    // A former slug still finds its artist; the current one wins if both match.
+    const { rows } = await dbQuery<Artist>(
+      `SELECT a.* FROM artists a
+       WHERE a.slug = $1
+          OR a.id = (SELECT artist_id FROM artist_slug_history WHERE slug = $1)
+       ORDER BY (a.slug = $1) DESC LIMIT 1`,
+      [slug],
+    );
     return rows[0] ?? null;
   }
 

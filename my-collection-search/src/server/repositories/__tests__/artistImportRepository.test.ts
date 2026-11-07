@@ -21,12 +21,14 @@ describe("artist import persistence", () => {
       .mockResolvedValueOnce({ rows: [] }) // advisory lock
       .mockResolvedValueOnce({ rows: [] }) // delete
       .mockResolvedValueOnce({ rows: [] }) // identity lookup
+      .mockResolvedValueOnce({ rows: [] }) // slug is free
       .mockResolvedValueOnce({ rows: [{ id: 9 }] }); // create
     await repo.importAlbumCredits("release", 2, credits());
     expect(query).toHaveBeenCalledWith(expect.stringContaining("FOR UPDATE"), ["release", 2]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO artists"), [
       "The Strokes",
       "Strokes, The",
+      "the-strokes",
       expect.stringMatching(/^artist-[a-f0-9]{64}$/),
       "123",
       false,

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withDbTransaction } from "@/lib/serverDb";
 import { normaliseArtistName } from "@/lib/artists/normalization";
+import { freeArtistSlug } from "@/server/artists/artistSlug";
 import type { ImportArtistCredit } from "@/lib/artists/importCredits";
 
 /** Import only owns automatic credits. Manual credits are the review tool's override. */
@@ -97,7 +98,7 @@ export class ArtistImportRepository {
     const normalized = normaliseArtistName(credit.name);
     // Placeholder synonyms have one identity. Numbered Discogs homonyms stay distinct.
     const identity = credit.is_placeholder ? credit.name : (credit.discogs_artist_id ?? normalized);
-    const slug = `artist-${createHash("sha256")
+    const identityKey = `artist-${createHash("sha256")
       .update(
         `${credit.is_placeholder ? "placeholder" : credit.discogs_artist_id ? "discogs" : "legacy"}:${identity}`,
       )
@@ -105,7 +106,7 @@ export class ArtistImportRepository {
     const { rows } = await db.query<{ id: number }>(
       `WITH RECURSIVE matched AS (SELECT a.id FROM artists a
        WHERE ($1::bigint IS NOT NULL AND a.discogs_artist_id = $1)
-          OR a.slug = $2
+          OR a.identity_key = $2
           OR EXISTS (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND aa.alias_normalized = $3
               AND ($1::bigint IS NULL OR a.discogs_artist_id IS NULL OR aa.is_manual))
        ORDER BY (a.discogs_artist_id = $1) DESC NULLS LAST, a.id LIMIT 1),
@@ -113,14 +114,22 @@ export class ArtistImportRepository {
          SELECT a.id, a.merged_into FROM artists a JOIN matched m ON a.id = m.id
          UNION ALL SELECT a.id, a.merged_into FROM artists a JOIN resolved r ON a.id = r.merged_into
        ) SELECT id FROM resolved WHERE merged_into IS NULL`,
-      [credit.discogs_artist_id, slug, normalized],
+      [credit.discogs_artist_id, identityKey, normalized],
     );
     let id = rows[0]?.id;
     if (id == null) {
+      const slug = await freeArtistSlug(db, credit.name, credit.discogs_artist_id);
       const created = await db.query<{ id: number }>(
-        `INSERT INTO artists (name, sort_name, slug, discogs_artist_id, is_placeholder)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [credit.name, credit.sort_name, slug, credit.discogs_artist_id, credit.is_placeholder],
+        `INSERT INTO artists (name, sort_name, slug, identity_key, discogs_artist_id, is_placeholder)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [
+          credit.name,
+          credit.sort_name,
+          slug,
+          identityKey,
+          credit.discogs_artist_id,
+          credit.is_placeholder,
+        ],
       );
       id = created.rows[0].id;
     } else if (credit.discogs_artist_id) {

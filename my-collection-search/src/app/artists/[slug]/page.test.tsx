@@ -236,6 +236,20 @@ describe("ArtistPage", () => {
     expect(screen.getByRole("status").textContent).toContain("isn't a single artist");
   });
 
+  it("replaces an old slug with the artist's current one", () => {
+    mocks.slug = "artist-abc123";
+    mocks.query.data = page();
+    renderWithProviders(<ArtistPage />);
+    expect(mocks.replace).toHaveBeenCalledWith("/artists/los-mirlos");
+    mocks.slug = "los-mirlos";
+  });
+
+  it("does not redirect when the slug is current", () => {
+    mocks.query.data = page();
+    renderWithProviders(<ArtistPage />);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("puts top tracks as cards on a 390px phone", () => {
     setViewportWidth(390);
     mocks.query.data = page();

@@ -19,6 +19,8 @@ export class ArtistFilterRepository {
         FROM unnest($1::text[]) AS v(value)
         JOIN artists ar
           ON ar.slug = lower(v.value)
+          OR EXISTS (SELECT 1 FROM artist_slug_history h
+                     WHERE h.artist_id = ar.id AND h.slug = lower(v.value))
           -- Compared as text: a cast would be evaluated for slugs too, and fail.
           OR ar.id::text = v.value
         UNION ALL
