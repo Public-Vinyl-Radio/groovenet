@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.7.0...groovenet-contracts-v1.8.0) (2026-11-07)
+
+
+### Features
+
+* **artists:** artist page at /artists/[slug] ([#1068](https://github.com/Public-Vinyl-Radio/groovenet/issues/1068)) ([365cb9d](https://github.com/Public-Vinyl-Radio/groovenet/commit/365cb9d547b5e5e591e6de20a4cfcbb136e91cf2))
+* **artists:** artists in the API, client, CLI and MCP ([#1071](https://github.com/Public-Vinyl-Radio/groovenet/issues/1071)) ([3464d5c](https://github.com/Public-Vinyl-Radio/groovenet/commit/3464d5cfc0f39b1f4128bc06f3c59d2a0ea754f5))
+* **artists:** capture Discogs artist credits on import ([#1065](https://github.com/Public-Vinyl-Radio/groovenet/issues/1065)) ([fe0a5e8](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe0a5e8813b4d6252135f330e17b0a93cd345312))
+* **artists:** reconcile and backfill existing albums and tracks ([#1067](https://github.com/Public-Vinyl-Radio/groovenet/issues/1067)) ([8290241](https://github.com/Public-Vinyl-Radio/groovenet/commit/8290241e27abb5833f8c97e083b6d0a51b52425f))
+* **artists:** review, merge and split artists from the CLI ([#1069](https://github.com/Public-Vinyl-Radio/groovenet/issues/1069)) ([08a30bc](https://github.com/Public-Vinyl-Radio/groovenet/commit/08a30bc63abba387b3ca37ddfad44aba56422b43))
+* **chores:** show shelf codes and a card view for the pulled stack ([#1011](https://github.com/Public-Vinyl-Radio/groovenet/issues/1011)) ([3294504](https://github.com/Public-Vinyl-Radio/groovenet/commit/32945041cd86375051e101841f12992ab8ce34b8))
+* **system:** orphan scan for audio files without tracks and tracks with missing files ([#1055](https://github.com/Public-Vinyl-Radio/groovenet/issues/1055)) ([440321e](https://github.com/Public-Vinyl-Radio/groovenet/commit/440321e3a5586ac93661f34c14f4f58903ade6da))
+* **system:** Storage section with file totals, breakdown by source and codec, and free space ([#1060](https://github.com/Public-Vinyl-Radio/groovenet/issues/1060)) ([2a4a0ae](https://github.com/Public-Vinyl-Radio/groovenet/commit/2a4a0ae6c6924e1a89695bcd3cc21d5f0a10d20b))
+* **tracks:** backfill audio file metadata and source for existing files ([#1058](https://github.com/Public-Vinyl-Radio/groovenet/issues/1058)) ([f4f2ecf](https://github.com/Public-Vinyl-Radio/groovenet/commit/f4f2ecf88214174caec2436c6deaa2fb733ca63b))
+* **tracks:** persist local audio metadata and source ([#1056](https://github.com/Public-Vinyl-Radio/groovenet/issues/1056)) ([6d30191](https://github.com/Public-Vinyl-Radio/groovenet/commit/6d30191f592b3a4a45653b9e0b93c790756d8c2e))
+
 ## [1.7.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.6.0...groovenet-contracts-v1.7.0) (2026-11-05)
 
 

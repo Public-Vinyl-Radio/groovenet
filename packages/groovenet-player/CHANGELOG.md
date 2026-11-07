@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.12](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.11...groovenet-player-v0.1.12) (2026-11-07)
+
+
+### Features
+
+* **player:** Homebrew formula updates on player releases ([#1007](https://github.com/Public-Vinyl-Radio/groovenet/issues/1007)) ([57a5972](https://github.com/Public-Vinyl-Radio/groovenet/commit/57a597209e92a93b46968849c721f0f261ab7bae))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.11.0 to ^3.12.0
+    * @groovenet/contracts bumped from 1.7.0 to 1.8.0
+
 ## [0.1.11](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.10...groovenet-player-v0.1.11) (2026-11-05)
 
 
