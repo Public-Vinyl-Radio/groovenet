@@ -205,3 +205,13 @@ dbTest("backfill honours merged aliases and does not requeue reviewed strings", 
   expect(result.review_queue).toEqual([]);
   expect((await artists.listTrackCredits("review-A2", friend))[0].artist_id).toBe(b);
 });
+
+dbTest("keeps a reviewed legacy merge when Discogs supplies an ID for the first time", async () => {
+  await dbQuery("UPDATE artists SET discogs_artist_id = NULL WHERE id = $1", [a]);
+  await review.decide({ action: "merge", artist_id: a, target_id: b });
+  await importer.importTrackCredits("review-A2", friend, original());
+  expect((await artists.listTrackCredits("review-A2", friend))[0].artist_id).toBe(b);
+  expect((await dbQuery("SELECT * FROM artists WHERE discogs_artist_id = 999706000")).rows).toEqual(
+    [],
+  );
+});

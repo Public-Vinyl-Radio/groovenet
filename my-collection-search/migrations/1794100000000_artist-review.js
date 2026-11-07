@@ -5,6 +5,9 @@ export const up = (pgm) => {
     reviewed: { type: "boolean", notNull: true, default: false },
     merged_into: { type: "integer", references: "artists", check: "merged_into <> id" },
   });
+  pgm.addColumns("artist_aliases", {
+    is_manual: { type: "boolean", notNull: true, default: false },
+  });
   pgm.createTable("artist_merges", {
     id: "id",
     source_id: { type: "integer", notNull: true, references: "artists" },
@@ -17,5 +20,6 @@ export const up = (pgm) => {
 };
 export const down = (pgm) => {
   pgm.dropTable("artist_merges");
+  pgm.dropColumns("artist_aliases", ["is_manual"]);
   pgm.dropColumns("artists", ["reviewed", "merged_into", "credit_override"]);
 };

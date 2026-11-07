@@ -102,7 +102,10 @@ export class ArtistReviewRepository {
               [decision.artist_id, oldName, normaliseArtistName(oldName)],
             );
             await this.replace(db, decision.artist_id, [{ artist_id: decision.target_id }]);
-            await db.query("UPDATE artist_aliases SET artist_id = $2 WHERE artist_id = $1", ids);
+            await db.query(
+              "UPDATE artist_aliases SET artist_id = $2, is_manual = true WHERE artist_id = $1",
+              ids,
+            );
             await db.query(
               "UPDATE artists SET merged_into = $2, reviewed = true, updated_at = now() WHERE id = $1",
               ids,

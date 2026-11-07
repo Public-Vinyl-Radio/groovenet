@@ -81,7 +81,7 @@ export class ArtistReconcileRepository {
       has_discogs_id: boolean;
       reviewed?: boolean;
     }>(
-      `SELECT aa.alias_normalized, a.discogs_artist_id IS NOT NULL AS has_discogs_id, a.reviewed
+      `SELECT aa.alias_normalized, (a.discogs_artist_id IS NOT NULL AND NOT aa.is_manual) AS has_discogs_id, a.reviewed
        FROM artist_aliases aa JOIN artists a ON a.id = aa.artist_id`,
     );
     return { discogsIds: ids.rows.map((r) => r.id), aliases: aliases.rows };

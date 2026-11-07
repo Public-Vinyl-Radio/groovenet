@@ -98,8 +98,8 @@ export class ArtistImportRepository {
       `WITH RECURSIVE matched AS (SELECT a.id FROM artists a
        WHERE ($1::bigint IS NOT NULL AND a.discogs_artist_id = $1)
           OR a.slug = $2
-          OR (EXISTS (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND aa.alias_normalized = $3)
-              AND ($1::bigint IS NULL OR a.discogs_artist_id IS NULL))
+          OR EXISTS (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND aa.alias_normalized = $3
+              AND ($1::bigint IS NULL OR a.discogs_artist_id IS NULL OR aa.is_manual))
        ORDER BY (a.discogs_artist_id = $1) DESC NULLS LAST, a.id LIMIT 1),
        resolved AS (
          SELECT a.id, a.merged_into FROM artists a JOIN matched m ON a.id = m.id
