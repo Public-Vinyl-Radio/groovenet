@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
 import { needsReview } from "@/lib/artists/reconcile";
 import { normaliseArtistName } from "@/lib/artists/normalization";
+import { freeArtistSlug, regenerateArtistSlug } from "@/server/artists/artistSlug";
 import type {
   ArtistReviewAction,
   ArtistReviewDetail,
@@ -135,8 +136,13 @@ export class ArtistReviewRepository {
                 if (existing.rows.length) artistId = existing.rows[0].id;
                 else {
                   const created = await db.query<{ id: number }>(
-                    "INSERT INTO artists (name, sort_name, slug, reviewed) VALUES ($1, $2, $3, true) RETURNING id",
-                    [credit.name, credit.sort_name ?? credit.name, `artist-${randomUUID()}`],
+                    "INSERT INTO artists (name, sort_name, slug, identity_key, reviewed) VALUES ($1, $2, $3, $4, true) RETURNING id",
+                    [
+                      credit.name,
+                      credit.sort_name ?? credit.name,
+                      await freeArtistSlug(db, credit.name, null),
+                      `artist-${randomUUID()}`,
+                    ],
                   );
                   artistId = created.rows[0].id;
                   const alias = await db.query(
@@ -188,6 +194,7 @@ export class ArtistReviewRepository {
               decision.name,
               decision.sort_name,
             ]);
+            await regenerateArtistSlug(db, decision.artist_id);
           } else if (decision.action === "placeholder") {
             await db.query("UPDATE artists SET is_placeholder = $2 WHERE id = $1", [
               decision.artist_id,

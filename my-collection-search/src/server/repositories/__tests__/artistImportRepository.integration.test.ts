@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { dbPool, dbQuery } from "@/lib/serverDb";
+import { dbPool, dbQuery, withDbTransaction } from "@/lib/serverDb";
+import { freeArtistSlug, regenerateArtistSlug } from "@/server/artists/artistSlug";
 import { importArtistCredits } from "@/lib/artists/importCredits";
 import { artistImportRepository as repo } from "../artistImportRepository";
 import { artistRepository } from "../artistRepository";
@@ -165,5 +166,33 @@ describe("artist import on Postgres", () => {
     expect((await artistRepository.listAlbumCredits(albumId))[0].artist_id).toBe(
       (await artistRepository.listTrackCredits("704-A1", friendId))[0].artist_id,
     );
+  });
+
+  dbTest("gives readable slugs, disambiguates homonyms and keeps old slugs working", async () => {
+    await dbQuery("DELETE FROM artists WHERE slug LIKE 'slug-fixture%'");
+    const homonyms = [
+      importArtistCredits([{ id: 999079001, name: "Slug Fixture Band" }], "unused"),
+      importArtistCredits([{ id: 999079002, name: "Slug Fixture Band (2)" }], "unused"),
+    ];
+    for (const credits of homonyms) await repo.importTrackCredits("704-A1", friendId, credits);
+    const a = await artistRepository.findByDiscogsId("999079001");
+    const b = await artistRepository.findByDiscogsId("999079002");
+    expect(a!.slug).toBe("slug-fixture-band");
+    expect(b!.slug).toBe("slug-fixture-band-999079002");
+    // Re-importing creates no duplicates: identity_key, not slug, matches.
+    for (const credits of homonyms) await repo.importTrackCredits("704-A1", friendId, credits);
+    expect((await artistRepository.findByDiscogsId("999079001"))!.id).toBe(a!.id);
+
+    // A review rename regenerates the slug and the old one still resolves.
+    await dbQuery("UPDATE artists SET name = 'Slug Fixture Renamed' WHERE id = $1", [a!.id]);
+    await withDbTransaction((db) => regenerateArtistSlug(db, a!.id));
+    expect((await artistRepository.findById(a!.id))!.slug).toBe("slug-fixture-renamed");
+    expect((await artistRepository.findBySlug("slug-fixture-band"))!.id).toBe(a!.id);
+    // The freed name goes to the next artist, not the old owner's redirect.
+    expect(await withDbTransaction((db) => freeArtistSlug(db, "Slug Fixture Band", null))).toBe(
+      "slug-fixture-band-2",
+    );
+    await artistRepository.replaceTrackCredits("704-A1", friendId, []);
+    await dbQuery("DELETE FROM artists WHERE id = ANY($1)", [[a!.id, b!.id]]);
   });
 });
