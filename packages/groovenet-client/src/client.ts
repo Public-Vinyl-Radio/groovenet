@@ -1,3 +1,8 @@
+import type {
+  ArtistReviewAction,
+  ArtistReviewDetail,
+  ArtistReviewResult,
+} from "@groovenet/contracts";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import { serverPlayerStreamEventSchema } from "@groovenet/contracts";
@@ -872,6 +877,16 @@ export class GroovenetClient {
   }
 
   /** Local audio totals by source and codec, plus free space on the audio volume (#1051). */
+  async listArtistReview(
+    query: { artist_id?: number; limit?: number; offset?: number } = {},
+  ): Promise<{ items: ArtistReviewDetail[] }> {
+    return this.request("GET", "/artists/review", undefined, query);
+  }
+
+  async reviewArtist(decision: ArtistReviewAction, dry_run = false): Promise<ArtistReviewResult> {
+    return this.request("POST", "/artists/review", { decision, dry_run });
+  }
+
   async getSystemStorage(): Promise<StorageResponse> {
     return this.request<StorageResponse>("GET", "/system/storage");
   }

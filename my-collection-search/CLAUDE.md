@@ -1051,6 +1051,24 @@ Rows with any credit are skipped, which is what makes a second run free.
 name / new split in processing order, and the integration test checks that
 prediction against the rows the real run creates. The review queue
 (`needsReview`, `src/lib/artists/reconcile.ts`) is every string-only credit
-with a separator, written or pending, never placeholders and never a bare
+with a separator, written or pending, excluding reviewed aliases, never placeholders and never a bare
 `Name, The` inversion. Synchronous: a collection is a few thousand albums.
 `just artists-test` runs the artist integration tests against real Postgres.
+
+## Artist review (#706)
+
+`groovenet artists review` extends the reconcile command with manual decisions.
+The queue uses the same `needsReview` predicate and hides reviewed identities.
+Inspect a reviewed artist explicitly with `--artist ID`. File evidence loads
+on demand; scripts use action flags, `--dry-run`, and `--json`.
+
+Merges retain their source artist as a `merged_into` redirect (including its
+Discogs ID), move aliases, and save before/after credit snapshots in
+`artist_merges`. Imports follow redirect chains; splits persist an ordered
+`credit_override` for new imports and backfills. Re-imports preserve existing
+manual credit sets. Undo (`--unmerge MERGE_ID`) restores the snapshot only
+while both artists are unchanged, so it cannot discard later work.
+
+Artist review schemas live in `@groovenet/contracts`; the API, client and CLI
+share them. `just artists-test` includes merge survival and undo against real
+Postgres. See the CLI README for action examples and evidence limits.

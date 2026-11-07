@@ -179,3 +179,21 @@ describe("reconcileArtists", () => {
     expect(result.credits).toEqual({ discogs: 0, legacy: 6 });
   });
 });
+
+it("omits reviewed spellings from both pending and existing review credits", async () => {
+  repo.listKnownArtists.mockResolvedValue({
+    discogsIds: [],
+    aliases: [
+      { alias_normalized: "a and b", has_discogs_id: false, reviewed: true },
+      { alias_normalized: "plain", has_discogs_id: false, reviewed: false },
+    ],
+  });
+  repo.listUncreditedAlbums.mockResolvedValue([album("9", "A & B")]);
+  repo.listUncreditedTracks.mockResolvedValue([]);
+  files.getReleasePath.mockReturnValue(null);
+  expect(
+    (await reconcileArtists({ dry_run: true })).review_queue.some(
+      (item) => item.credited_as === "A & B",
+    ),
+  ).toBe(false);
+});
