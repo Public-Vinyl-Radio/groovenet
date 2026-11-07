@@ -237,7 +237,7 @@ export default function EnrichmentTrackStep({
             <TrackTitleLink track={track} />
           </Text>
           <Text color="fg.muted" fontSize="sm">
-            <ArtistLink artist={track.artist} friendId={track.friend_id} />
+            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id} />
           </Text>
           <Text color="fg.subtle" fontSize="sm">
             <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>

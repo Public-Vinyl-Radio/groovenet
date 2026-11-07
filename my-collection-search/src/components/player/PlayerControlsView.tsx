@@ -215,9 +215,11 @@ export default function PlayerControlsView({
             css={{ "& > a": { display: "inline" } }}
           >
             {!isQueueFinished && currentTrack ? (
-              <ArtistLink artist={currentTrack.artist} friendId={currentTrack.friend_id}>
-                {currentTrack.artist}
-              </ArtistLink>
+              <ArtistLink
+                artist={currentTrack.artist}
+                credits={currentTrack.artists}
+                friendId={currentTrack.friend_id}
+              />
             ) : (
               secondaryText
             )}

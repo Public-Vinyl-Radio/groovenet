@@ -690,17 +690,19 @@ export default function TrackResult({
             )}
           </Flex>
           <Flex gap={1.5} align="center" minW={0} overflow="hidden" fontSize="xs" color="fg.muted">
-            <ArtistLink artist={track.artist} friendId={track.friend_id}>
-              <Text
-                as="span"
-                onClick={stopRowEvent}
-                onMouseDown={stopRowEvent}
-                overflow="hidden"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
-              >
-                {track.artist}
-              </Text>
+            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
+              {(text) => (
+                <Text
+                  as="span"
+                  onClick={stopRowEvent}
+                  onMouseDown={stopRowEvent}
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                >
+                  {text}
+                </Text>
+              )}
             </ArtistLink>
             <Text aria-hidden="true" color="fg.subtle">
               ·
@@ -831,7 +833,7 @@ export default function TrackResult({
             alignItems="center"
             minW={0}
           >
-            <ArtistLink artist={track.artist} friendId={track.friend_id} />
+            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id} />
             <Text aria-hidden="true" color="fg.subtle">
               ·
             </Text>
@@ -978,19 +980,21 @@ export default function TrackResult({
                 </StatusTag>
               )}
             </Flex>
-            <ArtistLink artist={track.artist} friendId={track.friend_id}>
-              <Text
-                fontSize="13px"
-                lineHeight="18px"
-                fontWeight="500"
-                color="fg.muted"
-                overflow="hidden"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
-                title={track.artist}
-              >
-                {track.artist}
-              </Text>
+            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
+              {(text) => (
+                <Text
+                  fontSize="13px"
+                  lineHeight="18px"
+                  fontWeight="500"
+                  color="fg.muted"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                  title={track.artist}
+                >
+                  {text}
+                </Text>
+              )}
             </ArtistLink>
             <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
               <Text
@@ -1186,10 +1190,12 @@ export default function TrackResult({
                 },
               }}
             >
-              <ArtistLink artist={track.artist} friendId={track.friend_id}>
-                <Text as="span" fontWeight="500" title={track.artist}>
-                  {track.artist}
-                </Text>
+              <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
+                {(text) => (
+                  <Text as="span" fontWeight="500" title={track.artist}>
+                    {text}
+                  </Text>
+                )}
               </ArtistLink>
               {track.album && (
                 <Text

@@ -4,6 +4,26 @@ const mockFindTracks = vi.hoisted(() => vi.fn());
 const mockFindEmbeddings = vi.hoisted(() => vi.fn());
 const mockServingModel = vi.hoisted(() => vi.fn());
 
+vi.mock("@/server/services/artistCreditService", () => ({
+  // A plain function, so resetAllMocks keeps it: every row gets one credit.
+  withArtistCredits: async (albums: object[], tracks: object[]) => {
+    const artists = [
+      {
+        id: 4,
+        name: "A",
+        slug: "a",
+        is_placeholder: false,
+        role: "primary",
+        position: 0,
+        credited_as: "A",
+      },
+    ];
+    return {
+      albums: albums.map((a) => ({ ...a, artists })),
+      tracks: tracks.map((t) => ({ ...t, artists })),
+    };
+  },
+}));
 vi.mock("@/lib/embeddings/config", () => ({ getServingModel: mockServingModel }));
 vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: { findEmbeddingsForTracks: mockFindEmbeddings },

@@ -281,7 +281,11 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                     </Text>
                     <Text fontSize="16px" lineHeight="22px" color="fg.muted" lineClamp={1}>
                       {track ? (
-                        <ArtistLink artist={track.artist} friendId={track.friend_id} />
+                        <ArtistLink
+                          artist={track.artist}
+                          credits={track.artists}
+                          friendId={track.friend_id}
+                        />
                       ) : (
                         "—"
                       )}

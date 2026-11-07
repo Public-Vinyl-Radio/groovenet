@@ -239,7 +239,11 @@ export default function AlbumHeader({
                   overflowWrap="anywhere"
                   css={{ [wide]: { fontSize: "18px", lineHeight: "26px" } }}
                 >
-                  <ArtistLink artist={album.artist} friendId={album.friend_id} />
+                  <ArtistLink
+                    artist={album.artist}
+                    credits={album.artists}
+                    friendId={album.friend_id}
+                  />
                 </Text>
                 {hasNotes && (
                   <Popover.Root>

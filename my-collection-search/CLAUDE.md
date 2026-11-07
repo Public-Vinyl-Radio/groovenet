@@ -1051,7 +1051,7 @@ Top tracks rank by spins (vinyl and digital), else album order
 (`top_tracks_by: "albums"`). Placeholders (`is_placeholder`) come back flagged
 and empty, and the page redirects to the album search. Collaborators never
 include placeholders. Entities go to the Zustand stores; React Query keeps refs.
-Artist-name links across the app (`artistHref`) are #708.
+Artist names link through `ArtistLink` (#708): see below.
 
 ## Artists in the API (#710)
 
@@ -1064,7 +1064,14 @@ credits; `track_count` is direct track credits only.
 Album detail and track detail responses carry `artists`, the structured
 credits (`withArtistCredits`, one batched query per kind): a track's own
 credits, else its album's, the artist page's rule. `artist` stays the display
-string. Search and list responses do not load credits.
+string. Track search, track batch and album search hits carry them too.
+
+`ArtistLink` takes the display string plus `credits`. With credits, each
+credited artist links to `/artists/{slug}`, found in the string by the spelling
+the release credits, so the joiner stays (`A & B`); placeholders and strings
+with no credits render as plain text. With `credits` omitted (not loaded) it
+falls back to the album search. A function child styles each link. Command
+palette results stay plain text: cmdk items are themselves the action.
 
 ## Artist reconcile (#705)
 
