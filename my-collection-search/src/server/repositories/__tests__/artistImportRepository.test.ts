@@ -49,6 +49,24 @@ describe("artist import persistence", () => {
     ]);
   });
 
+  it("files a matched artist under the inverted sort name unless it was reviewed", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] });
+    await repo.importTrackCredits(
+      "track",
+      3,
+      importArtistCredits([{ id: 123, name: "The Strokes" }], "unused"),
+    );
+    const call = query.mock.calls.find(([sql]) => String(sql).includes("SET sort_name"))!;
+    expect(call[0]).toContain("NOT reviewed");
+    expect(call[0]).toContain("sort_name = name");
+    expect(call[1]).toEqual([9, "Strokes, The"]);
+  });
+
   it("reuses an identity and upgrades an unnumbered alias, without renaming it", async () => {
     query
       .mockResolvedValueOnce({ rows: [] })

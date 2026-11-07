@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artistNames, importArtistCredits } from "../importCredits";
+import { artistNames, importArtistCredits, invertedSortName } from "../importCredits";
 
 describe("importArtistCredits", () => {
   it("strips suffixes even when adjacent to the next word", () => {
@@ -27,6 +27,20 @@ describe("importArtistCredits", () => {
     ],
   ])("rebuilds %s", (raw, name, sort_name) => {
     expect(artistNames(raw)).toEqual({ name, sort_name });
+  });
+
+  it("files a plain Discogs `The X` under its inverted sort name", () => {
+    const [credit] = importArtistCredits([{ id: 66, name: "The Strokes" }], "unused");
+    expect(credit).toMatchObject({ name: "The Strokes", sort_name: "Strokes, The" });
+  });
+  it.each([
+    ["The Strokes", "Strokes, The"],
+    ["the Strokes", "Strokes, the"],
+    ["The", "The"],
+    ["Theo Parrish", "Theo Parrish"],
+    ["The Heptones / Jackie Mittoo", "The Heptones / Jackie Mittoo"],
+  ])("inverts %s to %s", (name, sort) => {
+    expect(invertedSortName(name)).toBe(sort);
   });
 
   it("keeps separate ids, joins and original spellings for Ruido Tovar", () => {

@@ -37,6 +37,17 @@ describe("ArtistReconcileRepository", () => {
     expect(dbQuery.mock.calls[1][0]).toContain("c.source = 'legacy'");
   });
 
+  it("lists unreviewed artists still filed under The X and updates them guarded", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ id: 66, name: "The Strokes" }], rowCount: 1 });
+    expect(await repo.listUninvertedArtists()).toEqual([{ id: 66, name: "The Strokes" }]);
+    expect(dbQuery.mock.calls[0][0]).toContain("NOT reviewed");
+    expect(await repo.setSortName(66, "Strokes, The")).toBe(true);
+    expect(dbQuery.mock.calls[1][0]).toContain("NOT reviewed AND sort_name = name");
+    expect(dbQuery.mock.calls[1][1]).toEqual([66, "Strokes, The"]);
+    dbQuery.mockResolvedValue({ rows: [], rowCount: null });
+    expect(await repo.setSortName(66, "Strokes, The")).toBe(false);
+  });
+
   it("lists known Discogs ids and aliases", async () => {
     dbQuery
       .mockResolvedValueOnce({ rows: [{ id: "194" }] })
