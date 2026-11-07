@@ -1,6 +1,6 @@
 # CI base image
 
-The web `test` and `fingerprint-service-coverage` jobs run inside
+The web `test` (three Vitest shards), web `storybook` and `fingerprint-service-coverage` jobs run inside
 `ghcr.io/public-vinyl-radio/ci-base`, pinned to the digest returned by
 `ci-image.yml` for that run. The image includes Node, the exact npm pin,
 ffmpeg/ffprobe, libchromaprint, Python for native-library smoke checks,
