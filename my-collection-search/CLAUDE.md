@@ -1039,3 +1039,18 @@ merging or splitting identities. Import preserves the entire credit set if any
 manual credit exists, so a re-import cannot undo a review or recreate the
 merged source artist. Automatic replacement owns only `discogs` and `legacy`
 credits; canonical names and existing aliases stay under review-tool control.
+
+## Artist reconcile (#705)
+
+`POST /api/artists/reconcile` (`groovenet artists reconcile`) backfills
+credits for albums and tracks that have none, through the same
+`ArtistImportRepository` an import uses: the stored Discogs payload where one
+exists (`getReleasePath`), else the artist string as one `legacy` credit.
+Rows with any credit are skipped, which is what makes a second run free.
+`dry_run` writes nothing; `ArtistResolutionTally` predicts the Discogs-id /
+name / new split in processing order, and the integration test checks that
+prediction against the rows the real run creates. The review queue
+(`needsReview`, `src/lib/artists/reconcile.ts`) is every string-only credit
+with a separator, written or pending, never placeholders and never a bare
+`Name, The` inversion. Synchronous: a collection is a few thousand albums.
+`just artists-test` runs the artist integration tests against real Postgres.

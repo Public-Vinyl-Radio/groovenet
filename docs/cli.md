@@ -102,6 +102,7 @@ mpv's separate artwork window.
 | `playlists`           | Manage playlists                                                                     |
 | `friends`             | Manage the friends system                                                            |
 | `genres`              | Find similar genres and reconcile track tags onto the taxonomy                       |
+| `artists`             | Link existing albums and tracks to shared artists, with a review queue               |
 | `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays            |
 | `files`               | Probe local audio files and record their format and source                           |
 | `sets`                | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
@@ -461,6 +462,31 @@ or the `... produced by Google Inc.` handler yt-dlp's YouTube m4a files keep
 (YouTube/SoundCloud), the `audio_<ms>_<n>.m4a|mp3` upload name, else `unknown`.
 Opus/WebM with none of those stays `unknown` and is counted as a weak YouTube
 hint. Exits 1 if any probe failed.
+
+### artists reconcile
+
+A one-off backfill that links albums and tracks imported before artist
+credits existed (#705). Each one gets the credits a fresh import would write:
+the stored Discogs payload's `artists[]` where there is one, otherwise its
+artist string as a single string-only credit. Credits resolve onto shared
+artists by Discogs id, then normalised name or alias, else a new artist.
+
+```bash
+groovenet artists reconcile --dry-run --all-friends  # counts and review queue, no writes
+groovenet artists reconcile --all-friends            # link everything still unlinked
+groovenet artists reconcile --friend-id 6
+```
+
+Strings are never split. A string-only credit containing `,`, `&`, `/`,
+`feat.`/`Featuring`, `and` or `with` is listed in the review queue instead
+(`Earth, Wind & Fire` and `A & B` look the same to a rule); `Y` and `X` are part
+of names. `Name, The` becomes `The Name` with sort name `Name, The`. The report
+also gives the album-artist baseline: distinct strings, spelling groups,
+inversions, `Various` and `Unknown Artist`.
+
+Only rows with no credits are touched, so a second run does no work. It still
+prints the review queue, which lists written string-only credits until a
+review (#706) replaces them. Exits 1 if any row failed.
 
 ## Related
 

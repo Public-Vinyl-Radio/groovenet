@@ -2386,3 +2386,24 @@ describe("GroovenetClient storage orphans", () => {
     });
   });
 });
+
+describe("GroovenetClient artist reconcile", () => {
+  it("posts a dry run with its scope", async () => {
+    const client = clientReturning({ dry_run: true });
+    expect(await client.reconcileArtists({ dry_run: true, friend_id: 6 })).toEqual({
+      dry_run: true,
+    });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/artists/reconcile",
+      data: { dry_run: true, friend_id: 6 },
+      params: undefined,
+    });
+  });
+
+  it("posts an empty body for a full run", async () => {
+    const client = clientReturning({ dry_run: false });
+    await client.reconcileArtists();
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ data: {} }));
+  });
+});

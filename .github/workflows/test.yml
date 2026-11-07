@@ -686,6 +686,12 @@ jobs:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
           RUN_PLAYER_DB_TESTS: "1"
 
+      # After the step above: the reconcile service needs the built @groovenet/client.
+      - name: Run artist identity, import and reconcile integration tests
+        run: npm run test:artists
+        env:
+          DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
+
       - name: Run spin and Home repository integration tests
         run: npm run test:spin-sessions
         env:
