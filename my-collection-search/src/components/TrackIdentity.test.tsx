@@ -117,3 +117,33 @@ describe("TrackCoverLink", () => {
     expect(screen.getByText("cover").closest("a")).toBeNull();
   });
 });
+
+describe("TrackCoverLink options", () => {
+  it("drops the friend without one and lets a click through when not stopping", async () => {
+    const onRow = vi.fn();
+    const { user } = renderWithProviders(
+      <div onClick={onRow}>
+        <TrackCoverLink track={{ ...track, friend_id: undefined }} stopPropagation={false}>
+          <span>cover</span>
+        </TrackCoverLink>
+      </div>,
+    );
+    const link = screen.getByText("cover").closest("a")!;
+    expect(link.getAttribute("href")).toBe("/albums/123");
+    await user.click(link);
+    expect(onRow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("TrackIdentity byline gaps", () => {
+  it("shows only the album when the artist is empty, and only the artist when the album is", () => {
+    const { unmount } = renderWithProviders(<TrackIdentity track={{ ...track, artist: "" }} />);
+    expect(screen.queryByRole("link", { name: "Los Mirlos" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Sonido Amazonico" })).toBeTruthy();
+    expect(screen.queryByText("·")).toBeNull();
+    unmount();
+    renderWithProviders(<TrackIdentity track={{ ...track, album: "" }} />);
+    expect(screen.getByRole("link", { name: "Los Mirlos" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Sonido Amazonico" })).toBeNull();
+  });
+});
