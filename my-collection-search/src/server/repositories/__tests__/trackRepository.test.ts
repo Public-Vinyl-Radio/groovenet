@@ -955,3 +955,18 @@ describe("persisting local audio metadata", () => {
     expect(dbQuery).not.toHaveBeenCalled();
   });
 });
+
+describe("listAudioBackfillCandidates()", () => {
+  beforeEach(() => dbQuery.mockReset());
+
+  it("lists live tracks with a file, optionally for one friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "t1" }] });
+    const repo = makeRepo();
+
+    expect(await repo.listAudioBackfillCandidates(3)).toEqual([{ track_id: "t1" }]);
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.stringContaining("deleted_at IS NULL"), [3]);
+
+    await repo.listAudioBackfillCandidates();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
+  });
+});

@@ -279,6 +279,10 @@ export interface RecommendationCandidatesQuery {
   ivfflat_probes?: number;
 }
 
+// ─── Audio file metadata backfill (#1049) ─────────────────────────────────────
+
+export type { AudioMetadataBackfillRequest, AudioMetadataBackfillRun } from "@groovenet/contracts";
+
 // ─── Fingerprint indexing (#277) ──────────────────────────────────────────────
 
 // Defined in @groovenet/contracts, with the request's scope rules and the run counters.

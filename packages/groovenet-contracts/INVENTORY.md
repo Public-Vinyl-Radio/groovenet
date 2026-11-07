@@ -193,6 +193,8 @@ is closed; #606 owns them (its album half is migrated).
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
+| POST | `/api/tracks/audio-metadata/backfill` | tracks | contracts |  |
+| GET | `/api/tracks/audio-metadata/backfill/{runId}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |

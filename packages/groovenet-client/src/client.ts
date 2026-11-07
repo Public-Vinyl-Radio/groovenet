@@ -79,6 +79,8 @@ import type {
   SimilarityQuery,
   RecommendationCandidatesResponse,
   RecommendationCandidatesQuery,
+  AudioMetadataBackfillRequest,
+  AudioMetadataBackfillRun,
   FingerprintIndexRequest,
   FingerprintIndexRun,
   EmbeddingBackfillRequest,
@@ -844,6 +846,30 @@ export class GroovenetClient {
     return this.request<FingerprintIndexRun>(
       "GET",
       `/fingerprints/index/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  // ── Audio file metadata (#1049) ────────────────────────────────────────────
+
+  /**
+   * Probe every existing local file and fill its `audio_*` fields. Returns at
+   * once; poll `getAudioMetadataBackfillRun` for progress and the report.
+   */
+  async startAudioMetadataBackfill(
+    request: AudioMetadataBackfillRequest = {},
+  ): Promise<AudioMetadataBackfillRun> {
+    return this.request<AudioMetadataBackfillRun>(
+      "POST",
+      "/tracks/audio-metadata/backfill",
+      request,
+    );
+  }
+
+  /** Counters and per-source report for one audio metadata backfill. */
+  async getAudioMetadataBackfillRun(runId: string): Promise<AudioMetadataBackfillRun> {
+    return this.request<AudioMetadataBackfillRun>(
+      "GET",
+      `/tracks/audio-metadata/backfill/${encodeURIComponent(runId)}`,
     );
   }
 

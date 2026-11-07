@@ -1,4 +1,8 @@
 import {
+  audioMetadataBackfillRequestSchema,
+  audioMetadataBackfillRunSchema,
+} from "@groovenet/contracts";
+import {
   homeQuerySchema,
   homeResponseSchema,
   spinRecapQuerySchema,
@@ -1112,6 +1116,67 @@ const fingerprintContracts: ApiContractRoute[] = [
         "200": {
           description: "Run counters",
           content: { "application/json": { schema: componentRef("FingerprintIndexRun") } },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const audioMetadataBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startAudioMetadataBackfill",
+    method: "post",
+    path: "/api/tracks/audio-metadata/backfill",
+    summary: "Probe existing local audio files and fill their audio_* fields",
+    tags: ["Tracks"],
+    bodySchema: audioMetadataBackfillRequestSchema,
+    successSchema: audioMetadataBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: componentRef("AudioMetadataBackfillRequest") },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run started; poll the run for progress",
+          content: { "application/json": { schema: componentRef("AudioMetadataBackfillRun") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getAudioMetadataBackfillRun",
+    method: "get",
+    path: "/api/tracks/audio-metadata/backfill/{runId}",
+    summary: "Progress and report for one audio metadata backfill",
+    tags: ["Tracks"],
+    successSchema: audioMetadataBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/tracks/audio-metadata/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters and per-source report",
+          content: { "application/json": { schema: componentRef("AudioMetadataBackfillRun") } },
         },
         "404": {
           description: "Run not found or expired",
@@ -6300,6 +6365,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   },
   ...remainingTracksContracts,
   ...fingerprintContracts,
+  ...audioMetadataBackfillContracts,
   ...embeddingsBackfillContracts,
   ...embeddingsQueueContracts,
   ...embeddingModelSettingsContracts,
