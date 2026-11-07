@@ -29,6 +29,32 @@ import {
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
 import {
+  acceptedIngestSchema,
+  detectionWindowSchema,
+  detectionsRecentResponseSchema,
+  fingerprintFileStatsBodyObjectSchema,
+  fingerprintFileStatsResponseSchema,
+  fingerprintIndexBodyObjectSchema,
+  fingerprintIndexRunSchema,
+  fingerprintListItemSchema,
+  fingerprintListResponseSchema,
+  fingerprintUpsertBodyObjectSchema,
+  fingerprintUpsertResponseSchema,
+  ingestErrorSchema,
+  ingestMatchCandidateSchema as sharedIngestMatchCandidateSchema,
+  ingestPipelineStatsSchema,
+  ingestRecentResponseSchema,
+  ingestRecordSchema,
+  ingestResultBodyObjectSchema,
+  ingestRetentionPolicySchema,
+  ingestRetentionStatusSchema,
+  refineFingerprintIndexBody,
+  setDerivationCreateBodyObjectSchema,
+  setDerivationResultBodyObjectSchema,
+  setDerivationViewQuerySchema as sharedSetDerivationViewQuerySchema,
+  setWindowSchema as sharedSetWindowSchema,
+} from "@groovenet/contracts";
+import {
   aiPromptSettingsQuerySchema as sharedAiPromptSettingsQuerySchema,
   aiPromptSettingsSchema,
   aiPromptSettingsUpdateResponseSchema,
@@ -1056,87 +1082,23 @@ export const albumUpdateBodySchema = albumUpdateObjectSchema
   .refine(...requireAlbumUpdateField);
 
 // ─── Fingerprints (#277) ──────────────────────────────────────────────────────
+// Wire shapes live in @groovenet/contracts; the bodies keep `friend_id`
+// coercion so a numeric string is still accepted.
 
-/**
- * One reference fingerprint, as `fingerprint-service` posts it after indexing a
- * library track. `fingerprint_data` is base64 because JSON has no bytes, and
- * null when the engine stores no payload — which is what the stub does.
- */
-export const fingerprintUpsertBodySchema = z.object({
-  track_id: z.string().min(1),
+export const fingerprintUpsertBodySchema = fingerprintUpsertBodyObjectSchema.extend({
   friend_id: intFromInputSchema,
-  fingerprint_type: z.string().min(1).max(50),
-  fingerprint_version: z.string().min(1).max(50),
-  fingerprint_data: z.string().base64().nullable().optional(),
-  audio_sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a hex sha256"),
-  audio_duration_seconds: z.number().positive().nullable().optional(),
-  audio_size_bytes: z.number().int().nonnegative().nullable().optional(),
-  audio_mtime_ms: z.number().int().nonnegative().nullable().optional(),
 });
-
-/** `fingerprint-service` recording that a fingerprint's audio is unchanged (#303). */
-export const fingerprintFileStatsBodySchema = z.object({
-  track_id: z.string().min(1),
+export const fingerprintFileStatsBodySchema = fingerprintFileStatsBodyObjectSchema.extend({
   friend_id: intFromInputSchema,
-  fingerprint_type: z.string().min(1).max(50),
-  fingerprint_version: z.string().min(1).max(50),
-  audio_sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a hex sha256"),
-  audio_size_bytes: z.number().int().nonnegative(),
-  audio_mtime_ms: z.number().int().nonnegative(),
 });
-
-export const fingerprintUpsertResponseSchema = z.object({
-  track_id: z.string(),
-  friend_id: z.number().int(),
-  fingerprint_type: z.string(),
-  fingerprint_version: z.string(),
-  audio_sha256: z.string(),
-  audio_duration_seconds: z.number().nullable(),
-  updated_at: z.string(),
-});
-
-/**
- * Which slice of the library to index. Exactly one scope, so `--missing --all`
- * is rejected rather than silently resolved to one of them.
- */
-export const fingerprintIndexBodySchema = z
-  .object({
-    scope: z.enum(["missing", "changed", "all", "track", "release"]),
-    track_id: z.string().min(1).optional(),
-    release_id: z.string().min(1).optional(),
-    friend_id: intFromInputSchema.optional(),
-    force: z.boolean().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.scope === "track" && !value.track_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "scope 'track' requires track_id",
-      });
-    }
-    if (value.scope === "release" && !value.release_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "scope 'release' requires release_id",
-      });
-    }
-  });
-
-export const fingerprintIndexRunSchema = z.object({
-  run_id: z.string(),
-  scope: z.string(),
-  fingerprint_type: z.string(),
-  fingerprint_version: z.string(),
-  queued: z.number().int(),
-  unindexable: z.number().int(),
-  indexed: z.number().int(),
-  skipped: z.number().int(),
-  failed: z.number().int(),
-  errors: z.array(z.string()),
-  started_at: z.number().int(),
-  updated_at: z.number().int(),
-  complete: z.boolean(),
-});
+export {
+  fingerprintIndexRunSchema,
+  fingerprintUpsertResponseSchema,
+  fingerprintFileStatsResponseSchema,
+};
+export const fingerprintIndexBodySchema = fingerprintIndexBodyObjectSchema
+  .extend({ friend_id: intFromInputSchema.optional() })
+  .superRefine(refineFingerprintIndexBody);
 
 // ─── Embeddings (#388, #451, #386) ────────────────────────────────────────────
 
@@ -1222,263 +1184,42 @@ export const genreSimilarQuerySchema = sharedGenreSimilarQuerySchema.extend({
 export { trackGenreFacetsResponseSchema };
 export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSchema>;
 
-// ─── Audio ingest retention (#269) ────────────────────────────────────────────
+// ─── Vinyl ingest, detections and set derivation (#281, #282, #299) ──────────
+// Wire shapes live in @groovenet/contracts. The bodies fingerprint-service and
+// fingerprint-set-worker post keep `friend_id` coercion (`intFromInputSchema`)
+// so a numeric string is still accepted, as before the migration.
 
-export const ingestRetentionPolicySchema = z.object({
-  maxAgeHours: z.number().positive(),
-  maxBytes: z.number().positive(),
-  orphanGraceMinutes: z.number().positive(),
-  sweepIntervalMinutes: z.number().positive(),
-});
+export {
+  acceptedIngestSchema,
+  detectionWindowSchema,
+  detectionsRecentResponseSchema,
+  fingerprintListItemSchema,
+  fingerprintListResponseSchema,
+  ingestErrorSchema,
+  ingestPipelineStatsSchema,
+  ingestRecentResponseSchema,
+  ingestRecordSchema,
+  ingestRetentionPolicySchema,
+  ingestRetentionStatusSchema,
+};
 
-export const ingestRetentionStatusSchema = z.object({
-  files: z.number().int().nonnegative(),
-  bytes: z.number().int().nonnegative(),
-  sweepable: z.number().int().nonnegative(),
-  orphans: z.number().int().nonnegative(),
-  inFlight: z.number().int().nonnegative(),
-  lastSweptAt: z.string().nullable(),
-  policy: ingestRetentionPolicySchema,
-});
-
-// ─── Vinyl pipeline debug reads (#299) ─────────────────────────────────────────
-
-export const ingestRecordSchema = z.object({
-  ingest_id: z.string(),
-  source_id: z.string(),
-  session_id: z.string().nullable(),
-  sequence: z.number().int().nullable(),
-  status: z.enum(["received", "processing", "processed", "failed"]),
-  error: z.string().nullable(),
-  duration_seconds: z.number().nullable(),
-  sample_rate: z.number().int().nullable(),
-  channels: z.number().int().nullable(),
-  codec: z.string().nullable(),
-  file_path: z.string().nullable(),
-  captured_at: z.string().nullable(),
-  received_at: z.string(),
-  updated_at: z.string(),
-});
-
-export const ingestRecentResponseSchema = z.object({
-  ingests: z.array(ingestRecordSchema),
-  count: z.number().int().nonnegative(),
-});
-
-/** One matched or no-match matcher window (#279 finds play boundaries in the gaps). */
-export const detectionWindowSchema = z.object({
-  id: z.string(),
-  ingest_id: z.string(),
-  source_id: z.string(),
-  session_id: z.string().nullable(),
-  window_start_at: z.string().nullable(),
-  matched: z.boolean(),
-  track_id: z.string().nullable(),
-  friend_id: z.number().int().nullable(),
-  title: z.string().nullable(),
-  artist: z.string().nullable(),
-  album: z.string().nullable(),
-  confidence: z.number().nullable(),
-  offset_seconds: z.number().nullable(),
-  level_dbfs: z.number().nullable(),
-  fingerprint_type: z.string().nullable(),
-  fingerprint_version: z.string().nullable(),
-  created_at: z.string(),
-});
-
-export const detectionsRecentResponseSchema = z.object({
-  detections: z.array(detectionWindowSchema),
-  count: z.number().int().nonnegative(),
-});
-
-const detectionConfidenceBandSchema = z.object({
-  band: z.string(),
-  count: z.number().int().nonnegative(),
-});
-
-/**
- * Whether the pipeline is working at all (#299).
- *
- * `index.empty` is stated outright rather than left to be inferred from a
- * zero: an empty reference index makes every other number here look healthy
- * while nothing can ever match.
- */
-export const ingestPipelineStatsSchema = z.object({
-  since: z.string(),
-  window_minutes: z.number().int(),
-  source_id: z.string().nullable(),
-  ingest_writable: z.boolean(),
-  index: z.object({
-    engine_registered: z.boolean(),
-    fingerprint_type: z.string().nullable(),
-    fingerprint_version: z.string().nullable(),
-    indexed_tracks: z.number().int().nonnegative(),
-    empty: z.boolean(),
-    missing_fingerprint_tracks: z.number().int().nonnegative(),
-  }),
-  queue_depth: z.number().int().nullable(),
-  ingests: z.object({
-    by_status: z.record(z.string(), z.number().int()),
-    failures: z.array(z.object({ error: z.string(), count: z.number().int().nonnegative() })),
-    oldest_in_flight: z
-      .object({
-        ingest_id: z.string(),
-        status: z.string(),
-        received_at: z.string(),
-      })
-      .nullable(),
-  }),
-  detections: z.object({
-    windows: z.number().int().nonnegative(),
-    matched: z.number().int().nonnegative(),
-    no_match: z.number().int().nonnegative(),
-    match_rate: z.number().nullable(),
-    confidence_bands: z.array(detectionConfidenceBandSchema),
-  }),
-  spins: z.object({
-    pending: z.number().int().nullable(),
-  }),
-  counters: z
-    .object({
-      bucket_minutes: z.number().int(),
-      chunks: z.object({
-        received: z.number().int().nonnegative(),
-        accepted: z.number().int().nonnegative(),
-        duplicate: z.number().int().nonnegative(),
-        rejected: z.number().int().nonnegative(),
-        rejected_by_reason: z.array(
-          z.object({ reason: z.string(), count: z.number().int().nonnegative() }),
-        ),
-        failed_by_stage: z.array(
-          z.object({ stage: z.string(), count: z.number().int().nonnegative() }),
-        ),
-        enqueue_failed: z.number().int().nonnegative(),
-      }),
-      plays: z.object({
-        confirmed: z.number().int().nonnegative(),
-        latency_ms_avg: z.number().int().nullable(),
-        latency_bands: z.array(
-          z.object({ band: z.string(), count: z.number().int().nonnegative() }),
-        ),
-      }),
-    })
-    .nullable()
-    // Optional so a client built against this schema still reads an app
-    // from before #280.
-    .optional(),
-});
-
-/** One reference fingerprint as the matcher loads it (#278). */
-export const fingerprintListItemSchema = z.object({
-  track_id: z.string(),
-  friend_id: z.number().int(),
-  fingerprint_type: z.string(),
-  fingerprint_version: z.string(),
-  fingerprint_data: z.string().nullable(),
-  audio_sha256: z.string(),
-  audio_duration_seconds: z.number().nullable(),
-});
-
-export const fingerprintListResponseSchema = z.object({
-  fingerprints: z.array(fingerprintListItemSchema),
-  limit: z.number().int(),
-  offset: z.number().int(),
-});
-
-// ─── Audio ingest endpoint (#275) ─────────────────────────────────────────────
-
-export const acceptedIngestSchema = z.object({
-  status: z.literal("accepted"),
-  ingest_id: z.string(),
-  source_id: z.string(),
-  duration_seconds: z.number(),
-  sample_rate: z.number().nullable(),
-  channels: z.number().nullable(),
-  captured_at: z.string().nullable(),
-});
-
-/**
- * The rejection vocabulary, as the listener device reads it. These strings are
- * part of the contract — a Pi with no screen uses them to tell "this chunk is
- * bad, drop it" from "retry later", so they must not be reworded.
- */
-export const ingestErrorSchema = z.object({
-  error: z.enum([
-    "missing_audio_file",
-    "missing_source_id",
-    "unsupported_audio_format",
-    "invalid_audio_stream",
-    "audio_too_large",
-    "audio_too_short",
-    "audio_too_long",
-    "internal_error",
-  ]),
-  message: z.string(),
-});
-
-// ─── Ingest lifecycle (#276) ──────────────────────────────────────────────────
-
-export const ingestMatchCandidateSchema = z.object({
-  track_id: z.string().min(1),
+export const ingestMatchCandidateSchema = sharedIngestMatchCandidateSchema.extend({
   friend_id: intFromInputSchema,
-  confidence: z.number(),
-  offset_seconds: z.number(),
 });
-
-/**
- * The callback body from `fingerprint-service`.
- *
- * `ingest_id` is optional here because the path carries it; a body naming a
- * different ingest is ignored rather than honoured.
- */
-export const ingestResultBodySchema = z.object({
-  ingest_id: z.string().optional(),
-  source_id: z.string().optional(),
-  session_id: z.string().nullable().optional(),
-  sequence: z.number().nullable().optional(),
-  status: z.enum(["processed", "failed"]),
-  error: z.string().nullable().optional(),
-  error_stage: z.string().nullable().optional(),
-  window_start_at: z.string().nullable().optional(),
-  duration_seconds: z.number().nullable().optional(),
-  sample_rate: z.number().nullable().optional(),
-  level_dbfs: z.number().nullable().optional(),
-  fingerprint_type: z.string().nullable().optional(),
-  fingerprint_version: z.string().nullable().optional(),
+export const ingestResultBodySchema = ingestResultBodyObjectSchema.extend({
   candidates: z.array(ingestMatchCandidateSchema).default([]),
 });
 
-// ─── Set derivation (#282) ────────────────────────────────────────────────────
-
-export const setDerivationCreateBodySchema = z.object({
-  recording_sha256: z.string().regex(/^[0-9a-f]{64}$/, "expected a lowercase hex sha256"),
-  window_seconds: z.number().positive().optional(),
-  step_seconds: z.number().positive().optional(),
-  force: z.boolean().optional(),
+export const setDerivationCreateBodySchema = setDerivationCreateBodyObjectSchema.extend({
   live_set_id: intFromInputSchema.nullable().optional(),
 });
-
-export const setWindowSchema = z.object({
-  start_seconds: z.number(),
-  duration_seconds: z.number(),
+export const setWindowSchema = sharedSetWindowSchema.extend({
   candidates: z.array(ingestMatchCandidateSchema).default([]),
 });
-
-/** The callback body from `fingerprint-set-worker`. */
-export const setDerivationResultBodySchema = z.object({
-  derivation_id: z.string().optional(),
-  status: z.enum(["processed", "failed"]),
-  error: z.string().nullable().optional(),
-  fingerprint_type: z.string().nullable().optional(),
-  fingerprint_version: z.string().nullable().optional(),
-  sample_rate: z.number().nullable().optional(),
-  duration_seconds: z.number().nullable().optional(),
-  window_seconds: z.number().optional(),
-  step_seconds: z.number().optional(),
+export const setDerivationResultBodySchema = setDerivationResultBodyObjectSchema.extend({
   windows: z.array(setWindowSchema).default([]),
 });
-
-export const setDerivationViewQuerySchema = z.object({
+export const setDerivationViewQuerySchema = sharedSetDerivationViewQuerySchema.extend({
   playlist_id: intFromInputSchema.optional(),
   live_set_id: intFromInputSchema.optional(),
 });

@@ -8,6 +8,16 @@ import {
 } from "./schemas";
 import { z } from "zod";
 import {
+  fingerprintFileStatsResponseSchema,
+  ingestClaimResponseSchema,
+  ingestResultResponseSchema,
+  setDerivationClaimResponseSchema,
+  setDerivationCreateResponseSchema,
+  setDerivationResultResponseSchema,
+  setDerivationViewSchema,
+  setRecordingSchema,
+} from "@groovenet/contracts";
+import {
   recordCareQueueQuerySchema,
   recordCareQueueResponseSchema,
   recordCareProgressQuerySchema,
@@ -967,50 +977,12 @@ const fingerprintContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                track_id: { type: "string" },
-                friend_id: { type: "integer" },
-                fingerprint_type: { type: "string", example: "chromaprint" },
-                fingerprint_version: { type: "string", example: "1" },
-                fingerprint_data: {
-                  type: ["string", "null"],
-                  format: "byte",
-                  description: "Base64 engine payload, or null when the engine stores none.",
-                },
-                audio_sha256: { type: "string" },
-                audio_duration_seconds: { type: ["number", "null"] },
-                audio_size_bytes: {
-                  type: ["integer", "null"],
-                  description: "Size of the audio file fingerprinted, for cheap re-checks (#303)",
-                },
-                audio_mtime_ms: {
-                  type: ["integer", "null"],
-                  description: "Its modification time, epoch milliseconds",
-                },
-              },
-              required: [
-                "track_id",
-                "friend_id",
-                "fingerprint_type",
-                "fingerprint_version",
-                "audio_sha256",
-              ],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("FingerprintUpsertBody") } },
       },
       responses: {
         "200": {
           description: "The stored fingerprint, without its payload",
-          content: {
-            "application/json": {
-              schema: { type: "object", additionalProperties: true },
-            },
-          },
+          content: { "application/json": { schema: componentRef("FingerprintUpsertResponse") } },
         },
         "400": {
           description: "Invalid fingerprint",
@@ -1034,53 +1006,18 @@ const fingerprintContracts: ApiContractRoute[] = [
     summary: "Record that a fingerprint's audio was re-checked and is unchanged",
     tags: ["Fingerprints"],
     bodySchema: fingerprintFileStatsBodySchema,
-    successSchema: z.unknown(),
+    successSchema: fingerprintFileStatsResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                track_id: { type: "string" },
-                friend_id: { type: "integer" },
-                fingerprint_type: { type: "string" },
-                fingerprint_version: { type: "string" },
-                audio_sha256: {
-                  type: "string",
-                  description: "Only recorded if this still matches the stored hash",
-                },
-                audio_size_bytes: { type: "integer" },
-                audio_mtime_ms: { type: "integer", description: "Epoch milliseconds" },
-              },
-              required: [
-                "track_id",
-                "friend_id",
-                "fingerprint_type",
-                "fingerprint_version",
-                "audio_sha256",
-                "audio_size_bytes",
-                "audio_mtime_ms",
-              ],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("FingerprintFileStatsBody") } },
       },
       responses: {
         "200": {
           description:
             "`updated: false` when the stored hash no longer matches — re-fingerprinted meanwhile",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: { updated: { type: "boolean" } },
-                required: ["updated"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("FingerprintFileStatsResponse") } },
         },
         "400": {
           description: "Invalid file stats",
@@ -1112,22 +1049,7 @@ const fingerprintContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "A page of fingerprints, blobs base64-encoded",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  fingerprints: {
-                    type: "array",
-                    items: { type: "object", additionalProperties: true },
-                  },
-                  limit: { type: "integer" },
-                  offset: { type: "integer" },
-                },
-                required: ["fingerprints", "limit", "offset"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("FingerprintListResponse") } },
         },
         "400": {
           description: "Missing engine or version",
@@ -1152,33 +1074,14 @@ const fingerprintContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                scope: {
-                  type: "string",
-                  enum: ["missing", "changed", "all", "track", "release"],
-                },
-                track_id: { type: "string" },
-                release_id: { type: "string" },
-                friend_id: { type: "integer" },
-                force: { type: "boolean" },
-              },
-              required: ["scope"],
-            },
-          },
-        },
+        description:
+          "Scope `track` requires `track_id` and scope `release` requires `release_id`; JSON Schema cannot say so.",
+        content: { "application/json": { schema: componentRef("FingerprintIndexRequest") } },
       },
       responses: {
         "202": {
           description: "Run queued",
-          content: {
-            "application/json": {
-              schema: { type: "object", additionalProperties: true },
-            },
-          },
+          content: { "application/json": { schema: componentRef("FingerprintIndexRun") } },
         },
         "400": {
           description: "Invalid scope",
@@ -1208,11 +1111,7 @@ const fingerprintContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Run counters",
-          content: {
-            "application/json": {
-              schema: { type: "object", additionalProperties: true },
-            },
-          },
+          content: { "application/json": { schema: componentRef("FingerprintIndexRun") } },
         },
         "404": {
           description: "Run not found or expired",
@@ -1445,6 +1344,8 @@ const audioIngestContracts: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
+        description:
+          "Sent by the Raspberry Pi listener as `multipart/form-data`, not JSON, so the request stays inline. Rejections answer `{ error, message }` with a code from `IngestError`; the device reads those strings to tell a bad chunk from a retry.",
         content: {
           "multipart/form-data": {
             schema: {
@@ -1469,32 +1370,16 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "202": {
           description: "Chunk accepted and queued for matching",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["accepted"] },
-                  ingest_id: { type: "string", format: "uuid" },
-                  source_id: { type: "string" },
-                  duration_seconds: { type: "number" },
-                  sample_rate: { type: ["integer", "null"] },
-                  channels: { type: ["integer", "null"] },
-                  captured_at: { type: ["string", "null"], format: "date-time" },
-                },
-                required: ["status", "ingest_id", "source_id", "duration_seconds"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("AcceptedIngest") } },
         },
         "400": {
           description:
             "Rejected. `error` is one of missing_audio_file, missing_source_id, unsupported_audio_format, invalid_audio_stream, audio_too_short, audio_too_long.",
-          content: { "application/json": { schema: errorResponseSchemaObject } },
+          content: { "application/json": { schema: componentRef("IngestError") } },
         },
         "413": {
           description: "Upload exceeds the configured size limit (audio_too_large)",
-          content: { "application/json": { schema: errorResponseSchemaObject } },
+          content: { "application/json": { schema: componentRef("IngestError") } },
         },
         "500": {
           description: "Server error",
@@ -1509,25 +1394,14 @@ const audioIngestContracts: ApiContractRoute[] = [
     path: "/api/audio/ingest/{ingestId}/claim",
     summary: "fingerprint-service announcing it has picked up a chunk",
     tags: ["Audio Ingest"],
-    successSchema: z.unknown(),
+    successSchema: ingestClaimResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: buildPathParameters("/api/audio/ingest/{ingestId}/claim"),
       responses: {
         "200": {
           description: "The ingest's status after the claim",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  ingest_id: { type: "string", format: "uuid" },
-                  status: { type: "string", enum: ["processing", "processed", "failed"] },
-                },
-                required: ["ingest_id", "status"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("IngestClaimResponse") } },
         },
         "404": {
           description: "No such ingest",
@@ -1547,65 +1421,18 @@ const audioIngestContracts: ApiContractRoute[] = [
     summary: "fingerprint-service reporting what a chunk turned out to be",
     tags: ["Audio Ingest"],
     bodySchema: ingestResultBodySchema,
-    successSchema: z.unknown(),
+    successSchema: ingestResultResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: buildPathParameters("/api/audio/ingest/{ingestId}/result"),
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                status: { type: "string", enum: ["processed", "failed"] },
-                error: { type: ["string", "null"] },
-                window_start_at: { type: ["string", "null"], format: "date-time" },
-                duration_seconds: { type: ["number", "null"] },
-                sample_rate: { type: ["integer", "null"] },
-                level_dbfs: {
-                  type: ["number", "null"],
-                  description: "RMS level of the window, dBFS",
-                },
-                fingerprint_type: { type: ["string", "null"] },
-                fingerprint_version: { type: ["string", "null"] },
-                candidates: {
-                  type: "array",
-                  description:
-                    "Zero or one entry. An empty list with status `processed` is a recorded no-match window, not a failure.",
-                  items: {
-                    type: "object",
-                    properties: {
-                      track_id: { type: "string" },
-                      friend_id: { type: "integer" },
-                      confidence: { type: "number" },
-                      offset_seconds: { type: "number" },
-                    },
-                    required: ["track_id", "friend_id", "confidence", "offset_seconds"],
-                  },
-                },
-              },
-              required: ["status"],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("IngestResultBody") } },
       },
       responses: {
         "200": {
           description: "Result recorded and the ingest closed out",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  ingest_id: { type: "string", format: "uuid" },
-                  status: { type: "string", enum: ["processed", "failed"] },
-                  detections: { type: "integer" },
-                },
-                required: ["ingest_id", "status", "detections"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("IngestResultResponse") } },
         },
         "400": {
           description: "Malformed result",
@@ -1638,7 +1465,7 @@ const audioIngestContracts: ApiContractRoute[] = [
           name: "status",
           in: "query",
           required: false,
-          schema: { type: "string", enum: ["received", "processing", "processed", "failed"] },
+          schema: componentRef("IngestStatus"),
         },
         { name: "limit", in: "query", required: false, schema: { type: "integer", default: 50 } },
         { name: "offset", in: "query", required: false, schema: { type: "integer", default: 0 } },
@@ -1646,62 +1473,7 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Recent ingests, newest first",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  ingests: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        ingest_id: { type: "string" },
-                        source_id: { type: "string" },
-                        session_id: { type: ["string", "null"] },
-                        sequence: { type: ["integer", "null"] },
-                        status: {
-                          type: "string",
-                          enum: ["received", "processing", "processed", "failed"],
-                        },
-                        error: { type: ["string", "null"] },
-                        duration_seconds: { type: ["number", "null"] },
-                        sample_rate: { type: ["integer", "null"] },
-                        channels: { type: ["integer", "null"] },
-                        codec: { type: ["string", "null"] },
-                        file_path: {
-                          type: ["string", "null"],
-                          description:
-                            "Non-null in a terminal state means the raw audio is still on the volume, worth a look.",
-                        },
-                        captured_at: { type: ["string", "null"], format: "date-time" },
-                        received_at: { type: "string", format: "date-time" },
-                        updated_at: { type: "string", format: "date-time" },
-                      },
-                      required: [
-                        "ingest_id",
-                        "source_id",
-                        "session_id",
-                        "sequence",
-                        "status",
-                        "error",
-                        "duration_seconds",
-                        "sample_rate",
-                        "channels",
-                        "codec",
-                        "file_path",
-                        "captured_at",
-                        "received_at",
-                        "updated_at",
-                      ],
-                    },
-                  },
-                  count: { type: "integer" },
-                },
-                required: ["ingests", "count"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("IngestListResponse") } },
         },
         "400": {
           description: "Unknown status filter",
@@ -1731,121 +1503,7 @@ const audioIngestContracts: ApiContractRoute[] = [
         "200": {
           description:
             "Pipeline health. `index.empty` true means nothing can match, however healthy the rest looks.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  since: { type: "string", format: "date-time" },
-                  window_minutes: { type: "integer" },
-                  source_id: { type: ["string", "null"] },
-                  ingest_writable: {
-                    type: "boolean",
-                    description: "False means every upload fails with EACCES — check this first.",
-                  },
-                  index: {
-                    type: "object",
-                    properties: {
-                      engine_registered: { type: "boolean" },
-                      fingerprint_type: { type: ["string", "null"] },
-                      fingerprint_version: { type: ["string", "null"] },
-                      indexed_tracks: { type: "integer" },
-                      empty: {
-                        type: "boolean",
-                        description:
-                          "True means nothing can ever match, however healthy the rest looks.",
-                      },
-                      missing_fingerprint_tracks: { type: "integer" },
-                    },
-                    required: [
-                      "engine_registered",
-                      "fingerprint_type",
-                      "fingerprint_version",
-                      "indexed_tracks",
-                      "empty",
-                      "missing_fingerprint_tracks",
-                    ],
-                  },
-                  queue_depth: {
-                    type: ["integer", "null"],
-                    description: "Null when redis is unreachable — different from a genuine 0.",
-                  },
-                  ingests: {
-                    type: "object",
-                    properties: {
-                      by_status: { type: "object", additionalProperties: { type: "integer" } },
-                      failures: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            error: { type: "string" },
-                            count: { type: "integer" },
-                          },
-                          required: ["error", "count"],
-                        },
-                      },
-                      oldest_in_flight: {
-                        type: ["object", "null"],
-                        properties: {
-                          ingest_id: { type: "string" },
-                          status: { type: "string" },
-                          received_at: { type: "string", format: "date-time" },
-                        },
-                      },
-                    },
-                    required: ["by_status", "failures", "oldest_in_flight"],
-                  },
-                  detections: {
-                    type: "object",
-                    properties: {
-                      windows: { type: "integer" },
-                      matched: { type: "integer" },
-                      no_match: { type: "integer" },
-                      match_rate: {
-                        type: ["number", "null"],
-                        description: "Null when the window recorded no detections at all.",
-                      },
-                      confidence_bands: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            band: { type: "string" },
-                            count: { type: "integer" },
-                          },
-                          required: ["band", "count"],
-                        },
-                      },
-                    },
-                    required: ["windows", "matched", "no_match", "match_rate", "confidence_bands"],
-                  },
-                  spins: {
-                    type: "object",
-                    properties: {
-                      pending: {
-                        type: ["integer", "null"],
-                        description:
-                          "Confidently-detected plays not yet aggregated into a spin session (#304). Null when it could not be computed.",
-                      },
-                    },
-                    required: ["pending"],
-                  },
-                },
-                required: [
-                  "since",
-                  "window_minutes",
-                  "source_id",
-                  "ingest_writable",
-                  "index",
-                  "queue_depth",
-                  "ingests",
-                  "detections",
-                  "spins",
-                ],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("IngestPipelineStats") } },
         },
         "500": {
           description: "Server error",
@@ -1885,67 +1543,7 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Recent windows, newest first, including no-match windows",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  detections: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        ingest_id: { type: "string" },
-                        source_id: { type: "string" },
-                        session_id: { type: ["string", "null"] },
-                        window_start_at: { type: ["string", "null"], format: "date-time" },
-                        matched: {
-                          type: "boolean",
-                          description: "False is a recorded no-match window, not an absence.",
-                        },
-                        track_id: { type: ["string", "null"] },
-                        friend_id: { type: ["integer", "null"] },
-                        title: { type: ["string", "null"] },
-                        artist: { type: ["string", "null"] },
-                        album: { type: ["string", "null"] },
-                        confidence: { type: ["number", "null"] },
-                        offset_seconds: { type: ["number", "null"] },
-                        level_dbfs: {
-                          type: ["number", "null"],
-                          description: "RMS level of the window, dBFS; null on older rows",
-                        },
-                        fingerprint_type: { type: ["string", "null"] },
-                        fingerprint_version: { type: ["string", "null"] },
-                        created_at: { type: "string", format: "date-time" },
-                      },
-                      required: [
-                        "id",
-                        "ingest_id",
-                        "source_id",
-                        "session_id",
-                        "window_start_at",
-                        "matched",
-                        "track_id",
-                        "friend_id",
-                        "title",
-                        "artist",
-                        "album",
-                        "confidence",
-                        "offset_seconds",
-                        "level_dbfs",
-                        "fingerprint_type",
-                        "fingerprint_version",
-                        "created_at",
-                      ],
-                    },
-                  },
-                  count: { type: "integer" },
-                },
-                required: ["detections", "count"],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("DetectionListResponse") } },
         },
         "500": {
           description: "Server error",
@@ -1966,35 +1564,7 @@ const audioIngestContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Current usage, sweep candidates and the active policy",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  files: { type: "integer" },
-                  bytes: { type: "integer" },
-                  sweepable: { type: "integer" },
-                  orphans: { type: "integer" },
-                  inFlight: {
-                    type: "integer",
-                    description:
-                      "Files held by a received/processing record. Never swept until they exceed the max age.",
-                  },
-                  lastSweptAt: { type: ["string", "null"], format: "date-time" },
-                  policy: { type: "object", additionalProperties: true },
-                },
-                required: [
-                  "files",
-                  "bytes",
-                  "sweepable",
-                  "orphans",
-                  "inFlight",
-                  "lastSweptAt",
-                  "policy",
-                ],
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("IngestRetentionStatus") } },
         },
         "500": {
           description: "Server error",
@@ -2018,142 +1588,6 @@ const idParam = {
   in: "path",
   required: true,
   schema: { type: "string", format: "uuid" },
-};
-
-const setRecordingSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    sha256: { type: "string" },
-    file_path: { type: "string" },
-    original_filename: { type: ["string", "null"] },
-    format_name: { type: ["string", "null"] },
-    duration_seconds: { type: ["number", "null"] },
-    size_bytes: { type: ["integer", "string"] },
-    created_at: { type: "string", format: "date-time" },
-  },
-  required: ["sha256", "file_path", "size_bytes"],
-};
-
-const setDerivationSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    id: { type: "string", format: "uuid" },
-    recording_sha256: { type: "string" },
-    fingerprint_type: { type: "string" },
-    fingerprint_version: { type: "string" },
-    window_seconds: { type: "number" },
-    step_seconds: { type: "number" },
-    status: { type: "string", enum: ["queued", "processing", "processed", "failed"] },
-    error: { type: ["string", "null"] },
-    duration_seconds: { type: ["number", "null"] },
-    created_at: { type: "string", format: "date-time" },
-    updated_at: { type: "string", format: "date-time" },
-    completed_at: { type: ["string", "null"], format: "date-time" },
-  },
-  required: ["id", "recording_sha256", "status"],
-};
-
-const setTrackRefSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    track_id: { type: "string" },
-    friend_id: { type: "integer" },
-    title: { type: ["string", "null"] },
-    artist: { type: ["string", "null"] },
-    release_id: { type: ["string", "null"] },
-    position: { type: ["string", "null"] },
-  },
-};
-
-const plannedEntrySchemaObject: Record<string, unknown> = {
-  ...setTrackRefSchemaObject,
-  properties: {
-    ...(setTrackRefSchemaObject.properties as Record<string, unknown>),
-    index: { type: "integer", description: "0-based position in the playlist" },
-    fingerprinted: {
-      type: "boolean",
-      description: "Whether this track is in the reference index at all",
-    },
-  },
-};
-
-const setDerivationViewSchemaObject: Record<string, unknown> = {
-  type: "object",
-  properties: {
-    derivation: setDerivationSchemaObject,
-    recording: setRecordingSchemaObject,
-    summary: {
-      type: ["object", "null"],
-      properties: {
-        plays: { type: "integer" },
-        duration_seconds: { type: ["number", "null"] },
-        identified_seconds: { type: "number" },
-        identified_fraction: { type: ["number", "null"] },
-      },
-    },
-    tracklist: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          track_id: { type: "string" },
-          friend_id: { type: "integer" },
-          start_seconds: { type: "number" },
-          end_seconds: { type: "number" },
-          confidence: { type: "number" },
-          windows: { type: "integer" },
-          rate: {
-            type: ["number", "null"],
-            description: "Track seconds per recording second; ~1.0 is a record at pitch",
-          },
-          track: { ...setTrackRefSchemaObject, type: ["object", "null"] },
-        },
-      },
-    },
-    unidentified: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          start_seconds: { type: "number" },
-          end_seconds: { type: "number" },
-          unindexed_neighbours: { type: "array", items: setTrackRefSchemaObject },
-        },
-      },
-    },
-    diff: {
-      type: ["object", "null"],
-      description:
-        "Present when playlist_id or live_set_id is given. `play` indexes into tracklist.",
-      properties: {
-        playlist_id: { type: "integer" },
-        played_as_planned: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              play: { type: "integer" },
-              planned: plannedEntrySchemaObject,
-              out_of_order: { type: "boolean" },
-            },
-          },
-        },
-        played_instead_of: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { play: { type: "integer" }, planned: plannedEntrySchemaObject },
-          },
-        },
-        played_not_planned: {
-          type: "array",
-          items: { type: "object", properties: { play: { type: "integer" } } },
-        },
-        planned_not_played: { type: "array", items: plannedEntrySchemaObject },
-      },
-    },
-  },
-  required: ["derivation", "recording", "tracklist", "unidentified"],
 };
 
 const jsonError = (description: string) => ({
@@ -2184,7 +1618,7 @@ const setDerivationContracts: ApiContractRoute[] = [
     path: "/api/set-recordings/{sha256}",
     summary: "Stream a whole set recording, stored under its sha256",
     tags: ["Set Derivation"],
-    successSchema: z.unknown(),
+    successSchema: setRecordingSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -2206,11 +1640,11 @@ const setDerivationContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "Already held; the body was not read",
-          content: { "application/json": { schema: setRecordingSchemaObject } },
+          content: { "application/json": { schema: componentRef("SetRecording") } },
         },
         "201": {
           description: "Stored",
-          content: { "application/json": { schema: setRecordingSchemaObject } },
+          content: { "application/json": { schema: componentRef("SetRecording") } },
         },
         "400": jsonError("Bad sha256, empty body, or not audio ffprobe can read"),
         "413": jsonError("Over SET_RECORDING_MAX_BYTES"),
@@ -2245,41 +1679,21 @@ const setDerivationContracts: ApiContractRoute[] = [
     summary: "Derive a tracklist from an uploaded set recording",
     tags: ["Set Derivation"],
     bodySchema: setDerivationCreateBodySchema,
-    successSchema: z.unknown(),
+    successSchema: setDerivationCreateResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                recording_sha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
-                window_seconds: { type: "number", default: 15 },
-                step_seconds: { type: "number", default: 15 },
-                force: {
-                  type: "boolean",
-                  description: "Start a new run even if an equivalent one exists",
-                },
-                live_set_id: {
-                  type: ["integer", "null"],
-                  description: "Also list the recording in this live set's media",
-                },
-              },
-              required: ["recording_sha256"],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("SetDerivationRequest") } },
       },
       responses: {
         "200": {
           description: "An equivalent run already exists and is returned (`reused: true`)",
-          content: { "application/json": { schema: setDerivationSchemaObject } },
+          content: { "application/json": { schema: componentRef("SetDerivationCreateResponse") } },
         },
         "202": {
           description: "Queued; poll GET /api/set-derivations/{id}",
-          content: { "application/json": { schema: setDerivationSchemaObject } },
+          content: { "application/json": { schema: componentRef("SetDerivationCreateResponse") } },
         },
         "400": jsonError("Invalid request"),
         "404": jsonError("No such recording; upload it first"),
@@ -2294,7 +1708,7 @@ const setDerivationContracts: ApiContractRoute[] = [
     summary: "A derived tracklist, its unidentified regions and a diff against a plan",
     tags: ["Set Derivation"],
     querySchema: setDerivationViewQuerySchema,
-    successSchema: z.unknown(),
+    successSchema: setDerivationViewSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [
@@ -2317,7 +1731,7 @@ const setDerivationContracts: ApiContractRoute[] = [
       responses: {
         "200": {
           description: "The derivation; tracklist and summary are empty until it is processed",
-          content: { "application/json": { schema: setDerivationViewSchemaObject } },
+          content: { "application/json": { schema: componentRef("SetDerivationView") } },
         },
         "404": jsonError("No such derivation, playlist or live set"),
       },
@@ -2329,24 +1743,14 @@ const setDerivationContracts: ApiContractRoute[] = [
     path: "/api/set-derivations/{id}/claim",
     summary: "fingerprint-set-worker announcing it has picked up a run",
     tags: ["Set Derivation"],
-    successSchema: z.unknown(),
+    successSchema: setDerivationClaimResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [idParam],
       responses: {
         "200": {
           description: "The run's status after the claim",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  derivation_id: { type: "string", format: "uuid" },
-                  status: { type: "string" },
-                },
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("SetDerivationClaimResponse") } },
         },
         "404": jsonError("No such derivation"),
       },
@@ -2359,64 +1763,18 @@ const setDerivationContracts: ApiContractRoute[] = [
     summary: "fingerprint-set-worker reporting every window of a recording",
     tags: ["Set Derivation"],
     bodySchema: setDerivationResultBodySchema,
-    successSchema: z.unknown(),
+    successSchema: setDerivationResultResponseSchema,
     errorSchema: apiErrorSchema,
     openapi: {
       parameters: [idParam],
       requestBody: {
         required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                status: { type: "string", enum: ["processed", "failed"] },
-                error: { type: ["string", "null"] },
-                duration_seconds: { type: ["number", "null"] },
-                windows: {
-                  type: "array",
-                  description: "Every window; an empty candidates list is unidentified audio",
-                  items: {
-                    type: "object",
-                    properties: {
-                      start_seconds: { type: "number" },
-                      duration_seconds: { type: "number" },
-                      candidates: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            track_id: { type: "string" },
-                            friend_id: { type: "integer" },
-                            confidence: { type: "number" },
-                            offset_seconds: { type: "number" },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              required: ["status"],
-            },
-          },
-        },
+        content: { "application/json": { schema: componentRef("SetDerivationResultBody") } },
       },
       responses: {
         "200": {
           description: "Result stored and the run closed out",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  derivation_id: { type: "string", format: "uuid" },
-                  status: { type: "string" },
-                  windows: { type: "integer" },
-                },
-              },
-            },
-          },
+          content: { "application/json": { schema: componentRef("SetDerivationResultResponse") } },
         },
         "400": jsonError("Invalid result body"),
         "404": jsonError("No such derivation"),

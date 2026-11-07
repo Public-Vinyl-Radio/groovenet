@@ -7,30 +7,7 @@
  */
 
 /** How much raw audio the ingest volume may hold, and for how long. */
-export type IngestRetentionPolicy = {
-  /**
-   * Oldest a file may be before it is swept regardless of its record, in
-   * hours. The backstop for anything the status rules miss.
-   */
-  maxAgeHours: number;
-  /**
-   * Total bytes the ingest volume may hold. Over budget, the oldest sweepable
-   * files go first.
-   */
-  maxBytes: number;
-  /**
-   * How long a file with no `audio_ingests` row must sit before it counts as
-   * an orphan.
-   *
-   * Load-bearing: the ingest route writes the file and then inserts the row, so
-   * for a moment every legitimate upload looks exactly like an orphan. Without
-   * this the sweeper would race the writer and delete audio that was about to
-   * be claimed.
-   */
-  orphanGraceMinutes: number;
-  /** Minutes between sweeps. The scheduler still ticks every minute. */
-  sweepIntervalMinutes: number;
-};
+export type { IngestRetentionPolicy } from "@groovenet/contracts";
 
 /** Why one file was swept, or spared. */
 export type SweepReason =
@@ -62,18 +39,7 @@ export type SweepSummary = {
 };
 
 /** What `GET /api/audio/ingest/retention` reports. */
-export type IngestRetentionStatus = {
-  files: number;
-  bytes: number;
-  /** Files the next sweep would delete. */
-  sweepable: number;
-  /** Files with no record, past the grace period. */
-  orphans: number;
-  /** Files held by a `received` or `processing` record, never swept. */
-  inFlight: number;
-  lastSweptAt: string | null;
-  policy: IngestRetentionPolicy;
-};
+export type { IngestRetentionStatus } from "@groovenet/contracts";
 
 // ─── Ingest endpoint (#275) ───────────────────────────────────────────────────
 
@@ -108,25 +74,12 @@ export type IngestRequestFields = {
   captured_at?: string | null;
 };
 
-export type AcceptedIngest = {
-  status: "accepted";
-  ingest_id: string;
-  source_id: string;
-  duration_seconds: number;
-  sample_rate: number | null;
-  channels: number | null;
-  captured_at: string | null;
-};
+export type { AcceptedIngest } from "@groovenet/contracts";
 
 // ─── Lifecycle (#276) ─────────────────────────────────────────────────────────
 
-/** One candidate the matcher proposed for a window. */
-export type IngestMatchCandidate = {
-  track_id: string;
-  friend_id: number;
-  confidence: number;
-  offset_seconds: number;
-};
+export type { IngestMatchCandidate } from "@groovenet/contracts";
+import type { IngestMatchCandidate } from "@groovenet/contracts";
 
 /**
  * What `fingerprint-service` posts back when it finishes a chunk.

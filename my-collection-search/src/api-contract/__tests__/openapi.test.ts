@@ -794,3 +794,64 @@ describe("shared genre taxonomy components", () => {
     });
   });
 });
+
+describe("shared vinyl ingest, fingerprint and set derivation components", () => {
+  type JsonContent = { schema?: { $ref?: string } };
+  type JsonOperation = {
+    responses: Record<string, { content?: Record<string, JsonContent> }>;
+    requestBody?: { content?: Record<string, JsonContent> };
+  };
+  const operation = (path: string, method: string) =>
+    (getOpenApiDocument().paths[path] as Record<string, JsonOperation>)[method];
+  const responseRef = (path: string, method: string, status: string) =>
+    operation(path, method).responses[status]?.content?.["application/json"]?.schema?.$ref;
+  const requestRef = (path: string, method: string) =>
+    operation(path, method).requestBody?.content?.["application/json"]?.schema?.$ref;
+
+  it.each([
+    ["/api/audio/ingest", "post", "202", "AcceptedIngest"],
+    ["/api/audio/ingest", "post", "400", undefined],
+    ["/api/audio/ingest/{ingestId}/claim", "post", "200", "IngestClaimResponse"],
+    ["/api/audio/ingest/{ingestId}/result", "post", "200", "IngestResultResponse"],
+    ["/api/audio/ingest/recent", "get", "200", "IngestListResponse"],
+    ["/api/audio/ingest/retention", "get", "200", "IngestRetentionStatus"],
+    ["/api/audio/ingest/stats", "get", "200", "IngestPipelineStats"],
+    ["/api/detections/recent", "get", "200", "DetectionListResponse"],
+    ["/api/fingerprints", "get", "200", "FingerprintListResponse"],
+    ["/api/fingerprints", "patch", "200", "FingerprintFileStatsResponse"],
+    ["/api/fingerprints", "post", "200", "FingerprintUpsertResponse"],
+    ["/api/fingerprints/index", "post", "202", "FingerprintIndexRun"],
+    ["/api/fingerprints/index/{runId}", "get", "200", "FingerprintIndexRun"],
+    ["/api/set-derivations", "post", "202", "SetDerivationCreateResponse"],
+    ["/api/set-derivations/{id}", "get", "200", "SetDerivationView"],
+    ["/api/set-derivations/{id}/claim", "post", "200", "SetDerivationClaimResponse"],
+    ["/api/set-derivations/{id}/result", "post", "200", "SetDerivationResultResponse"],
+    ["/api/set-recordings/{sha256}", "put", "201", "SetRecording"],
+  ] as const)("%s %s %s references %s", (path, method, status, name) => {
+    const ref = responseRef(path, method, status);
+    if (name) expect(ref).toBe(`#/components/schemas/${name}`);
+    else expect(ref).toBe("#/components/schemas/IngestError");
+  });
+
+  it.each([
+    ["/api/audio/ingest/{ingestId}/result", "post", "IngestResultBody"],
+    ["/api/fingerprints", "post", "FingerprintUpsertBody"],
+    ["/api/fingerprints", "patch", "FingerprintFileStatsBody"],
+    ["/api/fingerprints/index", "post", "FingerprintIndexRequest"],
+    ["/api/set-derivations", "post", "SetDerivationRequest"],
+    ["/api/set-derivations/{id}/result", "post", "SetDerivationResultBody"],
+  ] as const)("%s %s takes %s", (path, method, name) => {
+    expect(requestRef(path, method)).toBe(`#/components/schemas/${name}`);
+  });
+
+  it("keeps the listener upload multipart and publishes optional candidates", () => {
+    expect(operation("/api/audio/ingest", "post").requestBody?.content).toHaveProperty(
+      "multipart/form-data",
+    );
+    const doc = getOpenApiDocument();
+    expect(doc.components.schemas.IngestResultBody).toMatchObject({ required: ["status"] });
+    expect(doc.components.schemas.IngestPipelineStats).toMatchObject({
+      properties: { since: { format: "date-time" } },
+    });
+  });
+});
