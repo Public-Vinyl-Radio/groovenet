@@ -47,4 +47,24 @@ describe("useTrackGenreFacets", () => {
     expect(result.current.counts).toBeUndefined();
     expect(fetchTrackGenreFacets).not.toHaveBeenCalled();
   });
+
+  it("counts within the artist filter, and keys nothing extra without one (#709)", async () => {
+    render({ q: "", artists: ["meridian-brothers"], enabled: true });
+    await waitFor(() =>
+      expect(fetchTrackGenreFacets).toHaveBeenCalledWith({
+        q: "",
+        filter: undefined,
+        artist: ["meridian-brothers"],
+      }),
+    );
+    fetchTrackGenreFacets.mockClear();
+    render({ q: "", artists: [], enabled: true });
+    await waitFor(() =>
+      expect(fetchTrackGenreFacets).toHaveBeenCalledWith({
+        q: "",
+        filter: undefined,
+        artist: undefined,
+      }),
+    );
+  });
 });

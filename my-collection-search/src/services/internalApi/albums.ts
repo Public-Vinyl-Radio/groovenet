@@ -27,10 +27,12 @@ export type CreateAlbumResponse = Omit<CreateAlbumApiResponse, "album" | "tracks
 // input types would be `unknown`.
 export type AlbumSearchParams = Omit<
   z.input<typeof albumSearchQuerySchema>,
-  "genre" | "similar_exclude"
+  "genre" | "similar_exclude" | "artist"
 > & {
   /** Genre slugs (#375); any of them matches, each with its subgenres. */
   genre?: string[];
+  /** Artist slugs (#709); any of them matches, by credit. */
+  artist?: string[];
   /** Related-genre ids already removed by the caller (#485); never re-added. */
   similar_exclude?: string[];
 };
@@ -107,6 +109,7 @@ export async function searchAlbums(params: AlbumSearchParams): Promise<AlbumSear
     searchParams.append("similar_limit", String(params.similar_limit));
   }
   for (const id of params.similar_exclude ?? []) searchParams.append("similar_exclude", id);
+  for (const artist of params.artist ?? []) searchParams.append("artist", artist);
 
   const query = searchParams.toString();
   const path = query ? `/api/albums?${query}` : "/api/albums";

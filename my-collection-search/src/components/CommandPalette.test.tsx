@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   searchTracks: vi.fn(),
   searchAlbums: vi.fn(),
   getAlbumWithTracks: vi.fn(),
+  listArtists: vi.fn(),
   replacePlaylist: vi.fn(),
   friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
@@ -54,6 +55,7 @@ vi.mock("@/services/internalApi/albums", () => ({
   searchAlbums: mocks.searchAlbums,
   getAlbumWithTracks: mocks.getAlbumWithTracks,
 }));
+vi.mock("@/services/internalApi/artists", () => ({ listArtists: mocks.listArtists }));
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: mocks.track } }));
 
 import CommandPalette from "./CommandPalette";
@@ -116,6 +118,7 @@ describe("CommandPalette (#472)", () => {
     mocks.fetchGenreTree.mockResolvedValue(GENRE_TREE);
     mocks.searchTracks.mockResolvedValue({ hits: [] });
     mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    mocks.listArtists.mockResolvedValue({ items: [] });
   });
 
   it("shows one row per genre, and opens the genre page on select", async () => {
@@ -313,5 +316,85 @@ describe("CommandPalette (#472)", () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.click(await screen.findByText("Home"));
     expect(mocks.push).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("CommandPalette artists (#709)", () => {
+  const meridian = {
+    id: 9,
+    name: "Meridian Brothers",
+    sort_name: "Meridian Brothers",
+    slug: "meridian-brothers",
+    discogs_artist_id: null,
+    is_placeholder: false,
+    album_count: 2,
+    track_count: 1,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.friend = { id: 1, username: "dj" };
+    mocks.fetchGenreTree.mockResolvedValue([]);
+    mocks.searchTracks.mockResolvedValue({ hits: [] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    mocks.listArtists.mockResolvedValue({ items: [meridian] });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("finds artists in this collection and opens one", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
+
+    expect(await screen.findByText("Meridian Brothers")).toBeTruthy();
+    expect(screen.getByText("Open Artist · 2 albums · 1 track")).toBeTruthy();
+    expect(mocks.listArtists).toHaveBeenCalledWith({ q: "meridian", limit: 5, friend_id: 1 });
+
+    await user.click(screen.getByText("Meridian Brothers"));
+    expect(mocks.push).toHaveBeenCalledWith("/artists/meridian-brothers");
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_artist" });
+  });
+
+  it("searches tracks by the artist", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ ...meridian, album_count: 0, track_count: 0 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
+
+    expect(await screen.findByText("Open Artist")).toBeTruthy();
+    await user.click(screen.getByText("Tracks by Meridian Brothers"));
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?artist=meridian-brothers");
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "filter_tracks_by_artist",
+    });
+  });
+
+  it("shows no artists when their search fails", async () => {
+    mocks.listArtists.mockRejectedValue(new Error("down"));
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
+    expect(await screen.findByText("Loveless")).toBeTruthy();
+    expect(screen.queryByText("Tracks by Meridian Brothers")).toBeNull();
+  });
+
+  it("asks for every collection's artists without a friend", async () => {
+    mocks.friend = null;
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
+    await screen.findByText("Meridian Brothers");
+    expect(mocks.listArtists).toHaveBeenCalledWith({
+      q: "meridian",
+      limit: 5,
+      friend_id: undefined,
+    });
+  });
+
+  it("lists Artists under Navigation", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "Artists");
+    await user.click(await screen.findByText("/artists"));
+    expect(mocks.push).toHaveBeenCalledWith("/artists");
   });
 });

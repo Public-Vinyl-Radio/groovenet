@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Field, SegmentGroup, Text } from "@chakra-ui/react";
 import type { TrackSearchMode } from "@/api-contract/schemas";
 import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
+import { ArtistFilterSection, type ArtistFilterControls } from "@/components/ArtistFilter";
 import { BpmFields, KeyField, RatingField } from "@/components/AttributeFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
@@ -43,6 +44,8 @@ export type TrackFilterControls = {
   genreCounts?: ReadonlyMap<string, number>;
   includeSimilar: boolean;
   onIncludeSimilarChange: (checked: boolean) => void;
+  /** The artist filter (#709); its section shows only when the page wires one. */
+  artistFilter?: ArtistFilterControls;
   attributes: TrackAttributeFilters;
   onAttributesChange: (next: TrackAttributeFilters) => void;
   missing: TracksFilter;
@@ -60,7 +63,7 @@ export function showResultsLabel(count: number): string {
 }
 
 /**
- * Genre and key, tempo and rating, and the missing checks: the body of both
+ * Genre and key, artist, tempo and rating, and the missing checks: the body of both
  * the phone modal and the desktop panel. `first` drops the top rule when
  * nothing sits above it.
  */
@@ -72,6 +75,7 @@ export function TrackFilterSections({
   genreCounts,
   includeSimilar,
   onIncludeSimilarChange,
+  artistFilter,
   attributes,
   onAttributesChange,
   missing,
@@ -92,6 +96,8 @@ export function TrackFilterSections({
           <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
         )}
       </Section>
+
+      {artistFilter && <ArtistFilterSection {...artistFilter} />}
 
       <Section label="Tempo and rating">
         <BpmFields value={attributes} onChange={onAttributesChange} />

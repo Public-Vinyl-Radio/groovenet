@@ -95,6 +95,8 @@ export type AnalyticsEvents = {
       | "open_track"
       | "play_track"
       | "open_genre"
+      | "open_artist"
+      | "filter_tracks_by_artist"
       | "open_album"
       | "play_album"
       | "search_tracks_query"

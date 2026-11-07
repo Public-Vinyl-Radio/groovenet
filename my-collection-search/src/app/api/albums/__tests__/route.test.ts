@@ -22,6 +22,12 @@ const { mockSearchAlbums, mockWithDbTransaction, mockUpdateAlbumFields, mockGetT
     mockGetTracks: vi.fn(),
   }));
 const mockResolveGenreFilter = vi.hoisted(() => vi.fn());
+const mockResolveArtistFilter = vi.hoisted(() => vi.fn());
+
+vi.mock("@/server/artists/artistFilter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/artists/artistFilter")>()),
+  resolveArtistFilter: mockResolveArtistFilter,
+}));
 
 vi.mock("@/server/genres/genreFilter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/genres/genreFilter")>()),
@@ -66,6 +72,7 @@ beforeEach(() => {
   mockUpdateAlbumFields.mockResolvedValue({ release_id: "r1" });
   mockGetTracks.mockResolvedValue([]);
   mockResolveGenreFilter.mockResolvedValue({ filter: undefined });
+  mockResolveArtistFilter.mockResolvedValue({ ids: undefined, artists: [] });
 });
 
 // ─── GET ────────────────────────────────────────────────────────────────────
@@ -424,5 +431,33 @@ describe("PATCH album taxonomy replacements", () => {
     mockUpdateAlbumFields.mockResolvedValueOnce(null);
     const res = await PATCH(patchReq({ release_id: "r1", friend_id: 8, genre_override_ids: null }));
     expect(res.status).toBe(404);
+  });
+});
+
+// ─── GET — artist filter (#709) ─────────────────────────────────────────────
+
+describe("GET /api/albums — artist filter", () => {
+  const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+
+  it("resolves every repeated artist, filters by their ids and names them", async () => {
+    mockResolveArtistFilter.mockResolvedValue({ ids: [9, 4], artists: [meridian] });
+    const res = await GET(getReq("?artist=meridian-brothers&artist=4"));
+    expect(res.status).toBe(200);
+    expect(mockResolveArtistFilter).toHaveBeenCalledWith(["meridian-brothers", "4"]);
+    expect(mockSearchAlbums).toHaveBeenCalledWith(expect.objectContaining({ artistIds: [9, 4] }));
+    expect((await res.json()).filter_artists).toEqual([meridian]);
+  });
+
+  it("leaves filter_artists out without an artist filter", async () => {
+    const res = await GET(getReq());
+    expect(await res.json()).not.toHaveProperty("filter_artists");
+  });
+
+  it("rejects an unknown artist with 400 and names it", async () => {
+    mockResolveArtistFilter.mockResolvedValue({ unknown: ["nobody"] });
+    const res = await GET(getReq("?artist=nobody"));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Unknown artist: nobody", unknown: ["nobody"] });
+    expect(mockSearchAlbums).not.toHaveBeenCalled();
   });
 });

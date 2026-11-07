@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { artistCreditsFieldSchema } from "./artistCredits.js";
+import {
+  artistCreditsFieldSchema,
+  artistFilterQueryShape,
+  artistFilterResponseShape,
+} from "./artistCredits.js";
 
 /** A taxonomy genre as linked to a track, with its parent for display (#371). */
 export const trackGenreSchema = z.object({
@@ -165,6 +169,7 @@ export const trackSearchQuerySchema = z.object({
   include_similar: z.boolean().optional(),
   similar_limit: z.number().int().min(0).optional(),
   similar_exclude: z.array(z.string()).max(20).optional(),
+  ...artistFilterQueryShape,
 });
 
 export const trackSearchResponseSchema = z.object({
@@ -172,6 +177,7 @@ export const trackSearchResponseSchema = z.object({
   hits: z.array(trackSchema),
   /** Genres `include_similar` added beyond the plain `genre` filter (#485). */
   added_genres: z.array(genreFilterRefSchema).optional(),
+  ...artistFilterResponseShape,
   /** The mode that ranked these hits; omitted for a plain lexical request. */
   mode: trackSearchModeSchema.optional(),
   /** Hybrid fell back to lexical alone because the semantic leg failed. */

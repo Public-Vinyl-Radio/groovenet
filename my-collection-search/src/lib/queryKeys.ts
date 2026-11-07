@@ -26,6 +26,9 @@ export const queryKeys = {
     ["genres", "page", slug, friend_id ?? null] as const,
   artistPage: (slug: string, friend_id?: number) =>
     ["artists", "page", slug, friend_id ?? null] as const,
+  /** The artists index and the artist pickers (#709). */
+  artistList: (args: { q?: string; letter?: string; friendId?: number; limit?: number }) =>
+    ["artists", "list", args] as const,
   genreResults: (
     slug: string,
     friendId: number | undefined,
@@ -156,11 +159,16 @@ export const queryKeys = {
     page?: number;
     searchMode?: string;
     genre?: string[];
+    artist?: string[];
     attributes?: TrackAttributeFilters;
   }) => ["tracks", args] as const,
   /** Under "genres", so a taxonomy edit refreshes the counts too. */
-  trackGenreFacets: (args: { q?: string; filter?: string; attributes?: TrackAttributeFilters }) =>
-    ["genres", "track-facets", args] as const,
+  trackGenreFacets: (args: {
+    q?: string;
+    filter?: string;
+    attributes?: TrackAttributeFilters;
+    artist?: string[];
+  }) => ["genres", "track-facets", args] as const,
   /** Track rows behind a server player's queue, keyed by the sorted unique refs. */
   serverQueueTracks: (refs: readonly string[]) => ["server-queue-tracks", ...refs] as const,
   trackById: (track_id: string, friend_id: number) =>

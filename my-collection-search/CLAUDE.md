@@ -1066,6 +1066,21 @@ credits (`withArtistCredits`, one batched query per kind): a track's own
 credits, else its album's, the artist page's rule. `artist` stays the display
 string. Search and list responses do not load credits.
 
+## Artist filter and index (#709)
+
+`artist` on `GET /api/tracks/search` (every mode, and its genre facets) and
+`GET /api/albums` takes slugs or ids, repeatable and ORed, and matches through
+the credit tables, never the artist string (`resolveArtistFilter`, then
+`trackArtistFilterClause` / `albumArtistFilterClause` in `trackFilterSpec.ts`).
+A track matches on its own credits, else its album's (the artist page's rule);
+an album matches on its own credits or any live track's, so a `Various`
+compilation is found through its track artists. Merged artists resolve to their
+survivor; an unknown value is a 400. Responses echo `filter_artists` for the
+chips. Free-text `q` is unchanged. `GET /api/artists?letter=` is the `/artists`
+A to Z index by sort name (first letter accent-folded, `#` for the rest). The
+command palette lists artists through the same endpoint. `just artists-test`
+covers the filter and the letters against real Postgres.
+
 ## Artist reconcile (#705)
 
 `POST /api/artists/reconcile` (`groovenet artists reconcile`) backfills

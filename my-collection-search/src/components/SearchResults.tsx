@@ -31,6 +31,12 @@ import {
   INCLUDE_SIMILAR_CHIP_KEY,
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
+import {
+  artistFilterChips,
+  artistSlugFromChipKey,
+  useArtistNames,
+  type ArtistName,
+} from "@/components/ArtistFilter";
 import PageHeader from "@/components/layout/PageHeader";
 import {
   HeaderButton,
@@ -116,6 +122,10 @@ const SearchResults: React.FC = () => {
   const [similarExclude, setSimilarExclude] = React.useState<string[]>(
     () => searchParams?.getAll("similar_exclude") ?? [],
   );
+  // Artist slugs (#709), linkable as `?artist=meridian-brothers`.
+  const [artists, setArtists] = React.useState<string[]>(
+    () => searchParams?.getAll("artist") ?? [],
+  );
   const [searchMode, setSearchMode] = React.useState<TrackSearchMode>(() => {
     const fromUrl = searchParams?.get("mode");
     return isTrackSearchMode(fromUrl) ? fromUrl : "lexical";
@@ -145,6 +155,7 @@ const SearchResults: React.FC = () => {
     initialLoading,
     loadingMore,
     addedGenres,
+    filterArtists,
   } = useSearchResults({
     enabled: isHydrated && !!currentUserFriend,
     mode: "infinite",
@@ -156,7 +167,20 @@ const SearchResults: React.FC = () => {
     attributes,
     includeSimilar,
     similarExclude,
+    artists,
   });
+  const { known: knownArtists, remember: rememberArtist } = useArtistNames(filterArtists);
+  const addArtist = React.useCallback(
+    (artist: ArtistName) => {
+      rememberArtist(artist);
+      // The picker never offers an artist already chosen, so a pick is always new.
+      setArtists((prev) => [...prev, artist.slug]);
+    },
+    [rememberArtist],
+  );
+  const removeArtist = React.useCallback((slug: string) => {
+    setArtists((prev) => prev.filter((s) => s !== slug));
+  }, []);
 
   // Counts only for keyword search: semantic and hybrid return one ranked page.
   const { genres: taxonomy } = useGenreTaxonomyQuery();
@@ -164,6 +188,7 @@ const SearchResults: React.FC = () => {
     q: query,
     filter: searchFilters.join(" AND "),
     attributes,
+    artists,
     enabled: isHydrated && !!currentUserFriend && searchMode === "lexical",
   });
   // The picker never offers a genre already chosen, so a pick is always new.
@@ -292,6 +317,11 @@ const SearchResults: React.FC = () => {
         setSimilarExclude((prev) => [...prev, similarGenreId]);
         return;
       }
+      const artistSlug = artistSlugFromChipKey(key);
+      if (artistSlug !== null) {
+        removeArtist(artistSlug);
+        return;
+      }
       const withoutAttribute = removeAttributeChip(attributes, key);
       if (withoutAttribute !== null) {
         setAttributes(withoutAttribute);
@@ -299,7 +329,7 @@ const SearchResults: React.FC = () => {
       }
       setActiveFilters((prev) => toggleTracksFilter(prev, key as keyof TracksFilter));
     },
-    [attributes, removeGenre],
+    [attributes, removeGenre, removeArtist],
   );
 
   const handleClearAllFilters = React.useCallback(() => {
@@ -307,11 +337,12 @@ const SearchResults: React.FC = () => {
     setGenres([]);
     setIncludeSimilar(false);
     setSimilarExclude([]);
+    setArtists([]);
     setAttributes({});
   }, []);
   const attributeChips = attributeFilterChips(attributes);
   const activeFilterCount =
-    getActiveFilterCount(activeFilters) + genres.length + attributeChips.length;
+    getActiveFilterCount(activeFilters) + genres.length + artists.length + attributeChips.length;
 
   // One filter state for the phone modal and the desktop panel (#794).
   const filterControls: TrackFilterControls = {
@@ -321,6 +352,13 @@ const SearchResults: React.FC = () => {
     genreCounts,
     includeSimilar,
     onIncludeSimilarChange: setIncludeSimilar,
+    artistFilter: {
+      selected: artists,
+      known: knownArtists,
+      onAdd: addArtist,
+      onRemove: removeArtist,
+      friendId: currentUserFriend?.id,
+    },
     attributes,
     onAttributesChange: setAttributes,
     missing: activeFilters,
@@ -396,6 +434,7 @@ const SearchResults: React.FC = () => {
       setGenres(fromUrl.getAll("genre"));
       setIncludeSimilar(fromUrl.get("similar") === "1");
       setSimilarExclude(fromUrl.getAll("similar_exclude"));
+      setArtists(fromUrl.getAll("artist"));
       setSearchMode(isTrackSearchMode(urlMode) ? urlMode : "lexical");
       setActiveFilters(tracksFilterFromParams(fromUrl));
       setAttributes(attributeFiltersFromParams(fromUrl));
@@ -416,6 +455,8 @@ const SearchResults: React.FC = () => {
     else params.delete("similar");
     params.delete("similar_exclude");
     similarExclude.forEach((id) => params.append("similar_exclude", id));
+    params.delete("artist");
+    artists.forEach((slug) => params.append("artist", slug));
     const nextQueryString = params.toString();
     if (nextQueryString === searchParamsString) return;
     const newUrl = nextQueryString ? `${pathname}?${nextQueryString}` : pathname;
@@ -429,6 +470,7 @@ const SearchResults: React.FC = () => {
     genres,
     includeSimilar,
     similarExclude,
+    artists,
     searchMode,
     pathname,
     router,
@@ -521,6 +563,7 @@ const SearchResults: React.FC = () => {
                 initialLoading ? undefined : addedGenres,
               ),
               ...addedGenreChips(addedGenres),
+              ...artistFilterChips(artists, knownArtists),
               ...TRACK_MISSING_OPTIONS.filter(({ key }) => activeFilters[key]).map(
                 ({ key, chipLabel }) => ({ key, label: chipLabel, active: true }),
               ),

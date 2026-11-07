@@ -707,6 +707,11 @@ describe("searchTracks", () => {
     expect(calledParams().getAll("genre")).toEqual(["cumbia", "salsa"]);
   });
 
+  it("repeats artist for each slug (#709)", async () => {
+    await searchTracks({ artist: ["meridian-brothers", "4"] });
+    expect(calledParams().getAll("artist")).toEqual(["meridian-brothers", "4"]);
+  });
+
   it("omits the query string entirely when nothing is set", async () => {
     await searchTracks({});
 
@@ -806,6 +811,11 @@ describe("fetchPlaylistCounts", () => {
 });
 
 describe("fetchTrackGenreFacets (#375)", () => {
+  it("counts within the artist filter (#709)", async () => {
+    await fetchTrackGenreFacets({ artist: ["meridian-brothers"] });
+    expect(calledParams().getAll("artist")).toEqual(["meridian-brothers"]);
+  });
+
   it("asks for counts with the words and filter", async () => {
     await fetchTrackGenreFacets({ q: "dub", filter: "friend_id = 6" });
     const [path, init] = httpMock.mock.calls.at(-1)!;

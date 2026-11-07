@@ -199,3 +199,48 @@ describe("useSearchResults includeSimilar (#485)", () => {
     expect(result.current.addedGenres).toEqual([]);
   });
 });
+
+describe("useSearchResults artists (#709)", () => {
+  const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+
+  it("sends the artists, keys the cache by them and surfaces their names", async () => {
+    searchTracks.mockResolvedValue({
+      hits: [{ track_id: "t1", friend_id: 1 }],
+      estimatedTotalHits: 1,
+      offset: 0,
+      limit: 20,
+      processingTimeMs: 1,
+      filter_artists: [meridian],
+    });
+    const { result } = renderSearch({ artists: ["meridian-brothers"] });
+    await waitFor(() => expect(result.current.filterArtists).toEqual([meridian]));
+    expect(searchTracks).toHaveBeenCalledWith(
+      expect.objectContaining({ artist: ["meridian-brothers"] }),
+    );
+    expect(trackKeys()[0][1]).toMatchObject({ artist: ["meridian-brothers"] });
+  });
+
+  it("sends them in page mode too", async () => {
+    searchTracks.mockResolvedValue({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 20,
+      processingTimeMs: 1,
+      filter_artists: [meridian],
+    });
+    const { result } = renderSearch({ artists: ["meridian-brothers"], mode: "page" });
+    await waitFor(() => expect(result.current.filterArtists).toEqual([meridian]));
+    expect(trackKeys()).toContainEqual([
+      "tracks",
+      expect.objectContaining({ artist: ["meridian-brothers"], page: 1 }),
+    ]);
+  });
+
+  it("leaves the cache key as it was, and names nobody, without artists", async () => {
+    const { result } = renderSearch({ artists: [] });
+    await waitFor(() => expect(searchTracks).toHaveBeenCalled());
+    expect(trackKeys()[0][1]).not.toHaveProperty("artist");
+    expect(result.current.filterArtists).toEqual([]);
+  });
+});

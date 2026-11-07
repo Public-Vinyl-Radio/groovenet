@@ -6,7 +6,14 @@ export type ArtistListFilter = {
   q: string;
   friendId?: number;
   includePlaceholders: boolean;
+  /** The A to Z index (#709): `A`..`Z`, or `#` for a sort name starting with anything else. */
+  letter?: string;
 };
+
+/** The sort name with its first letter's accents folded, for the A to Z index. */
+const FOLDED_SORT_NAME = `translate(ltrim(ar.sort_name),
+  'ÁÀÂÄÃÅáàâäãåÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÖÕóòôöõÚÙÛÜúùûüÑñÇçÝý',
+  'AAAAAAaaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuNnCcYy')`;
 
 /** `%` and `_` in a user's query match themselves, not any character. */
 function likePattern(text: string): string {
@@ -27,6 +34,12 @@ export class ArtistListRepository {
     // A merged artist is a redirect to its survivor, not a list entry.
     const where: string[] = ["ar.merged_into IS NULL"];
     if (!filter.includePlaceholders) where.push("NOT ar.is_placeholder");
+    if (filter.letter === "#") {
+      // unaccent is not installed; fold the common Latin accents so Á files under A.
+      where.push(`upper(left(${FOLDED_SORT_NAME}, 1)) !~ '^[A-Z]$'`);
+    } else if (filter.letter) {
+      where.push(`upper(left(${FOLDED_SORT_NAME}, 1)) = ${add(filter.letter)}`);
+    }
     let exact = "false";
     const normalized = normaliseArtistName(filter.q);
     if (filter.q) {

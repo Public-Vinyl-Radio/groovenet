@@ -69,6 +69,8 @@ export type TrackAttributeFilters = {
   minStarRating?: number;
   /** Any of these genres or their subgenres (#375). */
   genreFilter?: GenreFilter;
+  /** Credited to any of these artists (#709), already resolved to ids. */
+  artistIds?: number[];
 };
 
 /** Clauses for the set filters, binding each value through `bind` (which returns its `$n`). */
@@ -89,6 +91,10 @@ export function attributeFilterClauses(
     // The genre subqueries correlate with the outer row, so they need its alias.
     if (!alias) throw new Error("A genre filter needs the tracks alias");
     clauses.push(trackGenreFilterClause(filters.genreFilter, bind, alias));
+  }
+  if (filters.artistIds !== undefined) {
+    if (!alias) throw new Error("An artist filter needs the tracks alias");
+    clauses.push(trackArtistFilterClause(filters.artistIds, bind, alias));
   }
   return clauses;
 }
@@ -174,6 +180,57 @@ export function albumGenreFilterClause(
         AND gt.deleted_at IS NULL
       HAVING ${matching} > 0
         AND ${matching} * ${ALBUM_TRACK_SHARE.denominator} >= ${tagged} * ${ALBUM_TRACK_SHARE.numerator}
+    )
+  )`;
+}
+
+/**
+ * Track match for an artist filter (#709), by artist id rather than the
+ * artist string: the artist page's rule. A track with credits of its own
+ * matches only on those; one without matches on its album's credits, so
+ * `Meridian Brothers` finds every track of an album credited to
+ * `Mexican Institute of Sound & Meridian Brothers`. `alias` is the `tracks` alias.
+ */
+export function trackArtistFilterClause(
+  artistIds: number[],
+  bind: (value: unknown) => string,
+  alias: string,
+): string {
+  const ids = bind(artistIds);
+  const ownCredits = `FROM track_artists ta
+      WHERE ta.track_id = ${alias}.track_id AND ta.friend_id = ${alias}.friend_id`;
+  return `(
+    EXISTS (SELECT 1 ${ownCredits} AND ta.artist_id = ANY(${ids}::int[]))
+    OR (
+      NOT EXISTS (SELECT 1 ${ownCredits})
+      AND EXISTS (
+        SELECT 1 FROM albums fa JOIN album_artists aa ON aa.album_id = fa.id
+        WHERE fa.release_id = ${alias}.release_id AND fa.friend_id = ${alias}.friend_id
+          AND aa.artist_id = ANY(${ids}::int[])
+      )
+    )
+  )`;
+}
+
+/**
+ * Album match for an artist filter (#709): credited on the album, or on any
+ * of its live tracks, so a `Various` compilation is found through the artists
+ * its tracks credit (release 26715224). `alias` is the `albums` alias.
+ */
+export function albumArtistFilterClause(
+  artistIds: number[],
+  bind: (value: unknown) => string,
+  alias: string,
+): string {
+  const ids = bind(artistIds);
+  return `(
+    EXISTS (SELECT 1 FROM album_artists aa
+            WHERE aa.album_id = ${alias}.id AND aa.artist_id = ANY(${ids}::int[]))
+    OR EXISTS (
+      SELECT 1 FROM tracks ft
+      JOIN track_artists ta ON ta.track_id = ft.track_id AND ta.friend_id = ft.friend_id
+      WHERE ft.release_id = ${alias}.release_id AND ft.friend_id = ${alias}.friend_id
+        AND ft.deleted_at IS NULL AND ta.artist_id = ANY(${ids}::int[])
     )
   )`;
 }

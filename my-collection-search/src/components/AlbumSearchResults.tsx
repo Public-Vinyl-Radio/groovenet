@@ -9,10 +9,12 @@ import AlbumTable from "./AlbumTable";
 import { useSearchParams } from "next/navigation";
 import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from "./AlbumSortMenu";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
+import type { ArtistFilterRef } from "@/api-contract/schemas";
 
 export default function AlbumSearchResults({
   friendId,
   onAddedGenresChange,
+  onFilterArtistsChange,
   layout = "card",
   onTotalChange,
   onSortChange,
@@ -21,6 +23,8 @@ export default function AlbumSearchResults({
   /** Genres `include_similar` added (#485), reported up for the page to show as chips. */
   /** `undefined` while the first page loads, so a chip can't claim "nothing added" too early. */
   onAddedGenresChange?: (genres: GenreFilterRef[] | undefined) => void;
+  /** The artists an artist filter resolved to (#709), for naming the page's chips. */
+  onFilterArtistsChange?: (artists: ArtistFilterRef[]) => void;
   /** "row" is the table list view; "card" the outlined cards (and every phone). */
   layout?: "row" | "card";
   /** Albums matching the search, once loaded; the filters modal shows it on its button. */
@@ -41,6 +45,7 @@ export default function AlbumSearchResults({
   const genres = searchParams.getAll("genre");
   const includeSimilar = searchParams.get("similar") === "1";
   const similarExclude = searchParams.getAll("similar_exclude");
+  const artists = searchParams.getAll("artist");
 
   const { data, albumRefs, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useAlbumsInfiniteQuery({
@@ -54,6 +59,7 @@ export default function AlbumSearchResults({
       ...(genres.length > 0 ? { genre: genres } : {}),
       ...(includeSimilar ? { include_similar: true } : {}),
       ...(similarExclude.length > 0 ? { similar_exclude: similarExclude } : {}),
+      ...(artists.length > 0 ? { artist: artists } : {}),
     });
 
   const addedGenres = data?.pages[0]?.added_genres ?? [];
@@ -61,6 +67,12 @@ export default function AlbumSearchResults({
     onAddedGenresChange?.(isLoading ? undefined : addedGenres);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, JSON.stringify(addedGenres)]);
+
+  const filterArtists = data?.pages[0]?.filter_artists;
+  useEffect(() => {
+    if (filterArtists) onFilterArtistsChange?.(filterArtists);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filterArtists)]);
 
   const totalHits = data?.pages[0]?.estimatedTotalHits || 0;
   useEffect(() => {

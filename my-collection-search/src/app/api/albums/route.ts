@@ -12,6 +12,7 @@ import { albumApiService } from "@/server/services/albumApiService";
 import { withDbTransaction } from "@/lib/serverDb";
 import { albumRepository } from "@/server/repositories/albumRepository";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
+import { resolveArtistFilter, unknownArtistsError } from "@/server/artists/artistFilter";
 
 import { AlbumOverrideError, resolveAlbumOverrides } from "@/server/genres/albumOverrides";
 import { syncIdentityEmbeddings } from "@/server/services/trackEmbeddingSyncService";
@@ -64,6 +65,11 @@ export async function GET(request: NextRequest) {
     if (genreResolution.unknown) {
       return NextResponse.json(unknownGenresError(genreResolution.unknown), { status: 400 });
     }
+    // Repeatable artist slugs or ids (#709), matched through the credit tables.
+    const artistResolution = await resolveArtistFilter(searchParams.getAll("artist"));
+    if (artistResolution.unknown) {
+      return NextResponse.json(unknownArtistsError(artistResolution.unknown), { status: 400 });
+    }
 
     const response = await albumApiService.searchAlbums({
       q,
@@ -75,6 +81,7 @@ export async function GET(request: NextRequest) {
       missingLocalCoverArtUrl: missingLocalCoverArtUrl || undefined,
       missingAudio: missingAudio || undefined,
       genreFilter: genreResolution.filter,
+      artistIds: artistResolution.ids,
     });
     const addedGenres = genreResolution.added ?? [];
     return NextResponse.json(
@@ -82,6 +89,7 @@ export async function GET(request: NextRequest) {
         ...response,
         hits: response.hits.map(toWireRow),
         ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
+        ...(artistResolution.ids !== undefined ? { filter_artists: artistResolution.artists } : {}),
       }),
     );
   } catch (error) {

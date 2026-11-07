@@ -53,4 +53,30 @@ describe("ArtistListRepository", () => {
     dbQuery.mockResolvedValueOnce({ rows: [] });
     await expect(repo.count({ q: "", includePlaceholders: false })).resolves.toBe(0);
   });
+
+  it("lists one index letter, or everything else under #", async () => {
+    await repo.search({ q: "", includePlaceholders: false, letter: "S" }, 50, 0);
+    let [sql, params] = lastCall();
+    expect(params).toEqual(["S", 50, 0]);
+    expect(sql).toMatch(/upper\(left\(translate\(ltrim\(ar\.sort_name\)/);
+    expect(sql).toContain(", 1)) = $1");
+
+    await repo.search({ q: "", friendId: 6, includePlaceholders: false, letter: "#" }, 50, 0);
+    [sql, params] = lastCall();
+    expect(params).toEqual([6, 50, 0]);
+    expect(sql).toContain("!~ '^[A-Z]$'");
+  });
+
+  it("lists one index letter, or everything else under #", async () => {
+    await repo.search({ q: "", includePlaceholders: false, letter: "S" }, 50, 0);
+    let [sql, params] = lastCall();
+    expect(params).toEqual(["S", 50, 0]);
+    expect(sql).toMatch(/upper\(left\(translate\(ltrim\(ar\.sort_name\)/);
+    expect(sql).toContain(", 1)) = $1");
+
+    await repo.search({ q: "", friendId: 6, includePlaceholders: false, letter: "#" }, 50, 0);
+    [sql, params] = lastCall();
+    expect(params).toEqual([6, 50, 0]);
+    expect(sql).toContain("!~ '^[A-Z]$'");
+  });
 });

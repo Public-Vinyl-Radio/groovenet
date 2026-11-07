@@ -25,6 +25,13 @@ import {
   similarGenreIdFromChipKey,
 } from "@/components/GenreFilter";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
+import type { ArtistFilterRef } from "@/api-contract/schemas";
+import {
+  artistFilterChips,
+  artistSlugFromChipKey,
+  useArtistNames,
+  type ArtistName,
+} from "@/components/ArtistFilter";
 import AlbumFiltersModal, {
   ALBUM_MISSING_OPTIONS,
   AlbumFilterSections,
@@ -65,6 +72,10 @@ function AlbumsPageContent() {
   // "Include similar" (#485), linkable as `?genre=cumbia&similar=1`.
   const includeSimilar = searchParams.get("similar") === "1";
   const similarExclude = searchParams.getAll("similar_exclude");
+  // Artist slugs (#709), linkable as `?artist=meridian-brothers`.
+  const artists = searchParams.getAll("artist");
+  const [filterArtists, setFilterArtists] = React.useState<ArtistFilterRef[]>([]);
+  const { known: knownArtists, remember: rememberArtist } = useArtistNames(filterArtists);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [panelOpen, setPanelOpen] = React.useState(false);
   // Albums matching the current search, reported by the results for the modal's button.
@@ -84,6 +95,7 @@ function AlbumsPageContent() {
     genres.forEach((slug) => params.append("genre", slug));
     if (includeSimilar) params.set("similar", "1");
     similarExclude.forEach((id) => params.append("similar_exclude", id));
+    artists.forEach((slug) => params.append("artist", slug));
     return params;
   };
 
@@ -93,9 +105,10 @@ function AlbumsPageContent() {
     params.delete("genre");
     params.delete("similar");
     params.delete("similar_exclude");
+    params.delete("artist");
     router.replace(`/albums?${params.toString()}`);
   };
-  const filterCount = missingChips.length + genres.length;
+  const filterCount = missingChips.length + genres.length + artists.length;
 
   const handleSearch = () => router.push(`/albums?${buildParams().toString()}`);
 
@@ -113,6 +126,19 @@ function AlbumsPageContent() {
 
   const addGenre = (slug: string) => setGenres([...genres, slug]);
 
+  const setArtists = (next: string[]) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("artist");
+    next.forEach((slug) => params.append("artist", slug));
+    router.replace(`/albums?${params.toString()}`);
+  };
+  const addArtist = (artist: ArtistName) => {
+    rememberArtist(artist);
+    // The picker never offers an artist already chosen, so a pick is always new.
+    setArtists([...artists, artist.slug]);
+  };
+  const removeArtist = (slug: string) => setArtists(artists.filter((s) => s !== slug));
+
   const setIncludeSimilar = (checked: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
     if (checked) params.set("similar", "1");
@@ -128,6 +154,11 @@ function AlbumsPageContent() {
     const genreSlug = genreSlugFromChipKey(key);
     if (genreSlug !== null) {
       setGenres(genres.filter((slug) => slug !== genreSlug));
+      return;
+    }
+    const artistSlug = artistSlugFromChipKey(key);
+    if (artistSlug !== null) {
+      removeArtist(artistSlug);
       return;
     }
     const similarGenreId = similarGenreIdFromChipKey(key);
@@ -150,6 +181,13 @@ function AlbumsPageContent() {
     onRemoveGenre: (slug) => setGenres(genres.filter((s) => s !== slug)),
     includeSimilar,
     onIncludeSimilarChange: setIncludeSimilar,
+    artistFilter: {
+      selected: artists,
+      known: knownArtists,
+      onAdd: addArtist,
+      onRemove: removeArtist,
+      friendId: currentUserFriend?.id,
+    },
     missing,
     onToggleMissing: handleAlbumFilterToggle,
     activeCount: filterCount,
@@ -240,6 +278,7 @@ function AlbumsPageContent() {
                 ...genreFilterChips(genres, taxonomy),
                 ...includeSimilarChips(includeSimilar, genres, addedGenres),
                 ...addedGenreChips(addedGenres ?? []),
+                ...artistFilterChips(artists, knownArtists),
                 ...missingChips,
               ]}
               onToggle={handleAlbumFilterToggle}
@@ -259,6 +298,7 @@ function AlbumsPageContent() {
               <AlbumSearchResults
                 friendId={currentUserFriend.id}
                 onAddedGenresChange={setAddedGenres}
+                onFilterArtistsChange={setFilterArtists}
                 onTotalChange={setTotal}
                 onSortChange={handleSortChange}
                 layout={layout}

@@ -68,4 +68,13 @@ describe("GET /api/artists", () => {
     listArtists.mockRejectedValue(new Error("db"));
     expect((await call()).status).toBe(500);
   });
+
+  it("reads the index letter case-insensitively, and refuses anything else (#709)", async () => {
+    listArtists.mockResolvedValue({ ...page, query: "" });
+    expect((await call("?letter=m")).status).toBe(200);
+    expect(listArtists).toHaveBeenCalledWith(expect.objectContaining({ letter: "M" }));
+    expect((await call("?letter=%23")).status).toBe(200);
+    expect(listArtists).toHaveBeenLastCalledWith(expect.objectContaining({ letter: "#" }));
+    expect((await call("?letter=mm")).status).toBe(400);
+  });
 });

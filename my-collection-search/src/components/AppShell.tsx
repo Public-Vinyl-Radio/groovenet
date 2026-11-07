@@ -31,7 +31,7 @@ import {
   FiServer,
 } from "react-icons/fi";
 import { TbPlaylist } from "react-icons/tb";
-import { LuCloudDownload, LuTags } from "react-icons/lu";
+import { LuCloudDownload, LuMicVocal, LuTags } from "react-icons/lu";
 import { IoBookSharp, IoMusicalNotes, IoSettings, IoAlbums } from "react-icons/io5";
 import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,6 +50,8 @@ const baseMenuItems = [
   { href: "/albums", label: "Albums" },
   { href: "/genres", label: "Genres" },
   { href: "/spins", label: "Spins" },
+  // After the phone tab bar's five, so on phones it sits under More.
+  { href: "/artists", label: "Artists" },
   { href: "/playlists", label: "Playlists" },
   { href: "/jobs", label: "Jobs" },
   { href: "/chore", label: "Chores" },
@@ -62,6 +64,7 @@ function getItemIcon(href: string) {
   if (href === "/tracks") return IoMusicalNotes;
   if (href === "/albums") return IoAlbums;
   if (href === "/genres") return LuTags;
+  if (href === "/artists") return LuMicVocal;
   if (href === "/spins") return FiDisc;
   if (href === "/settings") return IoSettings;
   if (href === "/system") return FiServer;

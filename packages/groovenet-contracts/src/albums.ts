@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { artistCreditsFieldSchema } from "./artistCredits.js";
+import {
+  artistCreditsFieldSchema,
+  artistFilterQueryShape,
+  artistFilterResponseShape,
+} from "./artistCredits.js";
 import { genreFilterRefSchema, trackSchema } from "./tracks.js";
 
 export const albumArtSourceSchema = z.enum(["discogs", "apple_music", "upload"]);
@@ -76,6 +80,7 @@ export const albumSearchQuerySchema = z.object({
   include_similar: z.boolean().optional(),
   similar_limit: z.number().int().min(0).optional(),
   similar_exclude: z.array(z.string()).max(20).optional(),
+  ...artistFilterQueryShape,
 });
 
 export const albumSearchResponseSchema = z.object({
@@ -89,6 +94,7 @@ export const albumSearchResponseSchema = z.object({
     description:
       "Genres include_similar added beyond the plain genre filter (#485); omitted when it added nothing.",
   }),
+  ...artistFilterResponseShape,
 });
 
 export const albumDetailSchema = z.object({

@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
-import { albumSchema } from "./albums.js";
-import { artistCreditRefSchema } from "./artistCredits.js";
+import { albumSchema, albumSearchQuerySchema, albumSearchResponseSchema } from "./albums.js";
+import { artistCreditRefSchema, artistFilterRefSchema } from "./artistCredits.js";
 import { artistJsonSchemas, artistListQuerySchema, artistListResponseSchema } from "./artists.js";
-import { trackSchema } from "./tracks.js";
+import { trackSchema, trackSearchQuerySchema, trackSearchResponseSchema } from "./tracks.js";
 
 const credit = {
   id: 4,
@@ -68,4 +68,35 @@ it("validates the artist list", () => {
   };
   expect(artistListResponseSchema.parse(list)).toEqual(list);
   expect(artistJsonSchemas.ArtistListResponse).toHaveProperty("properties");
+});
+
+it("lists by index letter, and refuses anything but A to Z or #", () => {
+  expect(artistListQuerySchema.parse({ letter: "M" })).toEqual({ letter: "M" });
+  expect(artistListQuerySchema.parse({ letter: "#" })).toEqual({ letter: "#" });
+  for (const letter of ["m", "MM", "", "1"]) {
+    expect(artistListQuerySchema.safeParse({ letter }).success).toBe(false);
+  }
+});
+
+it("filters track and album search by artist and echoes the artists back (#709)", () => {
+  const ref = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+  expect(artistFilterRefSchema.parse(ref)).toEqual(ref);
+  expect(trackSearchQuerySchema.parse({ artist: ["meridian-brothers"] }).artist).toEqual([
+    "meridian-brothers",
+  ]);
+  expect(albumSearchQuerySchema.parse({ artist: ["9"] }).artist).toEqual(["9"]);
+  expect(trackSearchQuerySchema.safeParse({ artist: Array(21).fill("a") }).success).toBe(false);
+  const meta = { estimatedTotalHits: 0, offset: 0, limit: 20, processingTimeMs: 1, hits: [] };
+  expect(
+    trackSearchResponseSchema.parse({ ...meta, filter_artists: [ref] }).filter_artists,
+  ).toEqual([ref]);
+  expect(trackSearchResponseSchema.parse(meta).filter_artists).toBeUndefined();
+  const albums = { hits: [], estimatedTotalHits: 0, offset: 0, limit: 20, query: "", sort: "" };
+  expect(
+    albumSearchResponseSchema.parse({ ...albums, filter_artists: [ref] }).filter_artists,
+  ).toEqual([ref]);
+  expect(
+    albumSearchResponseSchema.safeParse({ ...albums, filter_artists: [{ ...ref, id: "9" }] })
+      .success,
+  ).toBe(false);
 });

@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const mockDbQuery = vi.hoisted(() => vi.fn());
 const mockSemanticSearch = vi.hoisted(() => vi.fn());
 const mockResolveGenreFilter = vi.hoisted(() => vi.fn());
+const mockResolveArtistFilter = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/serverDb", () => ({ dbQuery: mockDbQuery }));
 vi.mock("@/server/services/semanticTrackSearchService", async (importOriginal) => ({
@@ -14,6 +15,11 @@ vi.mock("@/server/services/semanticTrackSearchService", async (importOriginal) =
 vi.mock("@/server/genres/genreFilter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/genres/genreFilter")>()),
   resolveGenreFilter: mockResolveGenreFilter,
+}));
+
+vi.mock("@/server/artists/artistFilter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/artists/artistFilter")>()),
+  resolveArtistFilter: mockResolveArtistFilter,
 }));
 
 import { GET, parseTrackFilter } from "../route";
@@ -34,6 +40,7 @@ beforeEach(() => {
   mockDbQuery.mockReset();
   mockSemanticSearch.mockReset();
   mockResolveGenreFilter.mockReset().mockResolvedValue({ filter: undefined });
+  mockResolveArtistFilter.mockReset().mockResolvedValue({ ids: undefined, artists: [] });
 });
 
 // ─── parseTrackFilter (pure) ────────────────────────────────────────────────
@@ -585,5 +592,53 @@ describe("GET /api/tracks/search — include_similar", () => {
     const res = await GET(req("?mode=semantic&q=dub&genre=cumbia&include_similar=1"));
     const body = await res.json();
     expect(body.added_genres).toEqual([{ id: PORRO_ID, name: "Porro", slug: "porro" }]);
+  });
+});
+
+// ─── GET — artist filter (#709) ─────────────────────────────────────────────
+
+describe("GET /api/tracks/search — artist", () => {
+  const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+
+  beforeEach(() => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+
+  it("filters by credit, reading every artist value, and names the artists", async () => {
+    mockResolveArtistFilter.mockResolvedValue({ ids: [9, 4], artists: [meridian] });
+    stubDb([], "0");
+    const res = await GET(req("?artist=meridian-brothers&artist=4&friend_id=6"));
+    expect(res.status).toBe(200);
+    expect(mockResolveArtistFilter).toHaveBeenCalledWith(["meridian-brothers", "4"]);
+    const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
+    expect(dataSql).toContain("ta.artist_id = ANY($2::int[])");
+    expect(dataParams).toEqual([6, [9, 4], 20, 0]);
+    expect((await res.json()).filter_artists).toEqual([meridian]);
+  });
+
+  it("leaves filter_artists out without an artist filter", async () => {
+    stubDb([], "0");
+    const res = await GET(req("?q=dub"));
+    expect(mockResolveArtistFilter).toHaveBeenCalledWith([]);
+    expect(await res.json()).not.toHaveProperty("filter_artists");
+    expect(mockDbQuery.mock.calls[0][0]).not.toContain("track_artists");
+  });
+
+  it("passes the artists to the semantic leg and echoes them", async () => {
+    mockResolveArtistFilter.mockResolvedValue({ ids: [9], artists: [meridian] });
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    const res = await GET(req("?mode=semantic&q=dub&artist=meridian-brothers"));
+    expect(mockSemanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ attributes: expect.objectContaining({ artistIds: [9] }) }),
+    );
+    expect((await res.json()).filter_artists).toEqual([meridian]);
+  });
+
+  it("rejects an unknown artist with 400 and names it", async () => {
+    mockResolveArtistFilter.mockResolvedValue({ unknown: ["nobody"] });
+    const res = await GET(req("?artist=nobody"));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Unknown artist: nobody", unknown: ["nobody"] });
+    expect(mockDbQuery).not.toHaveBeenCalled();
   });
 });

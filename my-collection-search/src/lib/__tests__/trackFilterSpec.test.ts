@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  albumArtistFilterClause,
   albumGenreFilterClause,
   attributeFilterClauses,
   missingFilterClause,
   parseTrackFilterSpec,
+  trackArtistFilterClause,
   trackGenreFilterClause,
 } from "../trackFilterSpec";
 
@@ -137,6 +139,43 @@ describe("genre filter clauses (#375)", () => {
   it("needs the tracks alias, since its subqueries correlate with the row", () => {
     expect(() => attributeFilterClauses({ genreFilter: filter }, () => "$1")).toThrow(
       "needs the tracks alias",
+    );
+  });
+});
+
+describe("artist filter clauses (#709)", () => {
+  const binder = () => {
+    const values: unknown[] = [];
+    return { values, bind: (value: unknown) => `$${values.push(value)}` };
+  };
+
+  it("matches a track's own credits, else its album's, binding the ids once", () => {
+    const { values, bind } = binder();
+    const sql = trackArtistFilterClause([4, 9], bind, "t");
+    expect(values).toEqual([[4, 9]]);
+    expect(sql).toContain("ta.track_id = t.track_id AND ta.friend_id = t.friend_id");
+    expect(sql).toContain("ta.artist_id = ANY($1::int[])");
+    expect(sql).toContain("NOT EXISTS (SELECT 1 FROM track_artists ta");
+    expect(sql).toContain("fa.release_id = t.release_id AND fa.friend_id = t.friend_id");
+    expect(sql).toContain("aa.artist_id = ANY($1::int[])");
+  });
+
+  it("matches an album's credits, or any live track's", () => {
+    const { values, bind } = binder();
+    const sql = albumArtistFilterClause([4], bind, "a");
+    expect(values).toEqual([[4]]);
+    expect(sql).toContain("aa.album_id = a.id AND aa.artist_id = ANY($1::int[])");
+    expect(sql).toContain("ft.release_id = a.release_id AND ft.friend_id = a.friend_id");
+    expect(sql).toContain("ft.deleted_at IS NULL");
+  });
+
+  it("is one of the attribute clauses, and needs the tracks alias", () => {
+    const { bind } = binder();
+    const clauses = attributeFilterClauses({ artistIds: [4] }, bind, "t");
+    expect(clauses).toHaveLength(1);
+    expect(clauses[0]).toContain("track_artists");
+    expect(() => attributeFilterClauses({ artistIds: [4] }, () => "$1")).toThrow(
+      "An artist filter needs the tracks alias",
     );
   });
 });
