@@ -1,6 +1,7 @@
 import { apiContractRoutes } from "@/api-contract/routes";
 import {
   homeJsonSchemas,
+  artistJsonSchemas,
   albumJsonSchemas,
   friendJsonSchemas,
   settingsJsonSchemas,
@@ -238,6 +239,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...friendJsonSchemas,
     ...settingsJsonSchemas,
     ...genreJsonSchemas,
+    ...artistJsonSchemas,
     ...recordCareJsonSchemas,
     ...recordCareQueueJsonSchemas,
     ...recordCareSessionJsonSchemas,
