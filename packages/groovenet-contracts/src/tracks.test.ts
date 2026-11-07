@@ -1,3 +1,4 @@
+import { trackAudioFileFieldsSchema } from "./tracks.js";
 import { describe, expect, it } from "vitest";
 import {
   trackAnalyzeAsyncRequestSchema,
@@ -309,4 +310,17 @@ describe("track contracts", () => {
       expect(trackJsonSchemas[name], name).toBeDefined();
     }
   });
+});
+
+it("validates persisted audio fields, including pg bigint strings", () => {
+  expect(
+    trackAudioFileFieldsSchema.parse({
+      audio_source: "upload",
+      audio_size_bytes: "123456",
+      audio_codec: "flac",
+      audio_lossless: true,
+    }),
+  ).toMatchObject({ audio_source: "upload", audio_size_bytes: "123456" });
+  expect(trackAudioFileFieldsSchema.safeParse({ audio_source: "spotify" }).success).toBe(false);
+  expect(trackAudioFileFieldsSchema.safeParse({ audio_sample_rate: -1 }).success).toBe(false);
 });

@@ -1,3 +1,5 @@
+import type { TrackAudioFileFields } from "@groovenet/contracts";
+import { trackAudioMetadataService } from "@/server/services/trackAudioMetadataService";
 import { dbQuery } from "@/lib/serverDb";
 import { stripNullBytes } from "@/lib/stripNullBytes";
 import type { Track } from "@/types/track";
@@ -68,7 +70,9 @@ type UpdatableTrackFields = Partial<
   >
 >;
 
-export type UpdateTrackInput = TrackRef & UpdatableTrackFields;
+export type UpdateTrackInput = TrackRef &
+  Omit<UpdatableTrackFields, "local_audio_url"> &
+  TrackAudioFileFields & { local_audio_url?: string | null };
 
 export type TrackWithLibraryIdentifierRow = Track & {
   library_identifier?: string | null;
@@ -95,14 +99,15 @@ export type OrderedTrackRow = TrackWithLibraryIdentifierRow & {
 };
 
 export type TrackReindexRow = TrackWithLibraryIdentifierRow;
-export type TrackAnalysisBulkUpdate = Pick<Track, "local_audio_url"> & {
-  bpm?: number | null;
-  key?: string | null;
-  key_confidence?: number | null;
-  bpm_confidence?: number | null;
-  danceability?: number | null;
-  duration_seconds?: number | null;
-};
+export type TrackAnalysisBulkUpdate = Pick<Track, "local_audio_url"> &
+  TrackAudioFileFields & {
+    bpm?: number | null;
+    key?: string | null;
+    key_confidence?: number | null;
+    bpm_confidence?: number | null;
+    danceability?: number | null;
+    duration_seconds?: number | null;
+  };
 export type TrackAudioMetadataRow = Pick<
   Track,
   | "track_id"
@@ -115,6 +120,17 @@ export type TrackAudioMetadataRow = Pick<
 >;
 
 const UPDATABLE_COLUMNS = {
+  audio_source: "audio_source",
+  audio_codec: "audio_codec",
+  audio_container: "audio_container",
+  audio_sample_rate: "audio_sample_rate",
+  audio_bit_depth: "audio_bit_depth",
+  audio_bitrate: "audio_bitrate",
+  audio_channels: "audio_channels",
+  audio_size_bytes: "audio_size_bytes",
+  audio_lossless: "audio_lossless",
+  audio_probed_at: "audio_probed_at",
+
   title: "title",
   artist: "artist",
   album: "album",
@@ -578,6 +594,15 @@ export class TrackRepository {
     const { track_id, friend_id, ...fields } = data;
     if (!track_id || !friend_id) return null;
 
+    if (fields.local_audio_url !== undefined) {
+      Object.assign(
+        fields,
+        await trackAudioMetadataService.fieldsForLocalAudio(
+          fields.local_audio_url,
+          fields.audio_source,
+        ),
+      );
+    }
     const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
     if (entries.length === 0) {
       return this.findTrackByTrackIdAndFriendId(track_id, friend_id);
@@ -621,11 +646,11 @@ export class TrackRepository {
     friendId: number,
     localAudioUrl: string,
   ): Promise<void> {
-    await dbQuery("UPDATE tracks SET local_audio_url = $1 WHERE track_id = $2 AND friend_id = $3", [
-      localAudioUrl,
-      trackId,
-      friendId,
-    ]);
+    await this.updateTrackFields({
+      track_id: trackId,
+      friend_id: friendId,
+      local_audio_url: localAudioUrl,
+    });
   }
 
   async findTrackByTrackIdAndFriendIdRaw(trackId: string, friendId: number): Promise<Track | null> {
@@ -686,6 +711,16 @@ export class TrackRepository {
     const vals: unknown[] = [];
     let i = 1;
 
+    if (updates.local_audio_url !== undefined) {
+      const metadata = await trackAudioMetadataService.fieldsForLocalAudio(
+        updates.local_audio_url,
+        updates.audio_source,
+      );
+      for (const [column, value] of Object.entries(metadata)) {
+        sets.push(`${column} = $${i++}`);
+        vals.push(value);
+      }
+    }
     if (typeof updates.local_audio_url === "string") {
       sets.push(`local_audio_url = $${i++}`);
       vals.push(updates.local_audio_url);

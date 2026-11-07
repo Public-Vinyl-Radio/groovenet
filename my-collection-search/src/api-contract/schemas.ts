@@ -1,3 +1,4 @@
+import { trackAudioFileFieldsSchema } from "@groovenet/contracts";
 import {
   booleanFlagSchema,
   genreQueryParamSchema,
@@ -1055,6 +1056,8 @@ export type AlbumUpdateFields = z.infer<typeof albumUpdateFieldsSchema>;
  */
 export const trackUpdateBodySchema = z
   .object({
+    ...trackAudioFileFieldsSchema.shape,
+    local_audio_url: z.string().nullish(),
     track_id: z
       .string({ error: "track_id and friend_id are required" })
       .min(1, { error: "track_id and friend_id are required" }),

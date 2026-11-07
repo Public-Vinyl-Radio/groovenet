@@ -387,6 +387,7 @@ def download_audio(job_data: JobData) -> JobResult:
                     "track_id": track_id,
                     "friend_id": friend_id,
                     "local_audio_url": audio_filename,
+                    "audio_source": successful_url_key.removesuffix("_url"),
                 }
             )
         except Exception as e:

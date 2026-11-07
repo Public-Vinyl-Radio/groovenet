@@ -520,3 +520,22 @@ describe("PATCH /api/tracks — analytics", () => {
     expect(arg.properties.has_tags_change).toBe(false);
   });
 });
+
+it("rejects unknown audio sources before writing", async () => {
+  mockUpdateTrack.mockClear();
+  const response = await PATCH(makeReq({ track_id: "t1", friend_id: 1, audio_source: "spotify" }));
+  expect(response.status).toBe(400);
+  expect(mockUpdateTrack).not.toHaveBeenCalled();
+});
+
+it("accepts clearing the local audio URL", async () => {
+  mockFindTrack.mockResolvedValue(baseTrack());
+  mockUpdateTrack.mockResolvedValue(baseTrack({ local_audio_url: null }));
+  const response = await PATCH(makeReq({ track_id: "t1", friend_id: 1, local_audio_url: null }));
+  expect(response.status).toBe(200);
+  expect(mockUpdateTrack).toHaveBeenCalledWith({
+    track_id: "t1",
+    friend_id: 1,
+    local_audio_url: null,
+  });
+});

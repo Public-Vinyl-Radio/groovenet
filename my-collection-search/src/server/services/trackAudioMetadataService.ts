@@ -1,3 +1,4 @@
+import type { TrackAudioFileFields } from "@groovenet/contracts";
 import path from "path";
 import fs from "fs";
 import { promisify } from "util";
@@ -29,7 +30,89 @@ function extractYearFromTag(value: string): number | null {
   return null;
 }
 
+const losslessCodecs = new Set([
+  "alac",
+  "flac",
+  "wavpack",
+  "ape",
+  "tta",
+  "truehd",
+  "mlp",
+  "shorten",
+]);
+const positiveInteger = (value: unknown): number | null => {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+};
+
+/** Convert ffprobe's audio stream and container information to persisted fields. */
+export function audioFieldsFromProbe(probe: unknown): Omit<TrackAudioFileFields, "audio_source"> {
+  const data = (probe ?? {}) as {
+    streams?: Array<Record<string, unknown>>;
+    format?: Record<string, unknown>;
+  };
+  const stream = data.streams?.find((entry) => entry.codec_type === "audio") ?? {};
+  const format = data.format ?? {};
+  const codec = typeof stream.codec_name === "string" ? stream.codec_name : null;
+  const lossless = codec === null ? null : losslessCodecs.has(codec) || codec.startsWith("pcm_");
+  const formats = typeof format.format_name === "string" ? format.format_name.split(",") : [];
+  const container = formats.includes("m4a")
+    ? "m4a"
+    : formats.includes("webm")
+      ? "webm"
+      : (formats[0] ?? null);
+  const pcmDepth = codec?.match(/^pcm_[suf](\d+)/)?.[1];
+  const sampleDepth =
+    typeof stream.sample_fmt === "string"
+      ? stream.sample_fmt.match(/^(?:s|u|flt|dbl)(\d+)?p?$/)
+      : null;
+  return {
+    audio_codec: codec,
+    audio_container: container,
+    audio_sample_rate: positiveInteger(stream.sample_rate),
+    audio_bit_depth: lossless
+      ? (positiveInteger(stream.bits_per_raw_sample) ??
+        positiveInteger(stream.bits_per_sample) ??
+        positiveInteger(pcmDepth) ??
+        positiveInteger(sampleDepth?.[1]))
+      : null,
+    audio_bitrate: positiveInteger(stream.bit_rate) ?? positiveInteger(format.bit_rate),
+    audio_channels: positiveInteger(stream.channels),
+    audio_size_bytes: positiveInteger(format.size),
+    audio_lossless: lossless,
+    audio_probed_at: new Date().toISOString(),
+  };
+}
+
 export class TrackAudioMetadataService {
+  /** All file writers use this path, including removal and replacement. */
+  async fieldsForLocalAudio(
+    filename: string | null,
+    source?: TrackAudioFileFields["audio_source"],
+  ): Promise<TrackAudioFileFields> {
+    if (!filename) {
+      return {
+        audio_source: null,
+        audio_codec: null,
+        audio_container: null,
+        audio_sample_rate: null,
+        audio_bit_depth: null,
+        audio_bitrate: null,
+        audio_channels: null,
+        audio_size_bytes: null,
+        audio_lossless: null,
+        audio_probed_at: null,
+      };
+    }
+    const filePath = this.resolveAudioFilePath(filename);
+    if (!filePath) throw new Error("Local audio file not found");
+    return {
+      ...audioFieldsFromProbe(await this.runFfprobe(filePath)),
+      audio_source: source ?? "unknown",
+    };
+  }
+
   normalizeAudioFilename(raw: string): string {
     let value = raw.trim();
     try {
