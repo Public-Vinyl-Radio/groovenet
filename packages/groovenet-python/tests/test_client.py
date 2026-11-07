@@ -76,7 +76,21 @@ COVER = {
     "applied": True,
     "apple_music_art_url": "https://art.test/cover.jpg",
 }
-PAGE = {"fingerprints": [{"track_id": "t1", "friend_id": 7, "fingerprint_data": "AAAAAA=="}]}
+PAGE = {
+    "fingerprints": [
+        {
+            "track_id": "t1",
+            "friend_id": 7,
+            "fingerprint_type": "chromaprint",
+            "fingerprint_version": "1",
+            "fingerprint_data": "AAAAAA==",
+            "audio_sha256": "a" * 64,
+            "audio_duration_seconds": 212.5,
+        }
+    ],
+    "limit": 500,
+    "offset": 1000,
+}
 
 
 @dataclass
@@ -133,6 +147,50 @@ def call_case(client, case):
     if case.name == "list_fingerprints":
         return client.list_fingerprints(*case.args, limit=500, offset=1000)
     return getattr(client, case.name)(*case.args)
+
+
+def assert_matches_schema(value, schema, spec, path="$"):
+    """Check a recorded JSON value against the generated OpenAPI schema."""
+    if "$ref" in schema:
+        name = schema["$ref"].rsplit("/", 1)[-1]
+        return assert_matches_schema(value, spec["components"]["schemas"][name], spec, path)
+    if "anyOf" in schema:
+        errors = []
+        for option in schema["anyOf"]:
+            try:
+                assert_matches_schema(value, option, spec, path)
+                return
+            except AssertionError as error:
+                errors.append(str(error))
+        raise AssertionError(f"{path} matches no anyOf option: {errors}")
+
+    types = schema.get("type")
+    if types is not None:
+        types = [types] if isinstance(types, str) else types
+        matches = {
+            "null": value is None,
+            "object": isinstance(value, dict),
+            "array": isinstance(value, list),
+            "string": isinstance(value, str),
+            "integer": isinstance(value, int) and not isinstance(value, bool),
+            "number": isinstance(value, (int, float)) and not isinstance(value, bool),
+            "boolean": isinstance(value, bool),
+        }
+        assert any(matches.get(kind, False) for kind in types), f"{path}: expected {types}, got {value!r}"
+    if "enum" in schema:
+        assert value in schema["enum"], f"{path}: {value!r} is not in {schema['enum']!r}"
+    if isinstance(value, dict):
+        missing = set(schema.get("required", [])) - value.keys()
+        assert not missing, f"{path}: missing required properties {sorted(missing)}"
+        properties = schema.get("properties", {})
+        for key, child in value.items():
+            if key in properties:
+                assert_matches_schema(child, properties[key], spec, f"{path}.{key}")
+            elif schema.get("additionalProperties") is False:
+                raise AssertionError(f"{path}.{key}: additional property is not allowed")
+    if isinstance(value, list) and "items" in schema:
+        for index, item in enumerate(value):
+            assert_matches_schema(item, schema["items"], spec, f"{path}[{index}]")
 
 
 @pytest.fixture
@@ -312,6 +370,18 @@ def test_requests_exist_in_openapi(session, case):
         if method.lower() in operations and re.fullmatch(re.sub(r"\\\{[^}]+\\\}", "[^/]+", re.escape(template)), path)
     ]
     assert matches, f"{method} {path} is missing from OpenAPI"
+    template = matches[0]
+    operation = spec["paths"][template][method.lower()]
+    request_schema = operation.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema")
+    if "json" in case.kwargs:
+        assert request_schema, f"{method} {template} has no documented JSON request body"
+        assert_matches_schema(case.kwargs["json"], request_schema, spec, f"{method} {template} request")
+    if case.result is not None:
+        response_schema = (
+            operation.get("responses", {}).get("200", {}).get("content", {}).get("application/json", {}).get("schema")
+        )
+        assert response_schema, f"{method} {template} has no documented JSON response"
+        assert_matches_schema(case.result, response_schema, spec, f"{method} {template} response")
 
 
 def test_broken_error_body_still_raises_api_error_and_closes_response(session):

@@ -34,11 +34,17 @@ class CoverArtResult(TypedDict):
 class StoredFingerprint(TypedDict):
     track_id: str
     friend_id: int
+    fingerprint_type: str
+    fingerprint_version: str
     fingerprint_data: str | None
+    audio_sha256: str
+    audio_duration_seconds: float | None
 
 
 class FingerprintPage(TypedDict):
     fingerprints: list[StoredFingerprint]
+    limit: int
+    offset: int
 
 
 class MatchCandidate(TypedDict):

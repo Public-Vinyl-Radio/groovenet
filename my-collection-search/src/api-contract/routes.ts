@@ -31,6 +31,9 @@ import { playerContracts } from "./players";
 import {
   healthResponseSchema,
   playlistDeleteResponseSchema,
+  orphanScanStartResponseSchema,
+  orphansQuerySchema,
+  orphansResponseSchema,
   statusResponseSchema,
   storageResponseSchema,
   updateCheckResponseSchema,
@@ -2677,6 +2680,59 @@ const backupContracts: ApiContractRoute[] = [
         "200": {
           description: "The server is up. Does no database or Redis work.",
           content: { "application/json": { schema: componentRef("HealthResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getStorageOrphans",
+    method: "get",
+    path: "/api/system/storage/orphans",
+    summary: "Latest orphan scan of the audio volume, paged",
+    tags: ["System"],
+    querySchema: orphansQuerySchema,
+    successSchema: orphansResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        { name: "limit", in: "query", required: false, schema: { type: "integer", maximum: 500 } },
+        { name: "files_offset", in: "query", required: false, schema: { type: "integer" } },
+        { name: "tracks_offset", in: "query", required: false, schema: { type: "integer" } },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Audio files no track points at, and tracks pointing at missing files, from the last scan",
+          content: { "application/json": { schema: componentRef("OrphansResponse") } },
+        },
+        "400": {
+          description: "Invalid query",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "startStorageOrphanScan",
+    method: "post",
+    path: "/api/system/storage/orphans/scan",
+    summary: "Start an orphan scan in the background",
+    tags: ["System"],
+    successSchema: orphanScanStartResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "202": {
+          description: "Scan started, or already running (`started` false)",
+          content: { "application/json": { schema: componentRef("OrphanScanStartResponse") } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
       },
     },
