@@ -186,6 +186,7 @@ WORKDIR /repo/my-collection-search
 COPY my-collection-search/migrations ./migrations
 COPY my-collection-search/scripts ./scripts
 COPY my-collection-search/src/server/genres/taxonomySeed.js ./src/server/genres/taxonomySeed.js
+COPY my-collection-search/src/lib/artists/slug.js ./src/lib/artists/slug.js
 
 # Verify every migration can load in the deployed image before publishing it.
 # Database-only tests on the checkout cannot detect missing image dependencies.
