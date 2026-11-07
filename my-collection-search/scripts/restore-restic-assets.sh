@@ -114,6 +114,36 @@ copy_dir_contents_to_volume() {
   echo "Copied $label -> $volume_name"
 }
 
+# Dev stacks share one host covers folder, so parallel worktree launches can
+# restore into it at once. Serialize them with an atomic mkdir lock taken inside
+# the container (no flock on macOS hosts), break a lock older than
+# RESTORE_LOCK_STALE_SECS as left by a crashed run, and copy no-clobber so a
+# second launch only adds what is missing. Runs under BusyBox ash (alpine:3.20):
+# its cp supports -n, and stat -c %Y / date +%s work; GNU-only flags are avoided.
+BIND_RESTORE_SCRIPT='
+lock=/dest/.restore.lock
+stale="${RESTORE_LOCK_STALE_SECS:-300}"
+mkdir -p /dest
+until mkdir "$lock" 2>/dev/null; do
+  mtime="$(stat -c %Y "$lock" 2>/dev/null || true)"
+  if [ -n "$mtime" ] && [ $(( $(date +%s) - mtime )) -gt "$stale" ]; then
+    echo "Breaking stale restore lock $lock" >&2
+    # Rename first so only one waiter wins the break.
+    if mv "$lock" "$lock.stale.$$" 2>/dev/null; then
+      rm -rf "$lock.stale.$$"
+    fi
+    continue
+  fi
+  sleep 1
+done
+trap '"'"'rmdir "$lock" 2>/dev/null || true'"'"' EXIT
+# BusyBox "cp -an /src/. /dest/" silently copies nothing: -n treats the existing
+# /dest/. as the file to keep. So create the tree, then copy each file no-clobber.
+cd /src
+find . -type d -exec mkdir -p /dest/{} \;
+find . ! -type d -exec sh -c '"'"'for f; do cp -an "$f" "/dest/$f"; done'"'"' sh {} +
+'
+
 copy_dir_contents_to_bind() {
   local src_dir="$1"
   local bind_path="$2"
@@ -122,16 +152,17 @@ copy_dir_contents_to_bind() {
   if [[ "$DRY_RUN" == true ]]; then
     echo "[dry-run] Copy $label"
     echo "          from: $src_dir"
-    echo "          to bind path: $bind_path"
+    echo "          to bind path: $bind_path (no-clobber: existing files are kept)"
     return 0
   fi
 
   mkdir -p "$bind_path"
   docker run --rm \
+    -e RESTORE_LOCK_STALE_SECS="${RESTORE_LOCK_STALE_SECS:-300}" \
     -v "$bind_path:/dest" \
     -v "$src_dir:/src:ro" \
     alpine:3.20 \
-    sh -lc 'mkdir -p /dest && cp -a /src/. /dest/'
+    sh -c "$BIND_RESTORE_SCRIPT"
 
   echo "Copied $label -> bind:$bind_path"
 }
