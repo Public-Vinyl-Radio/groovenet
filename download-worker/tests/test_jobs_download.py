@@ -307,4 +307,40 @@ def test_local_url_write_failure_is_logged_but_download_is_kept(
     assert "Failed to update local_audio_url" in caplog.text
     assert f"HTTP {status}" in caplog.text
     assert send.call_args.args[0] == "PATCH"
-    assert send.call_args.kwargs["json"] == {"track_id": "track-ok", "friend_id": 1, "local_audio_url": "track-ok.m4a"}
+    assert send.call_args.kwargs["json"] == {
+        "track_id": "track-ok",
+        "friend_id": 1,
+        "local_audio_url": "track-ok.m4a",
+        "audio_source": "apple_music",
+    }
+
+
+@pytest.mark.parametrize("source", ["apple_music", "youtube", "soundcloud"])
+@patch("worker.jobs.download.os.makedirs")
+@patch("worker.jobs.download.cleanup_download_directory")
+@patch("worker.jobs.download.shutil.move")
+@patch("worker.jobs.download.download_with_gamdl")
+@patch("worker.jobs.download.download_with_ytdlp")
+@patch("groovenet_client.GroovenetClient.update_track")
+def test_reports_successful_source(
+    mock_update, mock_ytdlp, mock_gamdl, mock_move, mock_cleanup, mock_makedirs, source, fake_redis
+):
+    from worker.jobs.download import download_audio
+
+    mock_gamdl.return_value = "/app/downloads/track.m4a" if source == "apple_music" else None
+    mock_ytdlp.side_effect = (
+        [None, "/app/downloads/track.m4a"] if source == "soundcloud" else ["/app/downloads/track.m4a"]
+    )
+    download_audio(
+        {
+            "track_id": "track",
+            "friend_id": 1,
+            "job_id": "source-test",
+            "apple_music_url": "https://apple/track",
+            "youtube_url": "https://youtube/track",
+            "soundcloud_url": "https://soundcloud/track",
+        }
+    )
+    mock_update.assert_called_once_with(
+        {"track_id": "track", "friend_id": 1, "local_audio_url": "track.m4a", "audio_source": source}
+    )

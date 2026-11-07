@@ -17,6 +17,7 @@ TRACK = {
     "track_id": "t1",
     "friend_id": 7,
     "local_audio_url": "song.m4a",
+    "audio_source": "apple_music",
     "duration_seconds": 0,
     "bpm": 124,
     "key": "C major",

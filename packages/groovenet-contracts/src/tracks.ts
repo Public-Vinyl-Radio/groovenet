@@ -18,11 +18,36 @@ export const genreFilterRefSchema = z.object({
 
 export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
 
+/** Provenance of the local audio file, independent of its available remote links. */
+export const audioSourceSchema = z.enum([
+  "apple_music",
+  "youtube",
+  "soundcloud",
+  "upload",
+  "unknown",
+]);
+
+export const trackAudioFileFieldsSchema = z.object({
+  audio_source: audioSourceSchema.nullish(),
+  audio_codec: z.string().nullish(),
+  audio_container: z.string().nullish(),
+  audio_sample_rate: z.number().int().positive().nullish(),
+  audio_bit_depth: z.number().int().positive().nullish(),
+  audio_bitrate: z.number().int().positive().nullish(),
+  audio_channels: z.number().int().positive().nullish(),
+  // pg returns bigint columns as decimal strings.
+  audio_size_bytes: z.union([z.number().int().nonnegative(), z.string().regex(/^\d+$/)]).nullish(),
+  audio_lossless: z.boolean().nullish(),
+  audio_probed_at: z.string().nullish(),
+});
+export type TrackAudioFileFields = z.infer<typeof trackAudioFileFieldsSchema>;
+
 /**
  * The full track entity. Only the identifying fields are required on the wire;
  * the database may return more columns, so unknown keys pass through.
  */
 const trackShape = z.object({
+  ...trackAudioFileFieldsSchema.shape,
   id: z.number().int().optional(),
   track_id: z.string(),
   friend_id: z.number().int(),
