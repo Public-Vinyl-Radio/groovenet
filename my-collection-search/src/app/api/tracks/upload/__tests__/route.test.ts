@@ -123,6 +123,13 @@ describe("POST /api/tracks/upload", () => {
     expect(res.status).toBe(200);
     expect(mockUpdateTrackAnalysis).toHaveBeenCalledWith(
       "t1",
+      expect.objectContaining({
+        audio_source: "upload",
+        local_audio_url: expect.stringMatching(/\.m4a$/),
+      }),
+    );
+    expect(mockUpdateTrackAnalysis).toHaveBeenCalledWith(
+      "t1",
       expect.objectContaining({ key: "C major", key_confidence: 0.565 }),
     );
   });

@@ -2,6 +2,7 @@
 
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
+import FileInfo from "@/components/player/FileInfo";
 import { Box, Button, chakra, Drawer, Flex, Text, useBreakpointValue } from "@chakra-ui/react";
 import { FiChevronDown, FiSave, FiTrash2, FiX } from "react-icons/fi";
 import { LuListMusic } from "react-icons/lu";
@@ -277,6 +278,9 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       >
                         {trackMetaLine(track)}
                       </Text>
+                    )}
+                    {track && (
+                      <FileInfo key={`${track.friend_id}:${track.track_id}`} track={track} mobile />
                     )}
                   </Box>
                   <ProgressSlider

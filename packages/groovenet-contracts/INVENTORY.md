@@ -33,7 +33,7 @@ counts are as of this inventory; the table below is authoritative.
 | done | genre reconciliation | 9 | Builds on genres; proposal action/method/status enums. |
 | done | recommendations, embeddings | 9 | Similarity and backfill payloads; client types already exist. |
 | done | providers & Discogs | 9 | External-provider passthroughs; least shared shape. |
-| 10 | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; coordinate with its generated contracts. |
+| done | vinyl ingest & fingerprints, set derivation | 17 | Shared with `fingerprint-service`'s Python client; its payloads validate unchanged. |
 | done | system (`health`, `status`, `version`, `update-check`) | 4 | Auto-discovered only; contract entries added. |
 
 The remaining `#551` rows are track operations outside this issue's scope. #551
@@ -60,18 +60,18 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/albums/create` | albums | contracts |  |
 | POST | `/api/albums/upsert` | albums | contracts |  |
 | GET | `/api/audio` | audio streaming | exception | Byte-range audio stream; no JSON body. |
-| POST | `/api/audio/ingest` | vinyl ingest & fingerprints | #552 |  |
-| POST | `/api/audio/ingest/{ingestId}/claim` | vinyl ingest & fingerprints | #552 |  |
-| POST | `/api/audio/ingest/{ingestId}/result` | vinyl ingest & fingerprints | #552 |  |
-| GET | `/api/audio/ingest/recent` | vinyl ingest & fingerprints | #552 |  |
-| GET | `/api/audio/ingest/retention` | vinyl ingest & fingerprints | #552 |  |
-| GET | `/api/audio/ingest/stats` | vinyl ingest & fingerprints | #552 |  |
+| POST | `/api/audio/ingest` | vinyl ingest & fingerprints | contracts | Multipart request from the Pi listener stays inline; the response and rejection codes are shared. |
+| POST | `/api/audio/ingest/{ingestId}/claim` | vinyl ingest & fingerprints | contracts |  |
+| POST | `/api/audio/ingest/{ingestId}/result` | vinyl ingest & fingerprints | contracts |  |
+| GET | `/api/audio/ingest/recent` | vinyl ingest & fingerprints | contracts |  |
+| GET | `/api/audio/ingest/retention` | vinyl ingest & fingerprints | contracts |  |
+| GET | `/api/audio/ingest/stats` | vinyl ingest & fingerprints | contracts |  |
 | POST | `/api/backup` | backups | contracts |  |
 | POST | `/api/backup-custom` | backups | contracts |  |
 | GET | `/api/backups` | backups | contracts |  |
 | DELETE | `/api/backups/{filename}` | backups | contracts |  |
 | GET | `/api/backups/{filename}` | backups | exception | Binary dump download; no JSON body. |
-| GET | `/api/detections/recent` | vinyl ingest & fingerprints | #552 |  |
+| GET | `/api/detections/recent` | vinyl ingest & fingerprints | contracts |  |
 | GET | `/api/discogs` | providers & Discogs | exception | Server-sent progress stream (`text/event-stream`), not JSON. |
 | POST | `/api/discogs/delete-releases` | providers & Discogs | contracts |  |
 | GET | `/api/discogs/users/{username}` | providers & Discogs | contracts |  |
@@ -83,11 +83,11 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/embeddings/queue` | embeddings | contracts |  |
 | POST | `/api/embeddings/queue/retry` | embeddings | contracts |  |
 | GET | `/api/embeddings/status` | embeddings | contracts |  |
-| GET | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
-| PATCH | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
-| POST | `/api/fingerprints` | vinyl ingest & fingerprints | #552 |  |
-| POST | `/api/fingerprints/index` | vinyl ingest & fingerprints | #552 |  |
-| GET | `/api/fingerprints/index/{runId}` | vinyl ingest & fingerprints | #552 |  |
+| GET | `/api/fingerprints` | vinyl ingest & fingerprints | contracts |  |
+| PATCH | `/api/fingerprints` | vinyl ingest & fingerprints | contracts |  |
+| POST | `/api/fingerprints` | vinyl ingest & fingerprints | contracts |  |
+| POST | `/api/fingerprints/index` | vinyl ingest & fingerprints | contracts |  |
+| GET | `/api/fingerprints/index/{runId}` | vinyl ingest & fingerprints | contracts |  |
 | DELETE | `/api/friends` | friends & library settings | exception | Plain-text progress stream; the `username` query is validated in the app. |
 | GET | `/api/friends` | friends & library settings | contracts |  |
 | POST | `/api/friends` | friends & library settings | contracts |  |
@@ -155,13 +155,13 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/record-care/progress` | Record Care | contracts | Ever-cleaned progress and pace (`recordCareQueue.ts`) |
 | PATCH | `/api/record-copies/default` | record care | contracts |  |
 | POST | `/api/restore` | backups | contracts |  |
-| POST | `/api/set-derivations` | set derivation | #552 |  |
-| GET | `/api/set-derivations/{id}` | set derivation | #552 |  |
-| POST | `/api/set-derivations/{id}/claim` | set derivation | #552 |  |
-| POST | `/api/set-derivations/{id}/result` | set derivation | #552 |  |
+| POST | `/api/set-derivations` | set derivation | contracts |  |
+| GET | `/api/set-derivations/{id}` | set derivation | contracts |  |
+| POST | `/api/set-derivations/{id}/claim` | set derivation | contracts |  |
+| POST | `/api/set-derivations/{id}/result` | set derivation | contracts |  |
 | GET | `/api/set-recordings/{sha256}` | set derivation | exception | Streams the stored recording; no JSON body. |
 | HEAD | `/api/set-recordings/{sha256}` | set derivation | exception | Existence probe; headers only. |
-| PUT | `/api/set-recordings/{sha256}` | set derivation | #552 |  |
+| PUT | `/api/set-recordings/{sha256}` | set derivation | contracts | The request body is raw `application/octet-stream`; the response is shared. |
 | GET | `/api/settings/ai-prompt` | settings | contracts |  |
 | PUT | `/api/settings/ai-prompt` | settings | contracts |  |
 | GET | `/api/settings/appearance` | settings | contracts |  |
@@ -195,6 +195,8 @@ is closed; #606 owns them (its album half is migrated).
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
+| POST | `/api/tracks/audio-metadata/backfill` | tracks | contracts |  |
+| GET | `/api/tracks/audio-metadata/backfill/{runId}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |

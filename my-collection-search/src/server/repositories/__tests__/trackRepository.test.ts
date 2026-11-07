@@ -2,12 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TrackRepository } from "../trackRepository";
 import type { Track } from "@/types/track";
 
+const fieldsForLocalAudio = vi.hoisted(() => vi.fn());
+vi.mock("@/server/services/trackAudioMetadataService", () => ({
+  trackAudioMetadataService: { fieldsForLocalAudio },
+}));
 const dbQuery = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/serverDb", () => ({ dbQuery }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  fieldsForLocalAudio.mockResolvedValue({});
 });
 
 function makeRepo() {
@@ -890,5 +895,78 @@ describe("updateTrackComposer()", () => {
       "t1",
       1,
     ]);
+  });
+});
+
+describe("persisting local audio metadata", () => {
+  it("writes probe fields and source atomically with the new filename", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    fieldsForLocalAudio.mockResolvedValue({
+      audio_codec: "alac",
+      audio_source: "apple_music",
+      audio_sample_rate: 96000,
+    });
+    await makeRepo().updateTrackFields({
+      track_id: "t1",
+      friend_id: 1,
+      local_audio_url: "new.m4a",
+      audio_source: "apple_music",
+      audio_codec: "wrong",
+    });
+    expect(fieldsForLocalAudio).toHaveBeenCalledWith("new.m4a", "apple_music");
+    expect(dbQuery.mock.calls[0][0]).toContain("audio_sample_rate =");
+    expect(dbQuery.mock.calls[0][1]).toEqual(["new.m4a", "apple_music", "alac", 96000, "t1", 1]);
+  });
+  it.each([null, ""])("clears stored metadata with a removed URL (%s)", async (url) => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    fieldsForLocalAudio.mockResolvedValue({
+      audio_source: null,
+      audio_codec: null,
+      audio_probed_at: null,
+    });
+    await makeRepo().updateTrackFields({
+      track_id: "t1",
+      friend_id: 1,
+      local_audio_url: url,
+      audio_source: "youtube",
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual([url, null, null, null, "t1", 1]);
+  });
+  it("writes upload metadata for every friend sharing the track", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    fieldsForLocalAudio.mockResolvedValue({ audio_source: "upload", audio_codec: "aac" });
+    await makeRepo().updateTrackAnalysisByTrackId("t1", {
+      local_audio_url: "upload.m4a",
+      audio_source: "upload",
+    });
+    expect(fieldsForLocalAudio).toHaveBeenCalledWith("upload.m4a", "upload");
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("audio_codec = $2"), [
+      "upload",
+      "aac",
+      "upload.m4a",
+      "t1",
+    ]);
+  });
+  it("does not update the row when probing fails", async () => {
+    fieldsForLocalAudio.mockRejectedValue(new Error("bad audio"));
+    await expect(
+      makeRepo().updateTrackFields({ track_id: "t1", friend_id: 1, local_audio_url: "broken" }),
+    ).rejects.toThrow("bad audio");
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("listAudioBackfillCandidates()", () => {
+  beforeEach(() => dbQuery.mockReset());
+
+  it("lists live tracks with a file, optionally for one friend", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "t1" }] });
+    const repo = makeRepo();
+
+    expect(await repo.listAudioBackfillCandidates(3)).toEqual([{ track_id: "t1" }]);
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.stringContaining("deleted_at IS NULL"), [3]);
+
+    await repo.listAudioBackfillCandidates();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
   });
 });

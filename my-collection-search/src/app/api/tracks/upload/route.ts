@@ -46,6 +46,7 @@ async function processAudioFile(
 
   await trackRepository.updateTrackAnalysisByTrackId(track_id, {
     local_audio_url,
+    audio_source: "upload",
     bpm,
     bpm_confidence,
     key,

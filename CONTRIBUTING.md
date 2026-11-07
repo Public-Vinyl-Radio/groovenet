@@ -16,7 +16,7 @@ The repository pins Node and npm in `.mise.toml` and package manifests. Use `mis
 - Run `just lint-all` and fix any failures.
 - Changed executable lines must meet Codecov's patch coverage requirement. Run coverage for the component you changed.
 - Include a migration with database schema changes and verify it with `just migrate-test`.
-- Run relevant gated integration checks when changing code they cover. These include `just migrate-test`, `just redis-test`, `just fingerprint-test`, `just ingest-test`, `just debug-reads-test`, `just spin-sessions-test`, `just play-detections-test`, `just record-care-test`, and `just embedding-versions-test`.
+- Run relevant gated integration checks when changing code they cover. These include `just migrate-test`, `just redis-test`, `just fingerprint-test`, `just ingest-test`, `just debug-reads-test`, `just spin-sessions-test`, `just play-detections-test`, `just record-care-test`, `just embedding-versions-test`, and `just backfill-test`.
 
 ## Formatting
 

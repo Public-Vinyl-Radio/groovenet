@@ -18,11 +18,77 @@ export const genreFilterRefSchema = z.object({
 
 export const trackSearchModeSchema = z.enum(["lexical", "semantic", "hybrid"]);
 
+/** Provenance of the local audio file, independent of its available remote links. */
+export const audioSourceSchema = z.enum([
+  "apple_music",
+  "youtube",
+  "soundcloud",
+  "upload",
+  "unknown",
+]);
+
+export const trackAudioFileFieldsSchema = z.object({
+  audio_source: audioSourceSchema.nullish(),
+  audio_codec: z.string().nullish(),
+  audio_container: z.string().nullish(),
+  audio_sample_rate: z.number().int().positive().nullish(),
+  audio_bit_depth: z.number().int().positive().nullish(),
+  audio_bitrate: z.number().int().positive().nullish(),
+  audio_channels: z.number().int().positive().nullish(),
+  // pg returns bigint columns as decimal strings.
+  audio_size_bytes: z.union([z.number().int().nonnegative(), z.string().regex(/^\d+$/)]).nullish(),
+  audio_lossless: z.boolean().nullish(),
+  audio_probed_at: z.string().nullish(),
+});
+export type TrackAudioFileFields = z.infer<typeof trackAudioFileFieldsSchema>;
+
+/** Which tracks a backfill probes: everything unless narrowed to one friend's library. */
+export const audioMetadataBackfillRequestSchema = z.object({
+  friend_id: z.number().int().optional(),
+  /** Probe again even when the track was probed after its file last changed. */
+  force: z.boolean().optional(),
+});
+export type AudioMetadataBackfillRequest = z.infer<typeof audioMetadataBackfillRequestSchema>;
+
+/**
+ * Progress and report for one audio-metadata backfill (#1049).
+ *
+ * Every candidate lands in exactly one of `probed`, `skipped`, `missing_files`
+ * or `probe_failures`; `complete` is true once they add up to `total`.
+ */
+export const audioMetadataBackfillRunSchema = z.object({
+  run_id: z.string(),
+  /** Tracks with a `local_audio_url`, whether or not they need probing. */
+  total: z.number().int(),
+  probed: z.number().int(),
+  /** Already probed after the file's mtime (never with `force`). */
+  skipped: z.number().int(),
+  /** `local_audio_url` set but no such file in the audio directory. */
+  missing_files: z.number().int(),
+  probe_failures: z.number().int(),
+  /** Source of each track probed in this run. */
+  sources: z.object({
+    apple_music: z.number().int(),
+    youtube: z.number().int(),
+    soundcloud: z.number().int(),
+    upload: z.number().int(),
+    unknown: z.number().int(),
+  }),
+  /** Subset of `sources.unknown`: Opus/WebM with no URL tag, a weak YouTube hint. */
+  weak_youtube_hints: z.number().int(),
+  errors: z.array(z.string()),
+  started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  complete: z.boolean(),
+});
+export type AudioMetadataBackfillRun = z.infer<typeof audioMetadataBackfillRunSchema>;
+
 /**
  * The full track entity. Only the identifying fields are required on the wire;
  * the database may return more columns, so unknown keys pass through.
  */
 const trackShape = z.object({
+  ...trackAudioFileFieldsSchema.shape,
   id: z.number().int().optional(),
   track_id: z.string(),
   friend_id: z.number().int(),
@@ -328,6 +394,10 @@ export const trackJsonSchemas = {
   TrackPlaylistCountsResponse: z.toJSONSchema(trackPlaylistCountsResponseSchema),
   TrackPlaylistsResponse: z.toJSONSchema(trackPlaylistsResponseSchema),
   TrackAudioMetadata: z.toJSONSchema(trackAudioMetadataSchema),
+  AudioMetadataBackfillRequest: z.toJSONSchema(audioMetadataBackfillRequestSchema, {
+    io: "input",
+  }),
+  AudioMetadataBackfillRun: z.toJSONSchema(audioMetadataBackfillRunSchema),
   TrackExtractEmbeddedCoverResponse: z.toJSONSchema(trackExtractEmbeddedCoverResponseSchema),
   TrackEssentia: z.toJSONSchema(trackEssentiaSchema),
   TrackDeleteResponse: z.toJSONSchema(trackDeleteResponseSchema),

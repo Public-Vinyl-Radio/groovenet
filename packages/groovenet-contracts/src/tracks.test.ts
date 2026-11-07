@@ -1,3 +1,8 @@
+import {
+  audioMetadataBackfillRequestSchema,
+  audioMetadataBackfillRunSchema,
+  trackAudioFileFieldsSchema,
+} from "./tracks.js";
 import { describe, expect, it } from "vitest";
 import {
   trackAnalyzeAsyncRequestSchema,
@@ -308,5 +313,49 @@ describe("track contracts", () => {
     ] as const) {
       expect(trackJsonSchemas[name], name).toBeDefined();
     }
+  });
+});
+
+it("validates persisted audio fields, including pg bigint strings", () => {
+  expect(
+    trackAudioFileFieldsSchema.parse({
+      audio_source: "upload",
+      audio_size_bytes: "123456",
+      audio_codec: "flac",
+      audio_lossless: true,
+    }),
+  ).toMatchObject({ audio_source: "upload", audio_size_bytes: "123456" });
+  expect(trackAudioFileFieldsSchema.safeParse({ audio_source: "spotify" }).success).toBe(false);
+  expect(trackAudioFileFieldsSchema.safeParse({ audio_sample_rate: -1 }).success).toBe(false);
+});
+
+describe("audio metadata backfill contracts (#1049)", () => {
+  it("accepts an empty request and rejects a non-integer friend", () => {
+    expect(audioMetadataBackfillRequestSchema.parse({})).toEqual({});
+    expect(audioMetadataBackfillRequestSchema.parse({ friend_id: 2, force: true })).toEqual({
+      friend_id: 2,
+      force: true,
+    });
+    expect(audioMetadataBackfillRequestSchema.safeParse({ friend_id: 1.5 }).success).toBe(false);
+  });
+
+  it("describes a run and publishes both shapes", () => {
+    const run = {
+      run_id: "r1",
+      total: 3,
+      probed: 1,
+      skipped: 1,
+      missing_files: 1,
+      probe_failures: 0,
+      sources: { apple_music: 1, youtube: 0, soundcloud: 0, upload: 0, unknown: 0 },
+      weak_youtube_hints: 0,
+      errors: [],
+      started_at: 1,
+      updated_at: 2,
+      complete: true,
+    };
+    expect(audioMetadataBackfillRunSchema.parse(run)).toEqual(run);
+    expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRequest");
+    expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRun");
   });
 });

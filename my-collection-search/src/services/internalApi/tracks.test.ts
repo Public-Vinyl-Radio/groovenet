@@ -23,6 +23,7 @@ import {
   fetchTracksByIds,
   fixTrackDuration,
   saveTrack,
+  reprobeTrackAudio,
   searchTracks,
   fetchTrackGenreFacets,
   softDeleteTrack,
@@ -828,4 +829,27 @@ describe("fetchTrackGenreFacets (#375)", () => {
     await fetchTrackGenreFacets({});
     expect(httpMock).toHaveBeenLastCalledWith("/api/tracks/search/facets", GET_NO_STORE);
   });
+});
+
+describe("reprobeTrackAudio", () => {
+  it.each(["upload", null] as const)(
+    "preserves source %s in the probe-and-store PATCH",
+    async (source) => {
+      const { sampleTrack } = await import("@/stories/fixtures/track");
+      const track = { ...sampleTrack, local_audio_url: "/audio/test.flac", audio_source: source };
+      httpMock.mockResolvedValueOnce(track);
+      expect(await reprobeTrackAudio(track)).toEqual(track);
+      expect(JSON.parse(httpMock.mock.lastCall![1].body)).toEqual({
+        track_id: track.track_id,
+        friend_id: track.friend_id,
+        local_audio_url: track.local_audio_url,
+        audio_source: source ?? "unknown",
+      });
+      expect(httpMock).toHaveBeenLastCalledWith("/api/tracks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: expect.any(String),
+      });
+    },
+  );
 });

@@ -56,11 +56,11 @@ export function CategoryTag({ count, children, asChild, ...props }: CategoryTagP
 }
 
 export type MetaTagProps = TagProps & {
-  /** plain: a value; id: the library ID (accent, bold); raw: a path or hash, mono with its case kept. */
-  variant?: "plain" | "id" | "raw";
+  /** plain: a value; id: the library ID; raw: a path or hash; lossless: measured audio quality. */
+  variant?: "plain" | "id" | "raw" | "lossless";
 };
 
-/** A value: library ID, key, BPM, era, a count with its noun, a path. No fill. */
+/** A value: library ID, key, BPM, era, a count with its noun, a path or measured quality. */
 export function MetaTag(props: MetaTagProps) {
   return <MetaRoot {...props} />;
 }

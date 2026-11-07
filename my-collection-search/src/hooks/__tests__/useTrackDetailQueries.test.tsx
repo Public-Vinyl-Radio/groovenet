@@ -31,6 +31,15 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("useTrackDetailQueries", () => {
+  it("only probes when debug is explicitly opened", async () => {
+    const { rerender } = renderHook(({ debug }) => useTrackDetailQueries("t1", 6, true, debug), {
+      wrapper,
+      initialProps: { debug: false },
+    });
+    expect(api.fetchTrackAudioMetadata).not.toHaveBeenCalled();
+    rerender({ debug: true });
+    await waitFor(() => expect(api.fetchTrackAudioMetadata).toHaveBeenCalledWith("t1", 6));
+  });
   it("loads the context embedding preview for the debug modal, keyed by track and friend", async () => {
     const { result } = renderHook(() => useTrackDetailQueries("t1", 6, true), { wrapper });
 

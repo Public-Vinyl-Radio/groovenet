@@ -103,6 +103,7 @@ mpv's separate artwork window.
 | `friends`             | Manage the friends system                                                            |
 | `genres`              | Find similar genres and reconcile track tags onto the taxonomy                       |
 | `fingerprint-library` | Build the reference fingerprint index used to recognise vinyl as it plays            |
+| `files`               | Probe local audio files and record their format and source                           |
 | `sets`                | Derive a corrected tracklist from a recording of a set, and diff it against the plan |
 | `player`              | Start, control, and stop local headless playback through the player daemon           |
 | `records`             | Log record care and manage physical copies                                           |
@@ -437,6 +438,29 @@ Indexing missing — chromaprint 1
 
 Tracks with no local audio are counted, not failed — only the part of the
 library you have downloaded can be fingerprinted. Exits 1 if any track failed.
+
+### files backfill
+
+Probes every track's local audio file once and fills its format fields (codec,
+sample rate, bit depth, bitrate, size, lossless) and where it came from
+(`audio_source`). New downloads and uploads are probed as they arrive; this
+covers files that were already on disk. Safe to re-run: a track probed after its
+file last changed is skipped. A source already recorded by the download worker
+is kept; only missing or `unknown` ones are classified.
+
+```bash
+groovenet files backfill                # probe what needs it, wait for the report
+groovenet files backfill --force        # probe everything again
+groovenet files backfill --friend-id 2  # one friend's library
+groovenet files backfill --no-wait      # start it and return
+```
+
+Source rules, first match wins: Apple's ID atoms or the `Core Media Audio`
+handler (Apple Music), a youtube/soundcloud URL in `purl`/`comment`/`description`
+or the `... produced by Google Inc.` handler yt-dlp's YouTube m4a files keep
+(YouTube/SoundCloud), the `audio_<ms>_<n>.m4a|mp3` upload name, else `unknown`.
+Opus/WebM with none of those stays `unknown` and is counted as a weak YouTube
+hint. Exits 1 if any probe failed.
 
 ## Related
 

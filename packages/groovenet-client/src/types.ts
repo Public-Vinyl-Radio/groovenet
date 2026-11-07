@@ -279,47 +279,18 @@ export interface RecommendationCandidatesQuery {
   ivfflat_probes?: number;
 }
 
+// ─── Audio file metadata backfill (#1049) ─────────────────────────────────────
+
+export type { AudioMetadataBackfillRequest, AudioMetadataBackfillRun } from "@groovenet/contracts";
+
 // ─── Fingerprint indexing (#277) ──────────────────────────────────────────────
 
-/**
- * Which slice of the reference library an indexing run covers.
- *
- * `missing` and `changed` are the two halves of "bring the index up to date".
- * `all` adds the tracks that are already current, for forcing a regeneration.
- */
-export type FingerprintIndexScope = "missing" | "changed" | "all" | "track" | "release";
-
-export interface FingerprintIndexRequest {
-  scope: FingerprintIndexScope;
-  track_id?: string;
-  release_id?: string;
-  friend_id?: number;
-  force?: boolean;
-}
-
-/**
- * Counters for one indexing run.
- *
- * The four the CLI reports are `indexed` / `skipped` / `failed` / `unindexable`.
- * The last is not a failure: `tracks.local_audio_url` is nullable, so only part
- * of a library can be fingerprinted at all, and those tracks are counted at
- * resolve time and never queued.
- */
-export interface FingerprintIndexRun {
-  run_id: string;
-  scope: string;
-  fingerprint_type: string;
-  fingerprint_version: string;
-  queued: number;
-  unindexable: number;
-  indexed: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-  started_at: number;
-  updated_at: number;
-  complete: boolean;
-}
+// Defined in @groovenet/contracts, with the request's scope rules and the run counters.
+export type {
+  FingerprintIndexRequest,
+  FingerprintIndexRun,
+  FingerprintIndexScope,
+} from "@groovenet/contracts";
 
 // ─── Embeddings backfill (#388) ───────────────────────────────────────────────
 
@@ -338,230 +309,29 @@ export type {
   EmbeddingQueueRetryResponse,
 } from "@groovenet/contracts";
 
-// ─── Vinyl pipeline debug (#299) ──────────────────────────────────────────────
+// ─── Vinyl pipeline debug (#299) and set derivation (#282) ───────────────────
 
-export interface DetectionWindow {
-  id: string;
-  ingest_id: string;
-  source_id: string;
-  session_id: string | null;
-  window_start_at: string | null;
-  /** False means the window was recorded and matched nothing — a real state. */
-  matched: boolean;
-  track_id: string | null;
-  friend_id: number | null;
-  title: string | null;
-  artist: string | null;
-  album: string | null;
-  confidence: number | null;
-  offset_seconds: number | null;
-  /** RMS level of the window, dBFS; null on older rows. */
-  level_dbfs?: number | null;
-  fingerprint_type: string | null;
-  fingerprint_version: string | null;
-  created_at: string;
-}
-
-export interface DetectionListResponse {
-  detections: DetectionWindow[];
-  count: number;
-}
-
-export interface IngestRecord {
-  ingest_id: string;
-  source_id: string;
-  session_id: string | null;
-  sequence: number | null;
-  status: "received" | "processing" | "processed" | "failed";
-  error: string | null;
-  duration_seconds: number | null;
-  sample_rate: number | null;
-  channels: number | null;
-  codec: string | null;
-  file_path: string | null;
-  captured_at: string | null;
-  received_at: string;
-  updated_at: string;
-}
-
-export interface IngestListResponse {
-  ingests: IngestRecord[];
-  count: number;
-}
-
-export interface IngestPipelineStats {
-  since: string;
-  window_minutes: number;
-  source_id: string | null;
-  /** False means uploads cannot be saved at all — everything else is moot. */
-  ingest_writable: boolean;
-  index: {
-    engine_registered: boolean;
-    fingerprint_type: string | null;
-    fingerprint_version: string | null;
-    indexed_tracks: number;
-    /** True means nothing can ever match, however healthy the rest looks. */
-    empty: boolean;
-    /** Tracks with local audio but no fingerprint for the active engine (#303). */
-    missing_fingerprint_tracks: number;
-  };
-  queue_depth: number | null;
-  ingests: {
-    by_status: Record<string, number>;
-    failures: Array<{ error: string; count: number }>;
-    oldest_in_flight: {
-      ingest_id: string;
-      status: string;
-      received_at: string;
-    } | null;
-  };
-  detections: {
-    windows: number;
-    matched: number;
-    no_match: number;
-    match_rate: number | null;
-    confidence_bands: Array<{ band: string; count: number }>;
-  };
-  spins: {
-    /** Confident detections not yet written to spin_sessions (#304). Null when it could not be computed. */
-    pending: number | null;
-  };
-  /**
-   * What leaves no row behind (#280), from Redis: across all sources, rounded
-   * out to whole buckets. Null when Redis could not be reached; absent from an
-   * app older than #280.
-   */
-  counters?: IngestCounters | null;
-}
-
-/** Counters for the ingest pipeline that Postgres cannot answer (#280). */
-export interface IngestCounters {
-  bucket_minutes: number;
-  chunks: {
-    received: number;
-    accepted: number;
-    duplicate: number;
-    rejected: number;
-    rejected_by_reason: Array<{ reason: string; count: number }>;
-    failed_by_stage: Array<{ stage: string; count: number }>;
-    enqueue_failed: number;
-  };
-  plays: {
-    confirmed: number;
-    latency_ms_avg: number | null;
-    latency_bands: Array<{ band: string; count: number }>;
-  };
-}
-
-export interface DetectionQuery {
-  source_id?: string;
-  session_id?: string;
-  matched?: boolean;
-  since?: string;
-  limit?: number;
-  offset?: number;
-}
-
-// ─── Set derivation (#282) ────────────────────────────────────────────────────
-// Copied from my-collection-search/src/types/setDerivation.ts.
-
-export interface SetRecording {
-  sha256: string;
-  file_path: string;
-  original_filename: string | null;
-  format_name: string | null;
-  duration_seconds: number | null;
-  size_bytes: string | number;
-  created_at: string;
-}
-
-export type SetDerivationStatus = "queued" | "processing" | "processed" | "failed";
-
-export interface SetDerivation {
-  id: string;
-  recording_sha256: string;
-  fingerprint_type: string;
-  fingerprint_version: string;
-  window_seconds: number;
-  step_seconds: number;
-  status: SetDerivationStatus;
-  error: string | null;
-  duration_seconds: number | null;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-}
-
-export interface SetDerivationRequest {
-  recording_sha256: string;
-  window_seconds?: number;
-  step_seconds?: number;
-  /** Start a new run even if an equivalent one exists. */
-  force?: boolean;
-  /** Also list the recording in this live set's media. */
-  live_set_id?: number;
-}
-
-export interface SetTrackRef {
-  track_id: string;
-  friend_id: number;
-  title: string | null;
-  artist: string | null;
-  release_id: string | null;
-  position: string | null;
-}
-
-export interface DerivedPlay {
-  track_id: string;
-  friend_id: number;
-  start_seconds: number;
-  end_seconds: number;
-  confidence: number;
-  windows: number;
-  /** Track seconds per recording second; ~1.0 is a record at pitch. */
-  rate: number | null;
-  track: SetTrackRef | null;
-}
-
-export interface UnidentifiedRegion {
-  start_seconds: number;
-  end_seconds: number;
-  unindexed_neighbours: SetTrackRef[];
-}
-
-export interface PlannedEntry extends SetTrackRef {
-  /** 0-based position in the playlist. */
-  index: number;
-  fingerprinted: boolean;
-}
-
-/** `play` indexes into the view's `tracklist`. */
-export interface SetDiff {
-  playlist_id: number;
-  played_as_planned: Array<{ play: number; planned: PlannedEntry; out_of_order: boolean }>;
-  played_instead_of: Array<{ play: number; planned: PlannedEntry }>;
-  played_not_planned: Array<{ play: number }>;
-  planned_not_played: PlannedEntry[];
-}
-
-export interface SetDerivationView {
-  derivation: SetDerivation;
-  recording: SetRecording;
-  summary: {
-    plays: number;
-    duration_seconds: number | null;
-    identified_seconds: number;
-    identified_fraction: number | null;
-  } | null;
-  tracklist: DerivedPlay[];
-  unidentified: UnidentifiedRegion[];
-  diff: SetDiff | null;
-}
-
-export interface SetDerivationViewQuery {
-  playlist_id?: number;
-  live_set_id?: number;
-}
+// Defined in @groovenet/contracts, shared with the app's routes and OpenAPI document.
+export type {
+  DerivedPlay,
+  DetectionListResponse,
+  DetectionQuery,
+  DetectionWindow,
+  IngestCounters,
+  IngestListResponse,
+  IngestPipelineStats,
+  IngestRecord,
+  PlannedEntry,
+  SetDerivation,
+  SetDerivationRequest,
+  SetDerivationStatus,
+  SetDerivationView,
+  SetDerivationViewQuery,
+  SetDiff,
+  SetRecording,
+  SetTrackRef,
+  UnidentifiedRegion,
+} from "@groovenet/contracts";
 
 // ── Record copies and care (#262) ────────────────────────────────────────────
 
