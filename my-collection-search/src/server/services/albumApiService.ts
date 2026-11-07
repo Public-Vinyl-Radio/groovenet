@@ -2,7 +2,11 @@ import { albumTaxonomySelectSql } from "@/lib/genres/albumTaxonomySql";
 import { dbQuery } from "@/lib/serverDb";
 import type { Album, Track } from "@/types/track";
 import { albumRepository } from "@/server/repositories/albumRepository";
-import { albumGenreFilterClause, type GenreFilter } from "@/lib/trackFilterSpec";
+import {
+  albumArtistFilterClause,
+  albumGenreFilterClause,
+  type GenreFilter,
+} from "@/lib/trackFilterSpec";
 
 type AlbumSearchHit = Record<string, unknown>;
 
@@ -17,6 +21,8 @@ export class AlbumApiService {
     missingLocalCoverArtUrl?: boolean;
     missingAudio?: boolean;
     genreFilter?: GenreFilter;
+    /** Credited on the album or any of its tracks (#709). */
+    artistIds?: number[];
   }): Promise<{
     hits: AlbumSearchHit[];
     estimatedTotalHits: number;
@@ -71,6 +77,19 @@ export class AlbumApiService {
       whereClauses.push(
         albumGenreFilterClause(
           params.genreFilter,
+          (value) => {
+            sqlParams.push(value);
+            return `$${sqlParams.length}`;
+          },
+          "a",
+        ),
+      );
+    }
+
+    if (params.artistIds) {
+      whereClauses.push(
+        albumArtistFilterClause(
+          params.artistIds,
           (value) => {
             sqlParams.push(value);
             return `$${sqlParams.length}`;

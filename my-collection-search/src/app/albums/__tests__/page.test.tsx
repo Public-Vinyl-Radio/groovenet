@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   fetchGenreTree: vi.fn(),
   addedGenres: [] as { id: string; name: string; slug: string }[],
+  filterArtists: [] as { id: number; name: string; slug: string }[],
+  listArtists: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -21,15 +23,18 @@ vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: { id: 1, username: "dj" }, isHydrated: true }),
 }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
+vi.mock("@/services/internalApi/artists", () => ({ listArtists: mocks.listArtists }));
 // The results list has its own tests; here only the controls matter. It still
 // reports added_genres (#485) up, the way the real component does.
 function StubAlbumSearchResults({
   onAddedGenresChange,
+  onFilterArtistsChange,
   onTotalChange,
   onSortChange,
   layout,
 }: {
   onAddedGenresChange?: (g: typeof mocks.addedGenres) => void;
+  onFilterArtistsChange?: (a: typeof mocks.filterArtists) => void;
   onTotalChange?: (total: number) => void;
   onSortChange?: (sort: string) => void;
   layout?: string;
@@ -37,6 +42,9 @@ function StubAlbumSearchResults({
   React.useEffect(() => {
     onAddedGenresChange?.(mocks.addedGenres);
   }, [onAddedGenresChange]);
+  React.useEffect(() => {
+    onFilterArtistsChange?.(mocks.filterArtists);
+  }, [onFilterArtistsChange]);
   return (
     <div data-testid="results" data-layout={layout}>
       <button onClick={() => onTotalChange?.(42)}>report total</button>
@@ -401,5 +409,66 @@ describe("albums page desktop header (#794)", () => {
     expect(screen.queryByTestId("filter-summary")).toBeNull();
     await user.click(await screen.findByRole("button", { name: "report total" }));
     expect(screen.getByTestId("page-header-meta").textContent).toBe("42 albums");
+  });
+});
+
+describe("albums page artist filter (#709)", () => {
+  const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+    mocks.fetchGenreTree.mockResolvedValue([]);
+    mocks.filterArtists = [];
+  });
+
+  it("names artist chips from the results, removes one, and Clear all drops them", async () => {
+    mocks.searchParams = new URLSearchParams("artist=meridian-brothers&artist=4");
+    mocks.filterArtists = [meridian, { id: 4, name: "MIS", slug: "mis" }];
+    const { user } = renderWithProviders(<AlbumsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Remove filter Meridian Brothers" }),
+    );
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?artist=4");
+    expect(screen.getByRole("button", { name: "Remove filter MIS" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?");
+  });
+
+  it("adds a picked artist to the URL, once, and keeps it on a new search", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [
+        {
+          ...meridian,
+          sort_name: "Meridian Brothers",
+          discogs_artist_id: null,
+          is_placeholder: false,
+          album_count: 1,
+          track_count: 0,
+        },
+      ],
+      total: 1,
+      limit: 8,
+      offset: 0,
+      query: "mer",
+    });
+    const { user } = renderWithProviders(<AlbumsPage />);
+    await openFilters(user);
+    await user.type(screen.getByRole("combobox", { name: "Filter by artist" }), "mer");
+    await user.click(await screen.findByRole("option", { name: /Meridian Brothers/ }));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/albums?artist=meridian-brothers");
+    expect(mocks.listArtists).toHaveBeenCalledWith({ q: "mer", friend_id: 1, limit: 8 });
+  });
+
+  it("keeps artists on a new search", async () => {
+    mocks.searchParams = new URLSearchParams("artist=meridian-brothers");
+    const { user } = renderWithProviders(<AlbumsPage />);
+    const input = screen.getByRole("searchbox", { name: "Search albums" });
+    await user.type(input, "blue{Enter}");
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith("/albums?q=blue&artist=meridian-brothers"),
+    );
   });
 });

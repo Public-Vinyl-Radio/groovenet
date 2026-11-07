@@ -3,6 +3,7 @@
 import React from "react";
 import { Box, Field } from "@chakra-ui/react";
 import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
+import { ArtistFilterSection, type ArtistFilterControls } from "@/components/ArtistFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
 import {
@@ -33,6 +34,8 @@ export type AlbumFilterControls = {
   onRemoveGenre: (slug: string) => void;
   includeSimilar: boolean;
   onIncludeSimilarChange: (checked: boolean) => void;
+  /** The artist filter (#709); its section shows only when the page wires one. */
+  artistFilter?: ArtistFilterControls;
   missing: Record<string, boolean>;
   onToggleMissing: (key: string) => void;
   /** Filters on; Reset is disabled at zero. */
@@ -52,13 +55,14 @@ export function showAlbumsLabel(count: number | null): string {
   return count === null ? "Show albums" : `Show ${albumCountLabel(count)}`;
 }
 
-/** Genre, with its tags and Include similar, then the missing checks: the body of the modal and the panel. */
+/** Genre, with its tags and Include similar, then artist, then the missing checks: the body of the modal and the panel. */
 export function AlbumFilterSections({
   genres,
   onAddGenre,
   onRemoveGenre,
   includeSimilar,
   onIncludeSimilarChange,
+  artistFilter,
   missing,
   onToggleMissing,
 }: AlbumFilterControls) {
@@ -74,6 +78,8 @@ export function AlbumFilterSections({
           <IncludeSimilarToggle checked={includeSimilar} onChange={onIncludeSimilarChange} />
         )}
       </Section>
+
+      {artistFilter && <ArtistFilterSection {...artistFilter} />}
 
       <Section label="Only albums missing">
         <Box display="flex" flexWrap="wrap" gap={2} role="group" aria-label="Only albums missing">

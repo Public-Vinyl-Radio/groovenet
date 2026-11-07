@@ -12,6 +12,9 @@ import { useGenreTaxonomyQuery, useGenreLookup } from "@/hooks/useGenreTaxonomyQ
 import { importPlaylist } from "@/services/internalApi/playlists";
 import { searchTracks } from "@/services/internalApi/tracks";
 import { searchAlbums, getAlbumWithTracks } from "@/services/internalApi/albums";
+import { listArtists } from "@/services/internalApi/artists";
+import { artistCountsLabel } from "@/components/ArtistFilter";
+import type { ArtistListItem } from "@/api-contract/schemas";
 import { matchGenresForPalette, genreHref } from "@/lib/genres/links";
 import type { GenreOption } from "@/lib/genres/options";
 import { isTrackSearchMode } from "@/components/search/searchModes";
@@ -28,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/tracks", label: "Tracks" },
   { href: "/albums", label: "Albums" },
+  { href: "/artists", label: "Artists" },
   { href: "/genres", label: "Genres" },
   { href: "/playlists", label: "Playlists" },
   { href: "/jobs", label: "Jobs" },
@@ -72,6 +76,7 @@ export default function CommandPalette() {
   const [query, setQuery] = React.useState("");
   const [trackHits, setTrackHits] = React.useState<TrackHit[]>([]);
   const [albumHits, setAlbumHits] = React.useState<AlbumHit[]>([]);
+  const [artistHits, setArtistHits] = React.useState<ArtistListItem[]>([]);
   const [loadingTracks, setLoadingTracks] = React.useState(false);
 
   const close = React.useCallback(() => {
@@ -135,6 +140,7 @@ export default function CommandPalette() {
       if (q.length === 0) {
         setTrackHits([]);
         setAlbumHits([]);
+        setArtistHits([]);
         return;
       }
       setLoadingTracks(true);
@@ -149,7 +155,7 @@ export default function CommandPalette() {
       const albumParams: Parameters<typeof searchAlbums>[0] = { q, limit: 5 };
       if (friend?.id) albumParams.friend_id = friend.id;
 
-      const [trackResult, albumResult] = await Promise.all([
+      const [trackResult, albumResult, artistResult] = await Promise.all([
         searchTracks(trackParams).catch((err) => {
           console.error("Command palette track search error:", err);
           return null;
@@ -158,10 +164,16 @@ export default function CommandPalette() {
           console.error("Command palette album search error:", err);
           return null;
         }),
+        // By name or any alias, within this collection (#709).
+        listArtists({ q, limit: 5, friend_id: friend?.id }).catch((err) => {
+          console.error("Command palette artist search error:", err);
+          return null;
+        }),
       ]);
       if (cancelled) return;
       setTrackHits(trackResult?.hits ?? []);
       setAlbumHits(albumResult?.hits ?? []);
+      setArtistHits(artistResult?.items ?? []);
       setLoadingTracks(false);
     };
 
@@ -256,6 +268,18 @@ export default function CommandPalette() {
     close();
   };
 
+  const onOpenArtist = (artist: ArtistListItem) => {
+    used("open_artist");
+    router.push(`/artists/${encodeURIComponent(artist.slug)}`);
+    close();
+  };
+
+  const onFilterTracksByArtist = (artist: ArtistListItem) => {
+    used("filter_tracks_by_artist");
+    router.push(`/tracks?artist=${encodeURIComponent(artist.slug)}`);
+    close();
+  };
+
   const onOpenAlbum = (album: AlbumHit) => {
     used("open_album");
     router.push(`/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`);
@@ -315,7 +339,7 @@ export default function CommandPalette() {
       <Command className={styles.command}>
         <Command.Input
           autoFocus
-          placeholder="Search tracks, albums, genres, playlists, or actions…"
+          placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
           value={query}
           onValueChange={setQuery}
           className={styles.input}
@@ -454,6 +478,43 @@ export default function CommandPalette() {
                         </span>
                       </div>
                     </Command.Item>
+                  );
+                })}
+              </Command.Group>
+            </>
+          )}
+
+          {trimmedQuery.length > 0 && artistHits.length > 0 && (
+            <>
+              <Command.Separator className={styles.separator} />
+              <Command.Group heading="Artists" className={styles.group}>
+                {artistHits.map((artist) => {
+                  const counts = artistCountsLabel(artist);
+                  return (
+                    <React.Fragment key={`ar-${artist.id}`}>
+                      <Command.Item
+                        value={`${trimmedQuery} open artist ${artist.name}`}
+                        onSelect={() => onOpenArtist(artist)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>{artist.name}</span>
+                          <span className={styles.itemMeta}>
+                            Open Artist{counts ? ` · ${counts}` : ""}
+                          </span>
+                        </div>
+                      </Command.Item>
+                      <Command.Item
+                        value={`${trimmedQuery} tracks by ${artist.name}`}
+                        onSelect={() => onFilterTracksByArtist(artist)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>Tracks by {artist.name}</span>
+                          <span className={styles.itemMeta}>Search Tracks · Artist filter</span>
+                        </div>
+                      </Command.Item>
+                    </React.Fragment>
                   );
                 })}
               </Command.Group>

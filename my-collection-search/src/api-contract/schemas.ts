@@ -28,6 +28,7 @@ import {
 import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   artistPageQuerySchema as sharedArtistPageQuerySchema,
+  artistIndexLetterSchema,
   artistListQuerySchema as sharedArtistListQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
@@ -539,6 +540,8 @@ export const trackSearchGetQuerySchema = sharedTrackSearchQuerySchema.extend({
   similar_limit: nonNegativeIntFromInputSchema.optional(),
   /** Related-genre ids the UI has removed from the widened set; kept out on this and later requests. */
   similar_exclude: genreQueryParamSchema,
+  /** Artist slugs or ids (#709), ORed, matched through the credit tables. */
+  artist: genreQueryParamSchema,
 });
 
 export const embeddingPreviewTypeSchema = trackEmbeddingPreviewTypeSchema;
@@ -813,6 +816,8 @@ export const albumSearchQuerySchema = sharedAlbumSearchQuerySchema.extend({
   similar_limit: nonNegativeIntFromInputSchema.optional(),
   /** Related-genre ids the UI has removed from the widened set; kept out on this and later requests. */
   similar_exclude: genreQueryParamSchema,
+  /** Artist slugs or ids (#709), ORed, matched through the credit tables. */
+  artist: genreQueryParamSchema,
 });
 
 // ─── Album artwork (#494) ────────────────────────────────────────────────────
@@ -1195,12 +1200,24 @@ export type { ArtistCollaborator, ArtistPageResponse } from "@groovenet/contract
 export const artistPageQuerySchema = sharedArtistPageQuerySchema.extend({
   friend_id: intFromInputSchema.optional(),
 });
-export { artistCreditRefSchema, artistListResponseSchema } from "@groovenet/contracts";
-export type { ArtistCreditRef, ArtistListItem, ArtistListResponse } from "@groovenet/contracts";
+export {
+  artistCreditRefSchema,
+  artistFilterRefSchema,
+  artistListResponseSchema,
+} from "@groovenet/contracts";
+export { artistIndexLetterSchema };
+export type {
+  ArtistCreditRef,
+  ArtistFilterRef,
+  ArtistListItem,
+  ArtistListResponse,
+} from "@groovenet/contracts";
 export const artistListQuerySchema = sharedArtistListQuerySchema.extend({
   q: z.string().trim().max(200).optional().default(""),
   friend_id: intFromInputSchema.optional(),
   include_placeholders: booleanFlagSchema.optional().default(false),
+  /** Case-insensitive on the way in: `?letter=m` is the M page. */
+  letter: z.string().trim().toUpperCase().pipe(artistIndexLetterSchema).optional(),
   limit: intFromInputSchema.pipe(z.number().int().min(1).max(200)).optional().default(50),
   offset: nonNegativeIntFromInputSchema.optional().default(0),
 });

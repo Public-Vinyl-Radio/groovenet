@@ -5,6 +5,7 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: vi.fn().mockResolvedValue([]) }));
+vi.mock("@/services/internalApi/artists", () => ({ listArtists: vi.fn() }));
 
 import AlbumFiltersModal, { albumCountLabel } from "./AlbumFiltersModal";
 
@@ -87,5 +88,28 @@ describe("albumCountLabel (#794)", () => {
   it("says 'album' for exactly one and groups thousands", () => {
     expect(albumCountLabel(1)).toBe("1 album");
     expect(albumCountLabel(1234)).toBe(`${(1234).toLocaleString()} albums`);
+  });
+});
+
+describe("Artist section (#709)", () => {
+  it("shows the Artist section only when the page wires it, and removes from its tags (#709)", async () => {
+    const first = setup();
+    expect(screen.queryByRole("combobox", { name: "Filter by artist" })).toBeNull();
+    first.unmount();
+
+    const onAddArtist = vi.fn();
+    const onRemoveArtist = vi.fn();
+    const { user } = setup({
+      artistFilter: {
+        selected: ["meridian-brothers"],
+        known: [{ slug: "meridian-brothers", name: "Meridian Brothers" }],
+        onAdd: onAddArtist,
+        onRemove: onRemoveArtist,
+        friendId: 6,
+      },
+    });
+    expect(await screen.findByRole("combobox", { name: "Filter by artist" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Remove artist Meridian Brothers" }));
+    expect(onRemoveArtist).toHaveBeenCalledWith("meridian-brothers");
   });
 });

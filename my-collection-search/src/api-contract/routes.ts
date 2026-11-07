@@ -3417,6 +3417,16 @@ const trackSearchParameters: Record<string, unknown>[] = [
     description:
       "Related-genre ids to leave out of the widening even though include_similar is set — how the UI drops one of the added_genres chips.",
   },
+  {
+    name: "artist",
+    in: "query",
+    required: false,
+    style: "form",
+    explode: true,
+    schema: { type: "array", items: { type: "string" }, maxItems: 20 },
+    description:
+      "Artist slug or id (#709); repeat for several, which combine with OR. Matches by credit, not by the artist string: a track with credits of its own matches on those, one without on its album's, so 'meridian-brothers' finds an album credited to 'Mexican Institute of Sound & Meridian Brothers'. A merged artist resolves to its survivor. The artists are echoed in filter_artists. Applied in every mode. An unknown artist is a 400.",
+  },
 ];
 
 // ─── Album artwork (#494) ────────────────────────────────────────────────────
@@ -5647,11 +5657,22 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description:
             "Related-genre ids to leave out of the widening even though include_similar is set — how the UI drops one of the added_genres chips.",
         },
+        {
+          name: "artist",
+          in: "query",
+          required: false,
+          style: "form",
+          explode: true,
+          schema: { type: "array", items: { type: "string" }, maxItems: 20 },
+          description:
+            "Artist slug or id (#709); repeat for several, which combine with OR. An album matches when the artist is credited on it or on any of its tracks, so a Various compilation is found through its track artists. A merged artist resolves to its survivor. The artists are echoed in filter_artists. An unknown artist is a 400.",
+        },
       ],
       responses: {
         "200": jsonOk("Albums search result", componentRef("AlbumSearchResponse")),
         "400": {
-          description: "limit or offset is not a non-negative integer, or a genre is unknown",
+          description:
+            "limit or offset is not a non-negative integer, or a genre or artist is unknown",
           content: {
             "application/json": { schema: errorResponseSchemaObject },
           },
@@ -6193,6 +6214,14 @@ export const apiContractRoutes: ApiContractRoute[] = [
           required: false,
           description: "Include Various and Unknown Artist",
           schema: { type: "boolean", default: false },
+        },
+        {
+          name: "letter",
+          in: "query",
+          required: false,
+          description:
+            "The A to Z index (#709): sort names starting with this letter, accents folded (Á is A); # for digits and anything else. Case-insensitive",
+          schema: { type: "string", pattern: "^[A-Za-z#]$" },
         },
         {
           name: "limit",

@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   analyzeTrackAsync: vi.fn(),
   toastCreate: vi.fn(),
   loadMore: vi.fn(),
+  listArtists: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +35,7 @@ vi.mock("@/hooks/useSearchResults", () => ({ useSearchResults: mocks.useSearchRe
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: mocks.track } }));
 vi.mock("@/hooks/useTrackGenreFacets", () => ({ useTrackGenreFacets: mocks.useTrackGenreFacets }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
+vi.mock("@/services/internalApi/artists", () => ({ listArtists: mocks.listArtists }));
 vi.mock("@/hooks/useTrack", () => ({ useTrack: mocks.useTrack }));
 vi.mock("@/services/internalApi/tracks", () => ({ analyzeTrackAsync: mocks.analyzeTrackAsync }));
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toastCreate } }));
@@ -144,6 +146,7 @@ const lastFilter = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].filter;
 const lastIncludeSimilar = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].includeSimilar;
 const lastSimilarExclude = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].similarExclude;
 const lastFacets = () => mocks.useTrackGenreFacets.mock.calls.at(-1)?.[0];
+const lastArtists = () => mocks.useSearchResults.mock.calls.at(-1)?.[0].artists;
 /** The phone's Search options modal, opened from the header kebab. */
 const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
   await user.click(screen.getByRole("button", { name: /^Tracks actions/ }));
@@ -342,7 +345,13 @@ describe("SearchResults genre filter (#375)", () => {
 
   it("counts genres for keyword search over the same filters, and not otherwise", async () => {
     const { user } = renderWithProviders(<SearchResults />);
-    expect(lastFacets()).toEqual({ q: "", filter: "friend_id = 1", attributes: {}, enabled: true });
+    expect(lastFacets()).toEqual({
+      q: "",
+      filter: "friend_id = 1",
+      attributes: {},
+      artists: [],
+      enabled: true,
+    });
 
     await chooseMode(user, "Semantic");
     await waitFor(() => expect(lastFacets().enabled).toBe(false));
@@ -908,5 +917,77 @@ describe("SearchResults desktop header (#794)", () => {
     expect(selectTracksButton().getAttribute("aria-pressed")).toBe("false");
     await user.click(selectTracksButton());
     expect(selectTracksButton().getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
+describe("SearchResults artist filter (#709)", () => {
+  const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+
+  it("reads artists from the URL, searches and counts by them, and names their chips", async () => {
+    mocks.searchParams = new URLSearchParams("artist=meridian-brothers&artist=nobody-yet");
+    mocks.useSearchResults.mockImplementation(() => ({
+      query: "",
+      onQueryChange: mocks.onQueryChange,
+      setQuery: mocks.setQuery,
+      estimatedResults: 0,
+      trackInfo: [],
+      playlistCounts: {},
+      hasMore: false,
+      loadMore: mocks.loadMore,
+      initialLoading: false,
+      loadingMore: false,
+      addedGenres: [],
+      filterArtists: [meridian],
+    }));
+    const { user } = renderWithProviders(<SearchResults />);
+    expect(lastArtists()).toEqual(["meridian-brothers", "nobody-yet"]);
+    expect(lastFacets().artists).toEqual(["meridian-brothers", "nobody-yet"]);
+    expect(
+      await screen.findByRole("button", { name: "Remove filter Meridian Brothers" }),
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Remove filter Meridian Brothers" }));
+    await waitFor(() => expect(lastArtists()).toEqual(["nobody-yet"]));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?artist=nobody-yet");
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(lastArtists()).toEqual([]));
+  });
+
+  it("adds a picked artist once, names its chip at once and records it in the URL", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [
+        {
+          ...meridian,
+          sort_name: "Meridian Brothers",
+          discogs_artist_id: null,
+          is_placeholder: false,
+          album_count: 2,
+          track_count: 0,
+        },
+      ],
+      total: 1,
+      limit: 8,
+      offset: 0,
+      query: "mer",
+    });
+    const { user } = renderWithProviders(<SearchResults />);
+    await openFilters(user);
+    await user.type(screen.getByRole("combobox", { name: "Filter by artist" }), "mer");
+    await user.click(await screen.findByRole("option", { name: /Meridian Brothers/ }));
+
+    await waitFor(() => expect(lastArtists()).toEqual(["meridian-brothers"]));
+    expect(mocks.replace).toHaveBeenLastCalledWith("/tracks?artist=meridian-brothers");
+    expect(mocks.listArtists).toHaveBeenCalledWith({ q: "mer", friend_id: 1, limit: 8 });
+    expect(
+      screen.getByRole("button", { name: "Remove artist Meridian Brothers", hidden: true }),
+    ).toBeTruthy();
+  });
+
+  it("follows a navigation to an artist link", async () => {
+    const { rerender } = renderWithProviders(<SearchResults />);
+    mocks.searchParams = new URLSearchParams("artist=meridian-brothers");
+    rerender(<SearchResults />);
+    await waitFor(() => expect(lastArtists()).toEqual(["meridian-brothers"]));
   });
 });

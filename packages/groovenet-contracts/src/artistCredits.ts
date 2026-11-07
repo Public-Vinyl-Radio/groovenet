@@ -18,6 +18,29 @@ export const artistCreditRefSchema = z.object({
   position: z.number().int().nonnegative(),
   credited_as: z.string().meta({ description: "The spelling this release credits them as" }),
 });
+/**
+ * An artist a search is filtered on (#709): enough to name its removable chip
+ * and link to the page. Merged artists come back as their survivor.
+ */
+export const artistFilterRefSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  slug: z.string(),
+});
+export type ArtistFilterRef = z.infer<typeof artistFilterRefSchema>;
+
+/** `artist` on track and album search: slugs or numeric ids, ORed (#709). */
+export const artistFilterQueryShape = {
+  artist: z.array(z.string()).max(20).optional(),
+};
+
+/** Echoed on a search response whenever `artist` was given, in request order. */
+export const artistFilterResponseShape = {
+  filter_artists: z.array(artistFilterRefSchema).optional().meta({
+    description:
+      "The artists an artist filter resolved to, for its chips; omitted without an artist filter.",
+  }),
+};
 export type ArtistCreditRole = z.infer<typeof artistCreditRoleSchema>;
 export type ArtistCreditRef = z.infer<typeof artistCreditRefSchema>;
 

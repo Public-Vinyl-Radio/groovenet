@@ -15,6 +15,12 @@ describe("searchAlbums", () => {
     expect(params.getAll("genre")).toEqual(["latin", "jazz"]);
   });
 
+  it("repeats artist for each slug (#709)", async () => {
+    await searchAlbums({ artist: ["meridian-brothers", "4"] });
+    const params = new URLSearchParams(String(httpMock.mock.calls[0][0]).split("?")[1]);
+    expect(params.getAll("artist")).toEqual(["meridian-brothers", "4"]);
+  });
+
   it("sends no genre without one", async () => {
     await searchAlbums({});
     expect(httpMock.mock.calls[0][0]).toBe("/api/albums");

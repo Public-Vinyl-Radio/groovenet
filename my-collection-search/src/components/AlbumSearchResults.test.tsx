@@ -242,3 +242,62 @@ describe("AlbumSearchResults layouts (#730)", () => {
     expect(screen.getByTestId("album-row")).toBeTruthy();
   });
 });
+
+describe("AlbumSearchResults artist filter (#709)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", NoopObserver);
+    mocks.useAlbumsInfiniteQuery.mockReset().mockReturnValue({
+      data: { pages: [] },
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it("searches by every artist in the URL, and by none without one", () => {
+    mocks.searchParams = new URLSearchParams("artist=meridian-brothers&artist=4");
+    const { unmount } = renderWithProviders(<AlbumSearchResults friendId={6} />);
+    expect(mocks.useAlbumsInfiniteQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ artist: ["meridian-brothers", "4"] }),
+    );
+    unmount();
+    mocks.useAlbumsInfiniteQuery.mockClear();
+    mocks.searchParams = new URLSearchParams();
+    renderWithProviders(<AlbumSearchResults friendId={6} />);
+    expect(mocks.useAlbumsInfiniteQuery.mock.calls[0][0]).not.toHaveProperty("artist");
+  });
+
+  it("reports the artists the filter named, and nothing before the first page", async () => {
+    const meridian = { id: 9, name: "Meridian Brothers", slug: "meridian-brothers" };
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: { pages: [{ hits: [], filter_artists: [meridian] }] },
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: false,
+      error: null,
+    });
+    const onFilterArtistsChange = vi.fn();
+    renderWithProviders(
+      <AlbumSearchResults friendId={6} onFilterArtistsChange={onFilterArtistsChange} />,
+    );
+    await vi.waitFor(() => expect(onFilterArtistsChange).toHaveBeenCalledWith([meridian]));
+
+    mocks.useAlbumsInfiniteQuery.mockReturnValue({
+      data: { pages: [] },
+      albumRefs: [],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      isLoading: true,
+      error: null,
+    });
+    const quiet = vi.fn();
+    renderWithProviders(<AlbumSearchResults friendId={6} onFilterArtistsChange={quiet} />);
+    expect(quiet).not.toHaveBeenCalled();
+  });
+});

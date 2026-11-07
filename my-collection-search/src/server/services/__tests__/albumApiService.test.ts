@@ -53,4 +53,22 @@ describe("AlbumApiService.searchAlbums", () => {
     expect(params).toEqual([6, ["latin"], ["id-latin"], 20, 0]);
     expect(dbQuery.mock.calls[1][1]).toEqual([6, ["latin"], ["id-latin"]]);
   });
+
+  it("binds an artist filter into the query and its count (#709)", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: "0" }] });
+
+    await new AlbumApiService().searchAlbums({
+      q: "",
+      limit: 20,
+      offset: 0,
+      friendId: "6",
+      sort: "created_at:desc",
+      artistIds: [9, 4],
+    });
+
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("aa.album_id = a.id AND aa.artist_id = ANY($2::int[])");
+    expect(params).toEqual([6, [9, 4], 20, 0]);
+    expect(dbQuery.mock.calls[1][1]).toEqual([6, [9, 4]]);
+  });
 });

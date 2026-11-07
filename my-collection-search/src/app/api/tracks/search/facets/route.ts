@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackGenreFacetsResponseSchema } from "@/api-contract/schemas";
 import { genreRepository } from "@/server/repositories/genreRepository";
+import { resolveArtistFilter, unknownArtistsError } from "@/server/artists/artistFilter";
 import {
   buildTrackSearchWhere,
   lexicalMatchClause,
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const { q, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating } = parsedQuery.data;
+    const { q, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating, artist } =
+      parsedQuery.data;
     const words = q.trim();
     if (mode !== "lexical" && words.length > 0) {
       return NextResponse.json(
@@ -34,10 +36,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
     }
 
+    // The artist filter narrows the counts like any other (#709).
+    const artists = await resolveArtistFilter(artist ?? []);
+    if (artists.unknown) {
+      return NextResponse.json(unknownArtistsError(artists.unknown), { status: 400 });
+    }
     const { where, params } = buildTrackSearchWhere({
       filter,
       friendId: friend_id,
-      attributes: { bpmMin: bpm_min, bpmMax: bpm_max, key, minStarRating: star_rating },
+      attributes: {
+        bpmMin: bpm_min,
+        bpmMax: bpm_max,
+        key,
+        minStarRating: star_rating,
+        artistIds: artists.ids,
+      },
     });
     if (words.length > 0) {
       params.push(words);

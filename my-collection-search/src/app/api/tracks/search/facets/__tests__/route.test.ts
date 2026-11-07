@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const trackFacets = vi.hoisted(() => vi.fn());
+const resolveArtistFilter = vi.hoisted(() => vi.fn());
 vi.mock("@/server/repositories/genreRepository", () => ({ genreRepository: { trackFacets } }));
+vi.mock("@/server/artists/artistFilter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/artists/artistFilter")>()),
+  resolveArtistFilter,
+}));
 
 import { GET } from "../route";
 
@@ -14,6 +19,25 @@ describe("GET /api/tracks/search/facets", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     trackFacets.mockResolvedValue([{ id: "id-latin", track_count: 4 }]);
+    resolveArtistFilter.mockResolvedValue({ ids: undefined, artists: [] });
+  });
+
+  it("counts within the artist filter (#709)", async () => {
+    resolveArtistFilter.mockResolvedValue({ ids: [9], artists: [] });
+    const res = await GET(req("?friend_id=6&artist=meridian-brothers"));
+    expect(res.status).toBe(200);
+    expect(resolveArtistFilter).toHaveBeenCalledWith(["meridian-brothers"]);
+    const [where, params] = trackFacets.mock.calls[0];
+    expect(where[1]).toContain("ta.artist_id = ANY($2::int[])");
+    expect(params).toEqual([6, [9]]);
+  });
+
+  it("rejects an unknown artist", async () => {
+    resolveArtistFilter.mockResolvedValue({ unknown: ["nobody"] });
+    const res = await GET(req("?artist=nobody"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).unknown).toEqual(["nobody"]);
+    expect(trackFacets).not.toHaveBeenCalled();
   });
 
   it("counts over the search's filters and words, ignoring genre and paging", async () => {

@@ -11,7 +11,7 @@ import {
   type TrackSearchResponse,
 } from "@/services/internalApi/tracks";
 import { useTrackStore } from "@/stores/trackStore";
-import type { TrackSearchMode } from "@/api-contract/schemas";
+import type { ArtistFilterRef, TrackSearchMode } from "@/api-contract/schemas";
 import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
 interface UseSearchResultsOptions {
@@ -35,6 +35,8 @@ interface UseSearchResultsOptions {
   similarLimit?: number;
   // Related-genre ids the UI has removed from the widened set (#485).
   similarExclude?: string[];
+  // Artist slugs (#709); any of them matches, by credit rather than the string.
+  artists?: string[];
 }
 
 type SearchPage = TrackSearchResponse;
@@ -54,6 +56,7 @@ export function useSearchResults({
   includeSimilar,
   similarLimit,
   similarExclude,
+  artists,
 }: UseSearchResultsOptions) {
   const [query, setQuery] = useState("");
   const limit = limitOverride ?? DEFAULT_LIMIT;
@@ -104,6 +107,7 @@ export function useSearchResults({
   // Keyword keys stay as they were, so existing cache predicates still match.
   const searchModeKey = searchMode === "lexical" ? {} : { searchMode };
   const genreKey = genres && genres.length > 0 ? { genre: genres } : {};
+  const artistKey = artists && artists.length > 0 ? { artist: artists } : {};
   const attributeKey =
     attributes && Object.values(attributes).some((v) => v !== undefined) ? { attributes } : {};
   const similarKey = includeSimilar
@@ -118,6 +122,7 @@ export function useSearchResults({
       mode,
       ...searchModeKey,
       ...genreKey,
+      ...artistKey,
       ...attributeKey,
       ...similarKey,
     }),
@@ -135,6 +140,7 @@ export function useSearchResults({
         include_similar: includeSimilar,
         similar_limit: similarLimit,
         similar_exclude: similarExclude,
+        artist: artists,
         ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
@@ -146,6 +152,7 @@ export function useSearchResults({
         limit,
         processingTimeMs: res.processingTimeMs ?? 0,
         added_genres: res.added_genres,
+        filter_artists: res.filter_artists,
       };
     },
     getNextPageParam: (last: SearchPage) => {
@@ -166,6 +173,7 @@ export function useSearchResults({
       page: page ?? 1,
       ...searchModeKey,
       ...genreKey,
+      ...artistKey,
       ...attributeKey,
       ...similarKey,
     }),
@@ -184,6 +192,7 @@ export function useSearchResults({
         include_similar: includeSimilar,
         similar_limit: similarLimit,
         similar_exclude: similarExclude,
+        artist: artists,
         ...attributes,
       });
       // Safety net: enforce friend scoping client-side too in case index/filter drifted.
@@ -193,6 +202,7 @@ export function useSearchResults({
         estimatedTotalHits: res.estimatedTotalHits || 0,
         offset,
         added_genres: res.added_genres,
+        filter_artists: res.filter_artists,
         limit,
         processingTimeMs: res.processingTimeMs ?? 0,
       };
@@ -214,6 +224,8 @@ export function useSearchResults({
   const estimatedResults = pages[0]?.estimatedTotalHits ?? 0;
   // Genres `includeSimilar` added beyond the plain genre filter (#485).
   const addedGenres: AddedGenreRef[] = pages[0]?.added_genres ?? [];
+  // The artists an artist filter resolved to (#709), for naming its chips.
+  const filterArtists: ArtistFilterRef[] = pages[0]?.filter_artists ?? [];
 
   // Populate Zustand store when results change - only tracks that are new or
   // whose server data changed. setTracks keeps local edits (rating, notes).
@@ -322,6 +334,7 @@ export function useSearchResults({
     trackInfo, // New: track info for components to read from store
     playlistCounts: countsQuery.data ?? {},
     addedGenres,
+    filterArtists,
 
     // status
     hasMore,

@@ -23,6 +23,7 @@ import {
 } from "@/server/repositories/trackGenreRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
+import { resolveArtistFilter, unknownArtistsError } from "@/server/artists/artistFilter";
 
 export { parseTrackFilter } from "@/server/services/trackSearchWhere";
 
@@ -230,6 +231,7 @@ export async function GET(request: NextRequest) {
       include_similar,
       similar_limit,
       similar_exclude,
+      artist,
     } = parsedQuery.data;
     if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
       return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
@@ -250,6 +252,13 @@ export async function GET(request: NextRequest) {
     }
     if (genreResolution.filter) attributes.genreFilter = genreResolution.filter;
     const addedGenres = genreResolution.added ?? [];
+    const artistResolution = await resolveArtistFilter(artist ?? []);
+    if (artistResolution.unknown) {
+      return NextResponse.json(unknownArtistsError(artistResolution.unknown), { status: 400 });
+    }
+    if (artistResolution.ids) attributes.artistIds = artistResolution.ids;
+    const filterArtists =
+      artistResolution.ids !== undefined ? { filter_artists: artistResolution.artists } : {};
     if (mode !== "lexical" && (offset > 0 || limit > SEMANTIC_MAX_LIMIT)) {
       return NextResponse.json(
         {
@@ -283,6 +292,7 @@ export async function GET(request: NextRequest) {
         mode: result.mode,
         ...(result.degraded ? { degraded: true } : {}),
         ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
+        ...filterArtists,
       });
       return NextResponse.json(validated);
     }
@@ -300,6 +310,7 @@ export async function GET(request: NextRequest) {
       hits: credited.map(toWireRow),
       ...(mode === "lexical" ? {} : { mode: "lexical" }),
       ...(addedGenres.length > 0 ? { added_genres: addedGenres } : {}),
+      ...filterArtists,
     });
     return NextResponse.json(validated);
   } catch (error: any) {

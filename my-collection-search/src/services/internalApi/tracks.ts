@@ -101,11 +101,13 @@ type RecommendationCandidate = z.infer<typeof recommendationsResponseSchema>["ca
 // schema, so their input types would be `unknown`.
 export type TrackSearchQuery = Omit<
   z.input<typeof trackSearchGetQuerySchema>,
-  "genre" | "similar_exclude" | keyof TrackAttributeFilters
+  "genre" | "similar_exclude" | "artist" | keyof TrackAttributeFilters
 > &
   TrackAttributeFilters & {
     /** Genre slugs (#375); any of them matches, each with its subgenres. */
     genre?: string[];
+    /** Artist slugs (#709); any of them matches, by credit. */
+    artist?: string[];
     /** Related-genre ids already removed by the caller (#485); never re-added. */
     similar_exclude?: string[];
   };
@@ -518,6 +520,7 @@ export async function searchTracks(query: TrackSearchQuery): Promise<TrackSearch
   if (typeof query.similar_limit === "number")
     params.set("similar_limit", String(query.similar_limit));
   for (const id of query.similar_exclude ?? []) params.append("similar_exclude", id);
+  for (const artist of query.artist ?? []) params.append("artist", artist);
 
   const search = params.toString();
   const path = search ? `/api/tracks/search?${search}` : "/api/tracks/search";
@@ -532,12 +535,13 @@ export async function searchTracks(query: TrackSearchQuery): Promise<TrackSearch
  * return if added to `q` and `filter`. Subgenres are included.
  */
 export async function fetchTrackGenreFacets(
-  query: { q?: string; filter?: string } & TrackAttributeFilters,
+  query: { q?: string; filter?: string; artist?: string[] } & TrackAttributeFilters,
 ): Promise<TrackGenreFacetsResponse> {
   const params = new URLSearchParams();
   if (query.q) params.set("q", query.q);
   if (query.filter) params.set("filter", query.filter);
   setAttributeParams(params, query);
+  for (const artist of query.artist ?? []) params.append("artist", artist);
   const search = params.toString();
   return await http<TrackGenreFacetsResponse>(
     search ? `/api/tracks/search/facets?${search}` : "/api/tracks/search/facets",

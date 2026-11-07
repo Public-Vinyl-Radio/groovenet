@@ -5,6 +5,7 @@ export type ArtistListOptions = {
   q: string;
   friend_id?: number;
   include_placeholders: boolean;
+  letter?: string;
   limit: number;
   offset: number;
 };
@@ -15,6 +16,7 @@ export async function listArtists(options: ArtistListOptions): Promise<ArtistLis
     q: options.q,
     friendId: options.friend_id,
     includePlaceholders: options.include_placeholders,
+    letter: options.letter,
   };
   const [items, total] = await Promise.all([
     artistListRepository.search(filter, options.limit, options.offset),

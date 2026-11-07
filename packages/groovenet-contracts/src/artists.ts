@@ -127,10 +127,15 @@ export type ArtistCollaborator = z.infer<typeof artistCollaboratorSchema>;
 export type ArtistPageResponse = z.infer<typeof artistPageResponseSchema>;
 
 /** `GET /api/artists` (#710): search the artist list, by name or any alias. */
+/** One A to Z index entry: a letter, or `#` for sort names that start with anything else. */
+export const artistIndexLetterSchema = z.string().regex(/^[A-Z#]$/, "letter must be A to Z or #");
+
 export const artistListQuerySchema = z.object({
   q: z.string().optional(),
   friend_id: z.number().int().optional(),
   include_placeholders: z.boolean().optional(),
+  /** The A to Z index (#709): sort names starting with this letter; `#` for anything else. */
+  letter: artistIndexLetterSchema.optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),
 });

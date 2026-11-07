@@ -15,3 +15,15 @@ it("returns the page and the total for the same filter", async () => {
   expect(repo.search).toHaveBeenCalledWith(filter, 5, 10);
   expect(repo.count).toHaveBeenCalledWith(filter);
 });
+
+it("passes the index letter through", async () => {
+  repo.search.mockResolvedValue([]);
+  repo.count.mockResolvedValue(0);
+  await listArtists({ q: "", include_placeholders: false, letter: "M", limit: 50, offset: 0 });
+  expect(repo.count).toHaveBeenCalledWith({
+    q: "",
+    friendId: undefined,
+    includePlaceholders: false,
+    letter: "M",
+  });
+});
