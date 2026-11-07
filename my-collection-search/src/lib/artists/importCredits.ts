@@ -15,13 +15,23 @@ export type ImportArtistCredit = {
   source: "discogs" | "legacy";
 };
 
+/** `The Strokes` files under S: `Strokes, The`. Anything else is its own sort name. */
+export function invertedSortName(name: string): string {
+  // A collaboration keeps its written order; only one artist inverts cleanly.
+  const match = name.includes("/") ? null : /^the\s+(\S.*)$/i.exec(name);
+  return match ? `${match[1]}, ${name.slice(0, 3)}` : name;
+}
+
 export function artistNames(raw: string): { name: string; sort_name: string } {
-  const sort_name = raw
+  const cleaned = raw
     .replace(/\(\d+\)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  // Discogs `artists[].name` is the plain `The Strokes`; only the release's
+  // `artists_sort` and old artist strings arrive inverted.
+  const sort_name = invertedSortName(cleaned);
   // Each segment may be inverted, including in an unsplit legacy collaboration.
-  const name = sort_name.replace(/(^|\s*\/\s*)([^/]+?),\s*The\b/g, "$1The $2");
+  const name = cleaned.replace(/(^|\s*\/\s*)([^/]+?),\s*The\b/g, "$1The $2");
   return { name, sort_name };
 }
 

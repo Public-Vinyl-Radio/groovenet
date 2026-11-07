@@ -22,6 +22,7 @@ const report = {
   tracks: counts,
   credits: { discogs: 0, legacy: 0 },
   artists: { matched_by_discogs_id: 0, matched_by_name: 0, created: 0 },
+  sort_names: { pending: 0, updated: 0 },
   review_queue: [],
   errors: [],
 };

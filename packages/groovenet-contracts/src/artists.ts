@@ -54,6 +54,8 @@ export const artistReconcileResponseSchema = z.object({
     matched_by_name: count,
     created: count,
   }),
+  /** Artists whose sort name is `The X` instead of `X, The`: found, and fixed on a real run. */
+  sort_names: z.object({ pending: count, updated: count }),
   /** Every string-only credit with a separator in scope, written or pending. */
   review_queue: z.array(artistReviewItemSchema),
   errors: z.array(

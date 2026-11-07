@@ -33,6 +33,7 @@ describe("artist reconcile contracts", () => {
       tracks: counts,
       credits: { discogs: 1, legacy: 3 },
       artists: { matched_by_discogs_id: 0, matched_by_name: 1, created: 3 },
+      sort_names: { pending: 2, updated: 0 },
       review_queue: [{ credited_as: "Earth, Wind & Fire", albums: 1, tracks: 2 }],
       errors: [{ kind: "track", id: "1-A1", message: "boom" }],
     };

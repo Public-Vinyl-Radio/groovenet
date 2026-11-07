@@ -31,6 +31,7 @@ function report(overrides: Partial<ArtistReconcileResponse> = {}): ArtistReconci
     tracks: { pending: 20000, linked: 0, failed: 0 },
     credits: { discogs: 21000, legacy: 1500 },
     artists: { matched_by_discogs_id: 12000, matched_by_name: 8000, created: 2500 },
+    sort_names: { pending: 99, updated: 0 },
     review_queue: [{ credited_as: "Earth, Wind & Fire", albums: 2, tracks: 20 }],
     errors: [],
     ...overrides,
@@ -48,6 +49,7 @@ describe("formatArtistReconcile", () => {
     expect(text).toContain("Tracks: 20,000 to link");
     expect(text).toContain("21,000 from Discogs, 1,500 from the artist string");
     expect(text).toContain("12,000 matched by Discogs id, 8,000 by name or alias, 2,500 new");
+    expect(text).toContain('Sort names: 99 to file as "X, The"');
     expect(text).toContain("Review queue: 1");
 
     expect(text.replace(/\x1b\[[0-9;]*m/g, "")).toMatch(/Earth, Wind & Fire\W+2\W+20/);
@@ -68,6 +70,7 @@ describe("formatArtistReconcile", () => {
     expect(text).toContain("Artist reconcile — friend 6");
     expect(text).toContain("Albums: 2 linked of 2");
     expect(text).toContain("Tracks: 2 linked of 3, 1 failed");
+    expect(text).toContain('Sort names: 0 filed as "X, The" of 99');
     expect(text).toContain("Review queue: empty");
     expect(text).toContain("track 6:1-A1: locked");
     expect(text).not.toContain("Nothing");

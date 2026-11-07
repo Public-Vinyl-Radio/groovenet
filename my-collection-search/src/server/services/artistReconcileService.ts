@@ -1,5 +1,9 @@
 import type { ArtistReconcileRequest, ArtistReconcileResponse } from "@groovenet/contracts";
-import { importArtistCredits, type ImportArtistCredit } from "@/lib/artists/importCredits";
+import {
+  importArtistCredits,
+  invertedSortName,
+  type ImportArtistCredit,
+} from "@/lib/artists/importCredits";
 import { albumArtistBaseline, ArtistResolutionTally, ReviewQueue } from "@/lib/artists/reconcile";
 import { artistImportRepository } from "@/server/repositories/artistImportRepository";
 import { artistReconcileRepository } from "@/server/repositories/artistReconcileRepository";
@@ -94,6 +98,10 @@ export async function reconcileArtists(
     return { track, credits: plan(list, "track") };
   });
 
+  const uninverted = (await repo.listUninvertedArtists()).filter(
+    (a) => invertedSortName(a.name) !== a.name,
+  );
+
   const result: ArtistReconcileResponse = {
     dry_run: dryRun,
     friend_id: friendId,
@@ -102,6 +110,7 @@ export async function reconcileArtists(
     tracks: { pending: tracks.length, linked: 0, failed: 0 },
     credits,
     artists: tally.counts,
+    sort_names: { pending: uninverted.length, updated: 0 },
     review_queue: review.list(),
     errors: [],
   };
@@ -132,5 +141,18 @@ export async function reconcileArtists(
       fail("track", `${track.friend_id}:${track.track_id}`, error);
     }
   }
+  // After linking, which already fixes what it matches; this takes the rest.
+  for (const artist of uninverted)
+    try {
+      if (await repo.setSortName(artist.id, invertedSortName(artist.name)))
+        result.sort_names.updated++;
+    } catch (error) {
+      if (result.errors.length < MAX_ERRORS)
+        result.errors.push({
+          kind: "album",
+          id: `artist:${artist.id}`,
+          message: error instanceof Error ? error.message : String(error),
+        });
+    }
   return result;
 }

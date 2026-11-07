@@ -69,6 +69,26 @@ export class ArtistReconcileRepository {
     return rows;
   }
 
+  /** Unreviewed artists still filed under `The X`; a reviewed sort name is a decision. */
+  async listUninvertedArtists(): Promise<{ id: number; name: string }[]> {
+    const { rows } = await dbQuery<{ id: number; name: string }>(
+      `SELECT id, name FROM artists
+       WHERE NOT reviewed AND merged_into IS NULL AND sort_name = name AND name ~* '^the\\s+\\S'
+       ORDER BY id`,
+    );
+    return rows;
+  }
+
+  /** Guarded again in SQL, so a review landing mid-run still wins. */
+  async setSortName(id: number, sortName: string): Promise<boolean> {
+    const { rowCount } = await dbQuery(
+      `UPDATE artists SET sort_name = $2, updated_at = now()
+       WHERE id = $1 AND NOT reviewed AND sort_name = name`,
+      [id, sortName],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
   async listKnownArtists(): Promise<{
     discogsIds: string[];
     aliases: { alias_normalized: string; has_discogs_id: boolean; reviewed?: boolean }[];

@@ -7,6 +7,8 @@ const repo = vi.hoisted(() => ({
   listUncreditedTracks: vi.fn(),
   countLegacyCredits: vi.fn(),
   listKnownArtists: vi.fn(),
+  listUninvertedArtists: vi.fn(),
+  setSortName: vi.fn(),
 }));
 const writes = vi.hoisted(() => ({ importAlbumCredits: vi.fn(), importTrackCredits: vi.fn() }));
 const files = vi.hoisted(() => ({ getReleasePath: vi.fn(), loadAlbum: vi.fn() }));
@@ -71,6 +73,8 @@ beforeEach(() => {
       : [{ credited_as: "Solo", count: 5 }],
   );
   repo.listKnownArtists.mockResolvedValue({ discogsIds: [], aliases: [] });
+  repo.listUninvertedArtists.mockResolvedValue([]);
+  repo.setSortName.mockResolvedValue(true);
   files.getReleasePath.mockImplementation((_user: string, id: string) =>
     id === "37417227" ? "/exports/release_37417227.json" : null,
   );
@@ -103,6 +107,7 @@ describe("reconcileArtists", () => {
       // Structured artists for the release's album and its A1; strings for the rest.
       credits: { discogs: 4, legacy: 4 },
       artists: { matched_by_discogs_id: 2, matched_by_name: 1, created: 5 },
+      sort_names: { pending: 0, updated: 0 },
       review_queue: [
         { credited_as: "A & B", albums: 2, tracks: 0 },
         { credited_as: "Earth, Wind & Fire", albums: 1, tracks: 1 },
@@ -148,6 +153,36 @@ describe("reconcileArtists", () => {
       6,
       [expect.objectContaining({ name: "Somebody", source: "legacy" })],
     ]);
+  });
+
+  it("counts artists filed under The X on a dry run and fixes them on a real one", async () => {
+    repo.listUninvertedArtists.mockResolvedValue([
+      { id: 66, name: "The Strokes" },
+      { id: 67, name: "The Heptones / Jackie Mittoo" },
+      { id: 68, name: "The Black Keys" },
+    ]);
+    repo.setSortName.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    expect((await reconcileArtists({ dry_run: true })).sort_names).toEqual({
+      pending: 2,
+      updated: 0,
+    });
+    expect(repo.setSortName).not.toHaveBeenCalled();
+
+    const result = await reconcileArtists({});
+    expect(repo.setSortName).toHaveBeenCalledWith(66, "Strokes, The");
+    expect(repo.setSortName).toHaveBeenCalledWith(68, "Black Keys, The");
+    expect(result.sort_names).toEqual({ pending: 2, updated: 1 });
+  });
+
+  it("reports a failed sort name update without stopping", async () => {
+    repo.listUninvertedArtists.mockResolvedValue([
+      { id: 66, name: "The Strokes" },
+      { id: 68, name: "The Black Keys" },
+    ]);
+    repo.setSortName.mockRejectedValueOnce(new Error("locked")).mockRejectedValueOnce("odd");
+    const result = await reconcileArtists({});
+    expect(result.sort_names.updated).toBe(0);
+    expect(result.errors.map((e) => e.message)).toEqual(["locked", "odd"]);
   });
 
   it("does no work on a second run and keeps listing the review queue", async () => {

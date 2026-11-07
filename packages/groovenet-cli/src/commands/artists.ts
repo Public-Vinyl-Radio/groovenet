@@ -46,6 +46,12 @@ export function formatArtistReconcile(result: ArtistReconcileResponse): string[]
       `${n(artists.matched_by_name)} by name or alias, ${n(artists.created)} new`,
   );
 
+  lines.push(
+    result.dry_run
+      ? `  Sort names: ${n(result.sort_names.pending)} to file as "X, The"`
+      : `  Sort names: ${n(result.sort_names.updated)} filed as "X, The" of ${n(result.sort_names.pending)}`,
+  );
+
   if (result.review_queue.length === 0) {
     lines.push(chalk.green("  Review queue: empty"));
   } else {

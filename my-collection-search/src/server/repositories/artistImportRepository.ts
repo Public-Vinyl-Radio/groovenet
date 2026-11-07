@@ -132,7 +132,17 @@ export class ArtistImportRepository {
         ],
       );
       id = created.rows[0].id;
-    } else if (credit.discogs_artist_id) {
+    } else {
+      // An artist first created from a plain `The X` gets the inverted form once
+      // an import knows it. A reviewed artist's sort name is a decision; keep it.
+      if (credit.sort_name !== credit.name)
+        await db.query(
+          `UPDATE artists SET sort_name = $2 WHERE id = $1 AND NOT reviewed
+           AND sort_name = name AND sort_name <> $2`,
+          [id, credit.sort_name],
+        );
+    }
+    if (id != null && credit.discogs_artist_id) {
       await db.query(
         `UPDATE artists SET discogs_artist_id = $2 WHERE id = $1 AND discogs_artist_id IS NULL
          AND NOT EXISTS (SELECT 1 FROM artists WHERE discogs_artist_id = $2)`,
