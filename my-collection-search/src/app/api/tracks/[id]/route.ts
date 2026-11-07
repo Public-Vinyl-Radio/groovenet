@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toWireRow } from "@/lib/wireRow";
 import { trackDeleteResponseSchema, trackEntitySchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { withArtistCredits } from "@/server/services/artistCreditService";
 
 export async function DELETE(
   request: NextRequest,
@@ -66,7 +67,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
 
-    return NextResponse.json(trackEntitySchema.parse(toWireRow(track)));
+    const {
+      tracks: [credited],
+    } = await withArtistCredits([], [track]);
+    return NextResponse.json(trackEntitySchema.parse(toWireRow(credited)));
   } catch (error) {
     console.error("Error fetching track by id & friend_id:", error);
     return NextResponse.json({ error: "Failed to fetch track" }, { status: 500 });

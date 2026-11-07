@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { artistCreditsFieldSchema } from "./artistCredits.js";
 
 /** A taxonomy genre as linked to a track, with its parent for display (#371). */
 export const trackGenreSchema = z.object({
@@ -95,6 +96,7 @@ const trackShape = z.object({
   isrc: z.string().nullable().optional(),
   title: z.string(),
   artist: z.string(),
+  artists: artistCreditsFieldSchema,
   album: z.string().nullable(),
   year: z.union([z.string(), z.number()]).nullable().optional(),
   styles: z.array(z.string()).nullable().optional(),

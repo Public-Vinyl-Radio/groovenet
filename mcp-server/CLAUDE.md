@@ -34,6 +34,9 @@ Tools, grouped:
 - **albums** — `search_albums`, `get_album`, `update_album`, `download_album`
 - **playlists** — `list_playlists`, `get_playlist`, `get_playlist_tracks`,
   `check_playlist`, `create_playlist`, `generate_ai_playlist`
+- **artists** — `search_artists`, `get_artist`, `get_artist_albums` (one
+  friend's collection, `DEFAULT_FRIEND_ID` unless `friend_id` or
+  `all_friends`; compact summaries, not whole entities)
 - **friends** — `get_friends`, `add_friend`
 - **discovery** — `get_recommendations`, `find_similar_identity`,
   `find_similar_vibe`, `get_similar_genres`

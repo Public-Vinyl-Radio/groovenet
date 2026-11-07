@@ -446,8 +446,15 @@ export type {
   OrphansResponse,
 } from "@groovenet/contracts";
 
-// Artist reconcile (#705).
+// Artists (#705, #707, #710).
 export type {
+  ArtistCollaborator,
+  ArtistCreditRef,
+  ArtistCreditRole,
+  ArtistListItem,
+  ArtistListQuery,
+  ArtistListResponse,
+  ArtistPageResponse,
   ArtistReconcileRequest,
   ArtistReconcileResponse,
   ArtistReviewItem,

@@ -3,6 +3,7 @@ import { albumDeleteResponseSchema, albumDetailResponseSchema } from "@/api-cont
 import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { albumRepository } from "@/server/repositories/albumRepository";
+import { withArtistCredits } from "@/server/services/artistCreditService";
 import { withDbTransaction } from "@/lib/serverDb";
 import { analytics } from "@/lib/analytics/server";
 
@@ -32,10 +33,11 @@ export async function GET(
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
+    const credited = await withArtistCredits([detail.album], detail.tracks);
     return NextResponse.json(
       albumDetailResponseSchema.parse({
-        album: toWireRow(detail.album),
-        tracks: detail.tracks.map(toWireRow),
+        album: toWireRow(credited.albums[0]),
+        tracks: credited.tracks.map(toWireRow),
       }),
     );
   } catch (error) {

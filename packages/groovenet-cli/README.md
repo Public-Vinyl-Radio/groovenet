@@ -6,6 +6,20 @@ See the [CLI guide and reference](https://groovenet.publicvinylradio.com/docs/cl
 
 For development, see [CLAUDE.md](CLAUDE.md).
 
+### Browsing artists
+
+`list` searches by name or any alias; `show` prints counts, other spellings,
+genres, collaborators, albums and top tracks; `albums` lists credited albums
+first, then compilations the artist appears on (with side positions). All
+three scope to `default_friend_id` unless `--friend-id` or `--all-friends`.
+
+```sh
+groovenet artists list mirlos
+groovenet artists list --all-friends --placeholders --limit 100 --json
+groovenet artists show los-mirlos
+groovenet artists albums los-mirlos --json
+```
+
 ### Artist review
 
 Artists are shared across every friend's collection. Review unresolved legacy

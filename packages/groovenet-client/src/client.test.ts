@@ -2408,6 +2408,34 @@ describe("GroovenetClient artist reconcile", () => {
   });
 });
 
+describe("GroovenetClient artists (#710)", () => {
+  it("searches artists with the query as params", async () => {
+    const client = clientReturning({ items: [], total: 0, limit: 50, offset: 0, query: "" });
+    expect((await client.searchArtists()).total).toBe(0);
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/artists", params: {} }),
+    );
+    await client.searchArtists({ q: "mirlos", friend_id: 6, include_placeholders: true, limit: 5 });
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        params: { q: "mirlos", friend_id: 6, include_placeholders: true, limit: 5 },
+      }),
+    );
+  });
+
+  it("gets one artist by encoded slug, scoped to a friend", async () => {
+    const client = clientReturning({ artist: { slug: "a/b" } });
+    expect((await client.getArtist("a/b", 6)).artist.slug).toBe("a/b");
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/artists/a%2Fb", params: { friend_id: 6 } }),
+    );
+    await client.getArtist("los-mirlos");
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ url: "/artists/los-mirlos" }),
+    );
+  });
+});
+
 describe("artist review", () => {
   it("lists queue pages and specific artist evidence", async () => {
     const client = clientReturning({ items: [] });

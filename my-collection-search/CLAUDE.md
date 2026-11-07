@@ -1053,6 +1053,19 @@ and empty, and the page redirects to the album search. Collaborators never
 include placeholders. Entities go to the Zustand stores; React Query keeps refs.
 Artist-name links across the app (`artistHref`) are #708.
 
+## Artists in the API (#710)
+
+`GET /api/artists` searches by name or any alias (`artistListRepository`):
+exact name or alias matches first, then sort name; merged artists and, unless
+`include_placeholders`, placeholders are hidden. With `friend_id` it lists only
+artists credited in that collection and counts there. `album_count` is album
+credits; `track_count` is direct track credits only.
+
+Album detail and track detail responses carry `artists`, the structured
+credits (`withArtistCredits`, one batched query per kind): a track's own
+credits, else its album's, the artist page's rule. `artist` stays the display
+string. Search and list responses do not load credits.
+
 ## Artist reconcile (#705)
 
 `POST /api/artists/reconcile` (`groovenet artists reconcile`) backfills

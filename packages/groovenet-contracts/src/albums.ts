@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { artistCreditsFieldSchema } from "./artistCredits.js";
 import { genreFilterRefSchema, trackSchema } from "./tracks.js";
 
 export const albumArtSourceSchema = z.enum(["discogs", "apple_music", "upload"]);
@@ -30,6 +31,7 @@ const albumShape = z.object({
   username: z.string().optional(),
   title: z.string(),
   artist: z.string(),
+  artists: artistCreditsFieldSchema,
   year: z.union([z.string(), z.number()]).nullable().optional(),
   genres: z.array(z.string()).nullable().optional(),
   styles: z.array(z.string()).nullable().optional(),
