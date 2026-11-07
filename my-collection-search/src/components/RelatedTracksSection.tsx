@@ -1,258 +1,141 @@
 "use client";
 
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
-import { LuChevronDown } from "react-icons/lu";
-import { useQuery } from "@tanstack/react-query";
-import type { Track } from "@/types/track";
-import { RelatedTrackList, RelatedTrackTable } from "@/components/RelatedTrackRows";
-import TrackActionsMenu from "@/components/TrackActionsMenu";
-import { analytics } from "@/lib/analytics/client";
-import { useRecommendationsQuery } from "@/hooks/useRecommendations";
-import { useSimilarTracks } from "@/hooks/useSimilarTracks";
-import { useSimilarVibeTracks } from "@/hooks/useSimilarVibeTracks";
-import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import SuggestionRow, { SuggestionFoldRow } from "@/components/SuggestionRow";
+import SuggestionPlaylistMenu from "@/components/SuggestionPlaylistMenu";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
-import { fetchTracksByIds, type TrackBatchRef } from "@/services/internalApi/tracks";
-import { blendSuggestionSources, rankSuggestions } from "@/lib/rankSuggestions";
+import { useRecommendationsQuery } from "@/hooks/useRecommendations";
+import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import { analytics } from "@/lib/analytics/client";
+import { rankSuggestions } from "@/lib/rankSuggestions";
+import type { Track } from "@/types/track";
 
-type Props = {
-  track: Track;
-};
-
-type SourceType = "ai" | "similar" | "vibe";
-type MergedTrack = Track & { _sources: SourceType[]; _score: number; distance?: number };
-
-function keyOf(track: Pick<Track, "track_id" | "friend_id">): string {
-  return `${track.track_id}:${track.friend_id}`;
-}
-
-/** Rows added by each "Show more". */
+const keyOf = (track: Pick<Track, "track_id" | "friend_id">) =>
+  `${track.track_id}:${track.friend_id}`;
 const PAGE_SIZE = 20;
 
-export default function RelatedTracksSection({ track }: Props) {
-  // Phones start shorter: each row is taller than a table row.
+export default function RelatedTracksSection({ track }: { track: Track }) {
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
-  const initialCount = isMobile ? 5 : PAGE_SIZE;
   const [extra, setExtra] = useState(0);
-
-  const suggestionScope = useSuggestionScope();
-  const { scope, libraryFriendId, ready } = suggestionScope;
-
-  const recQuery = useRecommendationsQuery([track], 60, { scope, libraryFriendId, enabled: ready });
-  const similarQuery = useSimilarTracks({
-    track_id: track.track_id,
-    friend_id: track.friend_id,
-    limit: 60,
+  const [compatibleKey, setCompatibleKey] = useState(true);
+  const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [added, setAdded] = useState<string[]>([]);
+  const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useRecommendationsQuery([track], 100, {
     scope,
-    library_friend_id: libraryFriendId,
+    libraryFriendId,
     enabled: ready,
   });
-  const vibeQuery = useSimilarVibeTracks({
-    track_id: track.track_id,
-    friend_id: track.friend_id,
-    limit: 60,
-    scope,
-    library_friend_id: libraryFriendId,
-    enabled: ready,
+  const ranked = rankSuggestions(data, {
+    seed: track,
+    filters: { compatibleKey, bpmWithinSixPercent },
   });
-
-  const ranked = useMemo(() => {
-    const recs = recQuery.data ?? [];
-    const similar = similarQuery.data?.tracks ?? [];
-    const vibes = vibeQuery.data?.tracks ?? [];
-    const blend = blendSuggestionSources<Track & { distance?: number }>([
-      {
-        name: "ai",
-        tracks: recs,
-        score: (_item, idx, count) => 0.8 * (1 - idx / Math.max(count, 1)),
-      },
-      {
-        name: "similar",
-        tracks: similar,
-        score: (item, idx, count) =>
-          Math.max(0, 1 - (item.distance ?? 1)) * 0.75 + (1 - idx / Math.max(count, 1)) * 0.25,
-      },
-      {
-        name: "vibe",
-        tracks: vibes,
-        score: (item, idx, count) =>
-          Math.max(0, 1 - (item.distance ?? 1)) * 0.75 + (1 - idx / Math.max(count, 1)) * 0.25,
-      },
-    ]);
-    const result = rankSuggestions(blend, {
-      seed: track,
-      filters: { compatibleKey: true, bpmWithinSixPercent: true },
-    });
-    return {
-      ...result,
-      tracks: result.tracks.map((item) => ({
-        ...item,
-        _sources: ((item as Track & { _sources?: SourceType[] })._sources ?? []) as SourceType[],
-        _score: (item as Track & { _score?: number })._score ?? 0,
-      })),
-    };
-  }, [track, recQuery.data, similarQuery.data, vibeQuery.data]);
-  const merged = ranked.tracks;
-
-  const hydrateRefs = useMemo<TrackBatchRef[]>(
-    () =>
-      merged.map((t) => ({
-        track_id: t.track_id,
-        friend_id: t.friend_id,
-      })),
-    [merged],
-  );
-
-  const hydratedQuery = useQuery({
-    queryKey: ["related-tracks-hydrated", hydrateRefs],
-    queryFn: async () => {
-      if (hydrateRefs.length === 0) return [] as Track[];
-      return await fetchTracksByIds(hydrateRefs);
-    },
-    enabled: hydrateRefs.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const hydratedByKey = useMemo(() => {
-    const map = new Map<string, Track>();
-    for (const t of hydratedQuery.data ?? []) {
-      map.set(keyOf(t), t);
-    }
-    return map;
-  }, [hydratedQuery.data]);
-
-  const resolved = useMemo<MergedTrack[]>(
-    () =>
-      merged.map((item) => {
-        const hydrated = hydratedByKey.get(keyOf(item));
-        if (!hydrated) return item;
-        return {
-          ...item,
-          ...hydrated,
-          _sources: item._sources,
-          _score: item._score,
-        };
-      }),
-    [merged, hydratedByKey],
-  );
-
-  const shownCount = initialCount + extra;
-  const displayTracks = resolved.slice(0, shownCount);
-  const remaining = resolved.length - displayTracks.length;
-  // Disabled queries don't count as loading, so cover the wait for the saved scope too.
-  const isLoading = !ready || recQuery.isLoading || similarQuery.isLoading || vibeQuery.isLoading;
-  const hasError = recQuery.error || similarQuery.error || vibeQuery.error;
-
-  const renderActions = (item: Track, index: number) => (
-    <TrackActionsMenu
-      track={item}
-      onAction={(action) =>
-        analytics.track("recommendation_acted_on", {
-          track_id: item.track_id,
-          action,
-          rank: index + 1,
-          sources: (item as MergedTrack)._sources,
-        })
-      }
-    />
-  );
-
-  const rowProps = {
-    base: track,
-    tracks: displayTracks,
-    // Only meaningful cross-library ("All libraries"): every row is the
-    // browsed library's own otherwise, so the name is just repeated noise.
-    showUsername: scope === "all",
-    renderActions,
-  };
+  const rows = [
+    ...ranked.tracks,
+    ...ranked.folds.filter((group) => expanded.includes(group.release)).flatMap((g) => g.tracks),
+  ];
+  const shown = rows.slice(0, (isMobile ? 5 : PAGE_SIZE) + extra);
+  const remaining = rows.length - shown.length;
 
   return (
-    <Box as="section" aria-labelledby="related-tracks-heading" mt={6}>
-      <Flex align="flex-end" justify="space-between" wrap="wrap" mb={3} gap={3}>
-        <Box minW={0}>
-          <Flex align="baseline" gap={2.5}>
-            <SectionHeading id="related-tracks-heading">Related tracks</SectionHeading>
-            {!isLoading && !hasError && merged.length > 0 && (
-              <Text
-                fontFamily="label"
-                fontSize="11px"
-                letterSpacing="0.08em"
-                textTransform="uppercase"
-                color="fg.muted"
-              >
-                {displayTracks.length} of {merged.length}
-              </Text>
-            )}
-          </Flex>
-        </Box>
-        <Box flexShrink={0} w={{ base: "full", md: "auto" }} css={{ "& > div": { width: "100%" } }}>
-          <SuggestionScopeToggle value={scope} onChange={suggestionScope.setScope} />
-        </Box>
+    <Box as="section" aria-labelledby="suggestions-heading" mt={6}>
+      <SectionHeading id="suggestions-heading">Suggestions</SectionHeading>
+      <Text color="fg.muted" fontSize="sm" mb={3}>
+        Tracks that could follow this one
+      </Text>
+      <Flex gap={2} wrap="wrap" align="center" mb={3}>
+        <Button
+          size="xs"
+          aria-pressed={compatibleKey}
+          variant={compatibleKey ? "solid" : "outline"}
+          colorPalette="neutral"
+          onClick={() => setCompatibleKey((value) => !value)}
+        >
+          Compatible key
+        </Button>
+        <Button
+          size="xs"
+          aria-pressed={bpmWithinSixPercent}
+          variant={bpmWithinSixPercent ? "solid" : "outline"}
+          colorPalette="neutral"
+          onClick={() => setBpmWithinSixPercent((value) => !value)}
+        >
+          BPM ±6%
+        </Button>
+        <SuggestionScopeToggle value={scope} onChange={setScope} />
       </Flex>
-
-      {isLoading ? (
+      {!ready || isLoading ? (
         <Flex align="center" gap={3} py={4}>
           <Spinner size="sm" />
-          <Text fontSize="sm">Loading related tracks...</Text>
+          <Text fontSize="sm">Loading suggestions...</Text>
         </Flex>
-      ) : hasError ? (
+      ) : error ? (
         <Text color="fg.error" fontSize="sm">
-          Could not load related tracks.
+          Could not load suggestions.
         </Text>
-      ) : displayTracks.length === 0 ? (
-        <>
-          {ranked.hiddenByFilters > 0 && (
-            <Text color="fg.muted" fontSize="sm" mb={2}>
-              {ranked.hiddenByFilters} hidden by filters
-            </Text>
-          )}
-          <Text color="fg.muted" fontSize="sm">
-            {scope === "library"
-              ? "No related tracks in this library. Try All libraries."
-              : "No related tracks found."}
-          </Text>
-        </>
       ) : (
         <>
-          {ranked.hiddenByFilters > 0 && (
-            <Text color="fg.muted" fontSize="sm" mb={2}>
-              {ranked.hiddenByFilters} hidden by filters
+          <Text color="fg.muted" fontSize="12px" role="status" mb={2}>
+            {shown.length} of {rows.length}
+            {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
+          </Text>
+          {shown.length === 0 && (
+            <Text color="fg.muted" fontSize="sm">
+              {scope === "library"
+                ? "No suggestions in this library. Try All libraries."
+                : "No suggestions found."}
             </Text>
           )}
-          {isMobile ? <RelatedTrackList {...rowProps} /> : <RelatedTrackTable {...rowProps} />}
-          {ranked.folds.map((group) => (
-            <details key={group.release}>
-              <summary>
-                +{group.tracks.length} more from {group.release}
-              </summary>
-              {group.tracks.map((item) => (
-                <Text
-                  key={`${item.track_id}:${item.friend_id}`}
-                  color="fg.muted"
-                  fontSize="sm"
-                  pl={4}
-                  py={1}
-                >
-                  {item.title} — {item.artist}
-                </Text>
+          <Flex as="ul" direction="column" gap={2} m={0} p={0}>
+            {shown.map((item, index) => (
+              <SuggestionRow
+                key={keyOf(item)}
+                seed={track}
+                track={item}
+                added={added.includes(keyOf(item))}
+                addAction={
+                  <SuggestionPlaylistMenu
+                    track={item}
+                    onAdded={() => {
+                      setAdded((keys) => [...keys, keyOf(item)]);
+                      analytics.track("recommendation_acted_on", {
+                        track_id: item.track_id,
+                        action: "added_to_playlist",
+                        rank: index + 1,
+                        sources: ["ai"],
+                      });
+                    }}
+                  />
+                }
+              />
+            ))}
+            {ranked.folds
+              .filter((group) => !expanded.includes(group.release))
+              .map((group) => (
+                <SuggestionFoldRow
+                  key={group.release}
+                  count={group.tracks.length}
+                  source={group.release}
+                  onExpand={() => setExpanded((groups) => [...groups, group.release])}
+                />
               ))}
-            </details>
-          ))}
-
+          </Flex>
           {remaining > 0 && (
-            <Flex justify="center" mt={4}>
-              <Button
-                variant="outline"
-                w={{ base: "full", md: "auto" }}
-                minH={{ base: "44px", md: undefined }}
-                onClick={() => setExtra((n) => n + PAGE_SIZE)}
-              >
-                <LuChevronDown />
-                Show {Math.min(PAGE_SIZE, remaining)} more
-              </Button>
-            </Flex>
+            <Button
+              mt={4}
+              w={{ base: "full", md: "auto" }}
+              minH="44px"
+              onClick={() => setExtra((n) => n + PAGE_SIZE)}
+            >
+              Show {Math.min(PAGE_SIZE, remaining)} more
+            </Button>
           )}
         </>
       )}
