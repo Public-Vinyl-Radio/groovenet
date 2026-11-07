@@ -1,3 +1,5 @@
+import type { ImportArtistCredit } from "@/lib/artists/importCredits";
+
 /**
  * A track row as the Discogs sync builds it from a release export, before it is
  * upserted into Postgres. Server-internal: no HTTP route exposes it (the only
@@ -5,6 +7,7 @@
  * `@groovenet/contracts`), so it is not a shared contract.
  */
 export interface DiscogsTrack {
+  artist_credits?: ImportArtistCredit[];
   track_id: string;
   release_id?: string; // Discogs release ID for linking to albums
   title: string;

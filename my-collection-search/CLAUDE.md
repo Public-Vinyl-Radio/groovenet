@@ -1014,3 +1014,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Artist import credits
+
+Discogs import carries structured artist ids into `album_artists` and
+`track_artists`; tracks inherit release credits only when they have no own
+artists. `source = 'legacy'` flags string-only credits for review, including
+imports without a Discogs payload. Never split these strings on punctuation.
+`Various` and `Unknown Artist` have `is_placeholder = true`.
+
+The review tool must write reviewed credit sets with `source = 'manual'` when
+merging or splitting identities. Import preserves the entire credit set if any
+manual credit exists, so a re-import cannot undo a review or recreate the
+merged source artist. Automatic replacement owns only `discogs` and `legacy`
+credits; canonical names and existing aliases stay under review-tool control.

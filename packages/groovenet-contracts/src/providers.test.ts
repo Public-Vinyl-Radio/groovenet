@@ -109,3 +109,17 @@ describe("provider contracts", () => {
     });
   });
 });
+
+it("preserves Discogs artist ids and joins on releases and tracks", () => {
+  const artists = [
+    { name: "Mexican Institute Of Sound", id: 100, join: "," },
+    { name: "Meridian brothers", id: "200" },
+  ];
+  const parsed = discogsReleaseSchema.parse({
+    ...release,
+    artists,
+    tracklist: [{ ...release.tracklist[0], artists }],
+  });
+  expect(parsed.artists).toEqual(artists);
+  expect(parsed.tracklist[0].artists).toEqual(artists);
+});

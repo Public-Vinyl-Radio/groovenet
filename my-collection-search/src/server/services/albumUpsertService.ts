@@ -4,9 +4,16 @@ import type { Album } from "@/types/track";
 import { albumRepository, type AlbumUpsertInput } from "@/server/repositories/albumRepository";
 import { friendRepository } from "@/server/repositories/friendRepository";
 
+import {
+  artistNames,
+  importArtistCredits,
+  type ImportArtistCredit,
+} from "@/lib/artists/importCredits";
+import { artistImportRepository } from "@/server/repositories/artistImportRepository";
+
 type Queryable = Pick<PoolClient, "query">;
 
-export type AlbumToUpsert = AlbumUpsertInput;
+export type AlbumToUpsert = AlbumUpsertInput & { artist_credits?: ImportArtistCredit[] };
 
 /**
  * Get or create friend_id for a username
@@ -18,20 +25,17 @@ async function getFriendId(username: string): Promise<number> {
 /**
  * Convert a Discogs release to an AlbumToUpsert object
  */
-function stripDiscogsNumbering(name: string): string {
-  return name.replace(/\s*\(\d+\)\s*$/, "").trim();
-}
-
 export function discogsReleaseToAlbum(release: DiscogsRelease, friendId: number): AlbumToUpsert {
-  const artist = stripDiscogsNumbering(
+  const artist = artistNames(
     release.artists_sort || release.artists?.[0]?.name || "Unknown Artist",
-  );
+  ).name;
 
   return {
     release_id: String(release.id),
     friend_id: friendId,
     title: release.title,
     artist,
+    artist_credits: importArtistCredits(release.artists, artist),
     year: release.year?.toString(),
     genres: release.genres || [],
     styles: release.styles || [],
@@ -55,7 +59,13 @@ export async function upsertAlbum(
   album: AlbumToUpsert,
   options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
 ): Promise<Album> {
-  return albumRepository.upsertAlbumRecord(db, album, options);
+  const row = await albumRepository.upsertAlbumRecord(db, album, options);
+  await artistImportRepository.importAlbumCredits(
+    album.release_id,
+    album.friend_id,
+    album.artist_credits ?? importArtistCredits(undefined, album.artist),
+  );
+  return row;
 }
 
 /**
