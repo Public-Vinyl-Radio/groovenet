@@ -21,7 +21,9 @@ export type SuggestionRowProps = {
   seed: Track & ReasonSeed;
   track: Track & ReasonCandidate;
   /** What adding does is up to the surface. */
-  onAdd: (track: Track) => void;
+  onAdd?: (track: Track) => void;
+  /** A surface may supply an in-place playlist picker in place of the add button. */
+  addAction?: React.ReactNode;
   onPreview?: (track: Track) => void;
   /** Already added: the row shows ✓ ADDED and stays where it is. */
   added?: boolean;
@@ -65,6 +67,7 @@ export default function SuggestionRow({
   track,
   onAdd,
   onPreview,
+  addAction,
   added = false,
   compact = false,
 }: SuggestionRowProps) {
@@ -120,15 +123,17 @@ export default function SuggestionRow({
           <FiCheck aria-hidden /> ADDED
         </StatusTag>
       ) : (
-        <IconButton
-          variant="outline"
-          minW="44px"
-          h="44px"
-          aria-label={`Add ${track.title} after ${seed.title}`}
-          onClick={() => onAdd(track)}
-        >
-          <FiPlus />
-        </IconButton>
+        (addAction ?? (
+          <IconButton
+            variant="outline"
+            minW="44px"
+            h="44px"
+            aria-label={`Add ${track.title} after ${seed.title}`}
+            onClick={() => onAdd?.(track)}
+          >
+            <FiPlus />
+          </IconButton>
+        ))
       )}
     </Flex>
   );

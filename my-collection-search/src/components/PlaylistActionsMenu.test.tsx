@@ -2,7 +2,7 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
 import PlaylistActionsMenu from "./PlaylistActionsMenu";
 
 const handlers = () => ({
@@ -89,7 +89,7 @@ describe("PlaylistActionsMenu phone modal (#751)", () => {
     const sorting = screen.getAllByRole("button", { name: "Sorting..." }) as HTMLButtonElement[];
     expect(sorting).toHaveLength(2);
     expect(sorting.every((b) => b.disabled)).toBe(true);
-    expect(screen.queryByRole("button", { name: "AI recommendations" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Suggestions" })).toBeNull();
   });
 
   it("defaults the strip when no summary or name is given", async () => {
@@ -99,4 +99,24 @@ describe("PlaylistActionsMenu phone modal (#751)", () => {
     );
     expect(await screen.findByText("Playlist actions", { selector: "h2" })).toBeTruthy();
   });
+});
+
+it("opens Suggestions from the phone action sheet", async () => {
+  const onOpenRecommendations = vi.fn();
+  const { user } = await openModal({ onOpenRecommendations });
+  await user.click(screen.getByRole("button", { name: "Suggestions" }));
+  expect(onOpenRecommendations).toHaveBeenCalledOnce();
+});
+
+it("opens Suggestions from the desktop menu", async () => {
+  const onOpenRecommendations = vi.fn();
+  const { user } = renderWithProviders(
+    <PlaylistActionsMenu {...handlers()} onOpenRecommendations={onOpenRecommendations} />,
+  );
+  await chooseMenuItem(
+    user,
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+    /^Suggestions$/,
+  );
+  expect(onOpenRecommendations).toHaveBeenCalledOnce();
 });

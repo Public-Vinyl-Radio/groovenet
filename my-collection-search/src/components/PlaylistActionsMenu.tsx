@@ -87,7 +87,7 @@ export default function PlaylistActionsMenu({
               onClick: onSortCohesiveBlocks,
             },
             ...(onOpenRecommendations
-              ? [{ label: "AI recommendations", onClick: onOpenRecommendations }]
+              ? [{ label: "Suggestions", onClick: onOpenRecommendations }]
               : []),
           ]}
           exportImport={[
@@ -133,7 +133,7 @@ export default function PlaylistActionsMenu({
               </Menu.Item>
               {onOpenRecommendations && (
                 <Menu.Item value="recommendations" onSelect={onOpenRecommendations}>
-                  <FiZap /> AI Recommendations
+                  <FiZap /> Suggestions
                 </Menu.Item>
               )}
               {menuDivider}
