@@ -156,7 +156,30 @@ const UPDATABLE_COLUMNS = {
   descriptors: "descriptors",
 } as const;
 
+export type AudioBackfillCandidate = {
+  track_id: string;
+  friend_id: number;
+  local_audio_url: string;
+  audio_source: NonNullable<TrackAudioFileFields["audio_source"]> | null;
+  audio_probed_at: Date | string | null;
+};
+
 export class TrackRepository {
+  /** Live tracks with a local file, for the audio-metadata backfill (#1049). */
+  async listAudioBackfillCandidates(friendId?: number): Promise<AudioBackfillCandidate[]> {
+    const { rows } = await dbQuery<AudioBackfillCandidate>(
+      `SELECT track_id, friend_id, local_audio_url, audio_source, audio_probed_at
+         FROM tracks
+        WHERE deleted_at IS NULL
+          AND local_audio_url IS NOT NULL
+          AND local_audio_url <> ''
+          AND ($1::int IS NULL OR friend_id = $1)
+        ORDER BY friend_id, track_id`,
+      [friendId ?? null],
+    );
+    return rows;
+  }
+
   async upsertDiscogsTrackByTrackIdUsername(
     track: DiscogsTrack,
     friendId: number,
