@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import FileInfo from "./FileInfo";
 import { Box, chakra, Flex, Grid, Text, VStack } from "@chakra-ui/react";
 import { FiList } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -214,18 +215,26 @@ export default function PlayerControlsView({
               secondaryText
             )}
           </Text>
-          {meta && (
-            <Text
-              fontFamily="mono"
-              fontSize="11px"
-              lineHeight="15px"
-              color="fg.muted"
-              lineClamp={1}
-              maxW="100%"
-            >
-              {meta}
-            </Text>
-          )}
+          <Flex align="center" gap={2} wrap="wrap">
+            {meta && (
+              <Text
+                fontFamily="mono"
+                fontSize="11px"
+                lineHeight="15px"
+                color="fg.muted"
+                lineClamp={1}
+                maxW="100%"
+              >
+                {meta}
+              </Text>
+            )}
+            {!isQueueFinished && currentTrack && (
+              <FileInfo
+                key={`${currentTrack.friend_id}:${currentTrack.track_id}`}
+                track={currentTrack}
+              />
+            )}
+          </Flex>
         </VStack>
       </Flex>
 

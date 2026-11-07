@@ -13,7 +13,12 @@ import {
   fetchTrackPlaylists,
 } from "@/services/internalApi/tracks";
 
-export function useTrackDetailQueries(trackId: string, friendId: number, enabled: boolean) {
+export function useTrackDetailQueries(
+  trackId: string,
+  friendId: number,
+  enabled: boolean,
+  debugOpen = false,
+) {
   const trackQuery = useTrackByIdQuery(trackId, friendId, enabled);
 
   const playlistsQuery = useQuery({
@@ -25,7 +30,7 @@ export function useTrackDetailQueries(trackId: string, friendId: number, enabled
   const audioMetadataQuery = useQuery({
     queryKey: queryKeys.trackAudioMetadata(trackId, friendId),
     queryFn: () => fetchTrackAudioMetadata(trackId, friendId),
-    enabled: enabled && !!trackId,
+    enabled: enabled && !!trackId && debugOpen, // File info reads stored fields; only debug probes.
   });
 
   const essentiaQuery = useQuery({
