@@ -20,7 +20,6 @@ export * from "./recommendations.js";
 export * from "./providers.js";
 export * from "./system.js";
 export * from "./storage.js";
-export * from "./artists.js";
 export * from "./vinylIngest.js";
 export * from "./setDerivation.js";
 
