@@ -17,6 +17,7 @@ export const queryKeys = {
     ["settings", "recommendations", friend_id] as const,
   version: () => ["system", "version"] as const,
   status: () => ["system", "status"] as const,
+  storage: () => ["system", "storage"] as const,
   updateCheck: () => ["system", "update-check"] as const,
   playlists: () => ["playlists"] as const,
   genresRoot: () => ["genres"] as const,

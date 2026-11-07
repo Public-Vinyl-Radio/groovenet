@@ -190,6 +190,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/spins/recap` | Spins | contracts | Monthly recap (#862) |
 | GET | `/api/spins/track-stats` | Spins | contracts | One track's plays, both media (#864) |
 | GET | `/api/status` | system | contracts |  |
+| GET | `/api/system/storage` | system | contracts | Stored `audio_size_bytes` aggregate plus `statfs` of the audio volume (#1051). |
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |

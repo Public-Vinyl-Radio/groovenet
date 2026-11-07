@@ -434,3 +434,5 @@ export type {
   RecordCareProgressResponse,
   RecordCareQueueItem,
 } from "@groovenet/contracts";
+
+export type { StorageResponse } from "@groovenet/contracts";

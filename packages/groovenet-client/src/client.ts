@@ -87,6 +87,7 @@ import type {
   EmbeddingBackfillRun,
   EmbeddingBackfillDryRun,
   EmbeddingStatus,
+  StorageResponse,
   DetectionListResponse,
   DetectionQuery,
   IngestListResponse,
@@ -863,6 +864,11 @@ export class GroovenetClient {
       "/tracks/audio-metadata/backfill",
       request,
     );
+  }
+
+  /** Local audio totals by source and codec, plus free space on the audio volume (#1051). */
+  async getSystemStorage(): Promise<StorageResponse> {
+    return this.request<StorageResponse>("GET", "/system/storage");
   }
 
   /** Counters and per-source report for one audio metadata backfill. */

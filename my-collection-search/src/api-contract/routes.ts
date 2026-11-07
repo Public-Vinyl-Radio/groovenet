@@ -32,6 +32,7 @@ import {
   healthResponseSchema,
   playlistDeleteResponseSchema,
   statusResponseSchema,
+  storageResponseSchema,
   updateCheckResponseSchema,
   versionResponseSchema,
 } from "@groovenet/contracts";
@@ -2693,6 +2694,24 @@ const backupContracts: ApiContractRoute[] = [
         "200": {
           description: "One entry per probed service; a failed probe is reported, not thrown",
           content: { "application/json": { schema: componentRef("StatusResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getSystemStorage",
+    method: "get",
+    path: "/api/system/storage",
+    summary: "Local audio totals, breakdown by source and codec, and free space",
+    tags: ["Health"],
+    successSchema: storageResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description:
+            "Sizes come from stored audio metadata; `disk` is null when the audio volume is unreadable",
+          content: { "application/json": { schema: componentRef("StorageResponse") } },
         },
       },
     },

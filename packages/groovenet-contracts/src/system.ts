@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { audioSourceSchema } from "./tracks.js";
+
 /** `GET /api/health`: liveness only. Does no database or Redis work. */
 export const healthResponseSchema = z.object({
   status: z.literal("ok"),
@@ -48,12 +50,58 @@ export const updateCheckResponseSchema = z.object({
   error: z.string().nullable(),
 });
 
+/** One bucket of the storage breakdown. A null key means not probed yet. */
+const storageBucketFields = {
+  files: z.number().int().nonnegative(),
+  size_bytes: z.number().int().nonnegative(),
+};
+
+export const storageSourceRowSchema = z.object({
+  source: audioSourceSchema.nullable(),
+  ...storageBucketFields,
+});
+
+export const storageCodecRowSchema = z.object({
+  codec: z.string().nullable(),
+  /** Null when the file has not been probed. */
+  lossless: z.boolean().nullable(),
+  ...storageBucketFields,
+});
+
+/** `GET /api/system/storage`: local audio totals from stored metadata, plus the volume's free space. */
+export const storageResponseSchema = z.object({
+  totals: z.object({
+    /** Live tracks, with or without a local file. */
+    tracks: z.number().int().nonnegative(),
+    files: z.number().int().nonnegative(),
+    size_bytes: z.number().int().nonnegative(),
+    lossless_files: z.number().int().nonnegative(),
+    lossless_size_bytes: z.number().int().nonnegative(),
+    /** Files with no stored `audio_*` metadata yet (see the backfill). */
+    unprobed_files: z.number().int().nonnegative(),
+  }),
+  by_source: z.array(storageSourceRowSchema),
+  by_codec: z.array(storageCodecRowSchema),
+  /** Null when the audio volume cannot be read. */
+  disk: z
+    .object({
+      total_bytes: z.number().int().nonnegative(),
+      audio_bytes: z.number().int().nonnegative(),
+      other_bytes: z.number().int().nonnegative(),
+      free_bytes: z.number().int().nonnegative(),
+    })
+    .nullable(),
+});
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type VersionResponse = z.infer<typeof versionResponseSchema>;
 export type ServiceStatus = z.infer<typeof serviceStatusSchema>;
 export type ServiceHealth = z.infer<typeof serviceHealthSchema>;
 export type StatusResponse = z.infer<typeof statusResponseSchema>;
 export type UpdateCheckResponse = z.infer<typeof updateCheckResponseSchema>;
+export type StorageSourceRow = z.infer<typeof storageSourceRowSchema>;
+export type StorageCodecRow = z.infer<typeof storageCodecRowSchema>;
+export type StorageResponse = z.infer<typeof storageResponseSchema>;
 
 export const systemJsonSchemas = {
   HealthResponse: z.toJSONSchema(healthResponseSchema),
@@ -61,4 +109,5 @@ export const systemJsonSchemas = {
   ServiceHealth: z.toJSONSchema(serviceHealthSchema),
   StatusResponse: z.toJSONSchema(statusResponseSchema),
   UpdateCheckResponse: z.toJSONSchema(updateCheckResponseSchema),
+  StorageResponse: z.toJSONSchema(storageResponseSchema),
 };
