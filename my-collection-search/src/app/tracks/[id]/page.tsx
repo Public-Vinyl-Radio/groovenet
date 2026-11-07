@@ -1,5 +1,6 @@
 "use client";
 
+import FileSection from "@/components/track-detail/FileSection";
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Box, Skeleton, Text, VStack, useBreakpointValue } from "@chakra-ui/react";
@@ -42,7 +43,7 @@ export default function TrackPage() {
     contextEmbeddingPreviewQuery,
     audioVibeEmbeddingPreviewQuery,
     extractCoverMutation,
-  } = useTrackDetailQueries(trackId, friendId, hasValidFriendId);
+  } = useTrackDetailQueries(trackId, friendId, hasValidFriendId, debugOpen);
 
   const fetchedTrack = trackQuery.data;
   const track = useTrack(trackId, friendId) ?? fetchedTrack;
@@ -126,6 +127,8 @@ export default function TrackPage() {
                   trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
                 }
               />
+
+              {track && <FileSection key={`${track.friend_id}:${track.track_id}`} track={track} />}
 
               <TrackPlaylistsSection query={playlistsQuery} />
 

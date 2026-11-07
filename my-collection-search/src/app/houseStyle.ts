@@ -243,6 +243,11 @@ export const roleRecipes = {
       size: tagSizes(1),
       variant: {
         plain: {},
+        lossless: {
+          color: "status.success.fg",
+          bg: "status.success.subtle",
+          borderColor: "status.success.border",
+        },
         id: { color: "accent.fg", borderColor: "accent.border", fontWeight: "semibold" },
         raw: { fontFamily: "mono", textTransform: "none", letterSpacing: "0" },
       },

@@ -20,6 +20,7 @@ import {
   trackAnalyzeAsyncResponseSchema,
   trackAudioMetadataResponseSchema,
   trackDeleteResponseSchema,
+  trackUpdateBodySchema,
   trackFixDurationResponseSchema,
   trackEssentiaResponseSchema,
   trackExtractEmbeddedCoverResponseSchema,
@@ -551,6 +552,21 @@ export async function fetchPlaylistCounts(
   const body: z.input<typeof trackPlaylistCountsBodySchema> = { track_refs };
   return await http<TrackPlaylistCountsResponse>("/api/tracks/playlist_counts", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Re-saving the current file runs the shared probe-and-store path without changing its source. */
+export async function reprobeTrackAudio(track: Track): Promise<Track> {
+  const body = trackUpdateBodySchema.parse({
+    track_id: track.track_id,
+    friend_id: track.friend_id,
+    local_audio_url: track.local_audio_url,
+    audio_source: track.audio_source ?? "unknown",
+  });
+  return await http<Track>("/api/tracks", {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
