@@ -16,6 +16,7 @@ import SuggestionRow, { SuggestionFoldRow } from "@/components/SuggestionRow";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useRecommendationsQuery, type RecommendedTrack } from "@/hooks/useRecommendations";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import { camelotOf } from "@/lib/mixCompat";
 import { rankSuggestions } from "@/lib/rankSuggestions";
@@ -52,6 +53,7 @@ export default function SuggestionsPanel({
 }: SuggestionsPanelProps) {
   // Below the docked panel's breakpoint, Suggestions is a bottom sheet over the playlist.
   const isSheet = useBreakpointValue({ base: true, xl: false }) ?? false;
+  const { replacePlaylist } = usePlaybackPlayer();
   const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
   const [compatibleKey, setCompatibleKey] = useState(true);
   const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
@@ -114,6 +116,9 @@ export default function SuggestionsPanel({
     onAdd(track, index);
   };
 
+  // Hear it before adding it: plays the track alone, the same as Play elsewhere.
+  const preview = (track: Track) => replacePlaylist([track], { autoplay: true, startIndex: 0 });
+
   const setMode = (mode: string) => {
     if (mode === "playlist") onSeedChange(null);
     else {
@@ -151,6 +156,7 @@ export default function SuggestionsPanel({
             track={rec}
             added={addedKeys.has(keyOf(rec))}
             compact={isSheet}
+            onPreview={rec.local_audio_url ? preview : undefined}
             onAdd={handleAdd}
           />
         ))}

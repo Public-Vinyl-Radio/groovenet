@@ -13,9 +13,13 @@ const mocks = vi.hoisted(() => ({
     setScope: vi.fn(),
   },
   recommendations: vi.fn(),
+  replacePlaylist: vi.fn(),
 }));
 
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist }),
+}));
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 
 import SuggestionsPanel, { type SuggestionSeedRef } from "./SuggestionsPanel";
@@ -254,6 +258,24 @@ describe("SuggestionsPanel", () => {
     );
     await user.click(screen.getByText("After a track"));
     expect(onSeedChange).toHaveBeenCalledWith({ track_id: "p2", friend_id: 4 });
+  });
+});
+
+describe("SuggestionsPanel preview", () => {
+  it("plays a suggestion that has audio, and offers nothing for one that has none", async () => {
+    mocks.recommendations.mockReturnValue({
+      data: [rec("r1", { local_audio_url: "/a.mp3" }), rec("r2")],
+      isLoading: false,
+    });
+    const { user } = renderWithProviders(
+      <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
+    );
+    expect(screen.queryByRole("button", { name: "Preview Title r2" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Preview Title r1" }));
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith(
+      [expect.objectContaining({ track_id: "r1" })],
+      { autoplay: true, startIndex: 0 },
+    );
   });
 });
 
