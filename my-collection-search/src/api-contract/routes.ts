@@ -1,3 +1,4 @@
+import { artistReviewContracts } from "./artistReview";
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
@@ -3627,6 +3628,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
 ];
 
 export const apiContractRoutes: ApiContractRoute[] = [
+  ...artistReviewContracts,
   ...playerContracts,
   ...genreMutationContracts,
   ...genreReconciliationContracts,

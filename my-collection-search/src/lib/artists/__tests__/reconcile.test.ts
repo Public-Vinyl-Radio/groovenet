@@ -1,3 +1,4 @@
+import { normaliseArtistName } from "@/lib/artists/normalization";
 import { describe, expect, it } from "vitest";
 import { importArtistCredits } from "@/lib/artists/importCredits";
 import {
@@ -119,4 +120,11 @@ describe("ArtistResolutionTally", () => {
     tally.add(legacy("Unknown Artist"));
     expect(tally.counts).toEqual({ matched_by_discogs_id: 0, matched_by_name: 1, created: 1 });
   });
+});
+
+it("does not requeue a reviewed spelling on future backfills", () => {
+  const queue = new ReviewQueue(new Set([normaliseArtistName("A & B")]));
+  queue.add("A and B", "album");
+  queue.add("C & D", "track");
+  expect(queue.list()).toEqual([{ credited_as: "C & D", albums: 0, tracks: 1 }]);
 });

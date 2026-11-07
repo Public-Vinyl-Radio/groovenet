@@ -43,9 +43,10 @@ export function albumArtistBaseline(artists: string[]): Baseline {
 /** Counts for the review queue, one entry per exact credit string. */
 export class ReviewQueue {
   private items = new Map<string, ArtistReviewItem>();
+  constructor(private reviewed = new Set<string>()) {}
 
   add(creditedAs: string, kind: "album" | "track", count = 1): void {
-    if (!needsReview(creditedAs)) return;
+    if (this.reviewed.has(normaliseArtistName(creditedAs)) || !needsReview(creditedAs)) return;
     const item = this.items.get(creditedAs) ?? { credited_as: creditedAs, albums: 0, tracks: 0 };
     if (kind === "album") item.albums += count;
     else item.tracks += count;

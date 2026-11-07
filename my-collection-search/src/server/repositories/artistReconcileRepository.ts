@@ -61,7 +61,9 @@ export class ArtistReconcileRepository {
         : "WHERE ($1::int IS NULL OR c.friend_id = $1)";
     const { rows } = await dbQuery<LegacyCreditCount>(
       `SELECT c.credited_as, COUNT(*)::int AS count FROM ${table} c ${scope}
-       AND c.source = 'legacy' GROUP BY c.credited_as`,
+       AND c.source = 'legacy'
+       AND NOT EXISTS (SELECT 1 FROM artists ar WHERE ar.id = c.artist_id AND ar.reviewed)
+       GROUP BY c.credited_as`,
       [friendId],
     );
     return rows;
@@ -69,13 +71,17 @@ export class ArtistReconcileRepository {
 
   async listKnownArtists(): Promise<{
     discogsIds: string[];
-    aliases: { alias_normalized: string; has_discogs_id: boolean }[];
+    aliases: { alias_normalized: string; has_discogs_id: boolean; reviewed?: boolean }[];
   }> {
     const ids = await dbQuery<{ id: string }>(
       "SELECT discogs_artist_id::text AS id FROM artists WHERE discogs_artist_id IS NOT NULL",
     );
-    const aliases = await dbQuery<{ alias_normalized: string; has_discogs_id: boolean }>(
-      `SELECT aa.alias_normalized, a.discogs_artist_id IS NOT NULL AS has_discogs_id
+    const aliases = await dbQuery<{
+      alias_normalized: string;
+      has_discogs_id: boolean;
+      reviewed?: boolean;
+    }>(
+      `SELECT aa.alias_normalized, a.discogs_artist_id IS NOT NULL AS has_discogs_id, a.reviewed
        FROM artist_aliases aa JOIN artists a ON a.id = aa.artist_id`,
     );
     return { discogsIds: ids.rows.map((r) => r.id), aliases: aliases.rows };

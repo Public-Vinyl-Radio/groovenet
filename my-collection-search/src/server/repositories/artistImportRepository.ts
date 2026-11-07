@@ -49,6 +49,7 @@ export class ArtistImportRepository {
     credits: ImportArtistCredit[],
   ): Promise<void> {
     const where = columns.map((column, i) => `${column} = $${i + 1}`).join(" AND ");
+    await db.query("SELECT pg_advisory_xact_lock(704, 0)");
     const manual = await db.query(
       `SELECT 1 FROM ${table} WHERE ${where} AND source = 'manual'`,
       keys,
@@ -57,24 +58,30 @@ export class ArtistImportRepository {
 
     // Serialize identity resolution across friends and concurrent album/track imports.
     // Unlike an ON CONFLICT retry, this also protects the alias-to-identity decision.
-    await db.query("SELECT pg_advisory_xact_lock(704, 0)");
     await db.query(`DELETE FROM ${table} WHERE ${where} AND source IN ('discogs', 'legacy')`, keys);
     for (const credit of credits) {
       const artistId = await this.resolveArtist(db, credit);
-      const params = [
-        ...keys,
-        artistId,
-        credit.role,
-        credit.position,
-        credit.credited_as,
-        credit.source,
-      ];
-      await db.query(
-        `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "source"].join(", ")})
-         VALUES (${params.map((_, i) => `$${i + 1}`).join(", ")})
-         ON CONFLICT DO NOTHING`,
-        params,
-      );
+      const overrides = await db.query<{
+        credit_override:
+          { artist_id: number; role: string; position: number; credited_as: string }[] | null;
+      }>("SELECT credit_override FROM artists WHERE id = $1", [artistId]);
+      const split = overrides.rows[0]?.credit_override;
+      for (const resolved of split ?? [{ ...credit, artist_id: artistId }]) {
+        const params = [
+          ...keys,
+          resolved.artist_id,
+          resolved.role,
+          resolved.position,
+          resolved.credited_as,
+          split ? "manual" : credit.source,
+        ];
+        await db.query(
+          `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "source"].join(", ")})
+           SELECT ${[...keys.map((_, i) => `$${i + 1}`), `(WITH RECURSIVE resolved AS (SELECT id, merged_into FROM artists WHERE id = $${keys.length + 1} UNION ALL SELECT a.id, a.merged_into FROM artists a JOIN resolved r ON a.id = r.merged_into) SELECT id FROM resolved WHERE merged_into IS NULL)`, ...params.slice(keys.length + 1).map((_, i) => `$${keys.length + 2 + i}`)].join(", ")}
+           ON CONFLICT DO NOTHING`,
+          params,
+        );
+      }
     }
   }
 
@@ -88,12 +95,16 @@ export class ArtistImportRepository {
       )
       .digest("hex")}`;
     const { rows } = await db.query<{ id: number }>(
-      `SELECT a.id FROM artists a
+      `WITH RECURSIVE matched AS (SELECT a.id FROM artists a
        WHERE ($1::bigint IS NOT NULL AND a.discogs_artist_id = $1)
           OR a.slug = $2
           OR (EXISTS (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND aa.alias_normalized = $3)
               AND ($1::bigint IS NULL OR a.discogs_artist_id IS NULL))
-       ORDER BY (a.discogs_artist_id = $1) DESC NULLS LAST, a.id LIMIT 1`,
+       ORDER BY (a.discogs_artist_id = $1) DESC NULLS LAST, a.id LIMIT 1),
+       resolved AS (
+         SELECT a.id, a.merged_into FROM artists a JOIN matched m ON a.id = m.id
+         UNION ALL SELECT a.id, a.merged_into FROM artists a JOIN resolved r ON a.id = r.merged_into
+       ) SELECT id FROM resolved WHERE merged_into IS NULL`,
       [credit.discogs_artist_id, slug, normalized],
     );
     let id = rows[0]?.id;
@@ -106,7 +117,8 @@ export class ArtistImportRepository {
       id = created.rows[0].id;
     } else if (credit.discogs_artist_id) {
       await db.query(
-        "UPDATE artists SET discogs_artist_id = $2 WHERE id = $1 AND discogs_artist_id IS NULL",
+        `UPDATE artists SET discogs_artist_id = $2 WHERE id = $1 AND discogs_artist_id IS NULL
+         AND NOT EXISTS (SELECT 1 FROM artists WHERE discogs_artist_id = $2)`,
         [id, credit.discogs_artist_id],
       );
     }

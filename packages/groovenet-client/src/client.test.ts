@@ -2407,3 +2407,36 @@ describe("GroovenetClient artist reconcile", () => {
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ data: {} }));
   });
 });
+
+describe("artist review", () => {
+  it("lists queue pages and specific artist evidence", async () => {
+    const client = clientReturning({ items: [] });
+    expect(await client.listArtistReview()).toEqual({ items: [] });
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/artists/review", params: {} }),
+    );
+    await client.listArtistReview({ artist_id: 7, limit: 5, offset: 10 });
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ params: { artist_id: 7, limit: 5, offset: 10 } }),
+    );
+  });
+  it("sends review decisions and dry runs", async () => {
+    const client = clientReturning({
+      dry_run: false,
+      decision: { action: "accept", artist_id: 7 },
+    });
+    const decision = { action: "accept" as const, artist_id: 7 };
+    await client.reviewArtist(decision);
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        url: "/artists/review",
+        data: { decision, dry_run: false },
+      }),
+    );
+    await client.reviewArtist(decision, true);
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: { decision, dry_run: true } }),
+    );
+  });
+});

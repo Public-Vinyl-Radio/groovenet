@@ -26,6 +26,7 @@ import {
   systemJsonSchemas,
   storageJsonSchemas,
   artistJsonSchemas,
+  artistReviewJsonSchemas,
 } from "@groovenet/contracts";
 import { getOpenApiDocument } from "../openapi";
 
@@ -94,6 +95,7 @@ const SHARED_COMPONENTS = new Set(
     ...systemJsonSchemas,
     ...storageJsonSchemas,
     ...artistJsonSchemas,
+    ...artistReviewJsonSchemas,
   }),
 );
 
