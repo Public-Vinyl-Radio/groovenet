@@ -23,3 +23,5 @@ export * from "./storage.js";
 export * from "./artists.js";
 export * from "./vinylIngest.js";
 export * from "./setDerivation.js";
+
+export * from "./artistReview.js";

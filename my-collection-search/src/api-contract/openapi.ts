@@ -1,7 +1,6 @@
 import { apiContractRoutes } from "@/api-contract/routes";
 import {
   homeJsonSchemas,
-  artistJsonSchemas,
   albumJsonSchemas,
   friendJsonSchemas,
   settingsJsonSchemas,
@@ -24,6 +23,8 @@ import {
   providerJsonSchemas,
   systemJsonSchemas,
   storageJsonSchemas,
+  artistJsonSchemas,
+  artistReviewJsonSchemas,
 } from "@groovenet/contracts";
 import fs from "node:fs";
 import path from "node:path";
@@ -239,7 +240,6 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...friendJsonSchemas,
     ...settingsJsonSchemas,
     ...genreJsonSchemas,
-    ...artistJsonSchemas,
     ...recordCareJsonSchemas,
     ...recordCareQueueJsonSchemas,
     ...recordCareSessionJsonSchemas,
@@ -256,6 +256,8 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...providerJsonSchemas,
     ...systemJsonSchemas,
     ...storageJsonSchemas,
+    ...artistJsonSchemas,
+    ...artistReviewJsonSchemas,
   };
   addExamplesToOpenApiDocument(paths, schemas);
 

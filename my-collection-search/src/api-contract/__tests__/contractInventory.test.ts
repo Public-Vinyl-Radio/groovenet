@@ -7,7 +7,6 @@ import {
   friendJsonSchemas,
   settingsJsonSchemas,
   genreJsonSchemas,
-  artistJsonSchemas,
   liveSetJsonSchemas,
   playlistJsonSchemas,
   recordCareJsonSchemas,
@@ -26,6 +25,8 @@ import {
   providerJsonSchemas,
   systemJsonSchemas,
   storageJsonSchemas,
+  artistJsonSchemas,
+  artistReviewJsonSchemas,
 } from "@groovenet/contracts";
 import { getOpenApiDocument } from "../openapi";
 
@@ -78,7 +79,6 @@ const SHARED_COMPONENTS = new Set(
     ...friendJsonSchemas,
     ...settingsJsonSchemas,
     ...genreJsonSchemas,
-    ...artistJsonSchemas,
     ...recordCareJsonSchemas,
     ...recordCareQueueJsonSchemas,
     ...recordCareSessionJsonSchemas,
@@ -94,6 +94,8 @@ const SHARED_COMPONENTS = new Set(
     ...providerJsonSchemas,
     ...systemJsonSchemas,
     ...storageJsonSchemas,
+    ...artistJsonSchemas,
+    ...artistReviewJsonSchemas,
   }),
 );
 

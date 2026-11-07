@@ -7,7 +7,8 @@ import { artistRepository } from "../artistRepository";
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 let friendId: number;
 let albumId: number;
-const credits = () => importArtistCredits([{ id: 999704001, name: "Strokes, The" }], "unused");
+const credits = () =>
+  importArtistCredits([{ id: 999704001, name: "Import Fixture Strokes, The" }], "unused");
 beforeAll(async () => {
   if (process.env.RUN_DB_TESTS !== "1") return;
   const friend = await dbQuery<{ id: number }>(
@@ -15,12 +16,12 @@ beforeAll(async () => {
   );
   friendId = friend.rows[0].id;
   const album = await dbQuery<{ id: number }>(
-    "INSERT INTO albums (release_id, friend_id, title, artist) VALUES ('704', $1, 'Test', 'Strokes, The') RETURNING id",
+    "INSERT INTO albums (release_id, friend_id, title, artist) VALUES ('704', $1, 'Test', 'Import Fixture Strokes, The') RETURNING id",
     [friendId],
   );
   albumId = album.rows[0].id;
   await dbQuery(
-    "INSERT INTO tracks (track_id, friend_id, username, title, artist) VALUES ('704-A1', $1, 'artist-import-test', 'Test', 'Strokes, The')",
+    "INSERT INTO tracks (track_id, friend_id, username, title, artist) VALUES ('704-A1', $1, 'artist-import-test', 'Test', 'Import Fixture Strokes, The')",
     [friendId],
   );
 });
@@ -40,11 +41,17 @@ describe("artist import on Postgres", () => {
     expect(await artistRepository.listAlbumCredits(albumId)).toEqual(first);
     expect(await artistRepository.listTrackCredits("704-A1", friendId)).toEqual(first);
     const artist = await artistRepository.findByDiscogsId("999704001");
-    expect(artist).toMatchObject({ name: "The Strokes", sort_name: "Strokes, The" });
+    expect(artist).toMatchObject({
+      name: "The Import Fixture Strokes",
+      sort_name: "Import Fixture Strokes, The",
+    });
   });
 
   dbTest("keeps different Discogs identities with the same name separate", async () => {
-    const sameName = importArtistCredits([{ id: 999704002, name: "Strokes, The" }], "unused");
+    const sameName = importArtistCredits(
+      [{ id: 999704002, name: "Import Fixture Strokes, The" }],
+      "unused",
+    );
     await repo.importTrackCredits("704-A1", friendId, sameName);
     const a = await artistRepository.findByDiscogsId("999704001");
     const b = await artistRepository.findByDiscogsId("999704002");

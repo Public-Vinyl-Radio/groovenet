@@ -104,9 +104,12 @@ describe("artist import persistence", () => {
   );
 
   it("keeps a manual merge intact without resolving or recreating source identities", async () => {
-    query.mockResolvedValueOnce({ rows: [{ id: 5 }] }).mockResolvedValueOnce({ rows: [{}] });
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{}] });
     await repo.importAlbumCredits("release", 2, credits());
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(3);
   });
 
   it("rejects a missing album", async () => {
@@ -136,5 +139,42 @@ it("uses the resolved name as the alias key when the source credit was blank", a
     9,
     "",
     "unknown artist",
+  ]);
+});
+
+it("replays a reviewed split for a newly imported owner", async () => {
+  query.mockImplementation(async (sql: string) => {
+    if (sql.startsWith("WITH RECURSIVE matched")) return { rows: [{ id: 9 }] };
+    if (sql.startsWith("SELECT credit_override"))
+      return {
+        rows: [
+          {
+            credit_override: [
+              { artist_id: 10, role: "primary", position: 0, credited_as: "Lead" },
+              { artist_id: 11, role: "remixer", position: 2, credited_as: "Remix" },
+            ],
+          },
+        ],
+      };
+    return { rows: [] };
+  });
+  await repo.importTrackCredits("new", 3, credits());
+  expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO track_artists"), [
+    "new",
+    3,
+    10,
+    "primary",
+    0,
+    "Lead",
+    "manual",
+  ]);
+  expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO track_artists"), [
+    "new",
+    3,
+    11,
+    "remixer",
+    2,
+    "Remix",
+    "manual",
   ]);
 });

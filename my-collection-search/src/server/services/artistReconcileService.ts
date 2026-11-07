@@ -59,7 +59,9 @@ export async function reconcileArtists(
     repo.listKnownArtists(),
   ]);
 
-  const review = new ReviewQueue();
+  const review = new ReviewQueue(
+    new Set(known.aliases.filter((a) => a.reviewed).map((a) => a.alias_normalized)),
+  );
   for (const row of await repo.countLegacyCredits("album_artists", friendId))
     review.add(row.credited_as, "album", row.count);
   for (const row of await repo.countLegacyCredits("track_artists", friendId))

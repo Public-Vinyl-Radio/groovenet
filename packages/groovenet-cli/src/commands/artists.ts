@@ -1,3 +1,4 @@
+import { addArtistsReviewCommand } from "./artistsReview.js";
 import { Command } from "commander";
 import type { ArtistReconcileResponse, GroovenetClient } from "@groovenet/client";
 import chalk from "chalk";
@@ -82,6 +83,8 @@ export async function runArtistReconcile(
 
 export function addArtistsCommands(program: Command): void {
   const artists = program.command("artists").description("Artists shared across collections");
+
+  addArtistsReviewCommand(artists);
 
   artists
     .command("reconcile")
