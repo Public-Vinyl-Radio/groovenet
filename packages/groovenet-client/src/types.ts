@@ -664,3 +664,13 @@ export type {
   RecordCareProgressResponse,
   RecordCareQueueItem,
 } from "@groovenet/contracts";
+
+// Storage orphan scan (#1052).
+export type {
+  MissingFileTrack,
+  OrphanFile,
+  OrphanScanStartResponse,
+  OrphanScanSummary,
+  OrphansQuery,
+  OrphansResponse,
+} from "@groovenet/contracts";

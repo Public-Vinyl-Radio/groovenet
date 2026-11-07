@@ -85,6 +85,9 @@ import type {
   EmbeddingBackfillRun,
   EmbeddingBackfillDryRun,
   EmbeddingStatus,
+  OrphansQuery,
+  OrphansResponse,
+  OrphanScanStartResponse,
   DetectionListResponse,
   DetectionQuery,
   IngestListResponse,
@@ -880,6 +883,18 @@ export class GroovenetClient {
     return this.request<EmbeddingStatus>("GET", "/embeddings/status", undefined, {
       friend_id: friendId,
     });
+  }
+
+  // ── Storage orphans (#1052) ────────────────────────────────────────────────
+
+  /** The latest orphan scan of the audio volume, paged. Never rescans. */
+  async getStorageOrphans(query: OrphansQuery = {}): Promise<OrphansResponse> {
+    return this.request<OrphansResponse>("GET", "/system/storage/orphans", undefined, query);
+  }
+
+  /** Starts a background scan; `started` is false when one is already running. */
+  async startStorageOrphanScan(): Promise<OrphanScanStartResponse> {
+    return this.request<OrphanScanStartResponse>("POST", "/system/storage/orphans/scan");
   }
 
   // ── Vinyl pipeline debug (#299) ────────────────────────────────────────────

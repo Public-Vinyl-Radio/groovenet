@@ -30,6 +30,7 @@ friends             list | add
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
+system              orphans [--scan] (read-only audio-volume orphan report)
 records             clean | sleeve | log (release or --stack N) | copies
                     (add | label | remove) history | void (--session) | care
                     [--summary] | queue | stack | sessions | progress

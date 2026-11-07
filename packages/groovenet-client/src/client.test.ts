@@ -2300,3 +2300,33 @@ it("requests the record care queue and progress with exact optional queries", as
     },
   ]);
 });
+
+describe("GroovenetClient storage orphans", () => {
+  it("reads the latest scan with paging", async () => {
+    const client = clientReturning({ running: false });
+    await client.getStorageOrphans({ limit: 50, files_offset: 10 });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/system/storage/orphans",
+      data: undefined,
+      params: { limit: 50, files_offset: 10 },
+    });
+  });
+
+  it("reads with no paging by default", async () => {
+    const client = clientReturning({ running: false });
+    await client.getStorageOrphans();
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ params: {} }));
+  });
+
+  it("starts a scan", async () => {
+    const client = clientReturning({ started: true, running: true });
+    expect(await client.startStorageOrphanScan()).toEqual({ started: true, running: true });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/system/storage/orphans/scan",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
