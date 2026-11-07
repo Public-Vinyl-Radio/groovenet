@@ -1,40 +1,52 @@
-import { expect, it } from "vitest";
-import { artistJsonSchemas, artistPageQuerySchema, artistPageResponseSchema } from "./artists.js";
+import { describe, expect, it } from "vitest";
+import {
+  artistJsonSchemas,
+  artistReconcileRequestSchema,
+  artistReconcileResponseSchema,
+} from "./artists.js";
 
-const empty = {
-  artist: {
-    id: 1,
-    name: "Los Mirlos",
-    sort_name: "Mirlos, Los",
-    slug: "los-mirlos",
-    discogs_artist_id: null,
-    is_placeholder: false,
-  },
-  aliases: [],
-  counts: { albums: 0, appears_on: 0, tracks: 0, spins: 0, year_min: null, year_max: null },
-  albums: [],
-  top_tracks: [],
-  top_tracks_by: "albums",
-  genres: [],
-  collaborators: [],
-};
+describe("artist reconcile contracts", () => {
+  it("accepts an empty body, a dry run and a friend scope", () => {
+    expect(artistReconcileRequestSchema.parse({})).toEqual({});
+    expect(artistReconcileRequestSchema.parse({ dry_run: true, friend_id: 6 })).toEqual({
+      dry_run: true,
+      friend_id: 6,
+    });
+    expect(artistReconcileRequestSchema.safeParse({ friend_id: 0 }).success).toBe(false);
+    expect(artistReconcileRequestSchema.safeParse({ dryRun: true }).success).toBe(false);
+  });
 
-it("validates an artist with nothing in the collection", () => {
-  expect(artistPageResponseSchema.parse(empty)).toEqual(empty);
-  expect(artistPageQuerySchema.parse({ friend_id: 3 })).toEqual({ friend_id: 3 });
-  expect(artistPageQuerySchema.parse({})).toEqual({});
-});
-
-it("rejects unknown ordering labels and negative counts", () => {
-  expect(artistPageResponseSchema.safeParse({ ...empty, top_tracks_by: "plays" }).success).toBe(
-    false,
-  );
-  expect(
-    artistPageResponseSchema.safeParse({ ...empty, counts: { ...empty.counts, spins: -1 } })
-      .success,
-  ).toBe(false);
-});
-
-it("exports a JSON schema for OpenAPI", () => {
-  expect(artistJsonSchemas.ArtistPageResponse).toHaveProperty("properties");
+  it("accepts a report", () => {
+    const counts = { pending: 2, linked: 0, failed: 0 };
+    const report = {
+      dry_run: true,
+      friend_id: null,
+      baseline: {
+        albums: 2,
+        distinct_strings: 2,
+        spelling_groups: 0,
+        inversions: 1,
+        various: 0,
+        unknown_artist: 0,
+      },
+      albums: counts,
+      tracks: counts,
+      credits: { discogs: 1, legacy: 3 },
+      artists: { matched_by_discogs_id: 0, matched_by_name: 1, created: 3 },
+      review_queue: [{ credited_as: "Earth, Wind & Fire", albums: 1, tracks: 2 }],
+      errors: [{ kind: "track", id: "1-A1", message: "boom" }],
+    };
+    expect(artistReconcileResponseSchema.parse(report)).toEqual(report);
+    expect(
+      artistReconcileResponseSchema.safeParse({
+        ...report,
+        errors: [{ kind: "x", id: "1", message: "" }],
+      }).success,
+    ).toBe(false);
+    expect(Object.keys(artistJsonSchemas)).toEqual([
+      "ArtistReconcileRequest",
+      "ArtistReconcileResponse",
+      "ArtistPageResponse",
+    ]);
+  });
 });

@@ -29,6 +29,8 @@ import {
 } from "./recordCareQueue";
 import { playerContracts } from "./players";
 import {
+  artistReconcileRequestSchema,
+  artistReconcileResponseSchema,
   healthResponseSchema,
   playlistDeleteResponseSchema,
   orphanScanStartResponseSchema,
@@ -2682,6 +2684,37 @@ const backupContracts: ApiContractRoute[] = [
         "200": {
           description: "The server is up. Does no database or Redis work.",
           content: { "application/json": { schema: componentRef("HealthResponse") } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "reconcileArtists",
+    method: "post",
+    path: "/api/artists/reconcile",
+    summary: "Link existing albums and tracks to artists; idempotent, with a dry run",
+    tags: ["Artists"],
+    bodySchema: artistReconcileRequestSchema,
+    successSchema: artistReconcileResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: { "application/json": { schema: componentRef("ArtistReconcileRequest") } },
+      },
+      responses: {
+        "200": {
+          description:
+            "Counts, how credits resolve, and the review queue; `dry_run` writes nothing",
+          content: { "application/json": { schema: componentRef("ArtistReconcileResponse") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
         },
       },
     },

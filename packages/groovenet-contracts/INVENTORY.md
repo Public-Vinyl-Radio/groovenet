@@ -59,6 +59,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/albums/artwork/review` | albums | contracts |  |
 | POST | `/api/albums/create` | albums | contracts |  |
 | POST | `/api/albums/upsert` | albums | contracts |  |
+| POST | `/api/artists/reconcile` | artists | contracts | `artists.ts`; links albums and tracks to artists, dry run (#705). |
 | GET | `/api/audio` | audio streaming | exception | Byte-range audio stream; no JSON body. |
 | POST | `/api/audio/ingest` | vinyl ingest & fingerprints | contracts | Multipart request from the Pi listener stays inline; the response and rejection codes are shared. |
 | POST | `/api/audio/ingest/{ingestId}/claim` | vinyl ingest & fingerprints | contracts |  |

@@ -445,3 +445,10 @@ export type {
   OrphansQuery,
   OrphansResponse,
 } from "@groovenet/contracts";
+
+// Artist reconcile (#705).
+export type {
+  ArtistReconcileRequest,
+  ArtistReconcileResponse,
+  ArtistReviewItem,
+} from "@groovenet/contracts";

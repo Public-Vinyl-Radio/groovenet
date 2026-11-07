@@ -1052,3 +1052,18 @@ Top tracks rank by spins (vinyl and digital), else album order
 and empty, and the page redirects to the album search. Collaborators never
 include placeholders. Entities go to the Zustand stores; React Query keeps refs.
 Artist-name links across the app (`artistHref`) are #708.
+
+## Artist reconcile (#705)
+
+`POST /api/artists/reconcile` (`groovenet artists reconcile`) backfills
+credits for albums and tracks that have none, through the same
+`ArtistImportRepository` an import uses: the stored Discogs payload where one
+exists (`getReleasePath`), else the artist string as one `legacy` credit.
+Rows with any credit are skipped, which is what makes a second run free.
+`dry_run` writes nothing; `ArtistResolutionTally` predicts the Discogs-id /
+name / new split in processing order, and the integration test checks that
+prediction against the rows the real run creates. The review queue
+(`needsReview`, `src/lib/artists/reconcile.ts`) is every string-only credit
+with a separator, written or pending, never placeholders and never a bare
+`Name, The` inversion. Synchronous: a collection is a few thousand albums.
+`just artists-test` runs the artist integration tests against real Postgres.
