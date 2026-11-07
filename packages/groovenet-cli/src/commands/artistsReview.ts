@@ -22,6 +22,7 @@ export interface ArtistReviewOptions {
   dryRun?: boolean;
   json?: boolean;
   list?: boolean;
+  verbose?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -59,8 +60,31 @@ export interface ArtistReviewIO {
   ask(prompt: string): Promise<string>;
   terminal: boolean;
 }
-export function formatArtistEvidence(item: ArtistReviewDetail): string {
-  return `${item.id}: ${item.name} (sort: ${item.sort_name})\nAliases: ${item.aliases.join("; ")}\nAlbums / Discogs credits: ${JSON.stringify(item.albums, null, 2)}\nTracks / Apple tags: ${JSON.stringify(item.tracks, null, 2)}\nActive merges: ${JSON.stringify(item.merges)}`;
+const text = (value: unknown) =>
+  typeof value === "string" || typeof value === "number" ? String(value) : "";
+
+/** One short line per record: its id, title and the credit string it was imported with. */
+function evidenceLine(entry: Record<string, unknown>, idKey: string): string {
+  const original = text(entry.original_string);
+  return `  ${text(entry[idKey])}  ${text(entry.title)}${original ? ` — ${original}` : ""}`;
+}
+
+export function formatArtistEvidence(item: ArtistReviewDetail, verbose = false): string {
+  const head = `${item.id}: ${item.name} (sort: ${item.sort_name})\nAliases: ${item.aliases.join("; ")}`;
+  if (verbose)
+    return `${head}\nAlbums / Discogs credits: ${JSON.stringify(item.albums, null, 2)}\nTracks / Apple tags: ${JSON.stringify(item.tracks, null, 2)}\nActive merges: ${JSON.stringify(item.merges)}`;
+  const section = (label: string, entries: Record<string, unknown>[], idKey: string) =>
+    entries.length ? [`${label}:`, ...entries.map((e) => evidenceLine(e, idKey))] : [];
+  return [
+    head,
+    ...section("Albums", item.albums, "release_id"),
+    ...section("Tracks", item.tracks, "track_id"),
+    ...(item.merges.length
+      ? [
+          `Active merges: ${item.merges.map((m) => `#${m.id} (${m.source_id} → ${m.target_id})`).join(", ")}`,
+        ]
+      : []),
+  ].join("\n");
 }
 
 export async function runArtistReview(
@@ -88,7 +112,7 @@ export async function runArtistReview(
     return;
   }
   if (opts.list) {
-    for (const item of page.items) io.log(formatArtistEvidence(item));
+    for (const item of page.items) io.log(formatArtistEvidence(item, opts.verbose));
     return;
   }
   if (!io.terminal)
@@ -96,7 +120,7 @@ export async function runArtistReview(
   for (const item of page.items) {
     // Load source-file evidence only for the item currently being reviewed.
     const detail = await client.listArtistReview({ artist_id: item.id });
-    io.log(formatArtistEvidence(detail.items[0] ?? item));
+    io.log(formatArtistEvidence(detail.items[0] ?? item, opts.verbose));
     const answer = (
       await io.ask("accept / split / merge / unmerge / rename / placeholder / skip / quit: ")
     ).trim();
@@ -144,6 +168,7 @@ export function addArtistsReviewCommand(artists: Command): void {
     .option("--list", "Print the queue without prompts")
     .option("--limit <n>", "Queue page size", intOption, 20)
     .option("--offset <n>", "Queue offset", intOption, 0)
+    .option("--verbose", "Show the full album and track JSON as evidence")
     .option("--json", "Output JSON without prompts")
     .action(async (opts: ArtistReviewOptions) => {
       let lines: ReturnType<typeof createInterface> | undefined;

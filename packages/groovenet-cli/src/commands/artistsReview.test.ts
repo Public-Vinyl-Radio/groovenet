@@ -10,6 +10,7 @@ vi.mock("../output.js", () => ({ printError }));
 vi.mock("node:readline/promises", () => ({ createInterface }));
 import {
   addArtistsReviewCommand,
+  formatArtistEvidence,
   artistDecision,
   runArtistReview,
   type ArtistReviewOptions,
@@ -175,4 +176,45 @@ it("opens and closes readline for terminal review", async () => {
     else Reflect.deleteProperty(process.stdout, "isTTY");
     log.mockRestore();
   }
+});
+
+const rich = {
+  ...item,
+  id: 66,
+  name: "The Strokes",
+  sort_name: "Strokes, The",
+  albums: [
+    { release_id: "1", title: "Is This It", original_string: "Strokes, The", credits: [{}] },
+    { release_id: 2 },
+  ],
+  tracks: [
+    {
+      track_id: "1-A1",
+      title: "Last Nite",
+      original_string: "Strokes, The",
+      local_audio_url: "/x",
+    },
+  ],
+  merges: [{ id: 4, source_id: 7, target_id: 66 }],
+};
+
+it("shows artist, album and track names without the raw JSON", () => {
+  const out = formatArtistEvidence(rich);
+  expect(out).toContain("66: The Strokes (sort: Strokes, The)");
+  expect(out).toContain("1  Is This It — Strokes, The");
+  expect(out).toContain("1-A1  Last Nite — Strokes, The");
+  expect(out).toContain("#4 (7 → 66)");
+  expect(out).not.toContain("local_audio_url");
+  expect(out).not.toContain("{");
+  expect(formatArtistEvidence(item)).not.toContain("Albums:");
+});
+
+it("keeps the full JSON evidence with --verbose", async () => {
+  expect(formatArtistEvidence(rich, true)).toContain('"local_audio_url": "/x"');
+  client.listArtistReview.mockResolvedValue({ items: [rich] });
+  await runArtistReview(client, { list: true, verbose: true }, io);
+  expect(io.log.mock.calls[0][0]).toContain('"original_string"');
+  io.log.mockClear();
+  await runArtistReview(client, { list: true }, io);
+  expect(io.log.mock.calls[0][0]).not.toContain('"original_string"');
 });
