@@ -41,6 +41,7 @@ describe("importArtistCredits", () => {
       expect.objectContaining({
         name: "Mexican Institute Of Sound",
         discogs_artist_id: "100",
+        joiner: ",",
         position: 0,
         role: "primary",
         source: "discogs",
@@ -48,6 +49,7 @@ describe("importArtistCredits", () => {
       expect.objectContaining({
         name: "Meridian brothers",
         discogs_artist_id: "200",
+        joiner: null,
         position: 1,
         role: "primary",
         source: "discogs",

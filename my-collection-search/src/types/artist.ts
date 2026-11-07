@@ -19,5 +19,6 @@ export type ArtistCredit = {
   role: "primary" | "featured" | "remixer" | "composer";
   position: number;
   credited_as: string;
+  joiner?: string | null;
   source: "discogs" | "apple" | "legacy" | "manual";
 };

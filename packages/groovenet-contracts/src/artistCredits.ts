@@ -17,6 +17,9 @@ export const artistCreditRefSchema = z.object({
   role: artistCreditRoleSchema,
   position: z.number().int().nonnegative(),
   credited_as: z.string().meta({ description: "The spelling this release credits them as" }),
+  joiner: z.string().nullable().optional().meta({
+    description: "What follows them in the credit (`&`, `,`, `Featuring`); null when unknown",
+  }),
 });
 /**
  * An artist a search is filtered on (#709): enough to name its removable chip

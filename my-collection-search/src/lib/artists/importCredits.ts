@@ -7,6 +7,8 @@ export type ImportArtistCredit = {
   discogs_artist_id: string | null;
   is_placeholder: boolean;
   credited_as: string;
+  // Discogs `join` after this artist: `&`, `,`, `Featuring`.
+  joiner: string | null;
   role: "primary" | "featured";
   position: number;
   // Legacy is the review flag: no structured identity was available. Never split it.
@@ -37,6 +39,7 @@ export function importArtistCredits(
       discogs_artist_id: placeholder || ref.id == null ? null : String(ref.id),
       is_placeholder: placeholder,
       credited_as: ref.name,
+      joiner: ref.join?.trim() || null,
       role:
         position > 0 && /feat(?:uring|\.)?/i.test(refs[position - 1].join ?? "")
           ? "featured"

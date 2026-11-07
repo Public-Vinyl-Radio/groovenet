@@ -271,8 +271,8 @@ export class ArtistReviewRepository {
       // Copy before deleting so a target already on the release keeps its original credit.
       for (const c of credits)
         await db.query(
-          `INSERT INTO ${table} (${keys.join(", ")}, artist_id, role, position, credited_as, source)
-         SELECT DISTINCT ON (${keys.join(", ")}, COALESCE($3, role)) ${keys.join(", ")}, $2, COALESCE($3, role), COALESCE($4, position), COALESCE($5, credited_as), 'manual'
+          `INSERT INTO ${table} (${keys.join(", ")}, artist_id, role, position, credited_as, joiner, source)
+         SELECT DISTINCT ON (${keys.join(", ")}, COALESCE($3, role)) ${keys.join(", ")}, $2, COALESCE($3, role), COALESCE($4, position), COALESCE($5, credited_as), joiner, 'manual'
          FROM ${table} WHERE artist_id = $1 ORDER BY ${keys.join(", ")}, COALESCE($3, role), position
          ON CONFLICT (${keys.join(", ")}, artist_id, role) DO UPDATE SET source = 'manual',
            position = CASE WHEN $3::text IS NULL THEN ${table}.position ELSE EXCLUDED.position END,

@@ -63,7 +63,14 @@ export class ArtistImportRepository {
       const artistId = await this.resolveArtist(db, credit);
       const overrides = await db.query<{
         credit_override:
-          { artist_id: number; role: string; position: number; credited_as: string }[] | null;
+          | {
+              artist_id: number;
+              role: string;
+              position: number;
+              credited_as: string;
+              joiner?: string | null;
+            }[]
+          | null;
       }>("SELECT credit_override FROM artists WHERE id = $1", [artistId]);
       const split = overrides.rows[0]?.credit_override;
       for (const resolved of split ?? [{ ...credit, artist_id: artistId }]) {
@@ -73,10 +80,11 @@ export class ArtistImportRepository {
           resolved.role,
           resolved.position,
           resolved.credited_as,
+          resolved.joiner ?? null,
           split ? "manual" : credit.source,
         ];
         await db.query(
-          `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "source"].join(", ")})
+          `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "joiner", "source"].join(", ")})
            SELECT ${[...keys.map((_, i) => `$${i + 1}`), `(WITH RECURSIVE resolved AS (SELECT id, merged_into FROM artists WHERE id = $${keys.length + 1} UNION ALL SELECT a.id, a.merged_into FROM artists a JOIN resolved r ON a.id = r.merged_into) SELECT id FROM resolved WHERE merged_into IS NULL)`, ...params.slice(keys.length + 1).map((_, i) => `$${keys.length + 2 + i}`)].join(", ")}
            ON CONFLICT DO NOTHING`,
           params,

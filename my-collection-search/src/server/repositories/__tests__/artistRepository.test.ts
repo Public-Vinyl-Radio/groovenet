@@ -113,7 +113,7 @@ describe("credits", () => {
     expect(clientQuery).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("INSERT INTO album_artists"),
-      [10, 1, "primary", 0, "Strokes, The", "discogs"],
+      [10, 1, "primary", 0, "Strokes, The", null, "discogs"],
     );
     expect(clientQuery).toHaveBeenCalledTimes(3);
   });
@@ -127,7 +127,7 @@ describe("credits", () => {
     expect(clientQuery).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("INSERT INTO track_artists"),
-      ["t1", 6, 1, "primary", 0, "Strokes, The", "discogs"],
+      ["t1", 6, 1, "primary", 0, "Strokes, The", null, "discogs"],
     );
   });
   it("clears credits", async () => {
