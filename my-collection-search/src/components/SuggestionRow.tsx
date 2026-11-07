@@ -142,12 +142,20 @@ export type SuggestionFoldRowProps = {
   onExpand: () => void;
 };
 
-/** "+N more from <album>": the folded tail of a group. */
+/** "+N more": the folded tail of a group. The album stays in the name and tooltip, off the row, where a long title overflowed. */
 export function SuggestionFoldRow({ count, source, onExpand }: SuggestionFoldRowProps) {
   return (
     <Box as="li" listStyleType="none">
-      <Button variant="ghost" size="sm" minH="44px" w="full" onClick={onExpand}>
-        +{count} more from {source}
+      <Button
+        variant="ghost"
+        size="sm"
+        minH="44px"
+        w="full"
+        aria-label={`+${count} more from ${source}`}
+        title={source}
+        onClick={onExpand}
+      >
+        +{count} more
       </Button>
     </Box>
   );
