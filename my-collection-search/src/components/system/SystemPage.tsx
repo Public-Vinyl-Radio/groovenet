@@ -3,6 +3,7 @@ import { Text } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import SystemStatus from "@/components/system/SystemStatus";
+import SystemStorage from "@/components/system/SystemStorage";
 import SystemBackups from "@/components/system/SystemBackups";
 import DatabaseRestore from "@/components/settings/DatabaseRestore";
 
@@ -17,6 +18,7 @@ export default function SystemPage() {
         How the server is doing, its backups, and restoring from one.
       </Text>
       <SystemStatus />
+      <SystemStorage />
       <SystemBackups />
       <DatabaseRestore />
     </PageContainer>

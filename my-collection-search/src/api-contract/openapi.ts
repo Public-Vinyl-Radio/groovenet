@@ -22,6 +22,7 @@ import {
   recommendationJsonSchemas,
   providerJsonSchemas,
   systemJsonSchemas,
+  storageJsonSchemas,
 } from "@groovenet/contracts";
 import fs from "node:fs";
 import path from "node:path";
@@ -252,6 +253,7 @@ function buildOpenApiDocumentInternal(): OpenApiDocument {
     ...recommendationJsonSchemas,
     ...providerJsonSchemas,
     ...systemJsonSchemas,
+    ...storageJsonSchemas,
   };
   addExamplesToOpenApiDocument(paths, schemas);
 
