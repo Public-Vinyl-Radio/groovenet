@@ -42,6 +42,7 @@ describe("artist import persistence", () => {
       "primary",
       0,
       "Strokes, The",
+      null,
       "discogs",
     ]);
   });
@@ -69,6 +70,7 @@ describe("artist import persistence", () => {
       "primary",
       0,
       "Strokes, The",
+      null,
       "discogs",
     ]);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("source IN ('discogs', 'legacy')"), [
@@ -98,6 +100,7 @@ describe("artist import persistence", () => {
         "primary",
         0,
         name,
+        null,
         "legacy",
       ]);
     },
@@ -166,6 +169,7 @@ it("replays a reviewed split for a newly imported owner", async () => {
     "primary",
     0,
     "Lead",
+    null,
     "manual",
   ]);
   expect(query).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO track_artists"), [
@@ -175,6 +179,7 @@ it("replays a reviewed split for a newly imported owner", async () => {
     "remixer",
     2,
     "Remix",
+    null,
     "manual",
   ]);
 });

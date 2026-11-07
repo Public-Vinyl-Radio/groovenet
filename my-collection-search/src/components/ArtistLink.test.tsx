@@ -38,51 +38,102 @@ describe("artistPageHref", () => {
 });
 
 describe("splitArtistCredits", () => {
-  it("keeps the credited joiner between links", () => {
-    expect(splitArtistCredits("A & B", [credit(1, "A", 0), credit(2, "B", 1)])).toEqual([
-      { text: "A", credit: credit(1, "A", 0) },
+  it("builds the line from the credits, keeping the credited joiner", () => {
+    const a = credit(1, "A", 0, { joiner: "&" });
+    const b = credit(2, "B", 1);
+    expect(splitArtistCredits("A & B", [b, a])).toEqual([
+      { text: "A", credit: a },
       { text: " & " },
-      { text: "B", credit: credit(2, "B", 1) },
+      { text: "B", credit: b },
     ]);
   });
 
-  it("matches case-insensitively, keeping the string's spelling, in position order", () => {
-    const segments = splitArtistCredits("meridian brothers, A", [
-      credit(2, "A", 1),
-      credit(1, "Meridian Brothers", 0),
-    ]);
-    expect(segments.map((s) => s.text)).toEqual(["meridian brothers", ", ", "A"]);
+  it("links an inverted display string by the credited name", () => {
+    const c = credit(66, "The Strokes", 0, { credited_as: "Strokes, The" });
+    expect(splitArtistCredits("Strokes, The", [c])).toEqual([{ text: "The Strokes", credit: c }]);
   });
 
-  it("matches the spelling the release credits, not the canonical name", () => {
-    const c = credit(1, "The Strokes", 0, { credited_as: "Strokes, The" });
-    expect(splitArtistCredits("Strokes, The", [c])).toEqual([{ text: "Strokes, The", credit: c }]);
+  it("drops a Discogs (n) suffix because the name carries none", () => {
+    const c = credit(1, "Charisma", 0, { credited_as: "Charisma (12)" });
+    expect(splitArtistCredits("Charisma (12)", [c])).toEqual([{ text: "Charisma", credit: c }]);
+  });
+
+  it("writes a comma joiner as ', ' and other words between spaces", () => {
+    const segments = splitArtistCredits("A, B Featuring C", [
+      credit(1, "A", 0, { joiner: "," }),
+      credit(2, "B", 1, { joiner: "Featuring" }),
+      credit(3, "C", 2, { role: "featured" }),
+    ]);
+    expect(segments.map((s) => s.text)).toEqual(["A", ", ", "B", " Featuring ", "C"]);
+  });
+
+  it("leaves out remixers and composers, repeats and nameless credits", () => {
+    const a = credit(1, "A", 0);
+    const segments = splitArtistCredits("A", [
+      a,
+      credit(1, "A", 1, { role: "featured" }),
+      credit(2, "Remixer", 2, { role: "remixer" }),
+      credit(4, "Composer", 3, { role: "composer" }),
+      credit(3, "", 4, { credited_as: "" }),
+    ]);
+    expect(segments).toEqual([{ text: "A", credit: a }]);
   });
 
   it("falls back to the name when there is no credited spelling", () => {
     const c = credit(1, "A", 0, { credited_as: "" });
-    expect(splitArtistCredits("A", [c])[0].credit).toBe(c);
+    expect(splitArtistCredits("a", [c])[0].credit).toBe(c);
   });
 
-  it("skips credits the string does not show, repeats, and nameless credits", () => {
-    const segments = splitArtistCredits("A", [
-      credit(1, "A", 0),
-      credit(1, "A", 1, { role: "composer" }),
-      credit(2, "Remixer", 2, { role: "remixer" }),
-      credit(3, "", 3, { credited_as: "" }),
+  it("uses the credited spelling when the name is empty", () => {
+    const c = credit(1, "", 0, { credited_as: "Odd" });
+    expect(splitArtistCredits("Odd", [c])).toEqual([{ text: "Odd", credit: c }]);
+  });
+
+  it("keeps placeholders plain and merged with neighbouring text", () => {
+    const segments = splitArtistCredits("Various", [
+      credit(1, "Various", 0, { is_placeholder: true, joiner: "&" }),
+      credit(2, "Some", 1, { is_placeholder: true }),
     ]);
-    expect(segments).toEqual([{ text: "A", credit: credit(1, "A", 0) }]);
+    expect(segments).toEqual([{ text: "Various & Some" }]);
   });
 
-  it("keeps placeholders and surrounding text plain, merged into one segment", () => {
-    const segments = splitArtistCredits("Various feat. X", [
-      credit(1, "Various", 0, { is_placeholder: true }),
+  it("finds credits without stored joiners in the display string", () => {
+    const a = credit(1, "A", 0);
+    const b = credit(2, "B", 1);
+    expect(splitArtistCredits("A and B", [a, b])).toEqual([
+      { text: "A", credit: a },
+      { text: " and " },
+      { text: "B", credit: b },
     ]);
-    expect(segments).toEqual([{ text: "Various feat. X" }]);
   });
 
-  it("is all text when there are no credits", () => {
+  it("keeps text around credits found in a string without stored joiners", () => {
+    const b = credit(2, "B", 1);
+    const segments = splitArtistCredits("Intro A and B outro", [
+      credit(1, "A", 0, { is_placeholder: true }),
+      credit(3, "Ghost", 1, { is_placeholder: true }),
+      b,
+    ]);
+    expect(segments).toEqual([
+      { text: "Intro A and " },
+      { text: "B", credit: b },
+      { text: " outro" },
+    ]);
+  });
+
+  it("joins with commas when joiners are missing and the string does not show the credits", () => {
+    const segments = splitArtistCredits("Strokes, The / Other", [
+      credit(1, "The Strokes", 0),
+      credit(2, "Other", 1),
+    ]);
+    expect(segments.map((s) => s.text)).toEqual(["The Strokes", ", ", "Other"]);
+  });
+
+  it("shows the display string when there are no credits", () => {
     expect(splitArtistCredits("Nobody", [])).toEqual([{ text: "Nobody" }]);
+    expect(splitArtistCredits("Remix only", [credit(1, "R", 0, { role: "remixer" })])).toEqual([
+      { text: "Remix only" },
+    ]);
   });
 });
 
@@ -114,7 +165,10 @@ describe("ArtistLink", () => {
     const { container } = renderWithProviders(
       <ArtistLink
         artist="Mexican Institute of Sound & Meridian Brothers"
-        credits={[credit(1, "Mexican Institute of Sound", 0), credit(2, "Meridian Brothers", 1)]}
+        credits={[
+          credit(1, "Mexican Institute of Sound", 0, { joiner: "&" }),
+          credit(2, "Meridian Brothers", 1),
+        ]}
       />,
     );
     const links = screen.getAllByRole("link");

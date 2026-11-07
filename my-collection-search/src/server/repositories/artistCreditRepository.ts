@@ -6,7 +6,7 @@ type CreditRow = ArtistCreditRef & { key_id: string; key_friend_id: number };
 
 export const creditKey = (id: string, friendId: number) => `${friendId}:${id}`;
 
-const columns = `ar.id, ar.name, ar.slug, ar.is_placeholder, c.role, c.position, c.credited_as`;
+const columns = `ar.id, ar.name, ar.slug, ar.is_placeholder, c.role, c.position, c.credited_as, c.joiner`;
 
 function group(rows: CreditRow[]): Map<string, ArtistCreditRef[]> {
   const out = new Map<string, ArtistCreditRef[]>();

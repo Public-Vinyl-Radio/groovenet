@@ -18,6 +18,7 @@ const credit = (
   role,
   position,
   credited_as: "Strokes, The",
+  joiner: null,
   source: "discogs",
 });
 

@@ -33,17 +33,11 @@ export const artistPageHref = (slug: string) => `/artists/${encodeURIComponent(s
 export type ArtistSegment = { text: string; credit?: ArtistCreditRef };
 
 /**
- * Cuts the display string into plain text and linkable credits, keeping the
- * credited joiner (`A & B` stays `A & B`). A credit is found by the spelling
- * this release credits it as, in credit order; one that does not appear in the
- * string (a remixer or composer the display leaves out) is not rendered, and
- * the same artist credited twice links once. Placeholders and text between or
- * around credits are plain segments.
+ * Cuts the display string into plain text and linkable credits by searching it
+ * for each credit's spelling. Kept for credits that predate the stored joiner.
  */
-export function splitArtistCredits(artist: string, credits: ArtistCreditRef[]): ArtistSegment[] {
+function splitDisplayString(artist: string, credits: ArtistCreditRef[]): ArtistSegment[] {
   const haystack = artist.toLowerCase();
-  const seen = new Set<number>();
-  const ordered = [...credits].sort((a, b) => a.position - b.position);
   const segments: ArtistSegment[] = [];
   let cursor = 0;
 
@@ -54,13 +48,11 @@ export function splitArtistCredits(artist: string, credits: ArtistCreditRef[]): 
     else segments.push({ text });
   };
 
-  for (const credit of ordered) {
-    if (seen.has(credit.id)) continue;
+  for (const credit of credits) {
     const name = credit.credited_as || credit.name;
     if (!name) continue;
     const at = haystack.indexOf(name.toLowerCase(), cursor);
     if (at === -1) continue;
-    seen.add(credit.id);
     pushText(artist.slice(cursor, at));
     const text = artist.slice(at, at + name.length);
     if (credit.is_placeholder) pushText(text);
@@ -68,6 +60,54 @@ export function splitArtistCredits(artist: string, credits: ArtistCreditRef[]): 
     cursor = at + name.length;
   }
   pushText(artist.slice(cursor));
+  return segments;
+}
+
+/** `,` reads "A, B"; anything else ("&", "Featuring") sits between spaces. */
+const joinerText = (joiner: string) => (joiner === "," ? ", " : ` ${joiner} `);
+
+/**
+ * The artist line for a row that has credits (#1078). It is built from the
+ * credits, not searched for in the display string, so an inversion
+ * (`Strokes, The`) or a `(12)` suffix still links: each primary or featured
+ * artist by name in credit order, joined by the credited joiner. Remixers and
+ * composers the display leaves out stay out, the same artist credited twice
+ * shows once, and placeholders are plain text. A credit set without joiners
+ * (stored before they were) falls back to finding the credits in the string.
+ * No credits at all means the string is shown as it is.
+ */
+export function splitArtistCredits(artist: string, credits: ArtistCreditRef[]): ArtistSegment[] {
+  const seen = new Set<number>();
+  const shown = [...credits]
+    .sort((a, b) => a.position - b.position)
+    .filter((c) => {
+      if (c.role !== "primary" && c.role !== "featured") return false;
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  const named = shown.filter((c) => c.name || c.credited_as);
+  if (named.length === 0) return [{ text: artist }];
+
+  const complete = named.slice(0, -1).every((c) => c.joiner);
+  if (!complete && named.length > 1) {
+    const found = splitDisplayString(artist, named);
+    if (found.filter((s) => s.credit).length === named.filter((c) => !c.is_placeholder).length)
+      return found;
+  }
+
+  const segments: ArtistSegment[] = [];
+  const push = (segment: ArtistSegment) => {
+    const last = segments[segments.length - 1];
+    if (!segment.credit && last && !last.credit) last.text += segment.text;
+    else segments.push(segment);
+  };
+  named.forEach((credit, i) => {
+    const text = credit.name || credit.credited_as;
+    if (credit.is_placeholder) push({ text });
+    else push({ text, credit });
+    if (i < named.length - 1) push({ text: joinerText(credit.joiner || ",") });
+  });
   return segments;
 }
 

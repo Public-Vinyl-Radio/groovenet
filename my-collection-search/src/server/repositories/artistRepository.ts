@@ -108,7 +108,7 @@ export class ArtistRepository {
     values: unknown[],
   ): Promise<ArtistCredit[]> {
     const { rows } = await dbQuery<ArtistCredit>(
-      `SELECT artist_id, role, position, credited_as, source FROM ${table}
+      `SELECT artist_id, role, position, credited_as, joiner, source FROM ${table}
        WHERE ${where} ORDER BY position, artist_id, role`,
       values,
     );
@@ -134,10 +134,11 @@ export class ArtistRepository {
           credit.role,
           credit.position,
           credit.credited_as,
+          credit.joiner ?? null,
           credit.source,
         ];
         await client.query(
-          `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "source"].join(", ")})
+          `INSERT INTO ${table} (${[...columns, "artist_id", "role", "position", "credited_as", "joiner", "source"].join(", ")})
            VALUES (${params.map((_, i) => `$${i + 1}`).join(", ")})`,
           params,
         );
