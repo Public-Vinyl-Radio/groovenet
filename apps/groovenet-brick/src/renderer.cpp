@@ -69,7 +69,8 @@ void Renderer::draw(const App &app, const Platform &platform) {
        40, 158, 940, muted);
   if (app.screen() == Screen::NowPlaying) {
     box(40, 224, 304, 304, panel);
-    if (!state.queue.empty() && state.queue.front().artwork) {
+    if (state.currentIndex < state.queue.size() &&
+        state.queue[state.currentIndex].artwork) {
       // Deterministic mock cover, shared SDL primitives; no downloaded asset.
       box(64, 248, 256, 256, {71, 96, 74, 255});
       for (int i = 0; i < 6; ++i)
@@ -84,24 +85,26 @@ void Renderer::draw(const App &app, const Platform &platform) {
       title = "Disconnected";
     else if (!state.available)
       title = "Player unavailable";
-    else if (!state.queue.empty())
-      title = state.queue.front().title;
+    else if (state.currentIndex < state.queue.size())
+      title = state.queue[state.currentIndex].title;
     text(title, 384, 236, 600, ink, true);
-    if (!state.queue.empty()) {
-      text(state.queue.front().artist, 384, 300, 600, ink);
-      text(state.queue.front().album, 384, 346, 600, muted);
+    if (state.currentIndex < state.queue.size()) {
+      text(state.queue[state.currentIndex].artist, 384, 300, 600, ink);
+      text(state.queue[state.currentIndex].album, 384, 346, 600, muted);
     }
     text(!state.connected || !state.available || state.loading ||
-                 state.queue.empty()
+                 state.currentIndex >= state.queue.size()
              ? "NO PLAYBACK STATE"
              : (state.playing ? "PLAYING" : "PAUSED"),
          384, 418, 600, accent);
     text(timing(state), 384, 466, 600, muted);
     box(40, 564, 944, 6, panel);
-    if (!state.queue.empty() && state.queue.front().duration) {
-      int progress =
-          944 * std::clamp(state.position, 0, *state.queue.front().duration) /
-          std::max(1, *state.queue.front().duration);
+    if (state.currentIndex < state.queue.size() &&
+        state.queue[state.currentIndex].duration) {
+      int progress = int64_t{944} *
+                     std::clamp(state.position, 0,
+                                *state.queue[state.currentIndex].duration) /
+                     std::max(1, *state.queue[state.currentIndex].duration);
       box(40, 564, progress, 6, accent);
     }
   } else {

@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v3
       - name: Install desktop dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core
+        run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev python3 openssl
       - name: Exercise shared logic and SDL desktop with coverage
         run: just brick-coverage
       - uses: actions/upload-artifact@v7

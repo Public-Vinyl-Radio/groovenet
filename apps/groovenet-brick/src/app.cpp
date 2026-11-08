@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "live.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -108,30 +109,12 @@ void MockData::advance(int milliseconds) {
       state_.position >= *state_.queue.front().duration)
     command(Action::Next);
 }
-namespace {
-class PendingLive final : public DataAdapter {
-public:
-  PendingLive() {
-    state_.status = "Live client pending #1097 · no connection";
-    state_.connected = state_.available = state_.playing = false;
-    state_.player = "No player selected";
-  }
-  const Snapshot &snapshot() const override { return state_; }
-  void command(Action) override {}
-  void selectPlayer(size_t) override {}
-  void advance(int) override {}
-  void refresh() override {}
-
-private:
-  Snapshot state_;
-};
-} // namespace
 std::unique_ptr<DataAdapter> dataAdapter(const std::string &mode,
                                          const std::string &scenario) {
   if (mode == "mock")
     return std::make_unique<MockData>(scenario);
   if (mode == "live")
-    return std::make_unique<PendingLive>();
+    return liveAdapter(LiveConfig::environment());
   throw std::invalid_argument("Mode must be mock or live");
 }
 App::App(std::string mode, std::string scenario)
@@ -231,7 +214,8 @@ void App::advance(int milliseconds) {
     data_->advance(milliseconds);
 }
 std::string timing(const Snapshot &snapshot) {
-  if (snapshot.queue.empty() || !snapshot.queue.front().duration)
+  if (snapshot.currentIndex >= snapshot.queue.size() ||
+      !snapshot.queue[snapshot.currentIndex].duration)
     return "--:-- / --:--";
   auto format = [](int seconds) {
     std::ostringstream out;
@@ -240,6 +224,6 @@ std::string timing(const Snapshot &snapshot) {
     return out.str();
   };
   return format(snapshot.position) + " / " +
-         format(*snapshot.queue.front().duration);
+         format(*snapshot.queue[snapshot.currentIndex].duration);
 }
 } // namespace brick

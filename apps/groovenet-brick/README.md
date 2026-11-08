@@ -2,7 +2,7 @@
 
 The native C++17/SDL2 application foundation for #1096. Desktop and future device
 launchers share the application, data-adapter interface and SDL renderer. This
-preview has deterministic mock data and navigation shells; it does not play audio.
+preview has deterministic mock data and a live REST/SSE adapter; audio stays on the server.
 
 ## Host setup and commands
 
@@ -10,7 +10,7 @@ Supported development host: macOS with Xcode command-line tools and Homebrew.
 Linux CI uses Ubuntu 24.04 with SDL's dummy video driver.
 
 ```sh
-brew install cmake pkg-config sdl2 sdl2_ttf
+brew install cmake pkg-config sdl2 sdl2_ttf curl json-c
 just brick-preview
 just brick-preview --scale 0.75 --scenario metadata
 just brick-test
@@ -18,7 +18,7 @@ just brick-coverage
 ```
 
 Linux dependencies: `cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev
-fonts-dejavu-core`. Requires SDL2 and SDL2_ttf >= 2.0.18, CMake >= 3.20 and a C++17
+fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev python3 openssl`. Requires SDL2 and SDL2_ttf >= 2.0.18, CMake >= 3.20 and a C++17
 compiler. Native dependencies are independent: existing npm bootstrap, builds and
 tests do not invoke CMake or require SDL. Build output stays in this directory's
 ignored `build/` and `build-coverage/` directories.
@@ -96,13 +96,70 @@ Previous rotate the fixture queue and reset timing. Long text is clipped at a
 fixed readable size with a continuation mark, without splitting UTF-8 bytes.
 The artwork fixture is deterministic SDL geometry, requiring no downloaded files.
 
-`just brick-preview --mode live` selects the live adapter seam and displays
-“Live client pending #1097 · no connection”. It does not fall back to mock data,
-read credentials, access the network or claim to control a player. #1097 owns
-REST/SSE, authentication, trust, reconnect and configuration persistence. The
-platform interface provides a config directory; the desktop implementation uses
-SDL's per-user `Groovenet/Brick` preference path. This foundation writes no
-configuration. Tests may create that empty directory through SDL_GetPrefPath.
+`just brick-preview --mode live` runs the asynchronous native client. Provision a
+launcher environment with `BRICK_URL` (app origin, **without `/api`**),
+`BRICK_PLAYER_KEY` (the server's `PLAYER_API_KEY`), and, where collection API
+authentication is enabled, `BRICK_COLLECTION_KEY` (the collection API key).
+Player credentials are never substituted for collection credentials. OwnTone
+URLs/passwords remain entirely on the server. Keep the launcher environment file
+outside the checkout, owner-readable only (`chmod 600`), and source/export it
+before starting the app. Do not put tokens in CLI arguments, screenshots or logs.
+The app does not write secrets to its SDL configuration directory.
+
+Use HTTPS outside loopback development. The host libcurl trust store and hostname
+verification are enabled by default. For a private CA, provision its PEM bundle
+and set `BRICK_CA_FILE` to its absolute path; keep the hostname matching the
+certificate and the device clock accurate. Explicit `BRICK_INSECURE_TLS=1`
+disables verification for a development session only. Redirects are refused so
+credentials cannot follow a redirect to another origin. Invalid configuration
+appears in application state; diagnostics never echo credentials/server bodies.
+
+The worker lists players, fetches selected detail and subscribes to its SSE. The
+first valid stream snapshot enables controls. Selecting a player and waking
+cancel the old request, discard unsent work, and obtain fresh state. Reconnects
+use 250 ms exponential backoff capped at 8 s; every connection starts without a
+replay ID and requires a fresh snapshot. A changed worker identity refreshes the
+session, and stale sequence/revision/current-entry position updates are ignored.
+The UI does not advance live timing itself. Quit cancels/join the worker; it
+never stops playback.
+
+Requests have a 3 s connect and 8 s total deadline; SSE connections rotate after
+30 s. Cancellation interrupts idle transfers through libcurl's progress callback
+(typically within a second, with the connect deadline bounding DNS/connect).
+Responses and individual SSE events are bounded at 2 MiB, player lists at 1,000,
+and queues at 10,000. Input only queues one command; all HTTP, parsing and
+metadata work runs on the worker. Snapshot publication uses a mutex, and the UI
+copies the latest state during `advance()`.
+
+Commands carry the last authoritative `expected_revision`; playback and volume
+are never changed optimistically. A command is attempted **once**. This includes
+skip, queue add/replace and explicit takeover submitted through `RestClient` and
+`PlayerState::command`. On timeout, lost response or conflict, refresh state and
+let the user deliberately retry. A lost response may mean the write committed.
+The adapter does not automatically approve takeover/unknown speaker conditions.
+Unauthorized, missing player, revision/speaker conflict, unavailable service and
+no-audio errors appear as state, with controls disabled until fresh state arrives.
+
+### Existing collection API audit
+
+| Need                                      | Existing API / contract                                                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Playlist listing                          | `GET /api/playlists`                                                                                                |
+| Playlist details and composite track refs | `GET /api/playlists/{id}/tracks`                                                                                    |
+| Track metadata and playable availability  | `POST /api/tracks/batch`, body `{"tracks":[{"track_id":"…","friend_id":1}]}`; array response with `local_audio_url` |
+| Individual track                          | `GET /api/tracks/{id}?friend_id=…`                                                                                  |
+| Artwork metadata                          | Track `album_thumbnail`; audio metadata also exposes embedded cover information                                     |
+
+`RestClient` exposes playlist reads and composite track enrichment. The live
+adapter enriches the current entry, keeping a one-track metadata cache per
+connection, keyed by **both** track ID and friend ID. Missing `local_audio_url`
+means no playable local audio; a missing batch row is not a playable track.
+Queue snapshots supply title/artist and refs, not album/artwork. Collection
+authorization or metadata failure leaves player control available and shows a
+metadata warning. Actual cover download/decoding/display and playlist navigation
+remain in the UI slices (#1098–1099); the live view uses the artwork fallback,
+never mock cover geometry. There is no image byte cache or image work on the
+render loop. No backend endpoint gap was found for this client slice.
 
 ## Manual preview and captures
 
@@ -120,7 +177,8 @@ configuration. Tests may create that empty directory through SDL_GetPrefPath.
 5. Plug/unplug a mapped controller; repeat selection/back and playback controls.
    Defocus/refocus the window to exercise suspend/wake. Quit with Q, controller
    Back, or window close; no player playback command is issued.
-6. Launch `--mode live` and confirm the pending-client state is visibly distinct.
+6. Launch `--mode live` and confirm the connecting/error state, then check player list, fresh Now Playing,
+   play/pause, volume and reconnect against a development player.
 
 Scripted capture uses the same application action path with a frozen clock. It
 runs without a display and exits after the requested number of frames:
@@ -153,7 +211,7 @@ Reference captures from the Mac build:
 
 - `src/app.*`: SDL-independent application navigation, focus/back history,
   deterministic mock state and transport, timing, `DataAdapter` interface and
-  explicit pending-live adapter. It owns no audio, files or firmware calls.
+  mock adapter. `src/live.*` owns the native REST/SSE worker and bounded parser. It owns no audio, files or firmware calls.
 - `src/renderer.*`: shared SDL2/SDL_ttf rendering of application state. The desktop
   launches it now; a device launcher will reuse it.
 - `src/platform.hpp`: `Platform` contract for named input, config paths and battery.
@@ -169,7 +227,7 @@ Reference captures from the Mac build:
 `just brick-test` executes behavioral tests with CTest using SDL's dummy video
 and audio drivers. They cover navigation/focus restoration, observational player
 selection, transport, blocked commands, clock rollover/fractions, volume bounds,
-scenario reset, pending live mode, lifecycle, option validation, keyboard and
+scenario reset, live configuration, lifecycle, option validation, keyboard and
 controller mapping (including ignored Power/local volume/repeats), SDL virtual
 controller hotplug, real rendering of every scenario/shell, UTF-8, font failure,
 invalid video driver, screenshot dimensions and write failures. They assert
@@ -192,3 +250,25 @@ It does not validate Knulli ABI/toolchain, raw button mappings, battery readings
 suspend/power ownership, Wi-Fi recovery, device font distribution or launcher
 packaging. See [the hardware spike](PLATFORM-SPIKE.md) for the Knulli Scarab v1
 selection and outstanding hardware checks, and #1102 for device release work.
+
+The native TLS fixture is part of both `brick-test` and `brick-coverage`. It
+creates ephemeral credentials/certificates and exercises real libcurl requests,
+private CA/hostname failures, explicit insecure mode, separate authorization,
+fragmented SSE, reconnect after EOF, cancelled idle streams, ambiguous writes,
+revision conflicts and collection enrichment. It binds only to loopback and
+requires permission to open a local listening socket. Unit tests additionally
+exercise malformed data and worker/sequence/revision ordering.
+
+For a live worker smoke test, provision a disposable named player `brick-smoke`
+on a development worker, set `BRICK_URL` to that worker's root (this test talks
+directly to worker paths), export its `BRICK_PLAYER_KEY`, then run
+`build/brick-tests smoke`. It reads list/detail/SSE and renames **only** that
+disposable player to `Brick live smoke verified`, checking the revision advanced.
+It does not start playback or route speakers. Normal application live mode uses
+the app origin and its `/api/players` proxy instead.
+
+Live smoke recorded 2026-11-07 on macOS: the native client read list/detail and
+SSE from the production worker implementation backed by a disposable Postgres,
+then renamed the disposable `brick-smoke` player and observed revision 0 → 1.
+The worker and database were removed afterward. No OwnTone engine or speaker was
+attached; playback/output and physical-device qualification remain separate.
