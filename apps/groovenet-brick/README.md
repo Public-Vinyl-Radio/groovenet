@@ -80,7 +80,11 @@ replacement confirmation with Cancel selected by default. Add to queue appends
 without starting idle playback. Back preserves list focus. Queue shows the selected player’s shared queue, with the current entry marked.
 Select an entry to play it, remove it, or move it up/down one position. Left/right
 pages through five rows at a time; Up/Down wraps. The first row opens Clear queue
-with Cancel selected by default. Outputs remains a navigation shell for #1101. Button hints remain visible on every screen.
+with Cancel selected by default. Outputs discovers speakers and shows desired, assigned and observed state separately.
+Selecting a speaker opens a confirmation with Cancel selected. Selecting stops
+the target and, for an explicit transfer, detaches the named source; it remembers
+one desired output without starting playback. Play desired output is a separate
+confirmed action. Button hints remain visible on every screen.
 
 Losing window focus simulates a suspended UI; focus gain requests an adapter
 refresh. Quit, suspend and wake never issue playback commands. The mock clock
@@ -169,10 +173,13 @@ let the user deliberately retry. A lost response may mean the write committed.
 The adapter does not automatically approve takeover/unknown speaker conditions.
 Speaker-busy, availability-unknown, engine-busy and revision conflicts open an
 acknowledgment panel. Playback/volume input is blocked until A/Enter acknowledges
-or B/Esc dismisses it. Acknowledgment sends no command and grants no policy
-exception: deliberate speaker/engine takeover belongs in the web controller.
-The Brick never sends `takeover` or `allow_unknown`, retries an ambiguous write,
-or changes speakers as a side effect of acknowledging a warning.
+or B/Esc dismisses it. Acknowledgment sends no command and grants no policy exception. In Outputs,
+a failed explicit Play desired output action can offer a separate confirmation
+for unknown status, an occupied speaker, or engine takeover, according to the API
+response. Only confirming that action sends `allow_unknown` or `takeover`; the
+server availability policy is unchanged. Approvals expire when discovery, player
+revision, worker identity or subscription changes. Ambiguous writes are never
+retried, and dismissing a warning never changes speakers.
 Unauthorized, missing player, revision/speaker conflict, unavailable service and
 no-audio errors appear as state, with controls disabled until fresh state arrives.
 
@@ -397,8 +404,9 @@ revision and subscription identity. A changed revision or reconnect invalidates
 that action. Each mutation sends `expected_revision` and is attempted once, with
 retained confirmed rows and a pending status until a fresh SSE snapshot arrives.
 Conflict, lost response and timeout refresh state without retrying the write.
-Playback uses the existing speaker availability/takeover acknowledgment; only an
-explicit action in the web controller can grant takeover or unknown availability.
+Playback uses the existing speaker availability/takeover acknowledgment; a separate
+confirmed Play desired output action in Outputs can grant takeover or unknown
+availability for that request.
 
 Validation covers duplicate tracks, current/focused removal, reordering, long
 queues, remote edits, clear cancellation, revision conflicts, reconnects, lost
@@ -407,3 +415,32 @@ a native controller and independent REST controller against the production playe
 manager and disposable Postgres, using a silent backend. See
 [queue validation evidence](evidence/queue-1100.md). Physical speaker/device
 qualification remains under #1102.
+
+### Player outputs (#1101)
+
+![Output observations and assignments](screenshots/outputs.png)
+![Explicit transfer confirmation](screenshots/output-transfer.png)
+
+Outputs uses `GET /api/players/{id}/devices` and the player list. A separate
+cancellable read worker refreshes discovery every two seconds after the first
+visit; it never interrupts SSE or writes a command. Idle/occupied/unknown are
+observations, desired outputs are preferences, and assigned players are active
+claims. Missing desired outputs and discovery errors remain visible. Focus
+follows output identity across discovery reordering.
+
+Each confirmation captures the selected player revision, worker/subscription,
+discovered output identity and source revision. Transfers send `output.transfer`
+with both revisions and `play: false`. The confirmation names both affected
+players and explains that playback will not start. Partial results display source
+detachment, target attachment and a classified error, then refresh actual
+assignments. No rollback, retry or optimistic assignment is invented.
+
+Selecting a desired output and playing it are separate actions. The initial play
+request uses the existing server policy; each API approval response requires
+another deliberate confirmation, defaulting to Cancel. Occupied-speaker and
+engine-takeover prompts explicitly warn about interrupting existing playback.
+Changing selection, reconnecting, waking or changing discovery invalidates stale
+actions and approvals. This client selects one output, with no multi-room mode.
+
+See [validation evidence](evidence/outputs-1101.md) for fixture, coverage and
+production-manager smoke results and the remaining physical-receiver check.

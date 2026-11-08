@@ -114,7 +114,7 @@ try {
     store,
     { development: { libraryRoot: "/silent", create: () => new Backend() } },
     async () => ({
-      availability: "free",
+      availability: "idle",
       source: "unconfigured",
       observed_at: new Date().toISOString(),
       entity_id: null,

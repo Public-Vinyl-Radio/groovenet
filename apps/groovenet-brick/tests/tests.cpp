@@ -129,6 +129,18 @@ void queueTests() {
 }
 class ScriptedData final : public DataAdapter {
 public:
+  int outputWrites = 0, outputBrowses = 0;
+  bool unknown = false, takeover = false;
+  std::string body, token;
+  void browseOutputs() override { ++outputBrowses; }
+  void output(const std::string &b, const std::string &t, bool u,
+              bool o) override {
+    ++outputWrites;
+    body = b;
+    token = t;
+    unknown = u;
+    takeover = o;
+  }
   Snapshot state = MockData("playing").snapshot();
   const Snapshot &snapshot() const override { return state; }
   void command(Action) override {}
@@ -140,6 +152,70 @@ public:
   void editQueue(QueueEdit, const std::string &, const std::string &) override {
   }
 };
+void outputUiTests() {
+  auto data = std::make_unique<ScriptedData>();
+  auto *remote = data.get();
+  App app(std::move(data));
+  for (auto a : {Action::Menu, Action::Up, Action::Select})
+    app.handle(a);
+  check(remote->outputBrowses == 1 && remote->outputWrites == 0);
+  for (const auto &code :
+       {"", "AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED", "DEVICE_BUSY"}) {
+    remote->state.outputApproval = code;
+    remote->state.outputUnknown = std::string(code) == "AVAILABILITY_UNKNOWN";
+    remote->state.outputTakeover = std::string(code) == "SPEAKER_OCCUPIED" ||
+                                   std::string(code) == "DEVICE_BUSY";
+    app.handle(Action::Select);
+    check(app.screen() == Screen::OutputConfirm && app.focus() == 0);
+    check(app.rows().size() == 2);
+    auto label = app.rows()[1];
+    check(label.find(std::string(code) == "AVAILABILITY_UNKNOWN" ? "unknown"
+                     : std::string(code) == "SPEAKER_OCCUPIED"   ? "occupied"
+                     : std::string(code) == "DEVICE_BUSY"
+                         ? "engine"
+                         : "server policy") != std::string::npos);
+    app.handle(Action::Select); // Decline every prompt.
+    check(remote->outputWrites == 0);
+  }
+  app.handle(Action::Select);
+  app.handle(Action::Down);
+  app.handle(Action::Select);
+  check(remote->outputWrites == 1 && remote->takeover && !remote->unknown);
+  app.handle(Action::Down);
+  app.handle(Action::Down); // speaker assigned to studio
+  app.handle(Action::Select);
+  check(app.notice().find("detach source studio") != std::string::npos);
+  app.handle(Action::Down);
+  app.handle(Action::PlayPause); // No transport on confirmations.
+  app.handle(Action::Select);
+  check(remote->outputWrites == 2 &&
+        remote->body.find("output.transfer") != std::string::npos);
+  check(!remote->unknown && !remote->takeover);
+  app.advance(0);
+  app.handle(Action::Down); // Last output.
+  app.advance(0);
+  auto selected = remote->state.routing.devices.back();
+  std::reverse(remote->state.routing.devices.begin(),
+               remote->state.routing.devices.end());
+  app.advance(0);
+  check(app.focus() == 1 &&
+        remote->state.routing.devices[app.focus() - 1].id == selected.id);
+  remote->state.routing.devices.erase(remote->state.routing.devices.begin());
+  app.advance(0);
+  check(app.focus() == 0);
+  remote->state.playerId = "other";
+  app.advance(0);
+  remote->state.routing.desired.clear();
+  app.handle(Action::Select);
+  check(app.notice().find("missing") != std::string::npos);
+  remote->state.routing.desired = "lost";
+  app.handle(Action::Select);
+  check(app.notice().find("missing") != std::string::npos);
+  remote->state.routing.token.clear();
+  app.handle(Action::Select);
+  check(app.screen() == Screen::Outputs &&
+        app.notice().find("fresh") != std::string::npos);
+}
 void queueFocusTests() {
   auto data = std::make_unique<ScriptedData>();
   auto *remote = data.get();
@@ -254,9 +330,11 @@ void stateTests() {
   app.handle(Action::Up);
   check(app.focus() == 4 && app.snapshot().volume == 55);
   app.handle(Action::Select);
-  check(app.screen() == Screen::Outputs && app.rows().size() == 3);
+  check(app.screen() == Screen::Outputs && app.rows().size() == 4);
   app.handle(Action::Select);
   check(!app.notice().empty());
+  app.handle(Action::Back);
+  check(app.screen() == Screen::Outputs);
   app.handle(Action::Back);
   check(app.screen() == Screen::Menu && app.focus() == 4);
   app.handle(Action::Down);
@@ -531,6 +609,34 @@ void renderTests() {
       app.handle(Action::Suspend);
       view.draw(app, platform);
     }
+    auto outputData = std::make_unique<ScriptedData>();
+    auto *outputRemote = outputData.get();
+    App output(std::move(outputData));
+    for (auto a : {Action::Menu, Action::Up, Action::Select})
+      output.handle(a);
+    view.draw(output, platform);
+    output.handle(Action::Up);
+    view.draw(output, platform); // Last output: unassigned, desired by none.
+    output.handle(Action::Select);
+    view.draw(output, platform);
+    outputRemote->state.acknowledgment =
+        "Partial transfer failed · Source detached · Target not attached · "
+        "Engine conflict";
+    view.draw(output, platform);
+    outputRemote->state.acknowledgment = std::string(90, 'x');
+    view.draw(output, platform);
+    outputRemote->state.acknowledgment.clear();
+    output.handle(Action::Menu);
+    view.draw(output, platform);
+    check(output.screen() == Screen::Menu);
+    auto longData = std::make_unique<ScriptedData>();
+    longData->state.routing.desired = std::string(255, 'x');
+    longData->state.routing.devices[0].id = longData->state.routing.desired;
+    App longOutput(std::move(longData));
+    for (auto a : {Action::Menu, Action::Up, Action::Select, Action::Select}) longOutput.handle(a);
+    view.draw(longOutput, platform);
+
+
     App playlist("mock", "paused");
     for (auto action :
          {Action::Menu, Action::Down, Action::Down, Action::Select,
@@ -680,6 +786,7 @@ int main(int argc, char **argv) {
     liveTests();
     stateTests();
     queueTests();
+    outputUiTests();
     queueFocusTests();
     inputTests();
     optionTests();

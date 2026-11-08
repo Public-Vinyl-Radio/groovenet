@@ -54,6 +54,129 @@ void wait(DataAdapter &data,
 }
 } // namespace
 void liveTests() {
+  MockData mock("playing");
+  mock.acknowledge();
+  mock.output("invalid", "", false, false);
+  mock.acknowledge();
+  mock.output("{\"output_id\":\"missing\"}", "", false, false);
+  mock.acknowledge();
+  mock.output(outputCommand(mock.snapshot().routing.devices[1], "lounge"), "",
+              false, false);
+  check(mock.snapshot().routing.desired == "studio-speaker" &&
+        !mock.snapshot().playing);
+  mock.acknowledge();
+  mock.output("{\"type\":\"play\"}", "", false, false);
+  check(mock.snapshot().outputApproval == "SPEAKER_OCCUPIED");
+  mock.acknowledge();
+  mock.output("{\"type\":\"play\"}", "", false, true);
+  check(mock.snapshot().routing.assigned == "studio-speaker" &&
+        mock.snapshot().playing);
+  mock.acknowledge();
+  mock.output(outputCommand(mock.snapshot().routing.devices[2], "lounge"), "",
+              false, false);
+  mock.acknowledge();
+  mock.output("{\"type\":\"play\"}", "", false, false);
+  check(mock.snapshot().outputApproval == "AVAILABILITY_UNKNOWN");
+  mock.acknowledge();
+  mock.output("{\"type\":\"play\"}", "", true, false);
+  check(mock.snapshot().routing.assigned == "kitchen-speaker");
+  for (const auto &scenario : {"disconnected", "unavailable", "loading"}) {
+    MockData blocked(scenario);
+    blocked.output("{\"type\":\"play\"}", "", true, true);
+    check(blocked.snapshot().routing.token == "mock" && blocked.snapshot().acknowledgment.empty());
+  }
+  mock.output("{}", "", false, false); // Pending acknowledgment blocks writes.
+  MockData owned("playing");
+  owned.selectPlayer(1);
+  owned.output("{\"type\":\"play\"}", "", true, true);
+  check(owned.snapshot().acknowledgment.find("explicit transfer") !=
+        std::string::npos);
+  const std::string people =
+      R"({"players":[{"id":"a","revision":5,"assigned_output":null,"state":{"desired_output":"lost"}},{"id":"b","revision":7,"assigned_output":"speaker","state":{"desired_output":"speaker"}}]})";
+  const std::string devices =
+      R"({"devices":[{"id":"speaker","name":"Room","assigned_player_id":"b","desired_by":["a","b"],"observed":{"availability":"idle"}}]})";
+  auto routing = outputList(devices, people, "a");
+  check(routing.desired == "lost" && routing.assigned.empty());
+  check(routing.status.find("lost") != std::string::npos);
+  check(routing.devices[0].sourceRevision == 7);
+  check(routing.devices[0].desiredBy.size() == 2);
+  auto transfer = outputCommand(routing.devices[0], "a");
+  check(transfer.find("output.transfer") != std::string::npos &&
+        transfer.find("\"from_revision\":7") != std::string::npos);
+  check(outputCommand(routing.devices[0], "b").find("output.select") !=
+        std::string::npos);
+  auto unassigned = routing.devices[0];
+  unassigned.assigned.clear();
+  check(outputCommand(unassigned, "a").find("output.select") !=
+        std::string::npos);
+  unassigned.assigned = "missing";
+  unassigned.sourceRevision = -1;
+  rejects([&] { outputCommand(unassigned, "a"); });
+  for (const auto &availability : {"occupied", "unknown"})
+    check(outputList(replace(devices, "idle", availability), people, "a")
+              .devices[0]
+              .availability == availability);
+  check(outputList("{\"devices\":[]}", people, "a").devices.empty());
+  auto nothing = outputList(
+      "{\"devices\":[]}",
+      replace(people, "\"desired_output\":\"lost\"", "\"desired_output\":null"),
+      "a");
+  check(nothing.desired.empty());
+  rejects([&] {
+    outputList(replace(devices, "\"id\":\"speaker\"",
+                       "\"id\":\"" + std::string(256, 'x') + "\""),
+               people, "a");
+  });
+  rejects([&] {
+    outputList(replace(devices, "[\"a\",\"b\"]", "[1]"), people, "a");
+  });
+  unassigned.assigned = "../bad";
+  rejects([&] { outputCommand(unassigned, "a"); });
+
+  rejects([&] { outputList(replace(devices, "idle", "bad"), people, "a"); });
+  rejects([&] {
+    outputList(replace(devices, "\"id\":\"speaker\"", "\"id\":\"\""), people,
+               "a");
+  });
+  rejects([&] {
+    outputList(replace(devices, "[\"a\",\"b\"]", "[null]"), people, "a");
+  });
+  rejects([&] { outputList("{}", people, "a"); });
+  auto deviceRow = devices.substr(12, devices.size() - 14);
+  rejects([&] {
+    outputList("{\"devices\":[" + deviceRow + "," + deviceRow + "]}", people,
+               "a");
+  });
+  std::string many = "{\"devices\":[null";
+  for (int i = 0; i < 1000; ++i)
+    many += ",null";
+  rejects([&] { outputList(many + "]}", people, "a"); });
+  rejects([&] {
+    outputList(devices, replace(many + "]}", "devices", "players"), "a");
+  });
+  std::string desires = "[\"a\"";
+  for (int i = 0; i < 1000; ++i)
+    desires += ",\"a\"";
+  rejects([&] {
+    outputList(replace(devices, "[\"a\",\"b\"]", desires + "]"), people, "a");
+  });
+
+  check(outputResult("{}").find("accepted") != std::string::npos);
+  check(outputResult(
+            R"({"transfer":{"detached":true,"attached":false,"error":null}})")
+            .find("confirmed") != std::string::npos);
+  for (const auto &code :
+       {"DEVICE_BUSY", "SPEAKER_OCCUPIED", "AVAILABILITY_UNKNOWN", "OTHER"}) {
+    auto result = outputResult(
+        std::string(
+            R"({"transfer":{"detached":false,"attached":true,"error":{"code":")") +
+        code + R"("}}})");
+    check(result.find("failed") != std::string::npos &&
+          result.find("retains assignment") != std::string::npos);
+  }
+  rejects([&] {
+    outputResult(R"({"transfer":{"detached":true,"attached":false}})");
+  });
   PlayerState queueState;
   queueState.detail(player);
   check(queueState.view.queue[0].entryId == "one");
@@ -409,6 +532,115 @@ void liveTests() {
 }
 int networkTests(const std::string &mode) {
   auto config = LiveConfig::environment();
+  if (mode == "outputs") {
+    config.url += "/outputs";
+    auto data = liveAdapter(config);
+    wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
+    data->browseOutputs(); // No selection: no output read or write.
+    data->selectPlayer(0);
+    data->browseOutputs();
+    auto ready = [](const Snapshot &s) {
+      return s.connected && !s.routing.token.empty();
+    };
+    wait(*data, ready);
+    auto token = [&] {
+      return data->snapshot().commandToken + "|" +
+             data->snapshot().routing.token;
+    };
+    data->output("{}", "");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->output("bad-json", token());
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->output("{}", "stale");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    const std::string play = "{\"type\":\"play\"}";
+    for (const auto &code :
+         {"AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED", "DEVICE_BUSY"}) {
+      wait(*data, ready);
+      auto state = data->snapshot();
+      data->output(play, token(), state.outputUnknown, state.outputTakeover);
+      data->output(play, token()); // Pending write is not replaced.
+      wait(*data, [&](const Snapshot &s) {
+        return s.connected && s.outputApproval == code;
+      });
+      check(!data->snapshot().acknowledgment.empty());
+      data->output(play, token()); // Warning blocks another write.
+      data->acknowledge();
+    }
+    wait(*data, ready);
+    RestClient api(config);
+    api.request("/idle-output", "", true, [] { return false; });
+    wait(*data, [](const Snapshot &s) {
+      return !s.routing.devices.empty() &&
+             s.routing.devices[0].availability == "idle" &&
+             s.outputApproval.empty();
+    });
+    auto body = outputCommand(data->snapshot().routing.devices[0], "a");
+    data->output(body, token());
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.acknowledgment.find("Partial transfer failed") !=
+                                std::string::npos;
+    });
+    data->acknowledge();
+    wait(*data, [&](const Snapshot &s) {
+      return ready(s) && s.routing.devices[0].assigned.empty();
+    });
+    for (int n = 0; n < 3; ++n) {
+      wait(*data, ready);
+      data->output(body, token());
+      wait(*data, [n](const Snapshot &s) {
+        return s.connected &&
+               (n == 1 ? s.status.find("not repeated") != std::string::npos
+                       : !s.acknowledgment.empty());
+      });
+      data->acknowledge();
+    }
+    wait(*data, ready);
+    auto oldToken = token();
+    api.request("/hold-discovery", "", true, [] { return false; });
+    data->browseOutputs();
+    wait(*data, [&](const Snapshot &) {
+      return api.request("/discovery-started", "", true, [] { return false; })
+                 .find("true") != std::string::npos;
+    });
+    data->browseOutputs(); // Supersede a read already in flight.
+    api.request("/release-discovery", "", true, [] { return false; });
+    wait(*data, ready);
+    api.request("/hold-discovery", "", true, [] { return false; });
+    data->browseOutputs();
+    wait(*data, [&](const Snapshot &) {
+      return api.request("/discovery-started", "", true, [] { return false; })
+                 .find("true") != std::string::npos;
+    });
+    data->refresh(); // Cancel a read from the old subscription.
+    api.request("/release-discovery", "", true, [] { return false; });
+    wait(*data, ready);
+    api.request("/lose-output", "", true, [] { return false; });
+    data->browseOutputs();
+    wait(*data, [&](const Snapshot &s) {
+      return ready(s) && s.routing.devices.empty();
+    });
+    check(data->snapshot().routing.status.find("lost") != std::string::npos);
+    data->output(body, oldToken);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    oldToken = token();
+    data->refresh();
+    wait(*data, ready);
+    data->output(body, oldToken);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    api.request("/discovery-fail", "", true, [] { return false; });
+    data->browseOutputs();
+    wait(*data, [](const Snapshot &s) {
+      return s.routing.token.empty() &&
+             s.routing.status.find("unavailable") != std::string::npos;
+    });
+    return 0;
+  }
   if (mode == "queue-edits") {
     auto data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
@@ -580,6 +812,34 @@ int networkTests(const std::string &mode) {
     data->queueTracks(false, 1, data->snapshot().commandToken);
     wait(*data,
          [](const Snapshot &s) { return s.connected && s.queue.size() == 3; });
+    data->browseOutputs();
+    auto outputReady = [](const Snapshot &s) {
+      return s.connected && !s.routing.token.empty();
+    };
+    wait(*data, outputReady);
+    check(data->snapshot().playing &&
+          data->snapshot().routing.devices.size() == 1);
+    auto routeToken = [&] {
+      return data->snapshot().commandToken + "|" +
+             data->snapshot().routing.token;
+    };
+    data->output(
+        outputCommand(data->snapshot().routing.devices[0], "brick-smoke"),
+        routeToken());
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.playing && !s.acknowledgment.empty();
+    });
+    data->acknowledge();
+    wait(*data, outputReady);
+    check(data->snapshot().routing.desired == "dummy" &&
+          data->snapshot().routing.assigned.empty());
+    data->output("{\"type\":\"play\"}", routeToken());
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.playing && !s.acknowledgment.empty();
+    });
+    data->acknowledge();
+    wait(*data, outputReady);
+    check(data->snapshot().routing.assigned == "dummy");
     data.reset();
     data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) {

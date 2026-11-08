@@ -71,6 +71,7 @@ void Renderer::draw(const App &app, const Platform &platform) {
        : app.screen() == Screen::PlaylistTracks ? "Playlist tracks"
        : app.screen() == Screen::TrackActions   ? "Choose action"
        : app.screen() == Screen::QueueActions   ? "Queue entry actions"
+       : app.screen() == Screen::OutputConfirm  ? "Confirm output action"
        : app.screen() == Screen::ClearConfirm   ? "Clear shared queue?"
        : app.screen() == Screen::Confirm
            ? "Replace existing shared queue?"
@@ -155,47 +156,84 @@ void Renderer::draw(const App &app, const Platform &platform) {
     }
   } else {
     const auto rows = app.rows();
-    const size_t start = app.focus() / 5 * 5;
+    const bool outputs = app.screen() == Screen::Outputs;
+    const size_t page = outputs ? 3 : 5;
+    const size_t start = app.focus() / page * page;
     if (rows.empty())
       text("Nothing available", 60, 240, 880, muted);
-    for (size_t i = start; i < std::min(start + 5, rows.size()); ++i) {
-      int y = 224 + static_cast<int>(i - start) * 68;
+    for (size_t i = start; i < std::min(start + page, rows.size()); ++i) {
+      int y = 224 + static_cast<int>(i - start) * (outputs ? 112 : 68);
       bool focused = i == app.focus();
       if (focused)
-        box(40, y, 944, 58, panel);
-      text((focused ? ">  " : "   ") + rows[i], 60, y + 12, 900,
-           focused ? accent : ink);
+        box(40, y, 944, outputs ? 102 : 58, panel);
+      if (outputs && i > 0) {
+        const auto &d = state.routing.devices.at(i - 1);
+        text((focused ? ">  " : "   ") + d.name + " [" + d.id + "]", 60, y + 4,
+             900, focused ? accent : ink);
+        text("Observed: " + d.availability +
+                 " · Assigned: " + (d.assigned.empty() ? "none" : d.assigned),
+             85, y + 34, 860, muted);
+        std::string desired = "Desired by:";
+        for (const auto &id : d.desiredBy)
+          desired += " " + id;
+        if (d.desiredBy.empty())
+          desired += " none";
+        text(desired, 85, y + 64, 860, muted);
+      } else
+        text((focused ? ">  " : "   ") + rows[i], 60, y + 12, 900,
+             focused ? accent : ink);
     }
   }
   bool collection = app.screen() == Screen::Playlists ||
                     app.screen() == Screen::PlaylistTracks ||
                     app.screen() == Screen::TrackActions;
-  text(app.notice().empty()
-           ? (collection ? state.collection.status
-              : (app.screen() == Screen::Confirm ||
-                 app.screen() == Screen::ClearConfirm)
-                  ? "This removes the selected player's queue. B/Esc cancels."
-                  : state.status)
-           : app.notice(),
-       40, 606, 944, muted);
+  if (app.screen() == Screen::OutputConfirm) {
+    std::string remaining = app.notice();
+    for (int line = 0; line < 4 && !remaining.empty(); ++line) {
+      auto split =
+          remaining.size() <= 70 ? remaining.size() : remaining.rfind(' ', 70);
+      if (split == std::string::npos)
+        split = remaining.size();
+      text(remaining.substr(0, split), 40, 484 + line * 34, 944, muted);
+      remaining.erase(0, std::min(split + 1, remaining.size()));
+    }
+  } else
+    text(app.notice().empty()
+             ? (app.screen() == Screen::Outputs ? state.routing.status
+                : collection                    ? state.collection.status
+                : (app.screen() == Screen::Confirm ||
+                   app.screen() == Screen::ClearConfirm)
+                    ? "This removes the selected player's queue. B/Esc cancels."
+                    : state.status)
+             : app.notice(),
+         40, 606, 944, muted);
   box(0, 656, width, 112, panel);
   text(app.screen() == Screen::NowPlaying
            ? "Up/down: server volume   A/Enter: select   B/Esc: back"
            : "Up/down: focus   A/Enter: select   B/Esc: back",
        40, 672, 944, ink);
-  text(app.screen() == Screen::Queue
-           ? "Left/right: page   Start/Tab: menu"
+  text(app.screen() == Screen::Queue ? "Left/right: page   Start/Tab: menu"
+       : (app.screen() == Screen::Outputs ||
+          app.screen() == Screen::OutputConfirm)
+           ? "Start/Tab: menu   Playback requires a confirmed action"
            : "Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next",
        40, 704, 944, muted);
   text("+/-: server volume   Select/Q: quit", 40, 736, 944, muted);
   if (!state.acknowledgment.empty()) {
     box(40, 224, 944, 350, panel);
     text("Player action needs attention", 80, 254, 860, accent, true);
-    text(state.acknowledgment, 80, 330, 860, ink);
-    text("Command was not repeated. Review speaker/engine policy", 80, 392, 860,
-         muted);
-    text("in the web controller before deliberately retrying.", 80, 434, 860,
-         muted);
+    std::string remaining = state.acknowledgment;
+    for (int line = 0; line < 3 && !remaining.empty(); ++line) {
+      auto split =
+          remaining.size() <= 58 ? remaining.size() : remaining.rfind(' ', 58);
+      if (split == std::string::npos)
+        split = remaining.size();
+      text(remaining.substr(0, split), 80, 310 + line * 34, 860, ink);
+      remaining.erase(0, std::min(split + 1, remaining.size()));
+    }
+    text("Review actual assignments in Browse > Outputs.", 80, 426, 860, muted);
+    text("Approve each new action explicitly; no automatic retries.", 80, 460,
+         860, muted);
     text("A/Enter: acknowledge   B/Esc: dismiss", 80, 502, 860, accent);
   }
   if (app.suspended()) {
