@@ -15,6 +15,7 @@ BASE=""
 WITH_BOOTSTRAP=true
 WITH_STACK=true
 ISSUE=""
+FOCUS=false
 PASSTHROUGH=()
 
 while [[ $# -gt 0 ]]; do
@@ -36,6 +37,10 @@ while [[ $# -gt 0 ]]; do
       WITH_STACK=false
       shift
       ;;
+    --focus)
+      FOCUS=true
+      shift
+      ;;
     --issue)
       ISSUE="${2:-}"
       [[ "$ISSUE" =~ ^[0-9]+$ ]] || usage_error "--issue requires a numeric issue number"
@@ -44,7 +49,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       cat <<EOF
 Usage: $(basename "$0") <branch> [--base REF] [--no-bootstrap] [--no-stack]
-       [--issue N] [herdr-agent options]
+       [--issue N] [--focus] [herdr-agent options]
 
 Run from a pane inside the groovenet herdr session (just herdr). Hands off to
 herdr-agent, which creates a worktree for <branch> off REF (default:
@@ -52,13 +57,15 @@ origin/main), opens it as a new herdr workspace, runs 'just worktree-setup'
 there (dependencies, then the worktree's own compose stack, port and Caddy
 vhost) and then starts the coding agent. From that point the agent runs
 unattended and may commit, push, or open a PR on its own, so review its work
-before trusting it.
+before trusting it. The new workspace opens in the background, so you stay
+where you are; pass --focus to switch to it.
 
   --no-bootstrap        skip 'just bootstrap'
   --no-stack            skip 'just worktree-up' (docs or single-service work)
   --issue N             start the agent with a default prompt to fix issue #N,
                         follow CLAUDE.md, run coverage, and open a PR that
                         closes #N
+  --focus               switch to the new workspace once it is created
 
 Everything else goes to herdr-agent: --agent, --model, --prompt,
 --prompt-file, --no-agent, --dry-run and the rest (see herdr-agent --help).
@@ -94,6 +101,7 @@ command -v "$AGENT_BIN" >/dev/null 2>&1 \
   || usage_error "herdr-agent is not installed; it comes from the dotfiles (herdr/.local/bin/herdr-agent)."
 
 args=("$BRANCH" --base "${BASE:-origin/main}")
+[[ "$FOCUS" == true ]] || args+=(--no-focus)
 
 if [[ "$WITH_BOOTSTRAP" == false && "$WITH_STACK" == false ]]; then
   args+=(--no-setup)

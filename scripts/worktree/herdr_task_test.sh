@@ -32,26 +32,29 @@ assert_eq() {
 }
 
 assert_eq "defaults to origin/main and the repo's own setup" \
-  "feat/x|--base|origin/main" "$(handoff feat/x)"
+  "feat/x|--base|origin/main|--no-focus" "$(handoff feat/x)"
 
 assert_eq "--base overrides the default" \
-  "feat/x|--base|main" "$(handoff feat/x --base main)"
+  "feat/x|--base|main|--no-focus" "$(handoff feat/x --base main)"
 
 assert_eq "--no-stack bootstraps without a stack" \
-  "feat/x|--base|origin/main|--setup|just worktree-setup --no-stack" "$(handoff feat/x --no-stack)"
+  "feat/x|--base|origin/main|--no-focus|--setup|just worktree-setup --no-stack" "$(handoff feat/x --no-stack)"
 
 assert_eq "--no-bootstrap only starts the stack" \
-  "feat/x|--base|origin/main|--setup|just worktree-up" "$(handoff feat/x --no-bootstrap)"
+  "feat/x|--base|origin/main|--no-focus|--setup|just worktree-up" "$(handoff feat/x --no-bootstrap)"
 
 assert_eq "both skip setup entirely" \
-  "feat/x|--base|origin/main|--no-setup" "$(handoff feat/x --no-bootstrap --no-stack)"
+  "feat/x|--base|origin/main|--no-focus|--no-setup" "$(handoff feat/x --no-bootstrap --no-stack)"
 
 assert_eq "herdr-agent options pass through, values intact" \
-  "feat/x|--base|origin/main|--model|claude-sonnet-5-5|--prompt|two words|--dry-run" \
+  "feat/x|--base|origin/main|--no-focus|--model|claude-sonnet-5-5|--prompt|two words|--dry-run" \
   "$(handoff feat/x --model claude-sonnet-5-5 --prompt "two words" --dry-run)"
 
+assert_eq "--focus switches to the new workspace" \
+  "feat/x|--base|origin/main" "$(handoff feat/x --focus)"
+
 issue_args="$(handoff feat/x --issue 42)"
-if [[ "$issue_args" == "feat/x|--base|origin/main|--prompt|Fix issue #42 "* && "$issue_args" == *"closes #42." ]]; then
+if [[ "$issue_args" == "feat/x|--base|origin/main|--no-focus|--prompt|Fix issue #42 "* && "$issue_args" == *"closes #42." ]]; then
   echo "ok - --issue builds the default prompt"
 else
   echo "FAIL - --issue builds the default prompt: got [$issue_args]"
