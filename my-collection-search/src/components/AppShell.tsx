@@ -42,6 +42,7 @@ import { useStandaloneMode } from "@/hooks/useStandaloneMode";
 import CommandPalette from "@/components/CommandPalette";
 import { useRootFlag } from "@/hooks/useRootFlag";
 import { usePlaybackTargetLabel } from "@/components/player/PlaybackOutput";
+import { useTabBarLabels, useTabBarLabelsFlag } from "@/lib/tabBarLabels";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 
 const baseMenuItems = [
@@ -107,6 +108,8 @@ export default function AppShell({
   const isFullscreenEditMobile = isMobileFullscreenEditRoute(current);
   // Feeds --tabbar-h / --chrome-bottom (houseStyle globalCss).
   useRootFlag("data-tabbar-hidden", isFullscreenEditMobile);
+  const [tabLabels] = useTabBarLabels();
+  useTabBarLabelsFlag(tabLabels);
   const menuItems = useMemo(
     () =>
       developerToolsEnabled
@@ -509,28 +512,37 @@ export default function AppShell({
                 as={NextLink}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-label={tabLabels === "always" ? undefined : item.label}
                 flex="1 1 0"
                 _hover={{ textDecoration: "none" }}
               >
                 <VStack
+                  w="full"
                   gap={1}
                   py={1.5}
                   px={1}
+                  minH={tabLabels === "never" ? "44px" : undefined}
+                  justify="center"
                   borderWidth="outline"
                   borderRadius="md"
                   borderColor={active ? "border.ink" : "transparent"}
                   bg={active ? "bg.subtle" : "transparent"}
                 >
                   <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
-                  <Text
-                    fontFamily="label"
-                    fontSize="xs"
-                    fontWeight={active ? "semibold" : "medium"}
-                    color={active ? "fg" : "fg.muted"}
-                    lineHeight="1"
-                  >
-                    {item.label}
-                  </Text>
+                  {tabLabels !== "never" && (
+                    <Text
+                      fontFamily="label"
+                      fontSize="xs"
+                      fontWeight={active ? "semibold" : "medium"}
+                      color={active ? "fg" : "fg.muted"}
+                      lineHeight="1"
+                      // Hidden, not removed, so the icon keeps its place.
+                      visibility={tabLabels === "selected" && !active ? "hidden" : undefined}
+                      aria-hidden={tabLabels === "selected" && !active ? true : undefined}
+                    >
+                      {item.label}
+                    </Text>
+                  )}
                 </VStack>
               </Link>
             );
@@ -540,8 +552,10 @@ export default function AppShell({
             variant="ghost"
             onClick={() => setDrawerOpen(true)}
             aria-current={moreActive ? "page" : undefined}
+            aria-label={tabLabels === "always" ? undefined : "More"}
             flex="1 1 0"
             h="auto"
+            minH={tabLabels === "never" ? "44px" : undefined}
             py={1.5}
             px={1}
             borderWidth="outline"
@@ -555,15 +569,19 @@ export default function AppShell({
                 boxSize={5}
                 color={moreActive ? "accent.fg" : "fg.muted"}
               />
-              <Text
-                fontFamily="label"
-                fontSize="xs"
-                fontWeight={moreActive ? "semibold" : "medium"}
-                color={moreActive ? "fg" : "fg.muted"}
-                lineHeight="1"
-              >
-                More
-              </Text>
+              {tabLabels !== "never" && (
+                <Text
+                  fontFamily="label"
+                  fontSize="xs"
+                  fontWeight={moreActive ? "semibold" : "medium"}
+                  color={moreActive ? "fg" : "fg.muted"}
+                  lineHeight="1"
+                  visibility={tabLabels === "selected" && !moreActive ? "hidden" : undefined}
+                  aria-hidden={tabLabels === "selected" && !moreActive ? true : undefined}
+                >
+                  More
+                </Text>
+              )}
             </VStack>
           </Button>
         </Flex>

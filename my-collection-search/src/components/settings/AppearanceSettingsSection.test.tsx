@@ -576,3 +576,20 @@ describe("AppearanceSettingsSection corners and scope", () => {
     await waitFor(() => expect(document.documentElement.dataset.corners).toBe("square"));
   });
 });
+
+describe("AppearanceSettingsSection tab bar labels", () => {
+  it("defaults to Always and saves the choice on this device only", async () => {
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    const group = await screen.findByRole("radiogroup", { name: "Tab bar labels" });
+    expect((within(group).getByLabelText("Always") as HTMLInputElement).checked).toBe(true);
+
+    await user.click(within(group).getByText("Never"));
+    expect(localStorage.getItem("tabbar-labels")).toBe("never");
+    expect((within(group).getByLabelText("Never") as HTMLInputElement).checked).toBe(true);
+    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
+
+    await user.click(within(group).getByText("Selected only"));
+    expect(localStorage.getItem("tabbar-labels")).toBe("selected");
+    localStorage.clear();
+  });
+});

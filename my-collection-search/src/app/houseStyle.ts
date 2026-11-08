@@ -835,9 +835,12 @@ export const globalCss: Record<string, SystemStyleObject> = {
     "&[data-page-header]": { "--content-pt": "var(--safe-top)" },
     scrollPaddingTop: "calc(var(--safe-top) + var(--header-h))",
     "&[data-player]": { "--player-h": "74px" },
+    // Icons only: the 44px touch target, the 2px rule and 3px either side.
+    "&[data-tabbar-labels='never']": { "--tabbar-h": "calc(52px + var(--safe-bottom))" },
     "&[data-tabbar-hidden]": { "--tabbar-h": "0px" },
     "@media (min-width: 768px)": {
       "--tabbar-h": "0px",
+      "&[data-tabbar-labels='never']": { "--tabbar-h": "0px" },
       "&[data-player]": { "--player-h": "92px" },
       "&[data-queue-panel]": { "--queue-w": "400px" },
     },

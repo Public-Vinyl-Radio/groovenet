@@ -335,8 +335,12 @@ describe("font blocks", () => {
     expect(html["--queue-w"]).toBe("0px");
     expect(html["&[data-player]"]).toEqual({ "--player-h": "74px" });
     expect(html["&[data-tabbar-hidden]"]).toEqual({ "--tabbar-h": "0px" });
+    expect(html["&[data-tabbar-labels='never']"]).toEqual({
+      "--tabbar-h": "calc(52px + var(--safe-bottom))",
+    });
     expect(html["@media (min-width: 768px)"]).toEqual({
       "--tabbar-h": "0px",
+      "&[data-tabbar-labels='never']": { "--tabbar-h": "0px" },
       "&[data-player]": { "--player-h": "92px" },
       "&[data-queue-panel]": { "--queue-w": "400px" },
     });
