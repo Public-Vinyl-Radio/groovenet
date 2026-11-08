@@ -1,10 +1,27 @@
 // Run the real entry point with SDL's virtual joystick/event queue. This is
 // software input coverage, not a test of firmware button mappings.
+#include <SDL.h>
+
+namespace {
+bool fail_renderer = false;
+SDL_Renderer *create_renderer(SDL_Window *window, int index, Uint32 flags) {
+  if (fail_renderer)
+    return nullptr;
+  return SDL_CreateRenderer(window, index, flags);
+}
+} // namespace
+#define SDL_CreateRenderer create_renderer
 #define main probe_entry
 #include "main.cpp"
 #undef main
+#undef SDL_CreateRenderer
 
 int main(int argc, char **argv) {
+  if (argc > 1 && std::string(argv[1]) == "--renderer-failure") {
+    fail_renderer = true;
+    --argc;
+    ++argv;
+  }
   if (argc > 1 && std::string(argv[1]) == "--input") {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0)
       return 3;

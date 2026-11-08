@@ -155,8 +155,11 @@ class ProbeTest(unittest.TestCase):
         self.args[4] = str(self.state / "missing" / "counter")
         self.assertEqual(self.run_probe().returncode, 1)
         self.args[4] = str(self.state)
-        self.env["SDL_RENDER_DRIVER"] = "unavailable"
-        self.assertEqual(self.run_probe().returncode, 1)
+        # SDL versions differ in fallback behavior for an unknown driver name.
+        result = subprocess.run(
+            [INPUT_BINARY, "--renderer-failure", *self.args], env=self.env, capture_output=True, text=True, timeout=10
+        )
+        self.assertEqual(result.returncode, 1)
         self.env["SDL_VIDEODRIVER"] = "unavailable"
         self.assertEqual(self.run_probe().returncode, 1)
 
