@@ -950,3 +950,37 @@ server-players-test:
   export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   RUN_PLAYER_DB_TESTS=1 {{mise_exec}} npm test --workspace @groovenet/player -- --run src/server/store.integration.test.ts
+
+# Native desktop preview; deliberately independent of JS bootstrap/build/test.
+brick-build:
+  cmake -S apps/groovenet-brick -B apps/groovenet-brick/build -DCMAKE_BUILD_TYPE=Debug
+  cmake --build apps/groovenet-brick/build --parallel
+
+brick-preview *args: brick-build
+  apps/groovenet-brick/build/groovenet-brick {{args}}
+
+brick-test: brick-build
+  ctest --test-dir apps/groovenet-brick/build --output-on-failure
+
+# AppleClang on macOS, Clang + matching LLVM tools on Linux. Output is LCOV.
+brick-coverage:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  brick_build="$PWD/apps/groovenet-brick/build-coverage"
+  cmake -S apps/groovenet-brick -B "$brick_build" -DCMAKE_CXX_COMPILER=clang++ -DBRICK_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+  cmake --build "$brick_build" --parallel
+  rm -f "$brick_build"/*.profraw
+  export LLVM_PROFILE_FILE="$brick_build/brick-%p.profraw"
+  ctest --test-dir "$brick_build" --output-on-failure
+  SDL_VIDEODRIVER=dummy "$brick_build/groovenet-brick" --frames 1
+  SDL_VIDEODRIVER=dummy "$brick_build/groovenet-brick" --mode invalid && exit 1
+  if [[ "$OSTYPE" == darwin* ]]; then
+    brick_profdata=(xcrun llvm-profdata)
+    brick_cov=(xcrun llvm-cov)
+  else
+    brick_profdata=(llvm-profdata)
+    brick_cov=(llvm-cov)
+  fi
+  "${brick_profdata[@]}" merge -sparse "$brick_build"/*.profraw -o "$brick_build/coverage.profdata"
+  "${brick_cov[@]}" report "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/'
+  "${brick_cov[@]}" export "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/' -format=lcov > "$brick_build/coverage.lcov"

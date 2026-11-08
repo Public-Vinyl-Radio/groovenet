@@ -1,0 +1,37 @@
+name: Brick preview
+
+on:
+  pull_request:
+    paths:
+      - "apps/groovenet-brick/**"
+      - ".github/workflows/brick-preview.yml"
+      - "justfile"
+      - "codecov.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: extractions/setup-just@v3
+      - name: Install desktop dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core
+      - name: Exercise shared logic and SDL desktop with coverage
+        run: just brick-coverage
+      - uses: actions/upload-artifact@v7
+        with:
+          name: brick-preview-coverage
+          path: apps/groovenet-brick/build-coverage/coverage.lcov
+          if-no-files-found: error
+      - uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: apps/groovenet-brick/build-coverage/coverage.lcov
+          flags: brick-preview
+          disable_search: true
+          fail_ci_if_error: true

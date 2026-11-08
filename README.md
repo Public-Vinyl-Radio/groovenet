@@ -68,6 +68,7 @@ Configure the required environment values, then open the app at <http://localhos
 | [MCP server](mcp-server/)                         | Connect GrooveNet tools to an assistant.               |
 | [Now Playing player](packages/groovenet-player/)  | Desktop player and queue for GrooveNet.                |
 | [iOS app](ios/DJPlaylistMobile/DJPlaylistMobile/) | Browse playlists and download tracks from your server. |
+| [Brick preview](apps/groovenet-brick/)            | Native C++/SDL2 controller and desktop mock preview.   |
 | [Site](site/)                                     | Website and product documentation.                     |
 
 ## Contributing
