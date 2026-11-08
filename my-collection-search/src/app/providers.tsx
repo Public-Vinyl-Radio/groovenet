@@ -13,6 +13,7 @@ import TrackEditProvider from "@/providers/TrackEditProvider";
 import PlaylistsProvider from "@/providers/PlaylistsProvider";
 import { JobWatcherProvider } from "@/providers/JobWatcherProvider";
 import ThemeColorSync from "@/components/ThemeColorSync";
+import { InAppNavigationProvider } from "@/providers/InAppNavigationProvider";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 
 const ReactQueryDevtools: React.ComponentType<{ initialIsOpen?: boolean }> =
@@ -44,7 +45,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
                 <PlaylistsProvider>
                   <PlaylistPlayerProvider>
                     <PlaybackTargetProvider>
-                      {children}
+                      <InAppNavigationProvider>{children}</InAppNavigationProvider>
                       <PlaylistPlayer />
                     </PlaybackTargetProvider>
                   </PlaylistPlayerProvider>

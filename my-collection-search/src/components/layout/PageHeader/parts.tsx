@@ -8,6 +8,7 @@ import { headerTarget, pageHeader } from "@/app/houseStyle";
 import { useRootFlag } from "@/hooks/useRootFlag";
 import Breadcrumbs, { type Crumb } from "@/components/layout/Breadcrumbs";
 import { HeaderButton } from "@/components/layout/ListHeader";
+import { useCanGoBack, useGoBack } from "@/providers/InAppNavigationProvider";
 import { placeActions, type HeaderAction } from "./placeActions";
 
 // The parts lay themselves out on the root's grid by area (back, title,
@@ -44,9 +45,12 @@ export type PageHeaderContextProps = {
 
 /**
  * Where the page sits: the trail above the title from `md` up, and on phones a
- * back button to the last parent that links (or `leading` instead).
+ * back button (or `leading` instead): back in history when the previous entry
+ * is an in-app page, else a link to the last parent that links.
  */
 export function PageHeaderContext({ crumbs = [], leading }: PageHeaderContextProps) {
+  const canGoBack = useCanGoBack();
+  const goBack = useGoBack();
   const parent = crumbs.length > 1 ? crumbs[crumbs.length - 2] : undefined;
   let back: React.ReactNode = null;
   if (leading) {
@@ -54,6 +58,21 @@ export function PageHeaderContext({ crumbs = [], leading }: PageHeaderContextPro
       <Flex data-testid="page-header-leading" gridArea="back" me={2} display={phoneOnly}>
         {leading}
       </Flex>
+    );
+  } else if (parent?.href && canGoBack) {
+    back = (
+      <IconButton
+        aria-label="Back"
+        variant="ghost"
+        gridArea="back"
+        me={2}
+        boxSize={headerTarget}
+        minW={headerTarget}
+        display={{ base: "inline-flex", md: "none" }}
+        onClick={goBack}
+      >
+        <FiChevronLeft />
+      </IconButton>
     );
   } else if (parent?.href) {
     back = (
@@ -67,7 +86,7 @@ export function PageHeaderContext({ crumbs = [], leading }: PageHeaderContextPro
         minW={headerTarget}
         display={{ base: "inline-flex", md: "none" }}
       >
-        <NextLink href={parent.href} aria-label={`Back to ${parent.label}`}>
+        <NextLink href={parent.href} replace aria-label={`Back to ${parent.label}`}>
           <FiChevronLeft />
         </NextLink>
       </IconButton>
