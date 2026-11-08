@@ -20,7 +20,7 @@ Supported development host: macOS with Xcode command-line tools and Homebrew.
 Linux CI uses Ubuntu 24.04 with SDL's dummy video driver.
 
 ```sh
-brew install cmake pkg-config sdl2 sdl2_ttf curl json-c
+brew install cmake pkg-config sdl2 sdl2_ttf curl json-c libpng jpeg-turbo
 just brick-preview
 just brick-preview --scale 0.75 --scenario metadata
 just brick-test
@@ -28,7 +28,7 @@ just brick-coverage
 ```
 
 Linux dependencies: `cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev
-fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev python3 openssl`. Requires SDL2 and SDL2_ttf >= 2.0.18, CMake >= 3.20 and a C++17
+fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev libpng-dev libjpeg-dev python3 openssl`. Requires SDL2 and SDL2_ttf >= 2.0.18, CMake >= 3.20 and a C++17
 compiler. Native dependencies are independent: existing npm bootstrap, builds and
 tests do not invoke CMake or require SDL. Build output stays in this directory's
 ignored `build/` and `build-coverage/` directories.
@@ -65,7 +65,7 @@ while running. Unrecognized controllers need an SDL mapping supplied by the host
 (for example `SDL_GAMECONTROLLERCONFIG`); analog sticks are not required for
 navigation. Keyboard repeat is ignored to avoid repeated playback commands.
 
-**Remote volume**, including Up/Down on Now Playing, affects only the selected mock server player's 0–100 level in
+**Server volume**, including Up/Down on Now Playing, affects only the selected server player's 0–100 level in
 steps of five. OS multimedia volume keys and Power are never mapped to server
 volume, pause or stop. **Local device volume** belongs to the firmware/OS adapter
 and has no application command here. Nothing essential requires mouse input.
@@ -100,6 +100,8 @@ the fixture and all list focus, without using randomness or network requests:
 | `missing-artwork`  | Explicit artwork fallback                                       |
 | `refreshing`       | Last known state retained with commands disabled while updating |
 | `missing-metadata` | Empty title/artist/album during live refresh; renders safely    |
+| `artwork`          | Decoded RGBA upload path, including allocation-failure fallback |
+| `speaker-busy`     | Acknowledgment panel blocks commands until Select/Back          |
 | `unknown-timing`   | Unknown duration, no progress fraction or invented total        |
 
 The playing clock advances from elapsed milliseconds; track end, Next and
@@ -125,14 +127,27 @@ disables verification for a development session only. Redirects are refused so
 credentials cannot follow a redirect to another origin. Invalid configuration
 appears in application state; diagnostics never echo credentials/server bodies.
 
+On first launch, open Browse → Players and explicitly choose a named player.
+Rows include the stable ID and mark the current selection. No player is selected
+automatically, even when only one exists. Selection only observes state: it does
+not start playback, join a local queue, change outputs or claim speakers.
+The selected ID and server URL are atomically saved in `selected-player` under
+the platform's SDL configuration directory. No credentials are saved. Restart
+opens that player's Now Playing screen; a removed player or unavailable backend
+never causes a fallback to another player. A save failure remains visible while
+following the chosen player for the current session.
+
 The worker lists players, fetches selected detail and subscribes to its SSE. The
 first valid stream snapshot enables controls. Selecting a player and waking
 cancel the old request, discard unsent work, and obtain fresh state. Reconnects
 use 250 ms exponential backoff capped at 8 s; every connection starts without a
 replay ID and requires a fresh snapshot. A changed worker identity refreshes the
 session, and stale sequence/revision/current-entry position updates are ignored.
-The UI does not advance live timing itself. Quit cancels/join the worker; it
-never stops playback.
+Now Playing interpolates valid playing timing between authoritative updates,
+preserving fractional seconds, clamping to duration and freezing after five
+seconds without a timing update. Paused, disconnected, refreshing and unknown
+or zero-duration states do not interpolate. Metadata completion cannot reset the
+progress clock. Quit cancels/joins both workers and never stops playback.
 
 Requests have a 3 s connect and 8 s total deadline; SSE connections rotate after
 30 s. Cancellation interrupts idle transfers through libcurl's progress callback
@@ -148,6 +163,12 @@ skip, queue add/replace and explicit takeover submitted through `RestClient` and
 `PlayerState::command`. On timeout, lost response or conflict, refresh state and
 let the user deliberately retry. A lost response may mean the write committed.
 The adapter does not automatically approve takeover/unknown speaker conditions.
+Speaker-busy, availability-unknown, engine-busy and revision conflicts open an
+acknowledgment panel. Playback/volume input is blocked until A/Enter acknowledges
+or B/Esc dismisses it. Acknowledgment sends no command and grants no policy
+exception: deliberate speaker/engine takeover belongs in the web controller.
+The Brick never sends `takeover` or `allow_unknown`, retries an ambiguous write,
+or changes speakers as a side effect of acknowledging a warning.
 Unauthorized, missing player, revision/speaker conflict, unavailable service and
 no-audio errors appear as state, with controls disabled until fresh state arrives.
 
@@ -167,10 +188,16 @@ connection, keyed by **both** track ID and friend ID. Missing `local_audio_url`
 means no playable local audio; a missing batch row is not a playable track.
 Queue snapshots supply title/artist and refs, not album/artwork. Collection
 authorization or metadata failure leaves player control available and shows a
-metadata warning. Actual cover download/decoding/display and playlist navigation
-remain in the UI slices (#1098–1099); the live view uses the artwork fallback,
-never mock cover geometry. There is no image byte cache or image work on the
-render loop. No backend endpoint gap was found for this client slice.
+metadata warning. A separate worker fetches metadata and artwork; changing the
+player, current queue entry, track reference or session generation cancels old
+work and rejects its results before publication. PNG/JPEG artwork is limited to
+2 MiB encoded and 1024×1024 RGBA decoded. Unsupported, invalid, oversized or
+unavailable images render the artwork placeholder. HTTP and decoding stay off
+the render loop; the renderer uploads one texture when the image changes.
+Only same-origin artwork requests may carry the collection credential; external
+image hosts receive no credentials, HTTPS downgrade is refused, and redirects
+remain disabled. Player credentials never accompany artwork requests.
+No backend endpoint gap was found for this client slice.
 
 ## Manual preview and captures
 
@@ -283,3 +310,30 @@ SSE from the production worker implementation backed by a disposable Postgres,
 then renamed the disposable `brick-smoke` player and observed revision 0 → 1.
 The worker and database were removed afterward. No OwnTone engine or speaker was
 attached; playback/output and physical-device qualification remain separate.
+
+### Selected-player validation (#1098)
+
+`just brick-test` includes a real loopback TLS server plus two native workers.
+It checks explicit selection, persisted identity and server scoping, missing
+players without fallback, conflicting/ambiguous writes, metadata superseded by
+a new track, image validation/bounds, credential isolation across artwork
+origins, acknowledgment input and non-destructive disconnect. `just
+brick-coverage` measures the same production sources, including image decoding
+and SDL texture-allocation/upload failure paths.
+
+After `just build-packages` and `just brick-build`, run the opt-in development
+smoke from the repository root:
+
+```sh
+mise exec -- node apps/groovenet-brick/tests/development_smoke.mjs
+```
+
+It requires Docker and the `postgres:17-alpine` image. It creates and removes its
+own database/container, applies the player migrations, and runs the production
+player manager/store/HTTP/SSE with a silent in-memory audio backend. A second
+REST controller pauses, renames and changes volume while the Brick observes;
+the Brick resumes, skips and changes volume, refreshes on wake, restores its
+remembered selection and exits while the server retains playback and its queue.
+This passed on macOS on 2026-11-07. No physical speaker or device lifecycle is
+validated by this smoke; those remain under #1102 and the selected firmware
+adapter. See [validation evidence](evidence/now-playing-1098.md).

@@ -20,6 +20,8 @@ Renderer::Renderer(SDL_Renderer *renderer, const std::string &font)
   }
 }
 Renderer::~Renderer() {
+  if (artworkTexture_)
+    SDL_DestroyTexture(artworkTexture_);
   TTF_CloseFont(font_);
   TTF_CloseFont(large_);
 }
@@ -69,12 +71,38 @@ void Renderer::draw(const App &app, const Platform &platform) {
            ? "Browse"
            : screenNames()[static_cast<size_t>(app.screen())],
        40, 100, 940, ink, true);
-  text(state.player + " · remote volume " + std::to_string(state.volume) + "%",
-       40, 158, 940, muted);
+  text(state.player +
+           (state.playerId.empty() ? "" : " [" + state.playerId + "]"),
+       40, 158, 680, muted);
+  text("Server volume " + std::to_string(state.volume) + "%", 750, 158, 240,
+       muted);
   if (app.screen() == Screen::NowPlaying) {
     box(40, 224, 304, 304, panel);
-    if (state.currentIndex < state.queue.size() &&
-        state.queue[state.currentIndex].artwork) {
+    auto image = state.currentIndex < state.queue.size()
+                     ? state.queue[state.currentIndex].image
+                     : nullptr;
+    if (image != artwork_) {
+      if (artworkTexture_)
+        SDL_DestroyTexture(artworkTexture_);
+      artworkTexture_ = nullptr;
+      artwork_ = image;
+      if (image) {
+        artworkTexture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32,
+                                            SDL_TEXTUREACCESS_STATIC,
+                                            image->width, image->height);
+        if (artworkTexture_ &&
+            SDL_UpdateTexture(artworkTexture_, nullptr, image->pixels.data(),
+                              image->width * 4) != 0) {
+          SDL_DestroyTexture(artworkTexture_);
+          artworkTexture_ = nullptr;
+        }
+      }
+    }
+    if (artworkTexture_) {
+      SDL_Rect destination{40, 224, 304, 304};
+      SDL_RenderCopy(renderer_, artworkTexture_, nullptr, &destination);
+    } else if (state.currentIndex < state.queue.size() &&
+               state.queue[state.currentIndex].artwork) {
       // Deterministic mock cover, shared SDL primitives; no downloaded asset.
       box(64, 248, 256, 256, {71, 96, 74, 255});
       for (int i = 0; i < 6; ++i)
@@ -86,21 +114,29 @@ void Renderer::draw(const App &app, const Platform &platform) {
     if (state.loading)
       title = "Loading player…";
     else if (!state.connected && !state.refreshing)
-      title = "Disconnected";
+      title = state.playerId.empty() ? "Choose a player" : "Disconnected";
     else if (!state.available)
       title = "Player unavailable";
     else if (state.currentIndex < state.queue.size())
-      title = state.queue[state.currentIndex].title;
+      title = state.queue[state.currentIndex].title.empty()
+                  ? "Unknown title"
+                  : state.queue[state.currentIndex].title;
     text(title, 384, 236, 600, ink, true);
     if (state.currentIndex < state.queue.size()) {
-      text(state.queue[state.currentIndex].artist, 384, 300, 600, ink);
-      text(state.queue[state.currentIndex].album, 384, 346, 600, muted);
+      text(state.queue[state.currentIndex].artist.empty()
+               ? "Unknown artist"
+               : state.queue[state.currentIndex].artist,
+           384, 300, 600, ink);
+      text(state.queue[state.currentIndex].album.empty()
+               ? "Unknown album"
+               : state.queue[state.currentIndex].album,
+           384, 346, 600, muted);
     }
-    text(state.refreshing ? "UPDATING" :
-         !state.connected || !state.available || state.loading ||
+    text(state.refreshing ? "UPDATING"
+         : !state.connected || !state.available || state.loading ||
                  state.currentIndex >= state.queue.size()
              ? "NO PLAYBACK STATE"
-             : (state.playing ? "PLAYING" : "PAUSED"),
+             : state.playbackState,
          384, 418, 600, accent);
     text(timing(state), 384, 466, 600, muted);
     box(40, 564, 944, 6, panel);
@@ -129,13 +165,22 @@ void Renderer::draw(const App &app, const Platform &platform) {
   text(app.notice().empty() ? state.status : app.notice(), 40, 606, 944, muted);
   box(0, 656, width, 112, panel);
   text(app.screen() == Screen::NowPlaying
-           ? "Up/down: remote volume   A/Enter: select   B/Esc: back"
-           : "Up/down: focus   A/Enter: select   B/Esc: back", 40, 672,
-       944, ink);
+           ? "Up/down: server volume   A/Enter: select   B/Esc: back"
+           : "Up/down: focus   A/Enter: select   B/Esc: back",
+       40, 672, 944, ink);
   text("Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next", 40, 704, 944,
        muted);
-  text("+/-: remote volume   Select/Q: quit", 40, 736,
-       944, muted);
+  text("+/-: server volume   Select/Q: quit", 40, 736, 944, muted);
+  if (!state.acknowledgment.empty()) {
+    box(40, 224, 944, 350, panel);
+    text("Player action needs attention", 80, 254, 860, accent, true);
+    text(state.acknowledgment, 80, 330, 860, ink);
+    text("Command was not repeated. Review speaker/engine policy", 80, 392, 860,
+         muted);
+    text("in the web controller before deliberately retrying.", 80, 434, 860,
+         muted);
+    text("A/Enter: acknowledge   B/Esc: dismiss", 80, 502, 860, accent);
+  }
   if (app.suspended()) {
     box(40, 224, 944, 350, panel);
     text("Preview suspended · focus window to resume", 80, 350, 860, accent);

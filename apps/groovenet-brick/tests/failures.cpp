@@ -18,6 +18,8 @@ enum class Fault {
   Window,
   RenderDevice,
   Canvas,
+  ArtworkTexture,
+  ArtworkUpload,
   Texture,
   FirstFont,
   SecondFont,
@@ -48,9 +50,16 @@ SDL_Renderer *faultRenderer(SDL_Window *window, int index, Uint32 flags) {
 }
 SDL_Texture *faultCanvas(SDL_Renderer *renderer, Uint32 format, int access,
                          int w, int h) {
-  return fail(Fault::Canvas)
+  return (fail(Fault::Canvas) ||
+          (access == SDL_TEXTUREACCESS_STATIC && fail(Fault::ArtworkTexture)))
              ? nullptr
              : SDL_CreateTexture(renderer, format, access, w, h);
+}
+int faultUpload(SDL_Texture *texture, const SDL_Rect *rect, const void *pixels,
+                int pitch) {
+  return fail(Fault::ArtworkUpload)
+             ? -1
+             : SDL_UpdateTexture(texture, rect, pixels, pitch);
 }
 SDL_Texture *faultTexture(SDL_Renderer *renderer, SDL_Surface *surface) {
   return fail(Fault::Texture) ? nullptr
@@ -95,14 +104,18 @@ int faultMapping(const char *mapping) {
   int result = SDL_GameControllerAddMapping(mapping);
   auto *effective = SDL_GameControllerMappingForGUID(
       SDL_JoystickGetGUIDFromString("030000005e0400008e02000014010000"));
-  bool correct = effective && std::string(effective).find("dpup:-a1") != std::string::npos;
+  bool correct =
+      effective && std::string(effective).find("dpup:-a1") != std::string::npos;
   SDL_free(effective);
   if (!correct)
-    throw std::runtime_error("Inherited firmware mapping overrode device profile");
+    throw std::runtime_error(
+        "Inherited firmware mapping overrode device profile");
   return result;
 }
-SDL_bool faultHint(const char *name, const char *value, SDL_HintPriority priority) {
-  return fail(Fault::Hint) ? SDL_FALSE : SDL_SetHintWithPriority(name, value, priority);
+SDL_bool faultHint(const char *name, const char *value,
+                   SDL_HintPriority priority) {
+  return fail(Fault::Hint) ? SDL_FALSE
+                           : SDL_SetHintWithPriority(name, value, priority);
 }
 #define SDL_SetHintWithPriority faultHint
 #define SDL_GameControllerAddMapping faultMapping
@@ -119,6 +132,7 @@ void faultDelay(Uint32 ms) {
 #define SDL_CreateWindow faultWindow
 #define SDL_CreateRenderer faultRenderer
 #define SDL_CreateTexture faultCanvas
+#define SDL_UpdateTexture faultUpload
 #define SDL_CreateTextureFromSurface faultTexture
 #define TTF_OpenFont faultFont
 #define TTF_RenderUTF8_Blended faultText
@@ -136,9 +150,9 @@ void failureTests() {
        (std::filesystem::temp_directory_path() / "brick-failure-test.bmp")
            .string()});
   for (auto stage :
-       {Fault::Init, Fault::Mapping, Fault::Hint, Fault::Ttf, Fault::Window, Fault::RenderDevice,
-        Fault::Canvas, Fault::Texture, Fault::FirstFont, Fault::SecondFont,
-        Fault::Text, Fault::Surface, Fault::Pixels}) {
+       {Fault::Init, Fault::Mapping, Fault::Hint, Fault::Ttf, Fault::Window,
+        Fault::RenderDevice, Fault::Canvas, Fault::Texture, Fault::FirstFont,
+        Fault::SecondFont, Fault::Text, Fault::Surface, Fault::Pixels}) {
     fault = stage;
     options.knulli = stage == Fault::Mapping || stage == Fault::Hint;
     fontCalls = 0;
@@ -153,6 +167,14 @@ void failureTests() {
           "Resource failure did not unwind cleanly at stage " +
           std::to_string(static_cast<int>(stage)));
   }
+  for (auto stage : {Fault::ArtworkTexture, Fault::ArtworkUpload}) {
+    fault = stage;
+    options.scenario = "artwork";
+    fontCalls = 0;
+    if (brick::runDesktop(options) != 0)
+      throw std::runtime_error("Artwork allocation failure prevented fallback");
+  }
+  options.scenario = "playing";
   fault = Fault::PrefPath;
   bool rejected = false;
   try {
@@ -172,7 +194,9 @@ void failureTests() {
     throw std::runtime_error("Controller failure prevented keyboard preview");
   std::filesystem::remove(options.screenshot);
   SDL_setenv("SDL_GAMECONTROLLERCONFIG",
-             "030000005e0400008e02000014010000,Firmware Wrong Hat,dpup:h0.1,platform:Linux,", 1);
+             "030000005e0400008e02000014010000,Firmware Wrong "
+             "Hat,dpup:h0.1,platform:Linux,",
+             1);
   fault = Fault::Resume;
   options.knulli = true;
   options.frames = 2;

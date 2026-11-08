@@ -1,6 +1,8 @@
 """Local TLS fixture for the production native REST/SSE worker; no saved secrets."""
 
 import http.server
+import struct
+import zlib
 import json
 import os
 from pathlib import Path
@@ -21,6 +23,9 @@ streams = []
 failures = []
 reordered = False
 order_listed = False
+race_started = threading.Event()
+race_changed = threading.Event()
+flaky_art_requests = 0
 
 
 def player(identity="a"):
@@ -52,8 +57,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(value).encode())
 
+    def image(self):
+        def chunk(kind, payload):
+            return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+        png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+        png += chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00\xff")) + chunk(b"IEND", b"")
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(png)
+
     def auth(self):
-        collection = self.path.startswith(("/api/tracks", "/api/playlists"))
+        collection = self.path.startswith(("/api/tracks", "/api/playlists", "/covers/"))
         expected = collection_key if collection else player_key
         if collection and not self.headers.get("Authorization"):
             self.reply(401, {})
@@ -67,7 +81,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
-        global reordered, order_listed
+        global reordered, order_listed, flaky_art_requests
+        racing = self.path.startswith("/race/")
+        if racing:
+            self.path = self.path.removeprefix("/race")
+        if self.path == "/public":
+            if self.headers.get("Authorization"):
+                failures.append("artwork credentials leaked across origin")
+            return self.image()
         if not self.auth():
             return
         try:
@@ -87,6 +108,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {})
             if self.path == "/order-ready":
                 return self.reply(200, {"ready": order_listed})
+            if self.path == "/covers/flaky":
+                flaky_art_requests += 1
+                if flaky_art_requests == 1:
+                    return self.reply(503, {})
+                return self.image()
+            if self.path.startswith("/covers/album.jpg"):
+                return self.image()
+            if self.path.startswith("/error/"):
+                code = self.path.removeprefix("/error/")
+                return self.reply(422 if code in ("DEVICE_BUSY", "NO_AUDIO") else 409, {"code": code})
+            if self.path == "/bad-error":
+                return self.reply(409, {})
             if self.path == "/api/players":
                 rows = [player(), player("b")]
                 if reordered:
@@ -111,10 +144,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(part.encode())
                     self.wfile.flush()
                     time.sleep(0.01)
+                if racing:
+                    assert race_started.wait(5)
+                    event["player"]["state"]["current_entry_id"] = "one"
                 event["sequence"] = 2
                 self.wfile.write(("data: " + json.dumps(event) + "\n\n").encode())
                 self.wfile.flush()
-                if streams.count("a") == 1 and identity == "a":
+                if racing:
+                    race_changed.set()
+                if streams.count("a") == 1 and identity == "a" and not racing:
                     return  # Real EOF forces backoff and a fresh subscription.
                 # Hold open; cancellation must interrupt idle reads, not await EOF.
                 for _ in range(100):
@@ -140,11 +178,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
+        racing = self.path.startswith("/race/")
+        if racing:
+            self.path = self.path.removeprefix("/race")
         if not self.auth():
             return
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path == "/api/tracks/batch":
             ref = body["tracks"][0]
+            if racing and ref["friend_id"] == 2:
+                race_started.set()
+                assert race_changed.wait(5)
+                time.sleep(0.2) # Finish obsolete metadata after the new track is visible.
             if ref["friend_id"] == 3:
                 return self.reply(200, [])
             if ref["friend_id"] == 4:
@@ -154,9 +199,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 [
                     {
                         **ref,
-                        "album": "Album",
+                        "album": ("Stale album" if ref["friend_id"] == 2 else "Current album") if racing else "Album",
                         "local_audio_url": None if ref["friend_id"] == 5 else "/audio/file.m4a",
-                        "album_thumbnail": "/covers/album.jpg",
+                        "album_thumbnail": "/covers/flaky",
                     }
                 ],
             )
@@ -204,10 +249,17 @@ with tempfile.TemporaryDirectory() as directory:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(cert, key)
     server.socket = context.wrap_socket(server.socket, server_side=True)
+    external = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    external.daemon_threads = True
+    external.socket = context.wrap_socket(external.socket, server_side=True)
+    external_thread = threading.Thread(target=external.serve_forever, daemon=True)
+    external_thread.start()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     environment = {
         **os.environ,
+        "BRICK_TEST_DIRECTORY": directory,
+        "BRICK_TEST_ART_URL": f"https://localhost:{external.server_port}/public",
         "BRICK_URL": f"https://localhost:{server.server_port}",
         "BRICK_PLAYER_KEY": player_key,
         "BRICK_COLLECTION_KEY": collection_key,
@@ -230,14 +282,20 @@ with tempfile.TemporaryDirectory() as directory:
             timeout=25,
         )
         subprocess.run([binary, "adapter"], env=environment, check=True, timeout=40)
+        subprocess.run([binary, "selection-failure"], env=environment, check=True, timeout=15)
+        subprocess.run([binary, "metadata-race"], env=environment, check=True, timeout=15)
         subprocess.run([binary, "adapter-errors"], env=environment, check=True, timeout=15)
         subprocess.run(
             [binary, "collection-unavailable"], env={**environment, "BRICK_COLLECTION_KEY": ""}, check=True, timeout=15
         )
+        assert flaky_art_requests >= 2, "reconnect must retry failed artwork"
         assert not failures, failures
         assert [c["type"] for c in commands] == ["next", "pause", "volume", "volume", "previous", "resume"], commands
         assert streams.count("a") >= 3 and "b" in streams, streams
     finally:
+        external.shutdown()
+        external.server_close()
+        external_thread.join()
         server.shutdown()
         server.server_close()
         thread.join()

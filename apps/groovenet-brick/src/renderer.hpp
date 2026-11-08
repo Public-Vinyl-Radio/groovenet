@@ -19,5 +19,7 @@ private:
   void box(int x, int y, int w, int h, SDL_Color color);
   SDL_Renderer *renderer_;
   TTF_Font *font_, *large_;
+  std::shared_ptr<const Artwork> artwork_;
+  SDL_Texture *artworkTexture_ = nullptr;
 };
 } // namespace brick
