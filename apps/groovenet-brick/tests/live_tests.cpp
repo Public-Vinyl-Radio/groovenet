@@ -87,6 +87,10 @@ void liveTests() {
   state.begin();
   rejects([&] { state.command("{\"type\":\"next\"}"); });
   check(state.event(snapshot()));
+  state.view.refreshing = true;
+  state.begin();
+  check(state.view.refreshing && !state.view.connected && !state.view.loading);
+  check(state.event(snapshot()) && !state.view.refreshing);
   check(state.view.queue[0].friendId == 1 && state.view.queue[1].friendId == 2);
   check(state.view.currentIndex == 1 && state.view.position == 12 &&
         state.revision == 5);
@@ -218,6 +222,7 @@ int networkTests(const std::string &mode) {
                s.status.find("unavailable") != std::string::npos ||
                s.status.find("size limit") != std::string::npos;
       });
+      check(!data->snapshot().refreshing && !data->snapshot().connected);
       std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
   } else if (mode == "collection-unavailable") {
@@ -235,15 +240,22 @@ int networkTests(const std::string &mode) {
     check(data->snapshot().players.size() == 2 &&
           data->snapshot().queue[1].album == "Album");
     data->command(Action::None);
-    // The fixture rejects one command, then loses the response to the next.
+    RestClient control(config);
+    auto no = [] { return false; };
+    // The fixture holds the first command until the retained UI state is checked.
+    // It then rejects that command, and loses the response to the next.
     data->command(Action::Next);
     data->command(Action::Next);
+    data->advance(0);
+    check(!data->snapshot().connected && data->snapshot().refreshing &&
+          data->snapshot().queue[1].album == "Album" && data->snapshot().volume == 50);
+    control.request("/release-command", "", true, no);
     wait(*data, [](const Snapshot &s) {
-      return s.connected && s.status.find("Conflict") != std::string::npos;
+      return s.connected && !s.refreshing && s.status.find("Conflict") != std::string::npos;
     });
     data->command(Action::PlayPause);
     wait(*data, [](const Snapshot &s) {
-      return s.connected && s.status.find("not repeated") != std::string::npos;
+      return s.connected && !s.refreshing && s.status.find("not repeated") != std::string::npos;
     });
     data->refresh();
     wait(*data, [](const Snapshot &s) {
@@ -263,8 +275,6 @@ int networkTests(const std::string &mode) {
     wait(*data, [](const Snapshot &s) { return s.connected; });
     // A refreshed list can reorder while the old rows are still on screen.
     // Selection must use the IDs belonging to those displayed rows.
-    RestClient control(config);
-    auto no = [] { return false; };
     control.request("/reorder", "", true, no);
     data->refresh();
     bool ready = false;
@@ -278,7 +288,11 @@ int networkTests(const std::string &mode) {
     wait(*data, [](const Snapshot &s) {
       return s.connected && s.player == "Other room";
     });
-    data->refresh(); // Exit while a request is pending: bounded
+    data->refresh();
+    data->refresh(); // Repeated wake while already refreshing preserves retained state.
+    data->advance(0);
+    check(data->snapshot().refreshing && !data->snapshot().connected);
+    // Exit while a request is pending: bounded
                      // cancellation/join.
   } else {
     config.url += "/";

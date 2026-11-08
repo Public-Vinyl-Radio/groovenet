@@ -49,6 +49,7 @@ struct Track {
 struct Snapshot {
   std::string status, player;
   bool connected = true, available = true, loading = false, playing = true;
+  bool refreshing = false; // Retained read-only state while awaiting a fresh snapshot.
   int volume = 55, position = 42;
   std::vector<Track> queue;
   size_t currentIndex = 0;

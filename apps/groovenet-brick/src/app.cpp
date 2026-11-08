@@ -12,7 +12,7 @@ const std::vector<std::string> &scenarios() {
   static const std::vector<std::string> names{
       "playing",  "paused",          "empty",
       "loading",  "disconnected",    "unavailable",
-      "metadata", "missing-artwork", "unknown-timing", "missing-metadata"};
+      "metadata", "missing-artwork", "unknown-timing", "missing-metadata", "refreshing"};
   return names;
 }
 const std::vector<std::string> &screenNames() {
@@ -57,7 +57,8 @@ MockData::MockData(const std::string &scenario) {
                   {"So Flute", "St Germain", "Tourist", 490, true}};
   state_.status = "Mock · " + scenario;
   state_.playing = scenario != "paused";
-  state_.connected = scenario != "disconnected";
+  state_.connected = scenario != "disconnected" && scenario != "refreshing";
+  state_.refreshing = scenario == "refreshing";
   state_.available = scenario != "unavailable";
   state_.loading = scenario == "loading";
   if (scenario == "empty")

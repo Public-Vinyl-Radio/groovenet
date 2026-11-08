@@ -83,6 +83,14 @@ Final artifact hashes will be recorded after final verification/build.
   volume on Now Playing, and still navigates menus/lists. L/R remains skip. Tests
   check both contexts and the persistent hints reflect the current screen.
 
+- Owner then reported a brief disconnected/no-playback flash on volume changes,
+  confirming it recovered after a moment. The shared client now distinguishes
+  command/wake refresh from a real disconnect, retaining the enriched last known
+  metadata with an UPDATING indicator. Controls remain disabled until a fresh SSE
+  snapshot; values are not predicted and writes are not replayed. The TLS fixture
+  holds a command until retained metadata and blocked controls are verified, then
+  exercises conflict/lost-response recovery. Actual errors clear the refresh flag.
+
 ## Physical smoke results
 
 Owner confirmed navigation works after the mapping-priority correction. Pause/play
@@ -102,8 +110,11 @@ operator smoke result, not measured timings or independent playback telemetry.
 No further crash was reported. L/R was physically mapped and the owner previously
 observed skips during the rejected volume chord.
 
-Pending explicit observations: external-controller track-change freshness,
-upright/full-screen display confirmation and local device-volume isolation.
+The owner then confirmed both the retained metadata during volume refresh and
+external-controller track-change freshness (“yeah, both work”).
+
+Pending explicit observations: upright/full-screen display confirmation and local
+device-volume isolation.
 No desktop test is substituted for these.
 Follow the exact [physical smoke steps](../knulli/README.md#physical-smoke-test-owner-observations-required).
 
@@ -117,10 +128,11 @@ as part of the preview. No full reliability or stable release claim is made.
 
 - `just brick-test`: three CTest suites passed (native behavior/resource failures,
   real loopback TLS/SSE fixture, isolated Ports launcher).
-- `just brick-coverage`: 99.38% native lines, 96.28% branches; changed desktop/input
+- `just brick-coverage`: 99.38% native lines, 96.35% branches; changed desktop/input
   implementation, renderer and platform header 100% lines/branches. All new executable native
   lines covered, including mapping failure, contextual volume and wake-gap recovery.
-  Diff-to-LCOV inspection found all 48 changed executable native lines covered.
+  Diff-to-LCOV inspection found all 65 changed executable native lines covered
+  with no partial branches on changed lines.
 - `BRICK_ARCHIVE=... python3 apps/groovenet-brick/tests/test_package.py`: launcher
   behavior plus actual archive allowlist, AArch64 ELF, executable modes,
   placeholder-only config, font license and binary/font hashes passed.

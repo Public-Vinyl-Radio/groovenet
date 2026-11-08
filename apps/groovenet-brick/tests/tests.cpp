@@ -68,7 +68,7 @@ void stateTests() {
   mock.selectPlayer(99);
   check(mock.snapshot().player == "Kitchen");
   mock.refresh();
-  for (const auto &name : {"loading", "disconnected", "unavailable"}) {
+  for (const auto &name : {"loading", "disconnected", "unavailable", "refreshing"}) {
     MockData blocked(name);
     blocked.command(Action::Next);
     blocked.command(Action::RemoteUp);

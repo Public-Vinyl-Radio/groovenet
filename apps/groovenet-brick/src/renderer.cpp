@@ -85,7 +85,7 @@ void Renderer::draw(const App &app, const Platform &platform) {
     std::string title = "Queue is empty";
     if (state.loading)
       title = "Loading player…";
-    else if (!state.connected)
+    else if (!state.connected && !state.refreshing)
       title = "Disconnected";
     else if (!state.available)
       title = "Player unavailable";
@@ -96,7 +96,8 @@ void Renderer::draw(const App &app, const Platform &platform) {
       text(state.queue[state.currentIndex].artist, 384, 300, 600, ink);
       text(state.queue[state.currentIndex].album, 384, 346, 600, muted);
     }
-    text(!state.connected || !state.available || state.loading ||
+    text(state.refreshing ? "UPDATING" :
+         !state.connected || !state.available || state.loading ||
                  state.currentIndex >= state.queue.size()
              ? "NO PLAYBACK STATE"
              : (state.playing ? "PLAYING" : "PAUSED"),

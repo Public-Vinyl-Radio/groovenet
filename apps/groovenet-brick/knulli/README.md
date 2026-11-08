@@ -95,6 +95,9 @@ There is no L3/R3 dependency. Server volume and local device volume are distinct
 Navigation, unavailable/disconnected states and playback share the desktop
 implementation. Controls stay disabled without authoritative live state. Writes
 are attempted once; ambiguous writes refresh state and require deliberate retry.
+During a command/wake refresh, the last known metadata stays visible with an
+UPDATING indicator and controls disabled until fresh server state arrives. Actual
+network failures still show disconnected; no volume/playback change is predicted.
 
 Short Power remains firmware-owned: no second power daemon or helper is installed.
 Power notifications invalidate live state; a wall-clock gap over two seconds also

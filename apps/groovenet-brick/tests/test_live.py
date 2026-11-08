@@ -16,6 +16,7 @@ import time
 binary = str(Path(sys.argv[1]).resolve())
 player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
 commands = []
+command_release = threading.Event()
 streams = []
 failures = []
 reordered = False
@@ -78,6 +79,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {"players": [{"id": "../bad", "name": "Bad"}]})
             if self.path.startswith("/unavailable/"):
                 return self.reply(503, {})
+            if self.path == "/release-command":
+                command_release.set()
+                return self.reply(200, {})
             if self.path == "/reorder":
                 reordered = True
                 return self.reply(200, {})
@@ -161,6 +165,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         assert body.get("takeover") is not True
         commands.append(body)
         if len(commands) == 1:
+            assert command_release.wait(5), "command UI check did not release fixture"
             return self.reply(409, {"code": "REVISION_CONFLICT"})
         if len(commands) == 2:
             self.connection.shutdown(socket.SHUT_RDWR)
