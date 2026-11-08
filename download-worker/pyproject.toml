@@ -4,12 +4,12 @@ version = "1.0.0"
 requires-python = ">=3.12"
 dependencies = [
     "redis==8.1.0",
-    "yt-dlp==2026.8.19",
+    "yt-dlp==2026.10.21",
     "gamdl==3.9.1",
     "requests==2.34.2",
     "psycopg2-binary>=2.9.13,<2.10",
     "groovenet-python-client",
-    "sentry-sdk>=2.0,<3",
+    "sentry-sdk>=2.73.0,<3",
 ]
 
 [dependency-groups]
