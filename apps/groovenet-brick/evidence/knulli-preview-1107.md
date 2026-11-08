@@ -78,22 +78,33 @@ Final artifact hashes will be recorded after final verification/build.
   pause/resume rendering regression cover it without relying on host SDL_ttf's
   empty-string behavior. Album artwork remains explicitly deferred to #1098.
 
+- Owner reported the X+L/R chord skipped tracks instead of changing volume and
+  requested Up/Down volume. Removed the modifier/chord: Up/Down now changes server
+  volume on Now Playing, and still navigates menus/lists. L/R remains skip. Tests
+  check both contexts and the persistent hints reflect the current screen.
+
 ## Physical smoke results
 
 Owner confirmed navigation works after the mapping-priority correction. Pause/play
 then exposed the empty-metadata renderer exit described above. The fixed build
 passed an **actual on-device** two-frame Mali rendering test with the bundled font,
-`--scenario missing-metadata --actions play,play`, exit 0 and a 1024×768 BMP capture.
+`--scenario missing-metadata --actions up,down,play,play`, exit 0 and a 1024×768 BMP capture.
 The firmware does not include SDL's dummy video driver; that attempted run failed
 visibly before using the real display driver. This is a mock-data renderer check
 on the real runtime, not a claim of successful live transport.
 
 ![On-device missing-metadata regression capture](../screenshots/knulli-missing-metadata.png)
 
-Pending owner observations after the renderer fix: live Y pause/resume, L/R,
-X+L/R, local volume, explicit Lounge identity confirmation, external
-track changes, actual server transport/volume, short Power/sleep/wake freshness,
-and clean quit/continued playback. No desktop test is substituted for these.
+After installing the Up/Down volume build, the owner replied “yeah seems working”
+to a retest request covering Lounge selection, Now Playing volume, Y pause/resume,
+short Power/wake, Select/quit and continued server playback. This is an informal
+operator smoke result, not measured timings or independent playback telemetry.
+No further crash was reported. L/R was physically mapped and the owner previously
+observed skips during the rejected volume chord.
+
+Pending explicit observations: external-controller track-change freshness,
+upright/full-screen display confirmation and local device-volume isolation.
+No desktop test is substituted for these.
 Follow the exact [physical smoke steps](../knulli/README.md#physical-smoke-test-owner-observations-required).
 
 The #1095 probe previously demonstrated short real suspend and display restoration;
@@ -106,9 +117,10 @@ as part of the preview. No full reliability or stable release claim is made.
 
 - `just brick-test`: three CTest suites passed (native behavior/resource failures,
   real loopback TLS/SSE fixture, isolated Ports launcher).
-- `just brick-coverage`: 99.38% native lines, 96.34% branches; changed desktop/input
+- `just brick-coverage`: 99.38% native lines, 96.28% branches; changed desktop/input
   implementation, renderer and platform header 100% lines/branches. All new executable native
-  lines covered, including mapping failure, modifier reset and wake-gap recovery.
+  lines covered, including mapping failure, contextual volume and wake-gap recovery.
+  Diff-to-LCOV inspection found all 48 changed executable native lines covered.
 - `BRICK_ARCHIVE=... python3 apps/groovenet-brick/tests/test_package.py`: launcher
   behavior plus actual archive allowlist, AArch64 ELF, executable modes,
   placeholder-only config, font license and binary/font hashes passed.

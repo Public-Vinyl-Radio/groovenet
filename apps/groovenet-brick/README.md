@@ -11,7 +11,7 @@ of npm and desktop builds. See [install/build/control instructions](knulli/READM
 and [application device evidence](evidence/knulli-preview-1107.md) for hashes,
 firmware/ABI limitations, physical observations and remaining acceptance checks.
 The device profile uses the same renderer and REST/SSE adapter. It supplies a
-licensed DejaVu font and maps remote volume to X+L/R on the real Brick buttons.
+licensed DejaVu font and maps remote volume to D-pad Up/Down on Now Playing.
 Desktop mode retains its existing mappings below.
 
 ## Host setup and commands
@@ -47,17 +47,17 @@ letterboxes the same logical canvas, including on Retina displays. The #1095
 probe used a 640×480 test canvas, not the panel's native dimensions. The experimental device preview is tracked in #1107; full supported-release
 qualification remains in #1102.
 
-| Named action                 | Keyboard                | SDL game controller               |
-| ---------------------------- | ----------------------- | --------------------------------- |
-| Focus up/down                | Arrow up/down           | D-pad up/down                     |
-| Select                       | Enter                   | A                                 |
-| Back                         | Escape                  | B                                 |
-| Browse menu                  | Tab                     | Start                             |
-| Play/pause                   | Space                   | Y                                 |
-| Previous/next                | Arrow left/right or Z/X | D-pad left/right or shoulders L/R |
-| Remote player volume down/up | Minus/plus (or equals)  | Left/right stick click (L3/R3)    |
-| Cycle mock scenario          | F1 (Fn-F1 on some Macs) | Use CLI scenario at launch        |
-| Quit preview                 | Q or window close       | Back/Select button                |
+| Named action                                       | Keyboard                | SDL game controller               |
+| -------------------------------------------------- | ----------------------- | --------------------------------- |
+| Focus up/down (lists); remote volume (Now Playing) | Arrow up/down           | D-pad up/down                     |
+| Select                                             | Enter                   | A                                 |
+| Back                                               | Escape                  | B                                 |
+| Browse menu                                        | Tab                     | Start                             |
+| Play/pause                                         | Space                   | Y                                 |
+| Previous/next                                      | Arrow left/right or Z/X | D-pad left/right or shoulders L/R |
+| Remote player volume down/up                       | Minus/plus (or equals)  | Left/right stick click (L3/R3)    |
+| Cycle mock scenario                                | F1 (Fn-F1 on some Macs) | Use CLI scenario at launch        |
+| Quit preview                                       | Q or window close       | Back/Select button                |
 
 These are SDL semantic controller positions, not guesses about Knulli raw button
 IDs. SDL-recognized controllers work at startup and can be connected/disconnected
@@ -65,7 +65,7 @@ while running. Unrecognized controllers need an SDL mapping supplied by the host
 (for example `SDL_GAMECONTROLLERCONFIG`); analog sticks are not required for
 navigation. Keyboard repeat is ignored to avoid repeated playback commands.
 
-**Remote volume** affects only the selected mock server player's 0–100 level in
+**Remote volume**, including Up/Down on Now Playing, affects only the selected mock server player's 0–100 level in
 steps of five. OS multimedia volume keys and Power are never mapped to server
 volume, pause or stop. **Local device volume** belongs to the firmware/OS adapter
 and has no application command here. Nothing essential requires mouse input.

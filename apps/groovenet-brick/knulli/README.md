@@ -8,7 +8,8 @@ routing remain in #1098–1101. Physical acceptance and ABI results are recorded
 
 ## Build and contents
 
-From the repository root run `just brick-package` with Docker running. It builds
+From the repository root run `just brick-package` with Docker running and
+`linux/arm64` execution available (native ARM64 or configured Docker emulation). It builds
 Linux ARM64 using the exact Debian image digest from the measured #1095 probe,
 a frozen Debian snapshot dated 2026-11-07, GCC 12/C++17 and Release CMake. No npm
 build is involved. Output: `apps/groovenet-brick/build-knulli/` containing
@@ -50,7 +51,8 @@ proper Knulli SDK and full release qualification remain #1102.
    logical canvas and the firmware display driver/orientation. Use Start to open
    Browse, then Players; deliberately select the desired player before issuing
    any controls. The client initially observes the first returned player (Aswitch
-   on the test server); selection only observes the chosen player. Verify its name and current state.
+   on the test server); selection only observes the chosen player. Press B twice
+   to return from Players through Browse to Now Playing; verify its name and state.
 5. Update while the app is closed: replace the script and application directory
    from a new verified archive. Configuration survives outside Ports. Remove by
    deleting those two Ports entries. Optionally delete the config directory to
@@ -78,17 +80,16 @@ Ports’ inherited `SDL_GAMECONTROLLERCONFIG` before SDL initializes, since the
 firmware exports a conflicting hat mapping with higher priority than SDL’s normal
 mapping API. Physical verification status is in the evidence record.
 
-| Physical control   | Action                                  | Firmware raw SDL assignment |
-| ------------------ | --------------------------------------- | --------------------------- |
-| D-pad              | Focus up/down, previous/next left/right | axes 0/1                    |
-| A / B              | Select / back                           | buttons 5 / 4               |
-| Start              | Browse menu                             | button 13                   |
-| Y                  | Play/pause                              | button 7                    |
-| L / R              | Previous / next                         | buttons 8 / 9               |
-| Hold X + L / R     | **Server player** volume −5 / +5        | button 6 modifier + 8 / 9   |
-| Select             | Quit to Ports                           | button 12                   |
-| Device volume keys | Firmware local device volume only       | deliberately unmapped       |
-| Power              | Firmware sleep/wake only                | never a playback write      |
+| Physical control   | Action                                                                    | Firmware raw SDL assignment |
+| ------------------ | ------------------------------------------------------------------------- | --------------------------- |
+| D-pad              | Now Playing: up/down remote volume; lists: up/down focus; left/right skip | axes 0/1                    |
+| A / B              | Select / back                                                             | buttons 5 / 4               |
+| Start              | Browse menu                                                               | button 13                   |
+| Y                  | Play/pause                                                                | button 7                    |
+| L / R              | Previous / next                                                           | buttons 8 / 9               |
+| Select             | Quit to Ports                                                             | button 12                   |
+| Device volume keys | Firmware local device volume only                                         | deliberately unmapped       |
+| Power              | Firmware sleep/wake only                                                  | never a playback write      |
 
 There is no L3/R3 dependency. Server volume and local device volume are distinct.
 Navigation, unavailable/disconnected states and playback share the desktop
@@ -117,8 +118,9 @@ publish keys or raw authenticated responses.
 2. On that player, change track from another controller. Confirm fresh matching
    metadata/state on the Brick. Observe loading, unavailable and disconnected
    states when the test service is unavailable, and recovery after it returns.
-3. Deliberately press Y twice, L and R, then hold X and press L/R. Confirm each
-   action once on the intended server player. Release X and check L/R skips again.
+3. Deliberately press Y twice, L and R, then Up/Down on Now Playing for server
+   volume ±5. Confirm each action once on the intended server player. Open a list
+   and confirm Up/Down moves focus without changing volume.
    Check local volume changes only device volume. Check B returns, focus wraps,
    and no controls require L3/R3. Report any mismatched physical button by name.
 4. Leave server playback running, short Power, wait 30 seconds, change tracks

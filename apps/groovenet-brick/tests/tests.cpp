@@ -91,9 +91,13 @@ void stateTests() {
   check(app.rows().empty() && app.focus() == 0);
   app.handle(Action::Back);
   check(app.screen() == Screen::NowPlaying && app.running());
+  app.handle(Action::Up);
+  check(app.snapshot().volume == 60);
+  app.handle(Action::Down);
+  check(app.snapshot().volume == 55);
   app.handle(Action::Menu);
   app.handle(Action::Up);
-  check(app.focus() == 4);
+  check(app.focus() == 4 && app.snapshot().volume == 55);
   app.handle(Action::Select);
   check(app.screen() == Screen::Outputs && app.rows().size() == 3);
   app.handle(Action::Select);
@@ -113,6 +117,7 @@ void stateTests() {
   app.handle(Action::Select);
   check(app.screen() == Screen::Players);
   app.handle(Action::Down);
+  check(app.snapshot().volume == 55);
   app.handle(Action::Select);
   check(app.snapshot().player == "Studio" && app.snapshot().playing);
   check(app.notice().find("playback unchanged") != std::string::npos);
@@ -130,6 +135,8 @@ void stateTests() {
   check(!app.notice().empty());
   app.handle(Action::Suspend);
   app.handle(Action::Next);
+  app.handle(Action::Up);
+  check(app.snapshot().volume == 55);
   app.advance(2000);
   check(app.suspended() && app.snapshot().position == 0);
   app.handle(Action::Wake);
@@ -145,6 +152,12 @@ void stateTests() {
   check(app.scenario() == "playing");
   app.handle(Action::Quit);
   check(!app.running());
+  for (const auto &name : {"loading", "disconnected", "unavailable"}) {
+    App blocked("mock", name);
+    blocked.handle(Action::Up);
+    blocked.handle(Action::Down);
+    check(blocked.snapshot().volume == 55);
+  }
   App live("live", "playing");
   live.handle(Action::Scenario);
   live.handle(Action::PlayPause);
@@ -235,25 +248,8 @@ void inputTests() {
   event.type = SDL_CONTROLLERBUTTONDOWN;
   event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
   check(device.input(event) == Action::None);
-  for (const auto &[button, action] :
-       std::vector<std::pair<Uint8, Action>>{
-           {SDL_CONTROLLER_BUTTON_LEFTSHOULDER, Action::RemoteDown},
-           {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, Action::RemoteUp},
-           {SDL_CONTROLLER_BUTTON_A, Action::Select}}) {
-    event.cbutton.button = button;
-    check(device.input(event) == action);
-  }
-  event.type = SDL_CONTROLLERBUTTONUP;
-  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
-  check(device.input(event) == Action::None);
-  event.type = SDL_CONTROLLERBUTTONDOWN;
   event.cbutton.button = SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
   check(device.input(event) == Action::Previous);
-  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
-  device.input(event);
-  event.type = SDL_APP_WILLENTERBACKGROUND;
-  check(device.input(event) == Action::Suspend);
-  event.type = SDL_CONTROLLERBUTTONDOWN;
   event.cbutton.button = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
   check(device.input(event) == Action::Next);
 }

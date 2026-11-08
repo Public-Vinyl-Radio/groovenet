@@ -127,11 +127,13 @@ void Renderer::draw(const App &app, const Platform &platform) {
   }
   text(app.notice().empty() ? state.status : app.notice(), 40, 606, 944, muted);
   box(0, 656, width, 112, panel);
-  text("D-pad / Arrows: focus   A / Enter: select   B / Esc: back", 40, 672,
+  text(app.screen() == Screen::NowPlaying
+           ? "Up/down: remote volume   A/Enter: select   B/Esc: back"
+           : "Up/down: focus   A/Enter: select   B/Esc: back", 40, 672,
        944, ink);
   text("Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next", 40, 704, 944,
        muted);
-  text("X+L/R: remote volume (Brick)   +/-: desktop   Select/Q: quit", 40, 736,
+  text("+/-: remote volume   Select/Q: quit", 40, 736,
        944, muted);
   if (app.suspended()) {
     box(40, 224, 944, 350, panel);

@@ -206,6 +206,12 @@ void App::handle(Action action) {
         notice_ = "Navigation preview · server controls follow in #1099–1101";
     }
   }
+  if (screen_ == Screen::NowPlaying) {
+    if (action == Action::Up)
+      action = Action::RemoteUp;
+    if (action == Action::Down)
+      action = Action::RemoteDown;
+  }
   if (action == Action::Left)
     action = Action::Previous;
   if (action == Action::Right)

@@ -22,13 +22,12 @@ public:
 };
 class Desktop final : public Platform {
 public:
-  void resetInput() { volumeModifier_ = false; }
   explicit Desktop(bool knulli = false) : knulli_(knulli) {}
   Action input(const SDL_Event &event) override;
   std::string configDirectory() const override;
   std::optional<int> batteryPercent() const override { return std::nullopt; }
 private:
-  bool knulli_, volumeModifier_ = false;
+  bool knulli_;
 };
 struct Options {
   std::string mode = "mock", scenario = "playing", font, screenshot;

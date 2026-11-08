@@ -13,30 +13,11 @@
 
 namespace brick {
 Action Desktop::input(const SDL_Event &event) {
-  if (knulli_) {
-    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_POWER &&
-        !event.key.repeat) {
-      resetInput();
-      return Action::Wake; // Firmware owns Power; only invalidate remote state.
-    }
-    if ((event.type == SDL_CONTROLLERBUTTONDOWN ||
-         event.type == SDL_CONTROLLERBUTTONUP) &&
-        event.cbutton.button == SDL_CONTROLLER_BUTTON_X) {
-      volumeModifier_ = event.type == SDL_CONTROLLERBUTTONDOWN;
-      return Action::None;
-    }
-    if (event.type == SDL_CONTROLLERBUTTONDOWN && volumeModifier_) {
-      if (event.cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER)
-        return Action::RemoteDown;
-      if (event.cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
-        return Action::RemoteUp;
-    }
-  }
+  if (knulli_ && event.type == SDL_KEYDOWN &&
+      event.key.keysym.sym == SDLK_POWER && !event.key.repeat)
+    return Action::Wake; // Firmware owns Power; only invalidate remote state.
   if (event.type == SDL_QUIT)
     return Action::Quit;
-  if (event.type == SDL_APP_WILLENTERBACKGROUND ||
-      event.type == SDL_APP_DIDENTERFOREGROUND || event.type == SDL_WINDOWEVENT)
-    resetInput();
   if (event.type == SDL_APP_WILLENTERBACKGROUND)
     return Action::Suspend;
   if (event.type == SDL_APP_DIDENTERFOREGROUND)
@@ -260,7 +241,6 @@ int runDesktop(const Options &options) {
     auto wall = std::chrono::system_clock::now();
     if (options.knulli && wall - lastWall > std::chrono::seconds(2)) {
       // Wall time includes Linux suspend. Cancel unsent writes before handling input.
-      platform.resetInput();
       app.handle(Action::Suspend);
       app.handle(Action::Wake);
       app.advance(0);
