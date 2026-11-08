@@ -106,7 +106,10 @@ previous app files are backed up on-device under
 `/userdata/system/groovenet-brick-backup-1102-20261108-180403` (no credentials in
 that app-only backup). No firmware libraries/services or power policy were changed.
 No agent playback commands were sent. The owner was asked to relaunch from Ports
-and test Start/menu navigation; visual acceptance is pending their reply.
+and test Start/menu navigation. The owner replied **“Yes, navigation works”**.
+The running process was then verified to load the private JPEG decoder and use
+the documented persistent `XDG_DATA_HOME`. This confirms the navigation regression
+fix on this device; it does not complete the remaining physical qualification.
 
 Installed executable SHA-256:
 `28aedd306ede1cc6e2db22de6dd57447128f268c2fae14a7434800c630b78699`.
