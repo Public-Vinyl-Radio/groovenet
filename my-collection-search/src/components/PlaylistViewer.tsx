@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Box, EmptyState, Flex, VStack, Skeleton, Button } from "@chakra-ui/react";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
@@ -389,6 +391,22 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  usePaletteScope({
+    id: "playlist",
+    label: "Playlist",
+    actions:
+      tracksPlaylist.length > 0 && !trackIdsLoading && !tracksLoading
+        ? [
+            {
+              id: "optimise_playlist",
+              label: "Optimise order",
+              onSelect: sortGenetic,
+              disabled: isGeneticSorting,
+            },
+          ]
+        : [],
+  });
 
   const actionsMenu = (
     <PlaylistActionsMenu

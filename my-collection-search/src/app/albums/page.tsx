@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { Suspense } from "react";
 import { Flex, Spinner } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
@@ -111,6 +113,15 @@ function AlbumsPageContent() {
   const filterCount = missingChips.length + genres.length + artists.length;
 
   const handleSearch = () => router.push(`/albums?${buildParams().toString()}`);
+
+  usePaletteScope({
+    id: "albums",
+    label: "Albums",
+    onSearch: (q) => {
+      setQuery(q);
+      router.push(`/albums?${buildParams({ q }).toString()}`);
+    },
+  });
 
   const handleSortChange = (newSort: string) => {
     setSort(newSort);

@@ -84,6 +84,14 @@
 
 ## UI conventions
 
+- **Command palette (#1141):** pages register search and existing action handlers
+  with `usePaletteScope` from `CommandPaletteProvider`. The latest mounted scope
+  wins; updates keep its priority and unmount restores the previous scope. List
+  pages own their query/filter URL writes. Track detail opts its header menu into
+  registration with `paletteScope`; menus on cards never register. Backspace in
+  an empty palette input clears the scope until the next opening. Palette usage
+  analytics carry only command and scope enums, never search text.
+
 - Display art goes through `artworkOf` (client) / `coverUrlSql` (server): `audio_file_album_art_url` first, then `album_thumbnail`, then the placeholder.
 - **Page headers (#995):** one `PageHeader` per page and one h1, supplied by
   `PageHeader.Title`. Keep raw Chakra `Heading as="h1"` inside

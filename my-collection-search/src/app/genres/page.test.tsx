@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, within, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -238,4 +240,16 @@ describe("genres discovery page", () => {
     rerender(<GenresPage />);
     expect(screen.getByRole("alert").textContent).toContain("albums offline");
   });
+});
+
+it("filters genres through its registered scope", async () => {
+  const { user } = renderWithProviders(
+    <CommandPaletteProvider>
+      <GenresPage />
+      <PaletteScopeControls query="Cumbia" />
+    </CommandPaletteProvider>,
+  );
+  await user.click(screen.getByText("Run scoped search"));
+  expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("Cumbia");
+  expect(screen.getByTestId("palette-scope").textContent).toBe("genres");
 });

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
@@ -12,9 +14,14 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("friend_id=7"),
   useRouter: () => ({ push: routerPush }),
 }));
+const pageState = vi.hoisted(() => ({
+  albumHydrated: true,
+  tracksHydrated: true,
+  error: null as Error | null,
+}));
 const updateAlbum = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useAlbumsQuery", () => ({
-  useAlbumDetailQuery: () => ({ error: null }),
+  useAlbumDetailQuery: () => ({ error: pageState.error }),
   useUpdateAlbumMutation: () => ({ mutate: updateAlbum, mutateAsync: vi.fn() }),
 }));
 const openForTracks = vi.hoisted(() => vi.fn());
@@ -52,16 +59,17 @@ const album = vi.hoisted(() => ({
 }));
 vi.mock("@/hooks/useAlbum", () => ({
   useAlbum: () => album.current,
-  useAlbumHydrated: () => true,
+  useAlbumHydrated: () => pageState.albumHydrated,
 }));
 const albumTracks = vi.hoisted(() => ({ current: [] as unknown[] }));
 vi.mock("@/hooks/useTrack", () => ({
   useTracksByRelease: () => albumTracks.current,
-  useTracksByReleaseHydrated: () => true,
+  useTracksByReleaseHydrated: () => pageState.tracksHydrated,
 }));
+const appendToQueue = vi.hoisted(() => vi.fn());
 const replacePlaylist = vi.hoisted(() => vi.fn());
 vi.mock("@/providers/PlaybackTargetProvider", () => ({
-  usePlaybackPlayer: () => ({ replacePlaylist, appendToQueue: vi.fn() }),
+  usePlaybackPlayer: () => ({ replacePlaylist, appendToQueue }),
 }));
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: toast } }));
@@ -440,3 +448,45 @@ describe("raw Discogs file viewer", () => {
     expect(await within(dialog).findByText(message)).toBeTruthy();
   });
 });
+
+it("reuses album menu play and queue handlers from the scope", async () => {
+  albumTracks.current = [
+    { track_id: "a", friend_id: 7, title: "A", position: "A1", local_audio_url: "a.m4a" },
+  ];
+  const { user } = renderWithProviders(
+    <CommandPaletteProvider>
+      <AlbumDetailPage />
+      <PaletteScopeControls />
+    </CommandPaletteProvider>,
+  );
+  await user.click(screen.getByText("Palette: Play album"));
+  expect(replacePlaylist).toHaveBeenCalledWith(albumTracks.current, {
+    autoplay: true,
+    startIndex: 0,
+  });
+  await user.click(screen.getByText("Palette: Queue album"));
+  expect(appendToQueue).toHaveBeenCalledWith(albumTracks.current);
+});
+
+it.each(["album loading", "tracks loading", "error"])(
+  "offers no album actions during %s",
+  (state) => {
+    pageState.albumHydrated = state !== "album loading";
+    pageState.tracksHydrated = state !== "tracks loading";
+    pageState.error = state === "error" ? new Error("Unavailable") : null;
+    try {
+      renderWithProviders(
+        <CommandPaletteProvider>
+          <AlbumDetailPage />
+          <PaletteScopeControls />
+        </CommandPaletteProvider>,
+      );
+      expect(screen.queryByText("Palette: Play album")).toBeNull();
+      expect(screen.queryByText("Palette: Queue album")).toBeNull();
+    } finally {
+      pageState.albumHydrated = true;
+      pageState.tracksHydrated = true;
+      pageState.error = null;
+    }
+  },
+);

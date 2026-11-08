@@ -65,6 +65,7 @@ export default function TrackPage() {
     track && (
       <TrackActionsMenu
         track={track}
+        paletteScope
         prominent={prominent}
         onOpenTrackDebug={() => setDebugOpen(true)}
         onOpenFileInfo={() => setFileInfoOpen(true)}

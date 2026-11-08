@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { Suspense } from "react";
 import NextLink from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -70,6 +72,15 @@ function ArtistsPageContent() {
     },
     [letter, pathname, router, searchParams, urlQuery],
   );
+
+  usePaletteScope({
+    id: "artists",
+    label: "Artists",
+    onSearch: (q) => {
+      setInput(q);
+      writeUrl({ q });
+    },
+  });
 
   // Search as the viewer types, once they pause.
   React.useEffect(() => {

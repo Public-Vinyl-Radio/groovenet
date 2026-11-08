@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConfirmDialog from "@/components/records/ConfirmDialog";
@@ -79,6 +81,7 @@ export default function PlaylistManager() {
 
   // Simple filter for playlists
   const [filter, setFilter] = useState("");
+  usePaletteScope({ id: "playlists", label: "Playlists", onSearch: setFilter });
 
   const filtered = React.useMemo(() => {
     const q = filter.toLowerCase();
