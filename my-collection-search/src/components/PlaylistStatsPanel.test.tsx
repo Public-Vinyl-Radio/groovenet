@@ -104,7 +104,7 @@ describe("PlaylistStatsPanel (#480)", () => {
   it("links a Discogs genre known to the taxonomy, with its count", async () => {
     renderPanel();
 
-    const genreCard = await findDesktopCard("Top Genres");
+    const genreCard = await findDesktopCard("Top genres");
     const link = within(genreCard).getByRole("link", {
       name: "Open Latin",
       hidden: true,
@@ -115,7 +115,7 @@ describe("PlaylistStatsPanel (#480)", () => {
   it("leaves a label the taxonomy doesn't know as a plain, non-link badge", async () => {
     renderPanel();
 
-    const genreCard = await findDesktopCard("Top Genres");
+    const genreCard = await findDesktopCard("Top genres");
     const unmapped = within(genreCard).getByText("Unmapped Genre · 1");
     expect(unmapped.closest("a")).toBeNull();
   });
@@ -195,33 +195,60 @@ describe("PlaylistStatsPanel (#480)", () => {
     // Mobile summary bar shows BPM average unexpanded.
     expect(await screen.findByText("BPM 125")).toBeTruthy();
 
-    const rhythmCard = await findDesktopCard("Rhythm & Harmony");
+    const rhythmCard = await findDesktopCard("Rhythm");
     expect(within(rhythmCard).getByText("BPM avg 125 (122-128)")).toBeTruthy();
     expect(within(rhythmCard).getByText("BPM coverage: 67%")).toBeTruthy();
     expect(within(rhythmCard).getByText("A minor · 2")).toBeTruthy();
     expect(within(rhythmCard).getByText("B minor · 1")).toBeTruthy();
 
-    const ratingsCard = await findDesktopCard("Ratings & Styles");
+    const ratingsCard = await findDesktopCard("Ratings");
     expect(within(ratingsCard).getByText("Avg rating: 3.5")).toBeTruthy();
     expect(within(ratingsCard).getByText("4★+ tracks: 1")).toBeTruthy();
 
-    const tracksCard = await findDesktopCard("Tracks");
-    expect(within(tracksCard).getByText("Audio Ready: 33%")).toBeTruthy();
+    // Below 100% the audio card shows the count, not a repeat of the track total.
+    const audioCard = await findDesktopCard("Audio ready");
+    expect(within(audioCard).getByText("1 of 3")).toBeTruthy();
+    expect(screen.queryByText("Tracks")).toBeNull();
 
-    // Expand the mobile cards and check the same numbers render there too.
+    // Expanding shows the same cards, under the same titles, on phones.
     await user.click(screen.getByText(/tracks$/));
-    const mobileRhythm = screen.getAllByText("Rhythm")[0].closest("div")!;
-    expect(within(mobileRhythm).getByText("BPM 125 (122–128)")).toBeTruthy();
-    expect(within(mobileRhythm).getByText("A minor · 2")).toBeTruthy();
-    const mobileRatings = screen.getAllByText("Ratings")[0].closest("div")!;
-    expect(within(mobileRatings).getByText("Avg 3.5 · 1 favs")).toBeTruthy();
+    expect(screen.getAllByText("Rhythm")).toHaveLength(2);
+    expect(screen.getAllByText("Ratings")).toHaveLength(2);
+    expect(screen.getAllByText("Audio ready")).toHaveLength(2);
+    expect(screen.queryByText("Rhythm & Harmony")).toBeNull();
   });
 
-  it("treats an empty playlist's audio coverage as zero", async () => {
+  it("hides the audio card once every track has audio", async () => {
+    renderPanel([
+      track({ local_audio_url: "a.m4a", genres: ["Latin"] }),
+      track({ local_audio_url: "b.m4a" }),
+    ]);
+
+    await findDesktopCard("Top genres");
+    expect(screen.queryByText("Audio ready")).toBeNull();
+    expect(screen.queryByText(/of 2/)).toBeNull();
+    expect(screen.getByTestId("stats-desktop-grid").children).toHaveLength(4);
+  });
+
+  it("shows the audio card with all five cards below 100%", async () => {
+    renderPanel([track({ local_audio_url: "a.m4a" }), track({})]);
+
+    await findDesktopCard("Audio ready");
+    expect(screen.getByTestId("stats-desktop-grid").children).toHaveLength(5);
+  });
+
+  it("lays the phone cards out in one column", async () => {
+    const { user } = renderPanel();
+    await user.click(screen.getByText(/tracks$/));
+    const grid = screen.getByTestId("stats-phone-grid");
+    expect(getComputedStyle(grid).gridTemplateColumns).toContain("repeat(1,");
+  });
+
+  it("counts an empty playlist as having nothing to show for audio", async () => {
     renderPanel([]);
 
-    const audioCard = await findDesktopCard("Tracks");
-    expect(within(audioCard).getByText("Audio Ready: 0%")).toBeTruthy();
+    await findDesktopCard("Top genres");
+    expect(screen.queryByText("Audio ready")).toBeNull();
   });
 });
 
@@ -235,9 +262,9 @@ it("tallies effective album genres/styles without replacing the DJ genre", async
       track_genres: [{ id: "s", name: "Salsa", slug: "salsa", parent_id: null, parent_name: null }],
     }),
   ]);
-  const genreCard = await findDesktopCard("Top Genres");
+  const genreCard = await findDesktopCard("Top genres");
   expect(within(genreCard).getByText("Latin · 1")).toBeTruthy();
-  const styleCard = await findDesktopCard("Ratings & Styles");
+  const styleCard = await findDesktopCard("Ratings");
   expect(within(styleCard).getByText("Cumbia · 1")).toBeTruthy();
   const djCard = await findDesktopCard("Top track genres");
   expect(within(djCard).getByText("Salsa · 1")).toBeTruthy();

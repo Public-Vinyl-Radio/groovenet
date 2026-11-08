@@ -120,3 +120,34 @@ it("opens Suggestions from the desktop menu", async () => {
   );
   expect(onOpenRecommendations).toHaveBeenCalledOnce();
 });
+
+it("offers Create set in the phone action sheet only when a handler is given", async () => {
+  const onCreateSet = vi.fn();
+  const { user, unmount } = await openModal({ onCreateSet });
+  await user.click(screen.getByRole("button", { name: "Create set" }));
+  expect(onCreateSet).toHaveBeenCalledOnce();
+  unmount();
+
+  await openModal();
+  expect(screen.queryByRole("button", { name: "Create set" })).toBeNull();
+});
+
+it("offers Create set in the desktop menu only when a handler is given", async () => {
+  const onCreateSet = vi.fn();
+  const { user, unmount } = renderWithProviders(
+    <PlaylistActionsMenu {...handlers()} onCreateSet={onCreateSet} />,
+  );
+  await chooseMenuItem(
+    user,
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+    /^Create set$/,
+  );
+  expect(onCreateSet).toHaveBeenCalledOnce();
+  unmount();
+
+  const none = renderWithProviders(<PlaylistActionsMenu {...handlers()} />);
+  await none.user.click(
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+  );
+  expect(screen.queryByRole("menuitem", { name: /Create set/, hidden: true })).toBeNull();
+});

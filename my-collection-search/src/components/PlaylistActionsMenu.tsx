@@ -4,7 +4,16 @@ import React, { useState } from "react";
 import { Button, Menu, Box, Flex } from "@chakra-ui/react";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import PlaylistActionsModal from "@/components/PlaylistActionsModal";
-import { FiCopy, FiEdit, FiLayers, FiMoreVertical, FiPlay, FiSave, FiZap } from "react-icons/fi";
+import {
+  FiCalendar,
+  FiCopy,
+  FiEdit,
+  FiLayers,
+  FiMoreVertical,
+  FiPlay,
+  FiSave,
+  FiZap,
+} from "react-icons/fi";
 import { GiTakeMyMoney } from "react-icons/gi";
 import { PiDna, PiFilePdf } from "react-icons/pi";
 import { LuFileJson, LuFileInput } from "react-icons/lu";
@@ -21,6 +30,8 @@ export interface PlaylistActionsMenuProps {
   onDuplicate?: () => void;
   onRename?: () => void;
   onOpenRecommendations?: () => void;
+  /** Turns the playlist into a set; given only while it isn't one. */
+  onCreateSet?: () => void;
   isGeneticSorting?: boolean;
   isCohesiveBlocksSorting?: boolean;
   enqueuePlaylist: () => void;
@@ -41,6 +52,7 @@ export default function PlaylistActionsMenu({
   onDuplicate,
   onRename,
   onOpenRecommendations,
+  onCreateSet,
   enqueuePlaylist,
   isGeneticSorting,
   isCohesiveBlocksSorting,
@@ -89,6 +101,7 @@ export default function PlaylistActionsMenu({
             ...(onOpenRecommendations
               ? [{ label: "Suggestions", onClick: onOpenRecommendations }]
               : []),
+            ...(onCreateSet ? [{ label: "Create set", onClick: onCreateSet }] : []),
           ]}
           exportImport={[
             { label: "Export JSON", onClick: onExportJson },
@@ -134,6 +147,11 @@ export default function PlaylistActionsMenu({
               {onOpenRecommendations && (
                 <Menu.Item value="recommendations" onSelect={onOpenRecommendations}>
                   <FiZap /> Suggestions
+                </Menu.Item>
+              )}
+              {onCreateSet && (
+                <Menu.Item value="create-set" onSelect={onCreateSet}>
+                  <FiCalendar /> Create set
                 </Menu.Item>
               )}
               {menuDivider}

@@ -339,7 +339,50 @@ describe("AlbumResult row", () => {
   });
 });
 
-it("shows a compact discovery card with linked artwork, title and effective genres", () => {
+it("renders the cover layout as one link with no nested links or genre tags", () => {
+  renderWithProviders(
+    <AlbumResult
+      album={{
+        ...full,
+        title: "A very long album title ".repeat(10),
+        effective_genres: ["Jazz"],
+        year: "1991",
+        format: "LP",
+      }}
+      layout="cover"
+    />,
+  );
+  const card = screen.getByTestId("album-cover-card");
+  expect(card.tagName).toBe("A");
+  expect(card.getAttribute("href")).toBe("/albums/rel?friend_id=7");
+  expect(card.getAttribute("aria-label")).toMatch(/^Open A very long album/);
+  expect(screen.getAllByRole("link")).toHaveLength(1);
+  expect(card.querySelector("a")).toBeNull();
+  expect(card.querySelector("[data-cover-placeholder]")).toBeTruthy();
+  expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
+  expect(screen.getByText("Massive Attack")).toBeTruthy();
+  expect(screen.getByText("1991 · LP")).toBeTruthy();
+  expect(screen.queryByText("Jazz")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
+});
+
+it("shows the discovery layout as the one-link cover card on phones", () => {
+  setViewportWidth(390);
+  try {
+    renderWithProviders(
+      <AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />,
+    );
+    const card = screen.getByTestId("album-cover-card");
+    expect(card.getAttribute("href")).toBe("/albums/rel?friend_id=7");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.queryByText("Jazz")).toBeNull();
+    expect(screen.queryByTestId("album-discovery-card")).toBeNull();
+  } finally {
+    setViewportWidth(1280);
+  }
+});
+
+it("keeps the discovery layout on desktop: artwork beside the title, with its effective genre", () => {
   renderWithProviders(
     <AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />,
   );
@@ -356,17 +399,11 @@ it("shows a compact discovery card with linked artwork, title and effective genr
   expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
 });
 
-it("reuses album links and genre badges in the full cover-grid layout", () => {
+it("leaves the cover meta line out when there is no year or format", () => {
   renderWithProviders(
-    <AlbumResult
-      album={{ ...full, title: "A very long album title ".repeat(10) }}
-      layout="cover"
-    />,
+    <AlbumResult album={{ ...full, year: null, format: undefined }} layout="cover" />,
   );
-  const coverLink = screen.getByRole("link", { name: /^Open A very long album/ });
-  expect(coverLink.getAttribute("href")).toBe("/albums/rel?friend_id=7");
-  expect(coverLink.querySelector("[data-cover-placeholder]")).toBeTruthy();
-  expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
+  expect(screen.queryByText(/·/)).toBeNull();
 });
 
 it.each([
