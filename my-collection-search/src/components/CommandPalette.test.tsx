@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { GenreTreeNode } from "@/api-contract/schemas";
 import type { Track, Album } from "@/types/track";
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   getAlbumWithTracks: vi.fn(),
   listArtists: vi.fn(),
   replacePlaylist: vi.fn(),
+  setPaletteOpen: vi.fn(),
   friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
 
@@ -47,7 +48,7 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   }),
 }));
 vi.mock("@/providers/CommandPaletteProvider", () => ({
-  useCommandPalette: () => ({ paletteOpen: true, setPaletteOpen: vi.fn() }),
+  useCommandPalette: () => ({ paletteOpen: true, setPaletteOpen: mocks.setPaletteOpen }),
 }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
 vi.mock("@/services/internalApi/tracks", () => ({ searchTracks: mocks.searchTracks }));
@@ -162,12 +163,49 @@ describe("CommandPalette (#472)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "loveless");
     await screen.findByText("Loveless");
 
-    await user.click(screen.getByText("Play: Loveless"));
+    await user.hover(screen.getByText("Loveless"));
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
     await waitFor(() => expect(mocks.getAlbumWithTracks).toHaveBeenCalledWith("r1", 1));
     expect(mocks.replacePlaylist).toHaveBeenCalledWith([track()], {
       autoplay: true,
       startIndex: 0,
     });
+  });
+
+  it("lists a track once and plays it on Ctrl+Enter", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [track()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+
+    await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "shallow");
+    await screen.findByText("Only Shallow");
+    expect(screen.getAllByText("Only Shallow")).toHaveLength(1);
+    expect(screen.queryByText(/^Play: /)).toBeNull();
+    expect(screen.getByText("play")).toBeTruthy();
+
+    await user.hover(screen.getByText("Only Shallow"));
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith([track()], {
+      autoplay: true,
+      startIndex: 0,
+    });
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "play_track" });
+  });
+
+  it("lists Search first and opens a track on select", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [track()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    const input = screen.getByPlaceholderText(/Search tracks, albums, genres/);
+    await user.type(input, "shallow");
+    await screen.findByText("Only Shallow");
+
+    const items = screen.getAllByRole("option").map((o) => o.textContent ?? "");
+    expect(items[0]).toBe('Search tracks for "shallow"');
+    expect(items[1]).toBe('Search albums for "shallow"');
+
+    await user.click(screen.getByText("Only Shallow"));
+    expect(mocks.push).toHaveBeenCalledWith("/tracks/t1?friend_id=1");
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_track" });
   });
 
   it("tells the user when an album has no tracks to play", async () => {
@@ -178,7 +216,8 @@ describe("CommandPalette (#472)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "loveless");
     await screen.findByText("Loveless");
 
-    await user.click(screen.getByText("Play: Loveless"));
+    await user.hover(screen.getByText("Loveless"));
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
     await waitFor(() => expect(mocks.getAlbumWithTracks).toHaveBeenCalled());
     expect(mocks.replacePlaylist).not.toHaveBeenCalled();
   });
@@ -191,7 +230,8 @@ describe("CommandPalette (#472)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "loveless");
     await screen.findByText("Loveless");
 
-    await user.click(screen.getByText("Play: Loveless"));
+    await user.hover(screen.getByText("Loveless"));
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
     await waitFor(() => expect(mocks.getAlbumWithTracks).toHaveBeenCalled());
     expect(mocks.replacePlaylist).not.toHaveBeenCalled();
   });
@@ -316,6 +356,41 @@ describe("CommandPalette (#472)", () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.click(await screen.findByText("Home"));
     expect(mocks.push).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("CommandPalette shortcuts (#1140)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchTracks.mockResolvedValue({ hits: [] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    mocks.listArtists.mockResolvedValue({ items: [] });
+    mocks.fetchGenreTree.mockResolvedValue([]);
+  });
+
+  it("opens from inside a text field on Cmd+K and Ctrl+K", () => {
+    renderWithProviders(
+      <>
+        <input aria-label="page search" />
+        <CommandPalette />
+      </>,
+    );
+    const field = screen.getByLabelText("page search");
+    field.focus();
+    fireEvent.keyDown(field, { key: "k", metaKey: true });
+    fireEvent.keyDown(field, { key: "k", ctrlKey: true });
+    expect(mocks.setPaletteOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it("still lets [ and ] type in a field", () => {
+    renderWithProviders(
+      <>
+        <input aria-label="page search" />
+        <CommandPalette />
+      </>,
+    );
+    fireEvent.keyDown(screen.getByLabelText("page search"), { key: "]" });
+    expect(mocks.setPaletteOpen).not.toHaveBeenCalled();
   });
 });
 
