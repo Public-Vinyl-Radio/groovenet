@@ -38,6 +38,12 @@ void queueTests() {
   app.handle(Action::Left);
   check(app.focus() == 0);
   check(app.rows()[1].find("[current]") != std::string::npos);
+  app.handle(Action::RemoteUp);
+  check(app.snapshot().volume == 60);
+  app.handle(Action::PlayPause);
+  check(!app.snapshot().playing);
+  app.handle(Action::PlayPause);
+  check(app.snapshot().playing);
   app.handle(Action::Select);
   check(app.screen() == Screen::ClearConfirm && app.focus() == 0);
   app.handle(Action::Select); // Cancel is the default.

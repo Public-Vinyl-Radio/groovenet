@@ -428,8 +428,9 @@ void App::handle(Action action) {
        action == Action::Left || action == Action::Right))
     rememberQueueFocus();
   if (screen_ == Screen::Confirm || screen_ == Screen::TrackActions ||
-      screen_ == Screen::Queue || screen_ == Screen::QueueActions ||
-      screen_ == Screen::ClearConfirm)
+      screen_ == Screen::QueueActions || screen_ == Screen::ClearConfirm ||
+      (screen_ == Screen::Queue &&
+       (action == Action::Left || action == Action::Right)))
     return;
   if (screen_ == Screen::NowPlaying) {
     if (action == Action::Up)
