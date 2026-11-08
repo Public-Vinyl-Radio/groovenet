@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <csignal>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -12,6 +13,32 @@
 #include <stdexcept>
 
 namespace brick {
+namespace {
+volatile std::sig_atomic_t exitRequested = 0;
+void requestExit(int) { exitRequested = 1; }
+// Restore process handlers on every normal and exceptional exit.
+struct ExitSignals {
+  using Handler = void (*)(int);
+  Handler interrupt = std::signal(SIGINT, requestExit);
+  Handler terminate = std::signal(SIGTERM, requestExit);
+  ExitSignals() { exitRequested = 0; }
+  ~ExitSignals() {
+    std::signal(SIGINT, interrupt);
+    std::signal(SIGTERM, terminate);
+  }
+};
+}
+std::optional<int> Desktop::batteryPercent() const {
+  if (!knulli_)
+    return std::nullopt;
+  int percent = -1;
+  const auto state = SDL_GetPowerInfo(nullptr, &percent);
+  if (state == SDL_POWERSTATE_UNKNOWN || state == SDL_POWERSTATE_NO_BATTERY ||
+      percent < 0 || percent > 100)
+    return std::nullopt;
+  return percent;
+}
+
 Action Desktop::input(const SDL_Event &event) {
   if (knulli_ && event.type == SDL_KEYDOWN &&
       event.key.keysym.sym == SDLK_POWER && !event.key.repeat)
@@ -63,6 +90,17 @@ Action Desktop::input(const SDL_Event &event) {
       return Action::Quit;
     default:
       return Action::None;
+    }
+  }
+  // Scarab has emitted both axis and hat forms across physical sessions.
+  // The controller map handles axes; consume unmapped raw hat events as well.
+  if (knulli_ && event.type == SDL_JOYHATMOTION && event.jhat.hat == 0) {
+    switch (event.jhat.value) {
+    case SDL_HAT_UP: return Action::Up;
+    case SDL_HAT_DOWN: return Action::Down;
+    case SDL_HAT_LEFT: return Action::Left;
+    case SDL_HAT_RIGHT: return Action::Right;
+    default: return Action::None;
     }
   }
   if (event.type == SDL_CONTROLLERBUTTONDOWN) {
@@ -167,6 +205,7 @@ int desktopMain(const std::vector<std::string> &arguments) {
   return runDesktop(parseOptions(arguments));
 }
 int runDesktop(const Options &options) {
+  ExitSignals signals;
   // SDL may initialize some subsystems before reporting failure.
   struct Cleanup {
     ~Cleanup() {
@@ -239,7 +278,7 @@ int runDesktop(const Options &options) {
   Uint64 last = SDL_GetTicks64();
   auto lastWall = std::chrono::system_clock::now();
   int frame = 0;
-  while (app.running()) {
+  while (app.running() && !exitRequested) {
     auto wall = std::chrono::system_clock::now();
     if (options.knulli && wall - lastWall > std::chrono::seconds(2)) {
       // Wall time includes Linux suspend. Cancel unsent writes before handling

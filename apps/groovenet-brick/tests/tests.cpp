@@ -130,7 +130,10 @@ void queueTests() {
 }
 class ScriptedData final : public DataAdapter {
 public:
-  int outputWrites = 0, outputBrowses = 0;
+  int outputWrites = 0, outputBrowses = 0, approvals = 0, dismissals = 0;
+  int64_t browsed = -1;
+  void approve() override { ++approvals; }
+  void acknowledge() override { ++dismissals; state.acknowledgment.clear(); state.approvalAction.clear(); }
   bool unknown = false, takeover = false;
   std::string body, token;
   void browseOutputs() override { ++outputBrowses; }
@@ -148,11 +151,41 @@ public:
   void selectPlayer(size_t) override {}
   void advance(int) override {}
   void refresh() override {}
-  void browse(int64_t, bool) override {}
+  void browse(int64_t id, bool) override { browsed = id; }
   void queueTracks(bool, std::optional<size_t>, const std::string &) override {}
   void editQueue(QueueEdit, const std::string &, const std::string &) override {
   }
 };
+void approvalUiTests() {
+  auto data = std::make_unique<ScriptedData>();
+  auto *remote = data.get();
+  App app(std::move(data));
+  remote->state.acknowledgment = "Speaker availability unknown";
+  remote->state.approvalAction = "Start playback on Room";
+  app.handle(Action::Select);
+  check(remote->approvals == 1 && remote->dismissals == 0);
+  app.handle(Action::Back);
+  check(remote->approvals == 1 && remote->dismissals == 1);
+  remote->state.collection.ids = {8};
+  remote->state.collection.names = {"Unavailable playlist"};
+  for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Select, Action::Select})
+    app.handle(action);
+  remote->state.collection.id = 8;
+  remote->state.collection.retry = true;
+  check(app.rows() == std::vector<std::string>{"Retry loading playlist"});
+  remote->browsed = -1;
+  app.handle(Action::Select);
+  check(remote->browsed == 8);
+  remote->state.collection.tracks = {Track("Unknown", "Unknown", "", {}, false)};
+  check(app.rows().back() == "Retry loading tracks");
+  app.handle(Action::Up);
+  remote->browsed = -1;
+  app.handle(Action::Select);
+  check(remote->browsed == 8);
+  MockData mock("speaker-busy");
+  mock.approve();
+  check(!mock.snapshot().acknowledgment.empty());
+}
 void outputUiTests() {
   auto data = std::make_unique<ScriptedData>();
   auto *remote = data.get();
@@ -530,6 +563,19 @@ void inputTests() {
   event.type = SDL_QUIT;
   check(desktop.input(event) == Action::Quit);
   Desktop device(true);
+  event.type = SDL_JOYHATMOTION;
+  event.jhat.hat = 0;
+  for (const auto &[hat, action] : std::vector<std::pair<Uint8, Action>>{
+           {SDL_HAT_UP, Action::Up}, {SDL_HAT_DOWN, Action::Down},
+           {SDL_HAT_LEFT, Action::Left}, {SDL_HAT_RIGHT, Action::Right},
+           {SDL_HAT_CENTERED, Action::None}, {SDL_HAT_RIGHTUP, Action::None}}) {
+    event.jhat.value = hat;
+    check(device.input(event) == action);
+    check(desktop.input(event) == Action::None);
+  }
+  event.jhat.hat = 1;
+  event.jhat.value = SDL_HAT_UP;
+  check(device.input(event) == Action::None);
   event.type = SDL_KEYDOWN;
   event.key.keysym.sym = SDLK_POWER;
   event.key.repeat = 0;
@@ -627,6 +673,7 @@ void renderTests() {
         "Partial transfer failed · Source detached · Target not attached · "
         "Engine conflict";
     view.draw(output, platform);
+    outputRemote->state.approvalAction = "Resume playback on Room";
     outputRemote->state.acknowledgment = std::string(90, 'x');
     view.draw(output, platform);
     outputRemote->state.acknowledgment.clear();
@@ -760,6 +807,27 @@ void renderTests() {
     SDL_GameControllerUpdate();
     check(SDL_GameControllerGetButton(controller, button) == 0);
   }
+  SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+  for (const auto &[hat, action] : std::vector<std::pair<Uint8, Action>>{
+           {SDL_HAT_UP, Action::Up}, {SDL_HAT_DOWN, Action::Down},
+           {SDL_HAT_LEFT, Action::Left}, {SDL_HAT_RIGHT, Action::Right}}) {
+    check(SDL_JoystickSetVirtualHat(raw, 0, hat) == 0);
+    SDL_GameControllerUpdate();
+    SDL_Event input;
+    int actions = 0;
+    while (SDL_PollEvent(&input)) {
+      auto actual = Desktop(true).input(input);
+      if (actual != Action::None) {
+        check(actual == action);
+        ++actions;
+      }
+    }
+    check(actions == 1); // No duplicate mapped-controller action for raw hats.
+    check(SDL_JoystickSetVirtualHat(raw, 0, SDL_HAT_CENTERED) == 0);
+    SDL_GameControllerUpdate();
+    while (SDL_PollEvent(&input))
+      check(Desktop(true).input(input) == Action::None);
+  }
   SDL_GameControllerClose(controller);
   SDL_Quit();
   // Startup and hotplug both go through SDL's actual game-controller API.
@@ -806,6 +874,7 @@ int main(int argc, char **argv) {
     liveTests();
     stateTests();
     queueTests();
+    approvalUiTests();
     outputUiTests();
     queueFocusTests();
     inputTests();

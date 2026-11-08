@@ -11,10 +11,11 @@
 #include <thread>
 using namespace brick;
 namespace {
-void check(bool ok) {
+void checkAt(bool ok, int line) {
   if (!ok)
-    throw std::runtime_error("Live client assertion failed");
+    throw std::runtime_error("Live client assertion failed at line " + std::to_string(line));
 }
+#define check(condition) checkAt((condition), __LINE__)
 template <class F> void rejects(F f) {
   bool rejected = false;
   try {
@@ -548,7 +549,131 @@ void liveTests() {
 }
 int networkTests(const std::string &mode) {
   auto config = LiveConfig::environment();
-  if (mode == "outputs") {
+  if (mode == "batch-pages") {
+    RestClient api(config);
+    auto no = [] { return false; };
+    std::vector<Track> tracks;
+    for (int i = 0; i < 27; ++i) {
+      tracks.emplace_back("Unknown", "Unknown", "", std::nullopt, false);
+      tracks.back().trackId = "track-" + std::to_string(i);
+      tracks.back().friendId = 1;
+    }
+    check(api.enrichPage(tracks, 0, no) == 25);
+    check(tracks[0].title == "Track title" && tracks[24].playable == true && tracks[25].title == "Unknown");
+    check(api.enrichPage(tracks, 25, no) == 27);
+    check(api.enrichPage(tracks, 27, no) == 27);
+    rejects([&] { api.enrichPage(tracks, 28, no); });
+    tracks.erase(tracks.begin() + 2, tracks.end());
+    tracks[1] = tracks[0];
+    check(api.enrichPage(tracks, 0, no) == 2);
+    check(tracks[0].trackId == tracks[1].trackId);
+    tracks[0].friendId = 3;
+    tracks[1].friendId = 5;
+    api.enrichPage(tracks, 0, no);
+    check(tracks[0].playable == false && tracks[1].playable == false);
+    tracks[0].friendId = 4;
+    rejects([&] { api.enrichPage(tracks, 0, no); });
+    tracks[0].friendId = 1;
+    tracks[0].trackId = "duplicate";
+    rejects([&] { api.enrichPage(tracks, 0, no); });
+    tracks[0].trackId = "valid";
+    tracks[0].title = "Unchanged";
+    tracks[1].trackId = "malformed";
+    tracks[1].friendId = 1;
+    rejects([&] { api.enrichPage(tracks, 0, no); });
+    check(tracks[0].title == "Unchanged");
+    tracks[0].trackId = "sparse";
+    api.enrich(tracks[0], no);
+    check(tracks[0].title == "Unchanged");
+    tracks[0].trackId = "wrong-id";
+    rejects([&] { api.enrich(tracks[0], no); });
+    return 0;
+  } else if (mode == "approvals") {
+    config.url += "/approvals";
+    RestClient control(config);
+    auto no = [] { return false; };
+    auto data = liveAdapter(config);
+    data->approve(); // No rejected command is available.
+    wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
+    data->selectPlayer(0);
+    auto connected = [](const Snapshot &s) { return s.connected; };
+    auto offered = [](const Snapshot &s) { return s.connected && !s.approvalAction.empty(); };
+    wait(*data, connected);
+    for (const auto &code : {"AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED", "DEVICE_BUSY"}) {
+      control.request("/case/" + std::string(code), "", true, no);
+      data->command(Action::Next);
+      wait(*data, offered);
+      data->approve();
+      data->approve(); // The first explicit approval consumed the rejection.
+      wait(*data, [&](const Snapshot &s) { return connected(s) && s.acknowledgment.empty() && s.approvalAction.empty(); });
+    }
+    control.request("/case/AVAILABILITY_UNKNOWN", "", true, no);
+    data->command(Action::Next);
+    wait(*data, offered);
+    control.request("/case/SPEAKER_OCCUPIED", "", true, no);
+    data->approve();
+    wait(*data, offered);
+    check(data->snapshot().acknowledgment.find("Speaker busy") != std::string::npos);
+    data->approve();
+    wait(*data, [](const Snapshot &s) { return s.connected && s.acknowledgment.empty(); });
+    data->command(Action::Previous);
+    wait(*data, offered);
+    data->acknowledge(); // Cancel never sends an approved command.
+    data->approve();
+    data->advance(0);
+    check(data->snapshot().approvalAction.empty());
+    data->command(Action::Next);
+    wait(*data, offered);
+    control.request("/change", "", true, no);
+    wait(*data, [](const Snapshot &s) { return s.approvalAction.empty() && s.acknowledgment.find("changed") != std::string::npos; });
+    data->approve();
+    data->acknowledge();
+    data->command(Action::Next);
+    wait(*data, offered);
+    data->refresh();
+    data->approve();
+    wait(*data, connected);
+    data->acknowledge();
+    data->command(Action::Next);
+    wait(*data, offered);
+    data->selectPlayer(1);
+    data->approve();
+    wait(*data, [](const Snapshot &s) { return s.connected && s.playerId == "b"; });
+    control.request("/hold", "", true, no);
+    data->command(Action::Next);
+    wait(*data, [](const Snapshot &s) { return !s.approvalAction.empty(); });
+    data->approve(); // No retry before fresh authoritative state.
+    data->advance(0);
+    check(data->snapshot().acknowledgment.find("Wait") != std::string::npos);
+    control.request("/release", "", true, no);
+    wait(*data, offered);
+    data->approve();
+    wait(*data, [&](const Snapshot &s) { return connected(s) && s.acknowledgment.empty(); });
+    for (const auto &code : {"REVISION_CONFLICT", "AMBIGUOUS"}) {
+      control.request("/case/" + std::string(code), "", true, no);
+      data->command(Action::Next);
+      wait(*data, [&](const Snapshot &s) { return connected(s) && s.status.find("not repeated") != std::string::npos; });
+      check(data->snapshot().approvalAction.empty());
+      data->approve();
+      data->acknowledge();
+    }
+    control.request("/case/AVAILABILITY_UNKNOWN", "", true, no);
+    data->selectPlayer(0);
+    wait(*data, [](const Snapshot &s) { return s.connected && s.playerId == "a"; });
+    data->command(Action::PlayPause); // A pause is not a playback takeover.
+    wait(*data, [](const Snapshot &s) { return s.connected && !s.acknowledgment.empty(); });
+    check(data->snapshot().approvalAction.empty());
+    data->acknowledge();
+    data->browse(1);
+    wait(*data, [](const Snapshot &s) { return !s.collection.loading && s.collection.loaded == 25; });
+    data->queueTracks(true, {}, data->snapshot().commandToken);
+    wait(*data, offered);
+    check(data->snapshot().approvalAction.find("selected music") != std::string::npos);
+    data->approve();
+    wait(*data, [](const Snapshot &s) { return s.connected && s.acknowledgment.empty(); });
+    return 0;
+  } else if (mode == "outputs") {
+
     config.url += "/outputs";
     auto data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
@@ -987,6 +1112,14 @@ int networkTests(const std::string &mode) {
       check(!data->snapshot().collection.status.empty() &&
             data->snapshot().connected);
     }
+    data->browse(8);
+    wait(*data, [](const Snapshot &s) { return !s.collection.loading && s.collection.retry; });
+    check(data->snapshot().collection.tracks.empty());
+    data->browse(8, true);
+    wait(*data, [](const Snapshot &s) { return !s.collection.loading && s.collection.retry; });
+    check(data->snapshot().collection.tracks.size() == 1);
+    data->browse(8, true);
+    wait(*data, [](const Snapshot &s) { return !s.collection.loading && !s.collection.retry && s.collection.loaded == 1; });
     RestClient control(config);
     auto no = [] { return false; };
     auto waitForCollectionRequest = [&] {

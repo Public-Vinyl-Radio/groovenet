@@ -4,9 +4,9 @@ The native C++17/SDL2 application foundation for #1096. Desktop and future devic
 launchers share the application, data-adapter interface and SDL renderer. This
 preview has deterministic mock data and a live REST/SSE adapter; audio stays on the server.
 
-## Knulli device preview
+## Knulli device package
 
-`just brick-package` produces the experimental ARM64 Ports archive, independently
+`just brick-package` produces the versioned experimental ARM64 Ports archive, independently
 of npm and desktop builds. See [install/build/control instructions](knulli/README.md)
 and [application device evidence](evidence/knulli-preview-1107.md) for hashes,
 firmware/ABI limitations, physical observations and remaining acceptance checks.
@@ -171,9 +171,13 @@ skip, queue add/replace and explicit takeover submitted through `RestClient` and
 `PlayerState::command`. On timeout, lost response or conflict, refresh state and
 let the user deliberately retry. A lost response may mean the write committed.
 The adapter does not automatically approve takeover/unknown speaker conditions.
-Speaker-busy, availability-unknown, engine-busy and revision conflicts open an
-acknowledgment panel. Playback/volume input is blocked until A/Enter acknowledges
-or B/Esc dismisses it. Acknowledgment sends no command and grants no policy exception. In Outputs,
+Speaker-busy, availability-unknown and engine-busy responses to playback actions
+open a named **Approve and retry** panel. After fresh state arrives, A/Enter sends
+that exact rejected command once with the requested `allow_unknown` or `takeover`
+exception; B/Esc cancels. Approval can interrupt existing speaker playback. It is
+invalidated by a player/revision/worker/subscription change or wake/refresh.
+Conflicts, ambiguous writes and non-playback failures offer **Dismiss** only.
+Playback/volume input is blocked while either panel is open. In Outputs,
 a failed explicit Play desired output action can offer a separate confirmation
 for unknown status, an occupied speaker, or engine takeover, according to the API
 response. Only confirming that action sends `allow_unknown` or `takeover`; the
@@ -358,9 +362,12 @@ and current-track artwork. Existing collection APIs return complete lists rather
 than server pagination: responses are capped at 2 MiB, lists at 1,000 playlists
 and details at 1,000 track refs. Larger collections fail visibly instead of
 silently truncating or replacing a queue with a partial playlist. Track metadata
-loads in explicit pages of 25, with at most 25 single-ref batch API requests per
-page. Each request retains the existing deadlines; navigation and cancellation
-remain available while loading. No API changes or new credentials are required.
+loads in explicit pages of 25 using one batch API request per page. Responses may
+be unordered and deduplicated; saved order, composite identity and repeated tracks
+are preserved. Failed detail or metadata requests offer **Retry loading playlist**
+or **Retry loading tracks**, without discarding the saved refs or prior page.
+Each request retains the existing deadlines; navigation and cancellation remain
+available while loading. No API changes or new credentials are required.
 
 Tracks are sorted by saved position and keep both track ID and friend ID. A
 missing batch row or missing local audio is shown as unplayable, and blocks an
@@ -375,8 +382,8 @@ sends one `queue.add` without a playback flag. Replacement confirmation is bound
 to the selected player, worker identity and revision. A changed state requires a
 fresh deliberate action. Neither conflict nor lost response is automatically
 retried; review the refreshed shared queue before retrying. Output/takeover
-warnings use the same acknowledgment as Now Playing, granting no takeover or
-availability exception.
+warnings offer the same explicit one-time approval as Now Playing; cancellation
+sends no command and never changes the configured availability policy.
 
 ![Saved playlist tracks](screenshots/playlist-tracks.png)
 ![Replacement confirmation](screenshots/playlist-replace.png)

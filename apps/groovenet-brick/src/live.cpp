@@ -9,6 +9,8 @@
 #include <fstream>
 #include <json-c/json.h>
 #include <mutex>
+#include <map>
+#include <tuple>
 #include <thread>
 #include <unordered_set>
 
@@ -76,6 +78,19 @@ std::string nullable(json_object *obj, const char *key) {
   if (!json_object_object_get_ex(obj, key, &v))
     throw NetworkError("Malformed server data");
   return v ? str(obj, key) : "";
+}
+void enrichTrack(Track &track, json_object *row) {
+  if (str(row, "track_id") != track.trackId ||
+      number(row, "friend_id") != track.friendId)
+    throw NetworkError("Wrong collection track identity");
+  json_object *metadata = nullptr;
+  if (json_object_object_get_ex(row, "title", &metadata))
+    track.title = nullable(row, "title");
+  if (json_object_object_get_ex(row, "artist", &metadata))
+    track.artist = nullable(row, "artist");
+  track.album = nullable(row, "album");
+  track.playable = !nullable(row, "local_audio_url").empty();
+  track.artworkUrl = nullable(row, "album_thumbnail");
 }
 bool identifier(const std::string &s) {
   return !s.empty() && s.size() <= 63 && s.front() != '-' &&
@@ -297,17 +312,46 @@ void RestClient::enrich(Track &track, const std::function<bool()> &cancel) {
   if (json_object_array_length(result.get()) != 1)
     throw NetworkError("Collection track not found");
   auto *row = json_object_array_get_idx(result.get(), 0);
-  if (str(row, "track_id") != track.trackId ||
-      number(row, "friend_id") != track.friendId)
-    throw NetworkError("Wrong collection track identity");
-  json_object *metadata = nullptr;
-  if (json_object_object_get_ex(row, "title", &metadata))
-    track.title = nullable(row, "title");
-  if (json_object_object_get_ex(row, "artist", &metadata))
-    track.artist = nullable(row, "artist");
-  track.album = nullable(row, "album");
-  track.playable = !nullable(row, "local_audio_url").empty();
-  track.artworkUrl = nullable(row, "album_thumbnail");
+  enrichTrack(track, row);
+}
+size_t RestClient::enrichPage(std::vector<Track> &tracks, size_t first,
+                              const std::function<bool()> &cancel) {
+  if (first > tracks.size())
+    throw NetworkError("Invalid metadata page");
+  const auto end = std::min(first + 25, tracks.size());
+  if (first == end)
+    return end;
+  Json root(json_object_new_object(), json_object_put);
+  auto *refs = json_object_new_array();
+  json_object_object_add(root.get(), "tracks", refs);
+  for (size_t i = first; i < end; ++i) {
+    auto *ref = json_object_new_object();
+    json_object_object_add(ref, "track_id", json_object_new_string(tracks[i].trackId.c_str()));
+    json_object_object_add(ref, "friend_id", json_object_new_int64(tracks[i].friendId));
+    json_object_array_add(refs, ref);
+  }
+  auto result = parse(request("/api/tracks/batch",
+      json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN), false, cancel), json_type_array);
+  std::map<std::pair<std::string, int64_t>, json_object *> rows;
+  for (size_t i = 0; i < json_object_array_length(result.get()); ++i) {
+    auto *row = json_object_array_get_idx(result.get(), i);
+    auto key = std::make_pair(str(row, "track_id"), number(row, "friend_id"));
+    if (!std::any_of(tracks.begin() + first, tracks.begin() + end,
+                    [&](const Track &t) { return t.trackId == key.first && t.friendId == key.second; }) ||
+        !rows.emplace(key, row).second)
+      throw NetworkError("Wrong collection track identity or duplicate");
+  }
+  // Commit a whole page only after validation; preserve saved order and repeats.
+  std::vector<Track> page(tracks.begin() + first, tracks.begin() + end);
+  for (auto &track : page) {
+    auto found = rows.find({track.trackId, track.friendId});
+    if (found == rows.end())
+      track.playable = false;
+    else
+      enrichTrack(track, found->second);
+  }
+  std::copy(page.begin(), page.end(), tracks.begin() + first);
+  return end;
 }
 std::shared_ptr<const Artwork>
 RestClient::artwork(const std::string &url,
@@ -809,11 +853,40 @@ public:
   void acknowledge() override {
     std::lock_guard<std::mutex> lock(mutex_);
     published_.view.acknowledgment.clear();
+    published_.view.approvalAction.clear();
+    commandApproval_.reset();
     ++serial_;
+  }
+  void approve() override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!commandApproval_)
+      return;
+    if (!published_.view.connected) {
+      published_.view.acknowledgment = "Wait for fresh player state, then approve";
+      ++serial_;
+      return;
+    }
+    const auto approval = *commandApproval_;
+    commandApproval_.reset();
+    published_.view.approvalAction.clear();
+    // publish(), refresh() and selectPlayer() invalidate stale approvals under
+    // this same mutex before they can reach this explicit retry.
+    auto body = parse(approval.body);
+    json_object_object_add(body.get(), approval.code == "AVAILABILITY_UNKNOWN" ? "allow_unknown" : "takeover",
+                           json_object_new_boolean(true));
+    pending_ = published_.command(json_object_to_json_string_ext(body.get(), JSON_C_TO_STRING_PLAIN));
+    published_.view.acknowledgment.clear();
+    published_.view.connected = false;
+    published_.view.refreshing = true;
+    ++serial_;
+    ++generation_;
+    wake_.notify_all();
   }
   void refresh() override {
     std::lock_guard<std::mutex> lock(mutex_);
     pending_.clear();
+    commandApproval_.reset();
+    published_.view.approvalAction.clear();
     outputWrite_ = false;
     published_.view.outputApproval.clear();
     published_.view.outputUnknown = published_.view.outputTakeover = false;
@@ -845,6 +918,8 @@ public:
       persistenceWarning_ = e.what();
     }
     pending_.clear();
+    commandApproval_.reset();
+    published_.view.approvalAction.clear();
     outputWrite_ = false;
     published_.view.outputApproval.clear();
     published_.view.outputUnknown = published_.view.outputTakeover = false;
@@ -860,7 +935,7 @@ public:
   void browse(int64_t id, bool more) override {
     std::lock_guard<std::mutex> lock(mutex_);
     auto &c = published_.view.collection;
-    if (more && (c.loading || c.id != id || c.loaded >= c.tracks.size()))
+    if (more && (c.loading || c.id != id || (!c.retry && c.loaded >= c.tracks.size())))
       return;
     if (!more) {
       c.tracks.clear();
@@ -868,6 +943,7 @@ public:
       c.id = id;
     }
     c.loading = true;
+    c.retry = false;
     c.status = "Loading collection…";
     state_.collection = c; // Invalidate old rows before another input event.
     collectionJob_ = std::make_pair(id, more);
@@ -1092,7 +1168,7 @@ private:
           if (!job.first)
             c = playlistList(api.playlists(cancel));
           else {
-            if (!job.second) {
+            if (!job.second || c.tracks.empty()) {
               auto detail = playlistTracks(api.playlist(job.first, cancel));
               if (detail.id != job.first)
                 throw NetworkError("Wrong playlist identity");
@@ -1100,17 +1176,7 @@ private:
               detail.ids = c.ids;
               c = std::move(detail);
             }
-            const auto end = std::min(c.loaded + 25, c.tracks.size());
-            // Each bounded HTTP request checks cancellation.
-            for (; c.loaded < end; ++c.loaded) {
-              try {
-                api.enrich(c.tracks[c.loaded], cancel);
-              } catch (const NetworkError &e) {
-                if (std::string(e.what()) != "Collection track not found")
-                  throw;
-                c.tracks[c.loaded].playable = false;
-              }
-            }
+            c.loaded = api.enrichPage(c.tracks, c.loaded, cancel);
             c.status =
                 c.tracks.empty()
                     ? "Empty playlist"
@@ -1118,6 +1184,7 @@ private:
           }
         } catch (const NetworkError &e) {
           c.status = e.what();
+          c.retry = true;
         }
         std::lock_guard<std::mutex> lock(mutex_);
         if (!cancel()) {
@@ -1141,6 +1208,12 @@ private:
   std::atomic<bool> stop_{false};
   std::atomic<unsigned> generation_{0};
   std::string selected_, pending_, persistenceWarning_;
+  struct CommandApproval {
+    std::string body, code, player, worker, label;
+    int64_t revision;
+    uint64_t connection;
+  };
+  std::optional<CommandApproval> commandApproval_;
   int64_t approvalRevision_ = -1;
   uint64_t approvalConnection_ = 0;
   std::string approvalPlayer_, approvalWorker_, requestedRouting_,
@@ -1169,6 +1242,17 @@ private:
                                std::to_string(next.revision) + "/" +
                                std::to_string(connection_);
       next.view.acknowledgment = published_.view.acknowledgment;
+      next.view.approvalAction.clear();
+      if (commandApproval_) {
+        const auto &approval = *commandApproval_;
+        if (std::tie(next.id, next.worker, next.revision, connection_) ==
+            std::tie(approval.player, approval.worker, approval.revision, approval.connection))
+          next.view.approvalAction = approval.label;
+        else {
+          commandApproval_.reset();
+          next.view.acknowledgment = "Player state changed; review and choose the action again";
+        }
+      }
       if (next.view.currentIndex < next.view.queue.size()) {
         auto &track = next.view.queue[next.view.currentIndex];
         std::string identity = next.id + "/" + next.current + "/" +
@@ -1304,6 +1388,22 @@ private:
                 std::lock_guard<std::mutex> lock(mutex_);
                 if (!cancel()) {
                   published_.view.acknowledgment = e.what();
+                  if (!outputWrite && (e.code == "AVAILABILITY_UNKNOWN" ||
+                      e.code == "SPEAKER_OCCUPIED" || e.code == "DEVICE_BUSY")) {
+                    auto command = parse(write);
+                    const auto type = str(command.get(), "type");
+                    static const std::map<std::string, std::string> names{
+                      {"queue.replace", "Start selected music"}, {"play", "Start playback"},
+                      {"resume", "Resume playback"}, {"next", "Skip to next track"},
+                      {"previous", "Skip to previous track"}};
+                    auto name = names.find(type);
+                    if (name != names.end()) {
+                      auto label = name->second + " on " + session.view.player;
+                      commandApproval_ = CommandApproval{write, e.code, session.id, session.worker,
+                                                         label, session.revision, connection_};
+                      published_.view.approvalAction = label;
+                    }
+                  }
                   if (outputWrite &&
                       write.find("\"type\":\"play\"") != std::string::npos &&
                       (e.code == "AVAILABILITY_UNKNOWN" ||

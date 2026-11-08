@@ -7,6 +7,7 @@ on:
       - ".github/workflows/brick-preview.yml"
       - "justfile"
       - "codecov.yml"
+      - ".github/workflows/brick-release.yml"
 
 permissions:
   contents: read
@@ -22,6 +23,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev libpng-dev libjpeg-dev python3 openssl
       - name: Exercise shared logic and SDL desktop with coverage
         run: just brick-coverage
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Cover the stable publication gate
+        run: |
+          python3 -m pip install coverage==7.13.1
+          python3 -m coverage run --branch --source=apps/groovenet-brick/knulli apps/groovenet-brick/tests/test_release.py
+          python3 -m coverage report --fail-under=100
+          python3 -m coverage lcov -o apps/groovenet-brick/build-coverage/release.lcov
       - uses: actions/upload-artifact@v7
         with:
           name: brick-preview-coverage
@@ -31,7 +41,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          files: apps/groovenet-brick/build-coverage/coverage.lcov
+          files: apps/groovenet-brick/build-coverage/coverage.lcov,apps/groovenet-brick/build-coverage/release.lcov
           flags: brick-preview
           disable_search: true
           fail_ci_if_error: true

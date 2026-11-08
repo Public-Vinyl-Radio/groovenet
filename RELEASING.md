@@ -242,3 +242,18 @@ node packages/groovenet-cli/build/bin/groovenet.js sets derive set.mp3 --playlis
 
 > `just release` no longer tags/builds/deploys in one shot — releases are cut by
 > release-please.
+
+## Brick Knulli assets
+
+`brick-release.yml` cross-compiles the existing Brick package independently of npm.
+Scoped PRs and manual workflow runs provide experimental CI artifacts. Root app
+`vX.Y.Z` releases attach `groovenet-brick-X.Y.Z-knulli-scarab-arm64.tar.gz` and its
+checksum only when the tagged qualification record passes for the exact binary
+and launcher. Package-only release tags do not publish Brick assets.
+
+See [build/install instructions](apps/groovenet-brick/knulli/README.md) and
+[qualification evidence](apps/groovenet-brick/evidence/release-1102.md).
+The first complete remote release remains blocked on physical acceptance,
+unplugged measurements and SDK/ABI review. Never mark pending device checks as
+passed from desktop tests. Commit actual observations and hashes before the next
+release-please release; do not move an existing release tag to add evidence.
