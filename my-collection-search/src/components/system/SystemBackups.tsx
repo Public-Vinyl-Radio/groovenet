@@ -130,7 +130,14 @@ export default function SystemBackups() {
       >
         BACKUPS
       </SectionLabel>
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" borderRadius="md">
+      <Box
+        borderWidth="outline"
+        borderColor="border.ink"
+        boxShadow="md"
+        borderRadius="md"
+        // The rows paint their own fill; clip them to the frame's inner curve.
+        overflow="clip"
+      >
         {loading ? (
           <Spinner m={4} aria-label="Loading backup policy" />
         ) : policy ? (

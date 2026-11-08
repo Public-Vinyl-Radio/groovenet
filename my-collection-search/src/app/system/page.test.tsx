@@ -21,7 +21,5 @@ it("titles System and mounts status, backups and restore", () => {
   expect(screen.getByRole("heading", { name: "System", level: 1 })).toBeTruthy();
   for (const name of ["Status", "Storage", "Backups", "Danger zone"])
     expect(screen.getByRole("region", { name })).toBeTruthy();
-  expect(
-    screen.getByText("How the server is doing, its backups, and restoring from one."),
-  ).toBeTruthy();
+  expect(screen.queryByText(/How the server is doing/)).toBeNull();
 });

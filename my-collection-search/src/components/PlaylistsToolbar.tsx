@@ -1,74 +1,99 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Input, InputGroup } from "@chakra-ui/react";
-import { LuSearch } from "react-icons/lu";
+import { IconButton, Menu } from "@chakra-ui/react";
+import { FiMoreVertical } from "react-icons/fi";
 import { TbFileImport } from "react-icons/tb";
+import { HeaderButton, ListSearchRow, SearchField } from "@/components/layout/ListHeader";
 import type { PlaylistsViewMode } from "@/hooks/usePlaylistsViewMode";
 
-type Props = {
-  query: string;
-  onQueryChange: (value: string) => void;
-  viewMode: PlaylistsViewMode;
-  onViewModeChange: (mode: PlaylistsViewMode) => void;
-  onImport: () => void;
-  importInHeader?: boolean;
-};
-
-const VIEW_OPTIONS: Array<{ value: PlaylistsViewMode; label: string }> = [
-  { value: "cards", label: "CARDS" },
-  { value: "list", label: "LIST" },
-];
-
 /**
- * Full-width search with no surrounding box. From `md` up the CARDS / LIST
- * switch and Import sit to its right; phones keep Import in the page header
- * and always get cards.
+ * The search row under the Playlists header: the shared 48px field (44px on
+ * phones) at the Albums width. The view switch and Import live in the page
+ * header, as on Tracks and Albums.
  */
 export default function PlaylistsToolbar({
   query,
   onQueryChange,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+}) {
+  return (
+    <ListSearchRow
+      maxW="640px"
+      field={
+        <SearchField
+          value={query}
+          onChange={onQueryChange}
+          label="Search playlists"
+          placeholder="Search playlists"
+        />
+      }
+    />
+  );
+}
+
+/**
+ * Import playlist in the desktop page row. Only one action lives here, so it
+ * stays an outline button rather than a kebab with a single item.
+ */
+export function PlaylistImportButton({ onImport }: { onImport: () => void }) {
+  return (
+    <HeaderButton onClick={onImport}>
+      <TbFileImport aria-hidden="true" />
+      Import playlist
+    </HeaderButton>
+  );
+}
+
+/** The phone header kebab: Import playlist, and a View choice (List / Grid). */
+export function PlaylistsPhoneMenu({
   viewMode,
   onViewModeChange,
   onImport,
-  importInHeader = false,
-}: Props) {
+}: {
+  viewMode: PlaylistsViewMode;
+  onViewModeChange: (mode: PlaylistsViewMode) => void;
+  onImport: () => void;
+}) {
   return (
-    <Flex gap={3} align="center" mb={4}>
-      <InputGroup startElement={<LuSearch size={16} />} flex="1">
-        <Input
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          variant="outline"
-          bg="bg.panel"
-          // 16px on phones so iOS doesn't zoom on focus.
-          fontSize={{ base: "16px", md: "14px" }}
-          h={{ base: "44px", md: "36px" }}
-          placeholder="Search playlists..."
-          aria-label="Search playlists"
-        />
-      </InputGroup>
-      <Flex display={{ base: "none", md: "flex" }} align="center" gap={3}>
-        <Box role="group" aria-label="View" display="flex" gap={1}>
-          {VIEW_OPTIONS.map(({ value, label }) => (
-            <Button
-              key={value}
-              size="sm"
-              fontFamily="mono"
-              variant={viewMode === value ? "solid" : "ghost"}
-              aria-pressed={viewMode === value}
-              onClick={() => onViewModeChange(value)}
+    <Menu.Root positioning={{ placement: "bottom-end" }}>
+      <Menu.Trigger asChild>
+        <IconButton variant="ghost" boxSize="44px" minW="44px" aria-label="Playlists actions">
+          <FiMoreVertical />
+        </IconButton>
+      </Menu.Trigger>
+      <Menu.Positioner>
+        <Menu.Content minW="200px">
+          <Menu.Item value="import" minH="44px" onClick={onImport}>
+            <TbFileImport />
+            Import playlist
+          </Menu.Item>
+          <Menu.RadioItemGroup
+            value={viewMode}
+            onValueChange={(details) => onViewModeChange(details.value as PlaylistsViewMode)}
+          >
+            <Menu.ItemGroupLabel
+              fontFamily="label"
+              fontSize="11px"
+              letterSpacing="0.06em"
+              textTransform="uppercase"
+              color="fg.muted"
             >
-              {label}
-            </Button>
-          ))}
-        </Box>
-        {!importInHeader && (
-          <Button size="sm" variant="outline" flexShrink={0} onClick={onImport}>
-            <TbFileImport /> Import
-          </Button>
-        )}
-      </Flex>
-    </Flex>
+              View
+            </Menu.ItemGroupLabel>
+            <Menu.RadioItem value="list" minH="44px">
+              List
+              <Menu.ItemIndicator />
+            </Menu.RadioItem>
+            <Menu.RadioItem value="cards" minH="44px">
+              Grid
+              <Menu.ItemIndicator />
+            </Menu.RadioItem>
+          </Menu.RadioItemGroup>
+        </Menu.Content>
+      </Menu.Positioner>
+    </Menu.Root>
   );
 }

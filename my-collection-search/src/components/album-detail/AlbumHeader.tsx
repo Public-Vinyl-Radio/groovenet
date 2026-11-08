@@ -176,6 +176,8 @@ export default function AlbumHeader({
         borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
+        // Children paint their own fill: clip them to the frame's inner curve.
+        overflow="clip"
         css={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr)",

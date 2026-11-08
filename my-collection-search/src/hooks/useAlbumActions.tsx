@@ -178,7 +178,9 @@ export function useAlbumActions({
     onDownloadMissing: tracks.length ? download : undefined,
     isDownloading,
     onEnrichAlbum: tracks.length ? enrich : undefined,
-    onLogCare: () => setLogCareOpen(true),
+    // The phone modal closes right after this runs; open the dialog once that
+    // close has committed, or the modal library discards it (as viewRaw does).
+    onLogCare: () => void window.setTimeout(() => setLogCareOpen(true), 0),
     onChangeArtwork: () => setArtworkOpen(true),
     discogsUrl: album.discogs_url,
     onViewRawDiscogs: () => void viewRaw(),

@@ -27,7 +27,8 @@ describe("RecordCopyMenu phone modal", () => {
   it("runs log care and closes", async () => {
     const { user, dialog, onLogCare } = await openSheet();
     await user.click(within(dialog).getByText("Log care"));
-    expect(onLogCare).toHaveBeenCalledOnce();
+    // Deferred until the modal has closed, so the log dialog isn't discarded with it.
+    await waitFor(() => expect(onLogCare).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 

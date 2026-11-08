@@ -146,6 +146,8 @@ export default function DraggableTrackList({
       borderRadius="md"
       borderColor="border.ink"
       boxShadow="md"
+      // The header strip paints its own fill: clip it to the inner curve.
+      overflow="clip"
       css={{ containerType: "inline-size" }}
     >
       <TrackListHeader />

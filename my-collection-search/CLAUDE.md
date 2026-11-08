@@ -213,6 +213,9 @@ an invalid value the browser drops, so it fails silently.
   (avatars, dots). Controls and containers carry a 2px outline
   (`borderWidth="outline"`, `borderColor="border.ink"`); a literal `1px` is for
   ruled dividers inside a block (`borderWidth="rule"`).
+  A child flush against a rounded outline uses `innerRadius` (`src/app/corners.ts`)
+  or the frame clips (`overflow="clip"`): a strip, row, band or image with its own
+  fill otherwise paints over the border's inner curve at the corners.
 - **Shadow:** hard offsets, no blur, never a literal. `boxShadow="sm"` (3px) for
   compact controls, `md` (6px) for containers: cards, dialogs, popovers, menus,
   drawers, the list block. They read `--gn-shadow`, which a palette must keep
@@ -390,7 +393,8 @@ an invalid value the browser drops, so it fails silently.
     toolbar has Display/Body/Labels font switchers) and in the app at 390px: buttons, chips, tags,
     tabs and track rows must hold. Inputs use 16px text so iOS doesn't zoom.
 - **Copy:** terse sentence case, DJ vocabulary ("112 BPM", "D major (10B)",
-  "B2", "LP-342"), no emoji in the UI.
+  "B2", "LP-342"), no emoji in the UI. No page taglines: the header title and meta
+  say what the page is.
 - **Layout:** every page sits in `PageContainer`, one 1360px width with no size
   option, so page edges line up across the app (constrain a form or block
   inside the page, never the container); phones use `RetroDialog` modals for filters, menus, forms

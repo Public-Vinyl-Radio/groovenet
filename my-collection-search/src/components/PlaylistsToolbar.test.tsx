@@ -3,38 +3,55 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import PlaylistsToolbar from "./PlaylistsToolbar";
-
-function setup(viewMode: "cards" | "list" = "cards") {
-  const props = {
-    query: "",
-    onQueryChange: vi.fn(),
-    viewMode,
-    onViewModeChange: vi.fn(),
-    onImport: vi.fn(),
-  };
-  return { props, ...renderWithProviders(<PlaylistsToolbar {...props} />) };
-}
+import PlaylistsToolbar, { PlaylistImportButton, PlaylistsPhoneMenu } from "./PlaylistsToolbar";
 
 describe("PlaylistsToolbar", () => {
-  it("reports typed search text", async () => {
-    const { props, user } = setup();
-    await user.type(screen.getByRole("textbox", { name: "Search playlists" }), "a");
-    expect(props.onQueryChange).toHaveBeenCalledWith("a");
+  it("is the shared search field, and reports typed text", async () => {
+    const onQueryChange = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistsToolbar query="" onQueryChange={onQueryChange} />,
+    );
+    expect(screen.getByTestId("search-field")).toBeTruthy();
+    expect(screen.getByTestId("list-search-row")).toBeTruthy();
+    await user.type(screen.getByRole("searchbox", { name: "Search playlists" }), "a");
+    expect(onQueryChange).toHaveBeenCalledWith("a");
   });
+});
 
-  it("marks the active view and switches", async () => {
-    const { props, user } = setup("cards");
+describe("PlaylistImportButton", () => {
+  it("calls onImport", async () => {
+    const onImport = vi.fn();
+    const { user } = renderWithProviders(<PlaylistImportButton onImport={onImport} />);
+    await user.click(screen.getByRole("button", { name: "Import playlist" }));
+    expect(onImport).toHaveBeenCalledOnce();
+  });
+});
+
+describe("PlaylistsPhoneMenu", () => {
+  it("checks the current view and reports a change", async () => {
+    const onViewModeChange = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistsPhoneMenu
+        viewMode="cards"
+        onViewModeChange={onViewModeChange}
+        onImport={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Playlists actions" }));
     expect(
-      screen.getByRole("button", { name: "CARDS", hidden: true }).getAttribute("aria-pressed"),
+      (await screen.findByRole("menuitemradio", { name: "Grid" })).getAttribute("aria-checked"),
     ).toBe("true");
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
-    expect(props.onViewModeChange).toHaveBeenCalledWith("list");
+    await user.click(screen.getByRole("menuitemradio", { name: "List" }));
+    expect(onViewModeChange).toHaveBeenCalledWith("list");
   });
 
   it("calls onImport", async () => {
-    const { props, user } = setup();
-    await user.click(screen.getByRole("button", { name: /Import/, hidden: true }));
-    expect(props.onImport).toHaveBeenCalled();
+    const onImport = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistsPhoneMenu viewMode="list" onViewModeChange={vi.fn()} onImport={onImport} />,
+    );
+    await user.click(screen.getByRole("button", { name: "Playlists actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Import playlist" }));
+    expect(onImport).toHaveBeenCalledOnce();
   });
 });

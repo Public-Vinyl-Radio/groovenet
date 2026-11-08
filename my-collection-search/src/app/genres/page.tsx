@@ -111,6 +111,8 @@ function GenreMix({ entries }: { entries: CountedGenreNode[] }) {
         borderColor="border.ink"
         boxShadow="sm"
         mb={4}
+        // The segments are flat fills: clip them to the inner curve.
+        overflow="clip"
       >
         {entries.map((entry, index) => (
           <Box

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Spinner, Stack, Tabs, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Spinner, Stack, Tabs } from "@chakra-ui/react";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader, { type HeaderAction } from "@/components/layout/PageHeader";
 import ChoreGroup, { type ChoreRowData } from "@/components/chores/ChoreGroup";
@@ -268,7 +268,6 @@ function ChorePageContent() {
           <PageHeader.Tabs>
             <Tabs.List
               aria-label="Chores"
-              gap={0}
               mx={{ base: -4, md: 0 }}
               display={{ base: "grid", md: "flex" }}
               gridTemplateColumns="repeat(2, minmax(0, 1fr))"
@@ -276,7 +275,13 @@ function ChorePageContent() {
               <Tabs.Trigger value="todo" justifyContent="center" h="44px" {...tabLabel}>
                 {todoLabel}
               </Tabs.Trigger>
-              <Tabs.Trigger value="log" justifyContent="center" h="44px" ml="-2px" {...tabLabel}>
+              <Tabs.Trigger
+                value="log"
+                justifyContent="center"
+                h="44px"
+                ml={{ base: "-2px", md: 0 }}
+                {...tabLabel}
+              >
                 CARE LOG
               </Tabs.Trigger>
             </Tabs.List>
@@ -390,10 +395,6 @@ function ChorePageContent() {
 
   return page(
     <>
-      <Text display={{ base: "none", md: "block" }} mt={-1} mb={5} fontSize="15px" color="fg.muted">
-        Get the whole library cleaned and sleeved, one stack of ten at a time.
-      </Text>
-
       {/* The overview heads the TO DO tab. */}
       <Stack
         as="section"
