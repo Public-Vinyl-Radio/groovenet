@@ -6,9 +6,10 @@ or losing Wi-Fi cannot send a playback command. Reusable pieces are the CMake
 native target and bounded SSE framing; the application foundation remains #1096
 and the production reconnect/state client remains #1097.
 
-**Device validation is pending. No firmware version is supported yet.** See
-[the evidence and decision record](../PLATFORM-SPIKE.md) before implementing
-firmware adapters. Desktop tests do not demonstrate Brick compatibility.
+**V1 target: Knulli Scarab 2026/05/11. Release qualification and the NextUI
+comparison remain incomplete.** See
+[the evidence and decision record](../PLATFORM-SPIKE.md) for the target decision and outstanding
+firmware adapter requirements. Desktop tests do not demonstrate Brick compatibility.
 
 ## Build and test on a desktop
 
@@ -78,7 +79,11 @@ It logs SSE framing without validating JSON, worker identity or revisions. Compa
 the server's actual state from another controller to establish freshness. Rendering
 runs at up to 20 Hz with a 50 ms delay; record this when interpreting idle CPU/battery.
 
-## Cross-build and launch (not yet device verified)
+## Cross-build and launch
+
+A [partial Knulli Scarab run](../evidence/knulli-scarab-20260511.md) records a working
+experimental arm64 Docker build and Ports launch. The generic SDK steps below
+remain unverified; NextUI has not been run.
 
 Use a **separate SDK/sysroot and build directory for each firmware release**.
 Do not copy the macOS executable to the Brick or infer compatibility from CPU
@@ -121,8 +126,8 @@ and validate libraries over SSH. Launch through a Ports shell entry using that
 same script with absolute paths, after confirming the installed release's Ports
 launch convention. Record the actual Ports entry location and launcher environment
 in the run record. An SSH-only renderer test does not prove launcher handoff;
-SDL may need the display context supplied by the launcher. Exact Knulli Ports
-packaging is pending a run on the user's installed release.
+SDL may need the display context supplied by the launcher. A direct `.sh` entry in `/userdata/roms/ports/` was verified on Knulli Scarab
+2026/05/11; see the device record for the actual launcher and cleanup.
 
 Neither launcher changes power settings or calls suspend APIs. Observe firmware
 behavior first. Do not add raw power-device writes or a second power daemon until

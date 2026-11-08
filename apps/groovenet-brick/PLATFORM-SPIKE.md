@@ -2,17 +2,27 @@
 
 ## Decision and scope
 
-**Status: pending physical comparison. No supported v1 firmware/version yet.**
-The owner has a TrimUI Brick running Knulli; its version and device access have
-not yet been supplied. There has been no physical run under either firmware.
-The desktop probe is preparation, not device evidence.
+**Decision: target Knulli Scarab 2026/05/11 for v1.** The owner agreed to proceed
+with Knulli after the physical session and to leave NextUI validation pending.
+This selects one firmware target; it is not a claim of completed release or
+battery qualification. Firmware-specific foundation work can proceed against
+this version, with the risks below tracked through the first application slice.
 
-Provisional recommendation: evaluate the installed Knulli first, then NextUI on
-a separate backed-up SD card. Choose exactly one firmware and pin its verified
-release only after the table below is populated. NextUI is a packaging candidate
-because it documents tool Paks, but its standalone power caveats prevent a
-supported-firmware recommendation today. Firmware-specific implementation in
-#1096/#1102 remains gated; desktop UI work can continue.
+Knulli was reached over ADB and the native probe rendered from Ports on the
+physical Brick. The owner confirmed its image, orientation, launcher return and
+short Power/wake display restoration. Trusted HTTPS and authenticated named-player
+SSE worked. [The device record](evidence/knulli-scarab-20260511.md) contains the
+exact artifact/build/runtime, measurements, failure observations and limitations.
+NextUI has not been run; no cross-firmware performance claim is made.
+
+Use Knulli's existing system power integration rather than introducing a second
+power daemon. The application must add explicit quit behavior, reconnect for a
+fresh snapshot immediately on wake, and support an application CA bundle and
+player API key. A raw Wi-Fi interface reset required ConnMan intervention; normal
+AP/range-loss recovery remains a risk to test. Longer unplugged suspend/battery
+measurements and a pinned firmware SDK remain release checks in #1102. Reconsider
+the firmware choice if those fail. Desktop/shared app work in #1096 can proceed;
+NextUI packaging is not a second v1 maintenance target.
 
 ## Upstream findings (research, not measurements)
 
@@ -31,28 +41,32 @@ supported-firmware recommendation today. Firmware-specific implementation in
   distinguishes screen timeout from later suspend, documents NTP, and warns of
   standalone resume failures. These are reasons to test, not evidence the probe
   resumes correctly. [Knulli power documentation](https://knulli.org/configure/power-management/)
-  is another input to the comparison; actual Brick behavior remains pending.
+  is another input to the comparison; the partial Brick observations are recorded separately below.
 
 Build separate artifacts until ABI equivalence has been demonstrated: matching
 architecture does not prove matching libc, loader, SDL video driver, libcurl TLS
 backend or CA location. The probe requires SDL2, libcurl and libpng, plus their
-transitive runtime dependencies. Exact target versions are pending. There is no
+transitive runtime dependencies. Knulli runtime versions are recorded below; NextUI target versions are pending. There is no
 production firmware integration or direct-launch hook in this change.
 
 ## Current evidence
 
-| Item                                        | Desktop preparation                        | Knulli Brick                       | NextUI Brick                       |
-| ------------------------------------------- | ------------------------------------------ | ---------------------------------- | ---------------------------------- |
-| Firmware release/image SHA-256              | N/A                                        | Pending                            | Pending                            |
-| SDK commit/container digest/compiler triple | AppleClang 21.0.0.21000401, arm64 macOS    | Pending                            | Pending                            |
-| Runtime libraries                           | SDL2 2.32.74, libcurl 8.7.1, libpng 1.6.59 | Pending, including loader/libc/TLS | Pending, including loader/libc/TLS |
-| Build, install, launcher handoff            | Host build only; see probe README          | Pending                            | Pending                            |
-| Orientation/artwork/button mappings         | Dummy driver automated checks only         | Pending                            | Pending                            |
-| Persistent configuration/launcher return    | Counter/error/signal tests only            | Pending                            | Pending                            |
-| HTTPS/local CA/SSE                          | Local TLS fixture only                     | Pending against dev Groovenet      | Pending against dev Groovenet      |
-| Wi-Fi loss, screen-off, real suspend/resume | Not exercised                              | Pending                            | Pending                            |
-| Launch/wake-to-fresh, CPU/RSS/battery       | No device measurements                     | Pending                            | Pending                            |
-| Power ownership/settings/direct launch      | No integration                             | Pending                            | Pending                            |
+| Item                                        | Desktop preparation                        | Knulli Brick                                                               | NextUI Brick                       |
+| ------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------- |
+| Firmware release/image SHA-256              | N/A                                        | Scarab 2026/05/11; image hash pending                                      | Pending                            |
+| SDK commit/container digest/compiler triple | AppleClang 21.0.0.21000401, arm64 macOS    | Experimental Debian arm64/GCC 12; digest in device record                  | Pending                            |
+| Runtime libraries                           | SDL2 2.32.74, libcurl 8.7.1, libpng 1.6.59 | SDL 2.32.8, curl 8.12.1, png 1.6.47; glibc 2.40                            | Pending, including loader/libc/TLS |
+| Build, install, launcher handoff            | Host build only; see probe README          | Ports launch renders; SIGTERM returns to launcher                          | Pending                            |
+| Orientation/artwork/button mappings         | Dummy driver automated checks only         | PNG/corners confirmed; raw input observed, semantic mapping incomplete     | Pending                            |
+| Persistent configuration/launcher return    | Counter/error/signal tests only            | Counter survives relaunch; reboot pending                                  | Pending                            |
+| HTTPS/local CA/SSE                          | Local TLS fixture only                     | Explicit CA required; authenticated Lounge snapshots received              | Pending against dev Groovenet      |
+| Wi-Fi loss, screen-off, real suspend/resume | Not exercised                              | Reconnect after ConnMan intervention; short suspend/resume verified        | Pending                            |
+| Launch/wake-to-fresh, CPU/RSS/battery       | No device measurements                     | Launch/short CPU/RSS and wake samples; long idle/battery pending           | Pending                            |
+| Power ownership/settings/direct launch      | No integration                             | Firmware Power works; app quit/wake-refresh required; direct boot untested | Pending                            |
+
+The table above is the full comparison checklist; completed Knulli subchecks and
+remaining limitations are detailed in the linked device record. No pending cell
+should be read as a claim that the desktop validates that behavior.
 
 ## Repeatable device session
 
@@ -130,9 +144,10 @@ logs, photos and summary measurements with each run record.
 - Power owner, needed adapters, direct-launch hook and recovery procedure:
 - Unresolved risks; recommended single v1 firmware and exact supported release:
 
-Acceptance for a supported release requires working launcher return, persistent
+The v1 target decision above is sufficient to start implementation. Acceptance
+for a supported application release still requires working launcher return, persistent
 storage, correct rendering/inputs, trusted HTTPS, bounded recovery after Wi-Fi
 loss and actual suspend, and continued server playback. Reject unexplained wake
-black screens or missing power ownership. If only one firmware is measured, label
-it a candidate and leave the comparison pending. Publish the eventual decision
-with evidence links here before removing the firmware implementation gate.
+black screens or missing power ownership. Only Knulli has been measured; the owner explicitly deferred the comparison.
+Keep that limitation visible and publish release qualification results alongside
+this initial target decision.
