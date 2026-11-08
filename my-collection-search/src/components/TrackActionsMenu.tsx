@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { useContext, useRef, useState } from "react";
 import { Button, Menu, Portal, Box, Icon, Link } from "@chakra-ui/react";
 import {
@@ -43,6 +45,7 @@ import type { TrackMenuAction } from "@/lib/analytics/events";
 export type { TrackAudioActions };
 
 type Props = {
+  paletteScope?: boolean;
   track: Track;
   onOpenTrackDebug?: () => void;
   onOpenFileInfo?: () => void;
@@ -66,6 +69,7 @@ type Props = {
 
 export default function TrackActionsMenu({
   track,
+  paletteScope = false,
   onOpenTrackDebug,
   onOpenFileInfo,
   onChangeArtwork,
@@ -287,6 +291,25 @@ export default function TrackActionsMenu({
   const fetchAudio = audioActions?.onFetchAudio ?? defaultFetchAudio;
   const uploadFile = audioActions?.onUploadFile ?? defaultUploadFile;
   const removeAudio = audioActions?.onRemoveAudio ?? defaultRemoveAudio;
+
+  usePaletteScope(
+    paletteScope
+      ? {
+          id: "track",
+          label: "Track",
+          actions: [
+            ...(hasAudio
+              ? [{ id: "play_track" as const, label: "Play", onSelect: playTrack }]
+              : []),
+            {
+              id: "add_track_to_playlist",
+              label: "Add to playlist",
+              onSelect: () => openForTrack(track),
+            },
+          ],
+        }
+      : null,
+  );
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();

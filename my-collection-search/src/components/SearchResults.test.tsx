@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
@@ -197,6 +199,22 @@ beforeEach(() => {
 });
 
 describe("SearchResults search mode", () => {
+  it("scoped search preserves mode, repeated genres, artists and attribute filters in the URL", async () => {
+    mocks.searchParams = new URLSearchParams(
+      "mode=semantic&genre=cumbia&genre=salsa&artist=mirlos&bpm_min=120&missingAudio=1",
+    );
+    const { user } = renderWithProviders(
+      <CommandPaletteProvider>
+        <SearchResults />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    await user.click(screen.getByText("Run scoped search"));
+    expect(mocks.setQuery).toHaveBeenCalledWith("dusty");
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/tracks?mode=semantic&genre=cumbia&genre=salsa&artist=mirlos&bpm_min=120&missingAudio=1&q=dusty",
+    );
+  });
   it("starts on keyword search, with no mode in the URL", () => {
     renderWithProviders(<SearchResults />);
 

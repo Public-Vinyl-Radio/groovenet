@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React from "react";
 import { Box, Flex, Grid, Spinner } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
@@ -376,6 +378,17 @@ const SearchResults: React.FC = () => {
 
   // Debounced input state
   const [debouncedValue, setDebouncedValue] = React.useState(query);
+  usePaletteScope({
+    id: "tracks",
+    label: "Tracks",
+    onSearch: (q) => {
+      setQuery(q);
+      setDebouncedValue(q);
+      const params = new URLSearchParams(searchParamsString);
+      params.set("q", q);
+      router.push(`/tracks?${params.toString()}`);
+    },
+  });
   React.useEffect(() => {
     setDebouncedValue(query);
   }, [query]);

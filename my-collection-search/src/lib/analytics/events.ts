@@ -84,6 +84,16 @@ export type AnalyticsEvents = {
     completed: boolean;
   };
   command_palette_used: {
+    scope:
+      | "global"
+      | "tracks"
+      | "albums"
+      | "artists"
+      | "genres"
+      | "playlists"
+      | "track"
+      | "album"
+      | "playlist";
     command:
       | "navigate"
       | "play_pause"
@@ -100,7 +110,11 @@ export type AnalyticsEvents = {
       | "open_album"
       | "play_album"
       | "search_tracks_query"
-      | "search_albums_query";
+      | "search_albums_query"
+      | "scoped_search"
+      | "add_track_to_playlist"
+      | "optimise_playlist"
+      | "queue_album";
   };
 
   // ── Server ────────────────────────────────────────────────────────────────

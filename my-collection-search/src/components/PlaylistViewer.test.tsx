@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import { sampleTrack, trackInPlaylist } from "@/stories/fixtures/track";
 
 const mocks = vi.hoisted(() => ({
+  sortGenetic: vi.fn(),
   replacePlaylist: vi.fn(),
   player: { playlist: [] as unknown[], currentTrackIndex: null as number | null },
+  sorting: false,
   pending: false,
   empty: false,
   single: false,
@@ -48,9 +52,9 @@ vi.mock("@/hooks/usePlaylistMutations", () => ({
       insertTrack: mocks.insertTrack,
       removeFromPlaylist: vi.fn(),
       sortGreedy: vi.fn(),
-      sortGenetic: vi.fn(),
+      sortGenetic: mocks.sortGenetic,
       sortCohesiveBlocks: vi.fn(),
-      isGeneticSorting: false,
+      isGeneticSorting: mocks.sorting,
       isCohesiveBlocksSorting: false,
       sortPositionChanges: {},
     };
@@ -360,4 +364,30 @@ describe("PlaylistViewer create set", () => {
     await screen.findAllByTestId("actions-menu");
     expect(screen.queryByRole("button", { name: "Create set" })).toBeNull();
   });
+});
+
+it("runs the existing genetic ordering handler from the playlist scope", async () => {
+  const { user } = renderWithProviders(
+    <CommandPaletteProvider>
+      <PlaylistViewer playlistId={5} />
+      <PaletteScopeControls />
+    </CommandPaletteProvider>,
+  );
+  await user.click(screen.getByText("Palette: Optimise order"));
+  expect(mocks.sortGenetic).toHaveBeenCalledOnce();
+});
+
+it("disables palette optimisation while sorting", () => {
+  mocks.sorting = true;
+  try {
+    renderWithProviders(
+      <CommandPaletteProvider>
+        <PlaylistViewer playlistId={5} />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    expect((screen.getByText("Palette: Optimise order") as HTMLButtonElement).disabled).toBe(true);
+  } finally {
+    mocks.sorting = false;
+  }
 });

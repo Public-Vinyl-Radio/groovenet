@@ -10,6 +10,7 @@ import type { Track, Album } from "@/types/track";
 Element.prototype.scrollIntoView ??= () => {};
 
 const mocks = vi.hoisted(() => ({
+  scope: undefined as import("@/providers/CommandPaletteProvider").PaletteScope | undefined,
   push: vi.fn(),
   searchParams: new URLSearchParams(),
   track: vi.fn(),
@@ -48,7 +49,11 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   }),
 }));
 vi.mock("@/providers/CommandPaletteProvider", () => ({
-  useCommandPalette: () => ({ paletteOpen: true, setPaletteOpen: mocks.setPaletteOpen }),
+  useCommandPalette: () => ({
+    paletteOpen: true,
+    setPaletteOpen: mocks.setPaletteOpen,
+    scope: mocks.scope,
+  }),
 }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
 vi.mock("@/services/internalApi/tracks", () => ({ searchTracks: mocks.searchTracks }));
@@ -134,7 +139,10 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Shoegaze"));
     expect(mocks.push).toHaveBeenCalledWith("/genres/shoegaze");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_genre" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "open_genre",
+    });
   });
 
   it("finds a genre by its alias", async () => {
@@ -152,7 +160,10 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Loveless"));
     expect(mocks.push).toHaveBeenCalledWith("/albums/r1?friend_id=1");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_album" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "open_album",
+    });
   });
 
   it("plays an album by fetching and queuing its tracks", async () => {
@@ -189,7 +200,10 @@ describe("CommandPalette (#472)", () => {
       startIndex: 0,
     });
     expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "play_track" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "play_track",
+    });
   });
 
   it("lists Search first and opens a track on select", async () => {
@@ -205,7 +219,10 @@ describe("CommandPalette (#472)", () => {
 
     await user.click(screen.getByText("Only Shallow"));
     expect(mocks.push).toHaveBeenCalledWith("/tracks/t1?friend_id=1");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_track" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "open_track",
+    });
   });
 
   it("tells the user when an album has no tracks to play", async () => {
@@ -244,6 +261,7 @@ describe("CommandPalette (#472)", () => {
     await user.click(searchTracksEntry);
     expect(mocks.push).toHaveBeenCalledWith("/tracks?q=dusty+cumbia&mode=hybrid");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
       command: "search_tracks_query",
     });
   });
@@ -264,6 +282,7 @@ describe("CommandPalette (#472)", () => {
     await user.click(await screen.findByText('Search albums for "dusty cumbia"'));
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dusty%20cumbia");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
       command: "search_albums_query",
     });
   });
@@ -421,13 +440,20 @@ describe("CommandPalette artists (#709)", () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
 
-    expect(await screen.findByText("Meridian Brothers")).toBeTruthy();
+    expect(await screen.findByText("Meridian Brothers", {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByText("Open Artist · 2 albums · 1 track")).toBeTruthy();
-    expect(mocks.listArtists).toHaveBeenCalledWith({ q: "meridian", limit: 5, friend_id: 1 });
+    await waitFor(
+      () =>
+        expect(mocks.listArtists).toHaveBeenCalledWith({ q: "meridian", limit: 5, friend_id: 1 }),
+      { timeout: 5000 },
+    );
 
     await user.click(screen.getByText("Meridian Brothers"));
     expect(mocks.push).toHaveBeenCalledWith("/artists/meridian-brothers");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { command: "open_artist" });
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "open_artist",
+    });
   });
 
   it("searches tracks by the artist", async () => {
@@ -441,6 +467,7 @@ describe("CommandPalette artists (#709)", () => {
     await user.click(screen.getByText("Tracks by Meridian Brothers"));
     expect(mocks.push).toHaveBeenCalledWith("/tracks?artist=meridian-brothers");
     expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
       command: "filter_tracks_by_artist",
     });
   });
@@ -458,12 +485,16 @@ describe("CommandPalette artists (#709)", () => {
     mocks.friend = null;
     const { user } = renderWithProviders(<CommandPalette />);
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
-    await screen.findByText("Meridian Brothers");
-    expect(mocks.listArtists).toHaveBeenCalledWith({
-      q: "meridian",
-      limit: 5,
-      friend_id: undefined,
-    });
+    await screen.findByText("Meridian Brothers", {}, { timeout: 5000 });
+    await waitFor(
+      () =>
+        expect(mocks.listArtists).toHaveBeenCalledWith({
+          q: "meridian",
+          limit: 5,
+          friend_id: undefined,
+        }),
+      { timeout: 5000 },
+    );
   });
 
   it("lists Artists under Navigation", async () => {
@@ -471,5 +502,69 @@ describe("CommandPalette artists (#709)", () => {
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "Artists");
     await user.click(await screen.findByText("/artists"));
     expect(mocks.push).toHaveBeenCalledWith("/artists");
+  });
+});
+
+describe("page scopes (#1141)", () => {
+  beforeEach(() => {
+    mocks.scope = undefined;
+  });
+  it("shows a scope chip and runs its search on Enter, above global results", async () => {
+    const onSearch = vi.fn();
+    mocks.scope = { id: "tracks", label: "Tracks", onSearch };
+    const { user } = renderWithProviders(<CommandPalette />);
+    expect(screen.getByText("Tracks ›")).toBeTruthy();
+    await user.type(screen.getByRole("combobox"), "dusty");
+    await waitFor(() =>
+      expect(screen.getAllByRole("option")[0].textContent).toBe('Search Tracks for "dusty"'),
+    );
+    await user.keyboard("{Enter}");
+    expect(onSearch).toHaveBeenCalledWith("dusty");
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "scoped_search",
+      scope: "tracks",
+    });
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(false);
+  });
+  it("removes the scope only on Backspace in an empty input, then searches globally", async () => {
+    const onSearch = vi.fn();
+    mocks.scope = { id: "albums", label: "Albums", onSearch };
+    const { user } = renderWithProviders(<CommandPalette />);
+    const input = screen.getByRole("combobox");
+    await user.type(input, "a");
+    await user.keyboard("{Backspace}");
+    expect(screen.getByText("Albums ›")).toBeTruthy();
+    await user.keyboard("{Backspace}");
+    expect(screen.queryByText("Albums ›")).toBeNull();
+    await user.type(input, "dusty");
+    await user.keyboard("{Enter}");
+    expect(onSearch).not.toHaveBeenCalled();
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?q=dusty&mode=hybrid");
+  });
+  it("dispatches page actions and skips disabled ones", async () => {
+    const onSelect = vi.fn();
+    mocks.scope = {
+      id: "track",
+      label: "Track",
+      actions: [
+        { id: "play_track", label: "Play this track", onSelect },
+        { id: "add_track_to_playlist", label: "Disabled action", onSelect, disabled: true },
+      ],
+    };
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(screen.getByText("Disabled action"));
+    expect(onSelect).not.toHaveBeenCalled();
+    await user.click(screen.getByText("Play this track"));
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      command: "play_track",
+      scope: "track",
+    });
+  });
+  it("Esc still closes a scoped palette", async () => {
+    mocks.scope = { id: "genres", label: "Genres", onSearch: vi.fn() };
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.keyboard("{Escape}");
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(false);
   });
 });

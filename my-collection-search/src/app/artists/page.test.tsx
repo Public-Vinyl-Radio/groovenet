@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -51,6 +53,17 @@ describe("ArtistsPage (#709)", () => {
     mocks.listArtists.mockResolvedValue(
       page([artist(1, "The Strokes", "Strokes, The", [3, 12]), artist(2, "Los Mirlos")]),
     );
+  });
+
+  it("runs the registered artist search", async () => {
+    const { user } = renderWithProviders(
+      <CommandPaletteProvider>
+        <ArtistsPage />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    await user.click(screen.getByText("Run scoped search"));
+    expect(mocks.replace).toHaveBeenCalledWith("/artists?q=dusty");
   });
 
   it("lists this collection's artists with their sort names, counts and pages", async () => {

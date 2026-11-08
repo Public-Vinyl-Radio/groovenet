@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React from "react";
 import NextLink from "next/link";
 import { Box, Checkbox, Flex, Grid, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
@@ -189,6 +191,7 @@ export default function GenresPage() {
   });
   const arrivals = useRecentAlbumsQuery(friend?.id);
   const [search, setSearch] = React.useState("");
+  usePaletteScope({ id: "genres", label: "Genres", onSearch: setSearch });
   const [openCrateId, setOpenCrateId] = React.useState<string | null>(null);
   const [showEmpty, setShowEmpty] = React.useState(false);
   const entries = React.useMemo(

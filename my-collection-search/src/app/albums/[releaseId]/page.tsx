@@ -1,5 +1,7 @@
 "use client";
 
+import { usePaletteScope } from "@/providers/CommandPaletteProvider";
+
 import React, { Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Box, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
@@ -101,6 +103,33 @@ function AlbumDetailContent() {
     onDeleted: () => router.push("/albums"),
   });
   const menu = albumActions.menu;
+  usePaletteScope({
+    id: "album",
+    label: "Album",
+    actions:
+      albumFromStore && albumHydrated && tracksHydrated && !error
+        ? [
+            ...(albumActions.menuProps.onPlayAlbum
+              ? [
+                  {
+                    id: "play_album" as const,
+                    label: "Play album",
+                    onSelect: albumActions.menuProps.onPlayAlbum,
+                  },
+                ]
+              : []),
+            ...(albumActions.menuProps.onAddToQueue
+              ? [
+                  {
+                    id: "queue_album" as const,
+                    label: "Queue album",
+                    onSelect: albumActions.menuProps.onAddToQueue,
+                  },
+                ]
+              : []),
+          ]
+        : [],
+  });
 
   if (!friendId) {
     return (

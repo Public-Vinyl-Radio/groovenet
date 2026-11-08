@@ -30,21 +30,40 @@
   min-height: 0;
 }
 
+.inputRow {
+  display: flex;
+  align-items: center;
+  background: var(--chakra-colors-bg-panel);
+  border: var(--chakra-border-widths-outline, 2px) solid var(--chakra-colors-border-ink);
+}
+
+.scopeChip {
+  flex-shrink: 0;
+  padding-left: 12px;
+  font-family: var(--chakra-fonts-label);
+  font-size: 13px;
+  color: var(--chakra-colors-fg-muted);
+}
+
 .input {
   width: 100%;
+  min-width: 0;
   border: none;
   outline: none;
   background: var(--chakra-colors-bg-panel, transparent);
-  border: var(--chakra-border-widths-outline, 2px) solid var(--chakra-colors-border-ink);
   padding: 10px 12px;
   font-size: 16px;
   color: var(--chakra-colors-fg, #111111);
 }
 
-/* The dialog's own outline would be hidden by the field's, so ring the field. */
-.input:focus-visible {
+/* Ring the entire field so focus does not overlap the scope chip. */
+.inputRow:focus-within {
   outline: 2px solid var(--gn-accent-focus-ring);
   outline-offset: 2px;
+}
+
+.input:focus-visible {
+  outline: none;
 }
 
 .list {

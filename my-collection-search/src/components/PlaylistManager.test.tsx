@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
@@ -421,4 +423,15 @@ describe("PlaylistManager month grouping (#766)", () => {
     expect(screen.getAllByTestId("timeline-day")[3].textContent).toBe("");
     expect(screen.getAllByTestId("playlist-day")).toHaveLength(3);
   });
+});
+
+it("filters playlists through its registered scope", async () => {
+  const { user } = renderWithProviders(
+    <CommandPaletteProvider>
+      <PlaylistManager />
+      <PaletteScopeControls query="no match" />
+    </CommandPaletteProvider>,
+  );
+  await user.click(screen.getByText("Run scoped search"));
+  expect(screen.getByText('No playlists match "no match"')).toBeTruthy();
 });

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
@@ -537,5 +539,40 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const { user } = { user: (await import("@testing-library/user-event")).default.setup() };
     await user.click(screen.getByText("Upload audio"));
     expect(click).toHaveBeenCalled();
+  });
+});
+
+describe("track page palette actions", () => {
+  it("uses the menu's play and playlist handlers", async () => {
+    const { user } = renderWithProviders(
+      <CommandPaletteProvider>
+        <TrackActionsMenu track={trackWithEverything} paletteScope />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    await user.click(screen.getByText("Palette: Play"));
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith([trackWithEverything], {
+      autoplay: true,
+      startIndex: 0,
+    });
+    await user.click(screen.getByText("Palette: Add to playlist"));
+    expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything);
+  });
+  it("omits play without audio and does not register card menus", () => {
+    const { rerender } = renderWithProviders(
+      <CommandPaletteProvider>
+        <TrackActionsMenu track={trackMinimal} paletteScope />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    expect(screen.queryByText("Palette: Play")).toBeNull();
+    expect(screen.getByText("Palette: Add to playlist")).toBeTruthy();
+    rerender(
+      <CommandPaletteProvider>
+        <TrackActionsMenu track={trackMinimal} />
+        <PaletteScopeControls />
+      </CommandPaletteProvider>,
+    );
+    expect(screen.getByTestId("palette-scope").textContent).toBe("");
   });
 });

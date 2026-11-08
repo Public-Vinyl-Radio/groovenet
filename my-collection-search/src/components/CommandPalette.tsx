@@ -76,8 +76,10 @@ export default function CommandPalette() {
     replacePlaylist,
   } = usePlaybackPlayer();
 
-  const { paletteOpen: open, setPaletteOpen: setOpen } = useCommandPalette();
+  const { paletteOpen: open, setPaletteOpen: setOpen, scope: pageScope } = useCommandPalette();
 
+  const [scopeRemoved, setScopeRemoved] = React.useState(false);
+  const scope = scopeRemoved ? undefined : pageScope;
   const [query, setQuery] = React.useState("");
   const [highlighted, setHighlighted] = React.useState("");
   const [trackHits, setTrackHits] = React.useState<TrackHit[]>([]);
@@ -135,6 +137,7 @@ export default function CommandPalette() {
   React.useEffect(() => {
     if (!open) return;
     setQuery("");
+    setScopeRemoved(false);
   }, [open]);
 
   React.useEffect(() => {
@@ -243,7 +246,7 @@ export default function CommandPalette() {
   }, [playlist, router]);
 
   const used = (command: AnalyticsEvents["command_palette_used"]["command"]) =>
-    analytics.track("command_palette_used", { command });
+    analytics.track("command_palette_used", { command, scope: scope?.id ?? "global" });
 
   const onNavigate = (href: string) => {
     used("navigate");
@@ -363,18 +366,66 @@ export default function CommandPalette() {
         onValueChange={setHighlighted}
         onKeyDown={onCommandKeyDown}
       >
-        <Command.Input
-          autoFocus
-          placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
-          value={query}
-          onValueChange={setQuery}
-          className={styles.input}
-        />
+        <div className={styles.inputRow}>
+          {scope && <span className={styles.scopeChip}>{scope.label} ›</span>}
+          <Command.Input
+            autoFocus
+            placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
+            value={query}
+            onValueChange={(value) => {
+              setQuery(value);
+              if (scope?.onSearch && value.trim()) setHighlighted(`${PINNED_PREFIX}scope`);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Backspace" && query === "" && scope) {
+                event.preventDefault();
+                setScopeRemoved(true);
+              }
+            }}
+            className={styles.input}
+          />
+        </div>
         <Command.List className={styles.list}>
           <Command.Empty className={styles.empty}>
             {loadingTracks ? "Searching…" : "No results."}
           </Command.Empty>
 
+          {scope?.onSearch && trimmedQuery && (
+            <Command.Group heading={scope.label} className={styles.group}>
+              <Command.Item
+                value={`${PINNED_PREFIX}scope`}
+                className={styles.item}
+                onSelect={() => {
+                  used("scoped_search");
+                  scope.onSearch?.(trimmedQuery);
+                  close();
+                }}
+              >
+                <span className={styles.itemTitle}>
+                  Search {scope.label} for &quot;{trimmedQuery}&quot;
+                </span>
+              </Command.Item>
+            </Command.Group>
+          )}
+          {scope?.actions && (
+            <Command.Group heading={`${scope.label} actions`} className={styles.group}>
+              {scope.actions.map((action) => (
+                <Command.Item
+                  key={action.id}
+                  value={`page ${action.label}`}
+                  disabled={action.disabled}
+                  className={styles.item}
+                  onSelect={() => {
+                    used(action.id);
+                    close();
+                    action.onSelect();
+                  }}
+                >
+                  <span className={styles.itemTitle}>{action.label}</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          )}
           {trimmedQuery.length > 0 && (
             <>
               <Command.Group heading="Search" className={styles.group}>
