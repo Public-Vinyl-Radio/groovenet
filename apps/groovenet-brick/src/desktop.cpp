@@ -4,6 +4,7 @@
 #include <SDL_ttf.h>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -12,6 +13,9 @@
 
 namespace brick {
 Action Desktop::input(const SDL_Event &event) {
+  if (knulli_ && event.type == SDL_KEYDOWN &&
+      event.key.keysym.sym == SDLK_POWER && !event.key.repeat)
+    return Action::Wake; // Firmware owns Power; only invalidate remote state.
   if (event.type == SDL_QUIT)
     return Action::Quit;
   if (event.type == SDL_APP_WILLENTERBACKGROUND)
@@ -112,7 +116,11 @@ Options parseOptions(const std::vector<std::string> &args) {
     const auto &value = args[i];
     if (key == "--mode")
       options.mode = value;
-    else if (key == "--scenario")
+    else if (key == "--platform") {
+      if (value != "desktop" && value != "knulli")
+        throw std::invalid_argument("Platform must be desktop or knulli");
+      options.knulli = value == "knulli";
+    } else if (key == "--scenario")
       options.scenario = value;
     else if (key == "--font")
       options.font = value;
@@ -166,8 +174,18 @@ int runDesktop(const Options &options) {
       SDL_Quit();
     }
   } cleanup;
+  // Ports exports a firmware-generated hat mapping. SDL gives environment maps
+  // higher priority than AddMapping(), so override the hint before SDL loads it.
+  if (options.knulli &&
+      !SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLERCONFIG,
+                               knulliControllerMapping, SDL_HINT_OVERRIDE))
+    throw std::runtime_error("Cannot override firmware controller mapping");
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
     throw std::runtime_error(SDL_GetError());
+  if (options.knulli) {
+    if (SDL_GameControllerAddMapping(knulliControllerMapping) < 0)
+      throw std::runtime_error("Cannot install Brick controller mapping");
+  }
   if (TTF_Init() != 0)
     throw std::runtime_error(TTF_GetError());
   std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window(
@@ -175,7 +193,8 @@ int runDesktop(const Options &options) {
                        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                        static_cast<int>(width * options.scale),
                        static_cast<int>(height * options.scale),
-                       SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI),
+                       (options.knulli ? SDL_WINDOW_FULLSCREEN_DESKTOP
+                                       : SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI)),
       SDL_DestroyWindow);
   if (!window)
     throw std::runtime_error(SDL_GetError());
@@ -212,12 +231,22 @@ int runDesktop(const Options &options) {
   };
   for (int i = 0; i < SDL_NumJoysticks(); ++i)
     connect(i);
-  Desktop platform;
+  Desktop platform(options.knulli);
   Renderer view(renderer.get(), options.font);
   App app(options.mode, options.scenario);
   Uint64 last = SDL_GetTicks64();
+  auto lastWall = std::chrono::system_clock::now();
   int frame = 0;
   while (app.running()) {
+    auto wall = std::chrono::system_clock::now();
+    if (options.knulli && wall - lastWall > std::chrono::seconds(2)) {
+      // Wall time includes Linux suspend. Cancel unsent writes before handling input.
+      app.handle(Action::Suspend);
+      app.handle(Action::Wake);
+      app.advance(0);
+      SDL_FlushEvents(SDL_CONTROLLERAXISMOTION, SDL_CONTROLLERBUTTONUP);
+    }
+    lastWall = wall;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_CONTROLLERDEVICEADDED)
@@ -233,6 +262,8 @@ int runDesktop(const Options &options) {
             controllers.end());
       }
       app.handle(platform.input(event));
+      if (options.knulli)
+        app.advance(0);
     }
     // The deterministic command driver goes through the same application
     // actions as real input; scripted runs use a fixed clock and do not depend

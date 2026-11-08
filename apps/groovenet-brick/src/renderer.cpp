@@ -30,6 +30,10 @@ void Renderer::box(int x, int y, int w, int h, SDL_Color color) {
 }
 void Renderer::text(const std::string &value, int x, int y, int maxWidth,
                     SDL_Color color, bool large) {
+  // Live refreshes can briefly have no album/artist. Newer SDL_ttf rejects
+  // empty text with "Text has zero width" rather than producing a surface.
+  if (value.empty())
+    return;
   auto *surface =
       TTF_RenderUTF8_Blended(large ? large_ : font_, value.c_str(), color);
   if (!surface)
@@ -81,7 +85,7 @@ void Renderer::draw(const App &app, const Platform &platform) {
     std::string title = "Queue is empty";
     if (state.loading)
       title = "Loading player…";
-    else if (!state.connected)
+    else if (!state.connected && !state.refreshing)
       title = "Disconnected";
     else if (!state.available)
       title = "Player unavailable";
@@ -92,7 +96,8 @@ void Renderer::draw(const App &app, const Platform &platform) {
       text(state.queue[state.currentIndex].artist, 384, 300, 600, ink);
       text(state.queue[state.currentIndex].album, 384, 346, 600, muted);
     }
-    text(!state.connected || !state.available || state.loading ||
+    text(state.refreshing ? "UPDATING" :
+         !state.connected || !state.available || state.loading ||
                  state.currentIndex >= state.queue.size()
              ? "NO PLAYBACK STATE"
              : (state.playing ? "PLAYING" : "PAUSED"),
@@ -123,11 +128,13 @@ void Renderer::draw(const App &app, const Platform &platform) {
   }
   text(app.notice().empty() ? state.status : app.notice(), 40, 606, 944, muted);
   box(0, 656, width, 112, panel);
-  text("D-pad / Arrows: focus   A / Enter: select   B / Esc: back", 40, 672,
+  text(app.screen() == Screen::NowPlaying
+           ? "Up/down: remote volume   A/Enter: select   B/Esc: back"
+           : "Up/down: focus   A/Enter: select   B/Esc: back", 40, 672,
        944, ink);
   text("Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next", 40, 704, 944,
        muted);
-  text("L3/R3 or +/-: remote volume   F1: scenario   Back/Q: quit", 40, 736,
+  text("+/-: remote volume   Select/Q: quit", 40, 736,
        944, muted);
   if (app.suspended()) {
     box(40, 224, 944, 350, panel);

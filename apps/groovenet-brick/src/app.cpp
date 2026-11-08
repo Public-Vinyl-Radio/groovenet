@@ -12,7 +12,7 @@ const std::vector<std::string> &scenarios() {
   static const std::vector<std::string> names{
       "playing",  "paused",          "empty",
       "loading",  "disconnected",    "unavailable",
-      "metadata", "missing-artwork", "unknown-timing"};
+      "metadata", "missing-artwork", "unknown-timing", "missing-metadata", "refreshing"};
   return names;
 }
 const std::vector<std::string> &screenNames() {
@@ -57,7 +57,8 @@ MockData::MockData(const std::string &scenario) {
                   {"So Flute", "St Germain", "Tourist", 490, true}};
   state_.status = "Mock · " + scenario;
   state_.playing = scenario != "paused";
-  state_.connected = scenario != "disconnected";
+  state_.connected = scenario != "disconnected" && scenario != "refreshing";
+  state_.refreshing = scenario == "refreshing";
   state_.available = scenario != "unavailable";
   state_.loading = scenario == "loading";
   if (scenario == "empty")
@@ -69,6 +70,8 @@ MockData::MockData(const std::string &scenario) {
                        420, true};
   if (scenario == "missing-artwork")
     state_.queue[0].artwork = false;
+  if (scenario == "missing-metadata")
+    state_.queue[0] = {"", "", "", 300, false};
   if (scenario == "unknown-timing")
     state_.queue[0].duration.reset();
 }
@@ -155,6 +158,7 @@ void App::handle(Action action) {
   }
   if (action == Action::Suspend) {
     suspended_ = true;
+    data_->refresh(); // Discard unsent commands; waking obtains another snapshot.
     return;
   }
   if (action == Action::Wake) {
@@ -202,6 +206,12 @@ void App::handle(Action action) {
       } else
         notice_ = "Navigation preview · server controls follow in #1099–1101";
     }
+  }
+  if (screen_ == Screen::NowPlaying) {
+    if (action == Action::Up)
+      action = Action::RemoteUp;
+    if (action == Action::Down)
+      action = Action::RemoteDown;
   }
   if (action == Action::Left)
     action = Action::Previous;

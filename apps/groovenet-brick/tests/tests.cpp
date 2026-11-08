@@ -68,7 +68,7 @@ void stateTests() {
   mock.selectPlayer(99);
   check(mock.snapshot().player == "Kitchen");
   mock.refresh();
-  for (const auto &name : {"loading", "disconnected", "unavailable"}) {
+  for (const auto &name : {"loading", "disconnected", "unavailable", "refreshing"}) {
     MockData blocked(name);
     blocked.command(Action::Next);
     blocked.command(Action::RemoteUp);
@@ -91,9 +91,13 @@ void stateTests() {
   check(app.rows().empty() && app.focus() == 0);
   app.handle(Action::Back);
   check(app.screen() == Screen::NowPlaying && app.running());
+  app.handle(Action::Up);
+  check(app.snapshot().volume == 60);
+  app.handle(Action::Down);
+  check(app.snapshot().volume == 55);
   app.handle(Action::Menu);
   app.handle(Action::Up);
-  check(app.focus() == 4);
+  check(app.focus() == 4 && app.snapshot().volume == 55);
   app.handle(Action::Select);
   check(app.screen() == Screen::Outputs && app.rows().size() == 3);
   app.handle(Action::Select);
@@ -113,6 +117,7 @@ void stateTests() {
   app.handle(Action::Select);
   check(app.screen() == Screen::Players);
   app.handle(Action::Down);
+  check(app.snapshot().volume == 55);
   app.handle(Action::Select);
   check(app.snapshot().player == "Studio" && app.snapshot().playing);
   check(app.notice().find("playback unchanged") != std::string::npos);
@@ -130,6 +135,8 @@ void stateTests() {
   check(!app.notice().empty());
   app.handle(Action::Suspend);
   app.handle(Action::Next);
+  app.handle(Action::Up);
+  check(app.snapshot().volume == 55);
   app.advance(2000);
   check(app.suspended() && app.snapshot().position == 0);
   app.handle(Action::Wake);
@@ -145,6 +152,12 @@ void stateTests() {
   check(app.scenario() == "playing");
   app.handle(Action::Quit);
   check(!app.running());
+  for (const auto &name : {"loading", "disconnected", "unavailable"}) {
+    App blocked("mock", name);
+    blocked.handle(Action::Up);
+    blocked.handle(Action::Down);
+    check(blocked.snapshot().volume == 55);
+  }
   App live("live", "playing");
   live.handle(Action::Scenario);
   live.handle(Action::PlayPause);
@@ -222,6 +235,23 @@ void inputTests() {
   check(desktop.input(event) == Action::Wake);
   event.type = SDL_QUIT;
   check(desktop.input(event) == Action::Quit);
+  Desktop device(true);
+  event.type = SDL_KEYDOWN;
+  event.key.keysym.sym = SDLK_POWER;
+  event.key.repeat = 0;
+  check(device.input(event) == Action::Wake);
+  event.key.repeat = 1;
+  check(device.input(event) == Action::None);
+  event.key.repeat = 0;
+  event.key.keysym.sym = SDLK_VOLUMEDOWN;
+  check(device.input(event) == Action::None);
+  event.type = SDL_CONTROLLERBUTTONDOWN;
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
+  check(device.input(event) == Action::None);
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
+  check(device.input(event) == Action::Previous);
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
+  check(device.input(event) == Action::Next);
 }
 void optionTests() {
   auto options =
@@ -234,8 +264,10 @@ void optionTests() {
         options.frames == 2);
   check(options.actions.size() == 3);
   check(!parseOptions({}).font.empty());
+  check(parseOptions({"--platform", "knulli"}).knulli);
+  check(!parseOptions({"--platform", "desktop"}).knulli);
   for (const auto &args :
-       std::vector<std::vector<std::string>>{{"--bad"},
+       std::vector<std::vector<std::string>>{{"--bad"}, {"--platform", "unknown"},
                                              {"--bad", "value"},
                                              {"--scale", "NaN"},
                                              {"--scale", "inf"},
@@ -286,6 +318,17 @@ void renderTests() {
       app.handle(Action::Suspend);
       view.draw(app, platform);
     }
+    App missing("mock", "missing-metadata");
+    check(missing.snapshot().queue[0].title.empty());
+    check(missing.snapshot().queue[0].artist.empty());
+    check(missing.snapshot().queue[0].album.empty());
+    view.draw(missing, platform);
+    missing.handle(Action::PlayPause);
+    view.draw(missing, platform);
+    check(!missing.snapshot().playing);
+    missing.handle(Action::PlayPause);
+    view.draw(missing, platform);
+    check(missing.snapshot().playing);
     Desktop desktop;
     App live("live", "playing");
     view.draw(live, desktop);
@@ -307,6 +350,9 @@ void renderTests() {
                                "menu,down,select,down,select,back",
                                "--screenshot", capture});
   check(runDesktop(options) == 0);
+  auto deviceOptions = options;
+  deviceOptions.knulli = true;
+  check(runDesktop(deviceOptions) == 0);
   auto *image = SDL_LoadBMP(capture.c_str());
   check(image && image->w == width && image->h == height);
   SDL_FreeSurface(image);
@@ -318,6 +364,31 @@ void renderTests() {
   rejects([&] { runDesktop(options); });
   options = parseOptions({"--frames", "1", "--actions", "quit"});
   check(runDesktop(options) == 0);
+  // Drive actual SDL axis-to-D-pad translation using the production Brick map.
+  check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) == 0);
+  int brickDevice = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 2, 17, 1);
+  check(brickDevice >= 0);
+  char guid[33];
+  SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(brickDevice), guid, sizeof(guid));
+  std::string mapping = knulliControllerMapping;
+  mapping.replace(0, 32, guid);
+  check(SDL_GameControllerAddMapping(mapping.c_str()) >= 0);
+  auto *controller = SDL_GameControllerOpen(brickDevice);
+  check(controller);
+  auto *raw = SDL_GameControllerGetJoystick(controller);
+  for (auto button : {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
+                      SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}) {
+    bool vertical = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+    bool negative = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, negative ? -32768 : 32767) == 0);
+    SDL_GameControllerUpdate();
+    check(SDL_GameControllerGetButton(controller, button) == 1);
+    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, -1) == 0);
+    SDL_GameControllerUpdate();
+    check(SDL_GameControllerGetButton(controller, button) == 0);
+  }
+  SDL_GameControllerClose(controller);
+  SDL_Quit();
   // Startup and hotplug both go through SDL's actual game-controller API.
   check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) == 0);
   int device =

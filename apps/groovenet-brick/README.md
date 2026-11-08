@@ -1,8 +1,18 @@
-# Groovenet Brick desktop preview
+# Groovenet Brick preview
 
 The native C++17/SDL2 application foundation for #1096. Desktop and future device
 launchers share the application, data-adapter interface and SDL renderer. This
 preview has deterministic mock data and a live REST/SSE adapter; audio stays on the server.
+
+## Knulli device preview
+
+`just brick-package` produces the experimental ARM64 Ports archive, independently
+of npm and desktop builds. See [install/build/control instructions](knulli/README.md)
+and [application device evidence](evidence/knulli-preview-1107.md) for hashes,
+firmware/ABI limitations, physical observations and remaining acceptance checks.
+The device profile uses the same renderer and REST/SSE adapter. It supplies a
+licensed DejaVu font and maps remote volume to D-pad Up/Down on Now Playing.
+Desktop mode retains its existing mappings below.
 
 ## Host setup and commands
 
@@ -26,8 +36,7 @@ ignored `build/` and `build-coverage/` directories.
 The default font is system Arial on macOS and DejaVu Sans on Linux. Override with
 `--font /absolute/path/font.ttf` for another host or script. Supply a font with
 appropriate glyph coverage for the metadata languages you need; SDL_ttf renders
-UTF-8, but a font cannot render glyphs it does not contain. No system font is
-copied into the repository or distributed as an application asset.
+UTF-8, but a font cannot render glyphs it does not contain. The Knulli package separately includes redistributable DejaVu Sans and its license; no macOS font is distributed.
 
 ## Display and input
 
@@ -35,20 +44,20 @@ The logical canvas is **1024×768**, matching the Brick panel documented in the
 [TRIMUI Brick TG3040 manual](https://ae-pic-a1.aliexpress-media.com/kf/S708858c6482e484a8670e62d58ae775dM.pdf).
 `--scale 0.5` through `--scale 3` changes the initial window size; resizing
 letterboxes the same logical canvas, including on Retina displays. The #1095
-probe used a 640×480 test canvas, not the panel's native dimensions. On-device
-qualification of this application remains part of #1102.
+probe used a 640×480 test canvas, not the panel's native dimensions. The experimental device preview is tracked in #1107; full supported-release
+qualification remains in #1102.
 
-| Named action                 | Keyboard                | SDL game controller               |
-| ---------------------------- | ----------------------- | --------------------------------- |
-| Focus up/down                | Arrow up/down           | D-pad up/down                     |
-| Select                       | Enter                   | A                                 |
-| Back                         | Escape                  | B                                 |
-| Browse menu                  | Tab                     | Start                             |
-| Play/pause                   | Space                   | Y                                 |
-| Previous/next                | Arrow left/right or Z/X | D-pad left/right or shoulders L/R |
-| Remote player volume down/up | Minus/plus (or equals)  | Left/right stick click (L3/R3)    |
-| Cycle mock scenario          | F1 (Fn-F1 on some Macs) | Use CLI scenario at launch        |
-| Quit preview                 | Q or window close       | Back/Select button                |
+| Named action                                       | Keyboard                | SDL game controller               |
+| -------------------------------------------------- | ----------------------- | --------------------------------- |
+| Focus up/down (lists); remote volume (Now Playing) | Arrow up/down           | D-pad up/down                     |
+| Select                                             | Enter                   | A                                 |
+| Back                                               | Escape                  | B                                 |
+| Browse menu                                        | Tab                     | Start                             |
+| Play/pause                                         | Space                   | Y                                 |
+| Previous/next                                      | Arrow left/right or Z/X | D-pad left/right or shoulders L/R |
+| Remote player volume down/up                       | Minus/plus (or equals)  | Left/right stick click (L3/R3)    |
+| Cycle mock scenario                                | F1 (Fn-F1 on some Macs) | Use CLI scenario at launch        |
+| Quit preview                                       | Q or window close       | Back/Select button                |
 
 These are SDL semantic controller positions, not guesses about Knulli raw button
 IDs. SDL-recognized controllers work at startup and can be connected/disconnected
@@ -56,7 +65,7 @@ while running. Unrecognized controllers need an SDL mapping supplied by the host
 (for example `SDL_GAMECONTROLLERCONFIG`); analog sticks are not required for
 navigation. Keyboard repeat is ignored to avoid repeated playback commands.
 
-**Remote volume** affects only the selected mock server player's 0–100 level in
+**Remote volume**, including Up/Down on Now Playing, affects only the selected mock server player's 0–100 level in
 steps of five. OS multimedia volume keys and Power are never mapped to server
 volume, pause or stop. **Local device volume** belongs to the firmware/OS adapter
 and has no application command here. Nothing essential requires mouse input.
@@ -79,17 +88,19 @@ running; the live adapter must replace local state with a fresh snapshot on wake
 `--mode mock` is the default. F1 cycles through this fixed sequence, resetting
 the fixture and all list focus, without using randomness or network requests:
 
-| `--scenario`      | Fixture                                                  |
-| ----------------- | -------------------------------------------------------- |
-| `playing`         | Lounge playing a three-track queue at 0:42, volume 55    |
-| `paused`          | Same queue, stopped clock; Space resumes                 |
-| `empty`           | Empty queue; playback commands have no effect            |
-| `loading`         | Loading message; transport/volume disabled               |
-| `disconnected`    | Disconnected with retained metadata; commands disabled   |
-| `unavailable`     | Selected player unavailable; commands disabled           |
-| `metadata`        | Long title and accented UTF-8 artist/album metadata      |
-| `missing-artwork` | Explicit artwork fallback                                |
-| `unknown-timing`  | Unknown duration, no progress fraction or invented total |
+| `--scenario`       | Fixture                                                         |
+| ------------------ | --------------------------------------------------------------- |
+| `playing`          | Lounge playing a three-track queue at 0:42, volume 55           |
+| `paused`           | Same queue, stopped clock; Space resumes                        |
+| `empty`            | Empty queue; playback commands have no effect                   |
+| `loading`          | Loading message; transport/volume disabled                      |
+| `disconnected`     | Disconnected with retained metadata; commands disabled          |
+| `unavailable`      | Selected player unavailable; commands disabled                  |
+| `metadata`         | Long title and accented UTF-8 artist/album metadata             |
+| `missing-artwork`  | Explicit artwork fallback                                       |
+| `refreshing`       | Last known state retained with commands disabled while updating |
+| `missing-metadata` | Empty title/artist/album during live refresh; renders safely    |
+| `unknown-timing`   | Unknown duration, no progress fraction or invented total        |
 
 The playing clock advances from elapsed milliseconds; track end, Next and
 Previous rotate the fixture queue and reset timing. Long text is clipped at a
@@ -246,7 +257,7 @@ controller-open failure without production test hooks. CI uploads this report un
 independent of the experimental lifecycle probe's `brick-probe` report.
 
 This is the real application code built for a desktop, **not hardware emulation**.
-It does not validate Knulli ABI/toolchain, raw button mappings, battery readings,
+Desktop tests do not validate Knulli ABI/toolchain, raw button mappings, battery readings,
 suspend/power ownership, Wi-Fi recovery, device font distribution or launcher
 packaging. See [the hardware spike](PLATFORM-SPIKE.md) for the Knulli Scarab v1
 selection and outstanding hardware checks, and #1102 for device release work.

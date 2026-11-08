@@ -295,7 +295,7 @@ void PlayerState::begin() {
   revision = -1;
   current.clear();
   view.connected = false;
-  view.loading = true;
+  view.loading = !view.refreshing;
 }
 void PlayerState::detail(const std::string &text) {
   auto root = parse(text);
@@ -372,6 +372,7 @@ bool PlayerState::event(const std::string &text) {
     worker = instance;
     sequence = seq;
     view.connected = true;
+    view.refreshing = false;
     return true;
   }
   if (type != "position")
@@ -422,7 +423,9 @@ public:
   void refresh() override {
     std::lock_guard<std::mutex> lock(mutex_);
     pending_.clear();
+    published_.view.refreshing = published_.view.connected || published_.view.refreshing;
     published_.view.connected = false;
+    published_.view.status = "Refreshing player state";
     ++generation_;
     wake_.notify_all();
   }
@@ -434,6 +437,8 @@ public:
     pending_.clear();
     published_.view.connected = false;
     published_.view.queue.clear();
+    published_.view.refreshing = false;
+    published_.view.loading = true;
     ++generation_;
     wake_.notify_all();
   }
@@ -468,6 +473,8 @@ public:
       return;
     }
     published_.view.connected = false;
+    published_.view.refreshing = true;
+    published_.view.status = "Updating player state";
     ++generation_;
     wake_.notify_all();
   }
@@ -550,7 +557,10 @@ private:
             throw NetworkError("No players configured");
           session.detail(
               api.request("/api/players/" + session.id, "", true, cancel));
-          publish(session, generation);
+          // Keep the last enriched snapshot visible during command/wake refresh.
+          // Detail alone omits album/artwork and is not authoritative SSE state.
+          if (!session.view.refreshing)
+            publish(session, generation);
           std::optional<Track> metadata;
           api.request(
               "/api/players/" + session.id + "/events", "", true, cancel,
@@ -585,6 +595,7 @@ private:
             continue;
           session.view.connected = false;
           session.view.loading = false;
+          session.view.refreshing = false;
           session.view.status = problem.empty() ? e.what() : problem;
           publish(session, generation);
         }
@@ -596,6 +607,7 @@ private:
       std::lock_guard<std::mutex> lock(mutex_);
       published_.view.status = e.what();
       published_.view.loading = false;
+      published_.view.refreshing = false;
     }
   }
 };
