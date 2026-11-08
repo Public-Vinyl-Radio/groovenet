@@ -87,6 +87,7 @@ MockData::MockData(const std::string &scenario) {
     state_.acknowledgment = "Speaker busy: explicit takeover is required";
   if (scenario == "unknown-timing")
     state_.queue[0].duration.reset();
+  saved_ = state_.queue;
 }
 void MockData::command(Action action) {
   if (!state_.connected || !state_.available || state_.loading ||
@@ -117,6 +118,44 @@ void MockData::selectPlayer(size_t index) {
   if (index < state_.players.size()) {
     state_.player = state_.players[index];
     state_.playerId = state_.playerIds[index];
+  }
+}
+void MockData::browse(int64_t id, bool) {
+  auto &c = state_.collection;
+  c.names = state_.playlists;
+  c.ids = {1, 2, 3};
+  c.id = id;
+  c.tracks = id == 3 ? std::vector<Track>{} : saved_;
+  for (size_t i = 0; i < c.tracks.size(); ++i) {
+    c.tracks[i].trackId = "mock-" + std::to_string(i);
+    c.tracks[i].friendId = 1;
+    c.tracks[i].playable = id != 2;
+  }
+  c.loaded = c.tracks.size();
+  c.status = c.tracks.empty() && id ? "Empty playlist"
+                                    : "Saved order · server validates audio";
+}
+void MockData::queueTracks(bool play, std::optional<size_t> track,
+                           const std::string &) {
+  if (!state_.connected || !state_.available || state_.loading ||
+      !state_.acknowledgment.empty())
+    return;
+  try {
+    queueCommand(state_.collection.tracks, play, track);
+    auto tracks = track
+                      ? std::vector<Track>{state_.collection.tracks.at(*track)}
+                      : state_.collection.tracks;
+    if (play) {
+      state_.queue = tracks;
+      state_.currentIndex = state_.position = 0;
+      state_.playing = true;
+      state_.playbackState = "playing";
+    } else
+      state_.queue.insert(state_.queue.end(), tracks.begin(), tracks.end());
+    state_.collection.status =
+        play ? "Playlist started" : "Added · playback unchanged";
+  } catch (const NetworkError &e) {
+    state_.acknowledgment = e.what();
   }
 }
 void MockData::advance(int milliseconds) {
@@ -168,7 +207,26 @@ std::vector<std::string> App::rows() const {
     return rows;
   }
   case Screen::Playlists:
-    return state.playlists;
+    return state.collection.names;
+  case Screen::PlaylistTracks: {
+    if (state.collection.loading && state.collection.tracks.empty())
+      return {};
+    std::vector<std::string> rows{"Playlist actions"};
+    for (size_t i = 0; i < state.collection.loaded; ++i) {
+      const auto &t = state.collection.tracks[i];
+      rows.push_back(
+          t.title + " · " + t.artist +
+          (t.playable == false ? " · No local audio / unindexed" : ""));
+    }
+    if (state.collection.loaded < state.collection.tracks.size())
+      rows.push_back("Load next 25 tracks");
+    return rows;
+  }
+  case Screen::TrackActions:
+    return {"Play now (replace queue and start)",
+            "Add to queue (keep playback)"};
+  case Screen::Confirm:
+    return {"Cancel", "Replace shared queue and start"};
   case Screen::Outputs:
     return state.outputs;
   case Screen::Queue: {
@@ -224,6 +282,10 @@ void App::handle(Action action) {
     return;
   }
   if (action == Action::Menu) {
+    if (screen_ == Screen::TrackActions || screen_ == Screen::Confirm) {
+      history_.clear();
+      screen_ = Screen::NowPlaying;
+    }
     open(Screen::Menu);
     return;
   }
@@ -236,15 +298,45 @@ void App::handle(Action action) {
     if (action == Action::Down)
       focus = (focus + 1) % items.size();
     if (action == Action::Select) {
-      if (screen_ == Screen::Menu)
+      if (screen_ == Screen::Menu) {
         open(static_cast<Screen>(focus));
-      else if (screen_ == Screen::Players) {
+        if (screen_ == Screen::Playlists)
+          data_->browse();
+      } else if (screen_ == Screen::Players) {
         data_->selectPlayer(focus);
         notice_ = "Following " + items[focus] + " · playback unchanged";
+      } else if (screen_ == Screen::Playlists) {
+        data_->browse(snapshot().collection.ids.at(focus));
+        focus_[static_cast<size_t>(Screen::PlaylistTracks)] = 0;
+        open(Screen::PlaylistTracks);
+      } else if (screen_ == Screen::PlaylistTracks) {
+        if (snapshot().collection.loading)
+          return;
+        if (focus > snapshot().collection.loaded) {
+          data_->browse(snapshot().collection.id, true);
+          return;
+        }
+        selectedTrack_ =
+            focus ? std::optional<size_t>(focus - 1) : std::nullopt;
+        open(Screen::TrackActions);
+      } else if (screen_ == Screen::TrackActions) {
+        queueToken_ = snapshot().commandToken;
+        if (focus == 0) {
+          open(Screen::Confirm);
+          focus_[static_cast<size_t>(Screen::Confirm)] = 0;
+        } else
+          data_->queueTracks(false, selectedTrack_, queueToken_);
+      } else if (screen_ == Screen::Confirm) {
+        if (focus == 1)
+          data_->queueTracks(true, selectedTrack_, queueToken_);
+        screen_ = history_.back();
+        history_.pop_back();
       } else
-        notice_ = "Navigation preview · server controls follow in #1099–1101";
+        notice_ = "Navigation preview · server controls follow in #1100–1101";
     }
   }
+  if (screen_ == Screen::Confirm || screen_ == Screen::TrackActions)
+    return;
   if (screen_ == Screen::NowPlaying) {
     if (action == Action::Up)
       action = Action::RemoteUp;

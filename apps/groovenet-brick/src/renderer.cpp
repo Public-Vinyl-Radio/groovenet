@@ -67,8 +67,11 @@ void Renderer::draw(const App &app, const Platform &platform) {
        750, 28, 240, muted);
   box(40, 78, 944, 2, panel);
   const auto &state = app.snapshot();
-  text(app.screen() == Screen::Menu
-           ? "Browse"
+  text(app.screen() == Screen::Menu             ? "Browse"
+       : app.screen() == Screen::PlaylistTracks ? "Playlist tracks"
+       : app.screen() == Screen::TrackActions   ? "Choose action"
+       : app.screen() == Screen::Confirm
+           ? "Replace existing shared queue?"
            : screenNames()[static_cast<size_t>(app.screen())],
        40, 100, 940, ink, true);
   text(state.player +
@@ -162,7 +165,16 @@ void Renderer::draw(const App &app, const Platform &platform) {
            focused ? accent : ink);
     }
   }
-  text(app.notice().empty() ? state.status : app.notice(), 40, 606, 944, muted);
+  bool collection = app.screen() == Screen::Playlists ||
+                    app.screen() == Screen::PlaylistTracks ||
+                    app.screen() == Screen::TrackActions;
+  text(app.notice().empty()
+           ? (collection ? state.collection.status
+              : app.screen() == Screen::Confirm
+                  ? "This removes the selected player's queue. B/Esc cancels."
+                  : state.status)
+           : app.notice(),
+       40, 606, 944, muted);
   box(0, 656, width, 112, panel);
   text(app.screen() == Screen::NowPlaying
            ? "Up/down: server volume   A/Enter: select   B/Esc: back"

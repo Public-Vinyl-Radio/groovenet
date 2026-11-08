@@ -22,6 +22,7 @@ const { playerHttpServer } = await import(
 const name = `brick-1098-smoke-${process.pid}`;
 const password = randomBytes(32).toString("hex");
 const key = randomBytes(32).toString("hex");
+const collectionKey = randomBytes(32).toString("hex");
 const directory = mkdtempSync(join(tmpdir(), "brick-1098-"));
 let store, manager, worker, proxy, pool;
 let containerStarted = false;
@@ -145,6 +146,27 @@ try {
   worker.listen(0, "127.0.0.1");
   await once(worker, "listening");
   proxy = createServer(async (req, res) => {
+    if (req.url.startsWith("/api/playlists") || req.url === "/api/tracks/batch") {
+      if (req.headers.authorization !== `Bearer ${collectionKey}`) {
+        res.writeHead(401).end();
+        return;
+      }
+    }
+    if (req.url === "/api/playlists" || req.url === "/api/playlists/1/tracks") {
+      const tracks = [
+        { track_id: "two", friend_id: 1, position: 0 },
+        { track_id: "one", friend_id: 1, position: 1 },
+      ];
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify(
+          req.url === "/api/playlists"
+            ? [{ id: 1, name: "Saved development playlist", tracks }]
+            : { playlist_id: 1, tracks },
+        ),
+      );
+      return;
+    }
     if (req.url === "/api/tracks/batch") {
       let bytes = "";
       for await (const part of req) bytes += part;
@@ -178,7 +200,7 @@ try {
       ...process.env,
       BRICK_URL: `http://127.0.0.1:${proxy.address().port}`,
       BRICK_PLAYER_KEY: key,
-      BRICK_COLLECTION_KEY: key,
+      BRICK_COLLECTION_KEY: collectionKey,
       BRICK_CA_FILE: "",
       BRICK_INSECURE_TLS: "0",
       BRICK_TEST_DIRECTORY: directory,
@@ -189,7 +211,7 @@ try {
   const persisted = await pool.query("SELECT state FROM server_players WHERE id=$1", [
     "brick-smoke",
   ]);
-  if (persisted.rows[0].state.queue.length !== 2 || persisted.rows[0].state.status !== "playing")
+  if (persisted.rows[0].state.queue.length !== 3 || persisted.rows[0].state.status !== "playing")
     throw new Error("Exit changed the server queue");
   console.log(
     "Production manager + PostgreSQL + native REST/SSE smoke passed (silent backend; no physical speakers).",

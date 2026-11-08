@@ -127,7 +127,8 @@ void stateTests() {
   app.handle(Action::Select);
   check(app.screen() == Screen::Playlists && app.rows().size() == 3);
   app.handle(Action::Select);
-  check(!app.notice().empty());
+  check(app.screen() == Screen::PlaylistTracks && app.rows().size() == 4);
+  app.handle(Action::Back);
   app.handle(Action::Back);
   app.handle(Action::Down);
   app.handle(Action::Select);
@@ -146,6 +147,43 @@ void stateTests() {
   app.handle(Action::Menu);
   app.handle(Action::Menu);
   check(app.screen() == Screen::Queue);
+  App playlists("mock", "paused");
+  for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Select,
+                      Action::Select, Action::Down, Action::Select})
+    playlists.handle(action);
+  check(playlists.screen() == Screen::TrackActions);
+  playlists.handle(Action::Down);
+  playlists.handle(Action::Select);
+  check(playlists.snapshot().queue.size() == 4 &&
+        !playlists.snapshot().playing);
+  playlists.handle(Action::Up);
+  playlists.handle(Action::Select);
+  check(playlists.screen() == Screen::Confirm);
+  playlists.handle(Action::Next);
+  playlists.handle(Action::PlayPause);
+  check(!playlists.snapshot().playing);
+  playlists.handle(Action::Select); // Cancel is the default.
+  check(playlists.snapshot().queue.size() == 4);
+  playlists.handle(Action::Select);
+  playlists.handle(Action::Down);
+  playlists.handle(Action::Select);
+  check(playlists.snapshot().queue.size() == 1 && playlists.snapshot().playing);
+  playlists.handle(Action::Back);
+  check(playlists.screen() == Screen::PlaylistTracks && playlists.focus() == 1);
+  playlists.handle(Action::Back);
+  playlists.handle(Action::Down); // Known missing audio fixture.
+  playlists.handle(Action::Select);
+  playlists.handle(Action::Select);
+  playlists.handle(Action::Down);
+  playlists.handle(Action::Select);
+  check(!playlists.snapshot().acknowledgment.empty() &&
+        playlists.snapshot().queue.size() == 1);
+  playlists.handle(Action::Back);
+  playlists.handle(Action::Back);
+  playlists.handle(Action::Back);
+  playlists.handle(Action::Down);
+  playlists.handle(Action::Select);
+  check(playlists.snapshot().collection.status == "Empty playlist");
   for (const auto &name : scenarios()) {
     check(app.scenario() == name);
     app.handle(Action::Scenario);
@@ -158,6 +196,13 @@ void stateTests() {
     blocked.handle(Action::Up);
     blocked.handle(Action::Down);
     check(blocked.snapshot().volume == 55);
+  }
+  for (const auto &name :
+       {"disconnected", "unavailable", "loading", "speaker-busy"}) {
+    MockData blocked(name);
+    blocked.browse(1);
+    blocked.queueTracks(false, {}, "");
+    check(blocked.snapshot().queue.size() == 3);
   }
   for (auto acknowledgment : {Action::Select, Action::Back}) {
     App busy("mock", "speaker-busy");
@@ -331,6 +376,16 @@ void renderTests() {
       app.handle(Action::Suspend);
       view.draw(app, platform);
     }
+    App playlist("mock", "paused");
+    for (auto action :
+         {Action::Menu, Action::Down, Action::Down, Action::Select,
+          Action::Select, Action::Select, Action::Select}) {
+      playlist.handle(action);
+      view.draw(playlist, platform);
+    }
+    check(playlist.screen() == Screen::Confirm);
+    playlist.handle(Action::Menu);
+    check(playlist.screen() == Screen::Menu);
     App missing("mock", "missing-metadata");
     check(missing.snapshot().queue[0].title.empty());
     check(missing.snapshot().queue[0].artist.empty());
