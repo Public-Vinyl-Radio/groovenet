@@ -177,6 +177,8 @@ behavior rather than reproducing coordinates or snapshotting layout.
 
 `just brick-coverage` uses a separate Clang-instrumented build, runs tests and
 production-entry smoke/error paths, and writes `build-coverage/coverage.lcov`.
+The report maps the tested SDL implementation and the production entry object
+once each, avoiding duplicate branches from instrumented and production copies.
 It uses `xcrun llvm-cov`/`llvm-profdata` on macOS and the matching LLVM tools on
 Linux, measuring all application/renderer/desktop/entry sources. Review uncovered
 regions/branches as well as lines when adding logic. The fault harness compiles

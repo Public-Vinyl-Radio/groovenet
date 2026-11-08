@@ -1,9 +1,9 @@
-#include "platform.hpp"
+#include "entry.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
   try {
-    return brick::runDesktop(brick::parseOptions({argv + 1, argv + argc}));
+    return brick::desktopMain({argv + 1, argv + argc});
   } catch (const std::exception &error) {
     std::cerr
         << error.what()

@@ -84,10 +84,6 @@ char *faultPrefPath(const char *org, const char *app) {
 }
 } // namespace
 
-#define Desktop FaultDesktop
-#define Renderer FaultRenderer
-#define parseOptions faultParseOptions
-#define runDesktop faultRunDesktop
 #define SDL_Init faultInit
 #define TTF_Init faultTtf
 #define SDL_CreateWindow faultWindow
@@ -105,7 +101,7 @@ char *faultPrefPath(const char *org, const char *app) {
 #undef SDL_Init
 
 void failureTests() {
-  auto options = brick::faultParseOptions(
+  auto options = brick::parseOptions(
       {"--frames", "1", "--screenshot",
        (std::filesystem::temp_directory_path() / "brick-failure-test.bmp")
            .string()});
@@ -117,7 +113,7 @@ void failureTests() {
     fontCalls = 0;
     bool rejected = false;
     try {
-      brick::faultRunDesktop(options);
+      brick::runDesktop(options);
     } catch (const std::runtime_error &) {
       rejected = true;
     }
@@ -129,7 +125,7 @@ void failureTests() {
   fault = Fault::PrefPath;
   bool rejected = false;
   try {
-    brick::FaultDesktop().configDirectory();
+    brick::Desktop().configDirectory();
   } catch (const std::runtime_error &) {
     rejected = true;
   }
@@ -141,7 +137,7 @@ void failureTests() {
     throw std::runtime_error(SDL_GetError());
   if (SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 6, 16, 0) < 0)
     throw std::runtime_error(SDL_GetError());
-  if (brick::faultRunDesktop(options) != 0)
+  if (brick::runDesktop(options) != 0)
     throw std::runtime_error("Controller failure prevented keyboard preview");
   std::filesystem::remove(options.screenshot);
   fault = Fault::None;

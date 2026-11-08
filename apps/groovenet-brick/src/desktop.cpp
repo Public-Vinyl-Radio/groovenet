@@ -1,3 +1,4 @@
+#include "entry.hpp"
 #include "platform.hpp"
 #include "renderer.hpp"
 #include <SDL_ttf.h>
@@ -153,6 +154,9 @@ Options parseOptions(const std::vector<std::string> &args) {
 #endif
   }
   return options;
+}
+int desktopMain(const std::vector<std::string> &arguments) {
+  return runDesktop(parseOptions(arguments));
 }
 int runDesktop(const Options &options) {
   // SDL may initialize some subsystems before reporting failure.

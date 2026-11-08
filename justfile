@@ -982,5 +982,5 @@ brick-coverage:
     brick_cov=(llvm-cov)
   fi
   "${brick_profdata[@]}" merge -sparse "$brick_build"/*.profraw -o "$brick_build/coverage.profdata"
-  "${brick_cov[@]}" report "$brick_build/brick-tests" -object "$brick_build/groovenet-brick" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/'
-  "${brick_cov[@]}" export "$brick_build/brick-tests" -object "$brick_build/groovenet-brick" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/' -format=lcov > "$brick_build/coverage.lcov"
+  "${brick_cov[@]}" report "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/'
+  "${brick_cov[@]}" export "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/' -format=lcov > "$brick_build/coverage.lcov"
