@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   replacePlaylist: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({
   usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist }),
@@ -227,6 +228,16 @@ describe("SuggestionsPanel", () => {
     expect(screen.queryByRole("button", { name: /Add Title r2/ })).toBeNull();
     await user.click(screen.getByRole("button", { name: "+1 more from Same" }));
     expect(screen.getByRole("button", { name: "Add Title r2 after Title p3" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /more from Same/ })).toBeNull();
+  });
+
+  it("keeps the kebab beside + on every row", () => {
+    renderWithProviders(<Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />);
+    const add = screen.getByRole("button", { name: "Add Title r1 after Title p1" });
+    const row = add.closest("li")!;
+    expect(within(row).getAllByRole("button", { name: "Track actions", hidden: true }).length).toBe(
+      2,
+    );
   });
 
   it("shows nothing to rank against for an empty playlist, and closes", async () => {
@@ -262,7 +273,7 @@ describe("SuggestionsPanel", () => {
 });
 
 describe("SuggestionsPanel preview", () => {
-  it("plays a suggestion that has audio, and offers nothing for one that has none", async () => {
+  it("plays a suggestion from its cover when it has audio; a plain cover otherwise", async () => {
     mocks.recommendations.mockReturnValue({
       data: [rec("r1", { local_audio_url: "/a.mp3" }), rec("r2")],
       isLoading: false,
@@ -270,8 +281,10 @@ describe("SuggestionsPanel preview", () => {
     const { user } = renderWithProviders(
       <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
     );
-    expect(screen.queryByRole("button", { name: "Preview Title r2" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Preview Title r1" }));
+    const rows = screen.getAllByRole("listitem").filter((li) => !li.closest("ol"));
+    const row = (id: string) => rows.find((li) => li.textContent?.includes(`Title ${id}`))!;
+    expect(within(row("r2")).queryByRole("button", { name: "Play" })).toBeNull();
+    await user.click(within(row("r1")).getByRole("button", { name: "Play" }));
     expect(mocks.replacePlaylist).toHaveBeenCalledWith(
       [expect.objectContaining({ track_id: "r1" })],
       { autoplay: true, startIndex: 0 },

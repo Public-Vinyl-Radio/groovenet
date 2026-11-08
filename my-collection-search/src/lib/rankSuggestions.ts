@@ -11,7 +11,12 @@ export type SuggestionCandidate = Track & {
 
 export type SuggestionFilters = { compatibleKey?: boolean; bpmWithinSixPercent?: boolean };
 export type SuggestionSeedMode = "track" | "playlist";
-export type FoldGroup<T extends SuggestionCandidate> = { release: string; tracks: T[] };
+/** Folded release siblings: `key` is the release's identity, `release` its album title for display. */
+export type FoldGroup<T extends SuggestionCandidate> = {
+  key: string;
+  release: string;
+  tracks: T[];
+};
 export type RankedSuggestions<T extends SuggestionCandidate> = {
   tracks: T[];
   folds: FoldGroup<T>[];
@@ -27,7 +32,7 @@ export const SUGGESTION_RANK_WEIGHTS = {
 
 const identity = (track: Pick<Track, "track_id" | "friend_id">) =>
   `${track.track_id}:${track.friend_id}`;
-const releaseOf = (track: Track) => {
+export const releaseOf = (track: Track) => {
   const artist = track.artist?.trim().toLowerCase();
   const album = track.album?.trim().toLowerCase();
   return artist && album ? `${track.friend_id}:${artist}:${album}` : identity(track);
@@ -120,6 +125,7 @@ export function rankSuggestions<T extends SuggestionCandidate>(
     if (count < varietyCap) tracks.push(candidate);
     else {
       const group = folds.get(release) ?? {
+        key: release,
         release: candidate.album,
         tracks: [],
       };
@@ -128,4 +134,58 @@ export function rankSuggestions<T extends SuggestionCandidate>(
     }
   }
   return { tracks, folds: [...folds.values()], hiddenByFilters };
+}
+
+export type SuggestionListItem<T extends SuggestionCandidate> =
+  | { kind: "track"; track: T; /** 1-based position among the rows on screen. */ rank: number }
+  | { kind: "fold"; fold: FoldGroup<T> };
+
+export type SuggestionLayout<T extends SuggestionCandidate> = {
+  items: SuggestionListItem<T>[];
+  /** Track rows on screen. */
+  shown: number;
+  /** Ranked rows plus the tracks of every expanded release. */
+  total: number;
+  /** Ranked rows still past the page limit. */
+  remaining: number;
+};
+
+/**
+ * Turn ranked suggestions into the rows and folds a list draws. The page limit
+ * counts ranked rows only. Each release's fold sits under the last visible row
+ * of that release, or stays hidden until one is visible; an expanded release's
+ * tracks take the fold's place, so expanding never pushes them off the page.
+ */
+export function layoutSuggestions<T extends SuggestionCandidate>(
+  ranked: Pick<RankedSuggestions<T>, "tracks" | "folds">,
+  { expanded, limit }: { expanded: readonly string[]; limit: number },
+): SuggestionLayout<T> {
+  const visible = ranked.tracks.slice(0, Math.max(0, limit));
+  const folds = new Map(ranked.folds.map((fold) => [fold.key, fold]));
+  const lastOfRelease = new Map<string, number>();
+  visible.forEach((track, index) => {
+    const release = releaseOf(track);
+    if (folds.has(release)) lastOfRelease.set(release, index);
+  });
+  const items: SuggestionListItem<T>[] = [];
+  let rank = 0;
+  visible.forEach((track, index) => {
+    items.push({ kind: "track", track, rank: ++rank });
+    const release = releaseOf(track);
+    if (lastOfRelease.get(release) !== index) return;
+    const fold = folds.get(release)!;
+    if (expanded.includes(fold.key)) {
+      for (const sibling of fold.tracks)
+        items.push({ kind: "track", track: sibling, rank: ++rank });
+    } else items.push({ kind: "fold", fold });
+  });
+  const expandedCount = ranked.folds
+    .filter((fold) => expanded.includes(fold.key))
+    .reduce((sum, fold) => sum + fold.tracks.length, 0);
+  return {
+    items,
+    shown: rank,
+    total: ranked.tracks.length + expandedCount,
+    remaining: ranked.tracks.length - visible.length,
+  };
 }

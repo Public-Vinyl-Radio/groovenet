@@ -2,13 +2,14 @@
 
 import React from "react";
 import { Box, Button, Flex, IconButton, Text } from "@chakra-ui/react";
-import { FiCheck, FiPlay, FiPlus } from "react-icons/fi";
-import Cover from "@/components/Cover";
-import TrackIdentity, { TrackCoverLink } from "@/components/TrackIdentity";
-import { artworkOf } from "@/components/player/trackMeta";
+import { FiCheck, FiPlus } from "react-icons/fi";
+import TrackIdentity from "@/components/TrackIdentity";
+import { ArtworkPlay, KeyChip } from "@/components/TrackResult";
+import TrackActionsMenu from "@/components/TrackActionsMenu";
+import { TrackRowContext } from "@/components/trackCardContext";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import { BpmCell } from "@/components/RelatedTrackRows";
-import { camelotDotColor, camelotOf, describeMix } from "@/lib/mixCompat";
+import { camelotOf, describeMix } from "@/lib/mixCompat";
 import {
   suggestionReason,
   suggestionReasonLabel,
@@ -21,117 +22,101 @@ export type SuggestionRowProps = {
   /** The track the suggestion follows; BPM, key and the reason are read against it. */
   seed: Track & ReasonSeed;
   track: Track & ReasonCandidate;
-  /** What adding does is up to the surface. */
+  /** One-tap insert after the seed (the playlist panel): renders "+". */
   onAdd?: (track: Track) => void;
-  /** A surface may supply an in-place playlist picker in place of the add button. */
-  addAction?: React.ReactNode;
-  onPreview?: (track: Track) => void;
+  /** The standard track kebab (the track page, where no playlist is in context). */
+  menu?: boolean;
+  /** The kebab's Add to Playlist finished, into this playlist. */
+  onAddedToPlaylist?: (playlistId: number) => void;
   /** Already added: the row shows ✓ ADDED and stays where it is. */
   added?: boolean;
   /** The phone sheet's form: no album in the byline, 44px cover. */
   compact?: boolean;
 };
 
-function KeyFit({ seed, track }: { seed: Track; track: Track }) {
-  const camelot = camelotOf(track.key);
-  const { keyRelation } = describeMix(seed, track);
-  if (!camelot) return null;
-  return (
-    <Flex alignItems="center" gap={1} flexShrink={0}>
-      <Box
-        aria-hidden
-        w="8px"
-        h="8px"
-        borderRadius="full"
-        flexShrink={0}
-        style={{ background: camelotDotColor(camelot) }}
-      />
-      <Text as="span" fontFamily="mono" fontSize="12px">
-        {camelot}
-      </Text>
-      {keyRelation && (
-        <StatusTag
-          size="sm"
-          tone={keyRelation === "clash" ? "missing" : "success"}
-          whiteSpace="nowrap"
-        >
-          {keyRelation === "clash" ? "Key clash" : "Key fits"}
-        </StatusTag>
-      )}
-    </Flex>
-  );
-}
+// Cover, text column and row padding: what a fold indents by to sit under the title.
+const COVER = { base: "44px", md: "48px" } as const;
+const GAP = "10px";
+const PAD_X = "10px";
 
-/** One suggested track: cover, title, mix facts against the seed, one reason, add/preview. */
+/** One suggested track, from the track row's parts: play-cover, identity, mix facts, one reason, actions. */
 export default function SuggestionRow({
   seed,
   track,
   onAdd,
-  onPreview,
-  addAction,
+  menu = false,
+  onAddedToPlaylist,
   added = false,
   compact = false,
 }: SuggestionRowProps) {
   const mix = describeMix(seed, track);
   const reason = suggestionReason(seed, track);
+  const camelot = camelotOf(track.key);
   return (
     <Flex
       as="li"
       listStyleType="none"
       alignItems="center"
-      gap="10px"
+      gap={GAP}
       py="8px"
-      px="10px"
-      borderWidth="1px"
-      borderColor={added ? "status.success.border" : "border"}
+      px={PAD_X}
       bg={added ? "status.success.subtle" : undefined}
-      borderRadius="md"
+      borderBottomWidth="rule"
+      borderColor="border"
+      _last={{ borderBottomWidth: 0 }}
       data-added={added || undefined}
     >
-      <TrackCoverLink track={track}>
-        <Box display={compact ? "none" : { base: "none", sm: "block" }}>
-          <Cover src={artworkOf(track)} alt="" size="48px" />
-        </Box>
-        <Box display={compact ? "block" : { base: "block", sm: "none" }}>
-          <Cover src={artworkOf(track)} alt="" size="44px" />
-        </Box>
-      </TrackCoverLink>
+      <ArtworkPlay track={track} size={compact ? "44px" : COVER} iconSize={5} />
       <Flex direction="column" gap="2px" flex={1} minW={0}>
         {/* The phone sheet is dense: the title is the way to the track, artist stays text. */}
         <TrackIdentity track={track} hideAlbum={compact} links={compact ? "title" : "all"} />
         <Flex flexWrap="wrap" alignItems="center" gap={1.5} mt="2px">
           <BpmCell track={track} delta={mix.bpmDelta} />
-          <KeyFit seed={seed} track={track} />
+          {camelot && (
+            <Flex alignItems="center" gap={1} flexShrink={0}>
+              <KeyChip
+                keyName={track.key}
+                camelot={camelot}
+                keyConfidence={track.key_confidence}
+                showName={false}
+              />
+              {mix.keyRelation && (
+                <StatusTag
+                  size="sm"
+                  tone={mix.keyRelation === "clash" ? "missing" : "success"}
+                  whiteSpace="nowrap"
+                >
+                  {mix.keyRelation === "clash" ? "Key clash" : "Key fits"}
+                </StatusTag>
+              )}
+            </Flex>
+          )}
           {reason && <CategoryTag size="sm">{suggestionReasonLabel(reason)}</CategoryTag>}
         </Flex>
       </Flex>
-      {onPreview && (
-        <IconButton
-          variant="ghost"
-          minW="44px"
-          h="44px"
-          aria-label={`Preview ${track.title}`}
-          onClick={() => onPreview(track)}
-        >
-          <FiPlay />
-        </IconButton>
-      )}
-      {added ? (
-        <StatusTag size="sm" tone="success" whiteSpace="nowrap" role="status">
+      {added && (
+        <StatusTag size="sm" tone="success" whiteSpace="nowrap" role="status" flexShrink={0}>
           <FiCheck aria-hidden /> ADDED
         </StatusTag>
-      ) : (
-        (addAction ?? (
-          <IconButton
-            variant="outline"
-            minW="44px"
-            h="44px"
-            aria-label={`Add ${track.title} after ${seed.title}`}
-            onClick={() => onAdd?.(track)}
-          >
-            <FiPlus />
-          </IconButton>
-        ))
+      )}
+      {onAdd && !added && (
+        <IconButton
+          variant="outline"
+          minW="44px"
+          h="44px"
+          flexShrink={0}
+          aria-label={`Add ${track.title} after ${seed.title}`}
+          onClick={() => onAdd(track)}
+        >
+          <FiPlus />
+        </IconButton>
+      )}
+      {menu && (
+        <Box flexShrink={0}>
+          <TrackRowContext.Provider value={true}>
+            <TrackActionsMenu track={track} prominent onAddedToPlaylist={onAddedToPlaylist} />
+          </TrackRowContext.Provider>
+        </Box>
       )}
     </Flex>
   );
@@ -140,26 +125,74 @@ export default function SuggestionRow({
 export type SuggestionFoldRowProps = {
   /** How many suggestions are folded away. */
   count: number;
-  /** The group they share, e.g. an album title. */
+  /** The release they share: its album title. */
   source: string;
   onExpand: () => void;
+  /** Matches the compact rows' 44px cover, so the label stays under the titles. */
+  compact?: boolean;
 };
 
-/** "+N more": the folded tail of a group. The album stays in the name and tooltip, off the row, where a long title overflowed. */
-export function SuggestionFoldRow({ count, source, onExpand }: SuggestionFoldRowProps) {
+/** "+N more from <album>": a release's folded tail, directly under its last visible row. */
+export function SuggestionFoldRow({
+  count,
+  source,
+  onExpand,
+  compact = false,
+}: SuggestionFoldRowProps) {
+  const label = `+${count} more from ${source}`;
   return (
-    <Box as="li" listStyleType="none">
+    <Box
+      as="li"
+      listStyleType="none"
+      borderBottomWidth="rule"
+      borderColor="border"
+      _last={{ borderBottomWidth: 0 }}
+      // Indent to the text column: row padding + cover + gap.
+      pl={
+        compact
+          ? `calc(${PAD_X} + 44px + ${GAP} - var(--chakra-spacing-2))`
+          : {
+              base: `calc(${PAD_X} + ${COVER.base} + ${GAP} - var(--chakra-spacing-2))`,
+              md: `calc(${PAD_X} + ${COVER.md} + ${GAP} - var(--chakra-spacing-2))`,
+            }
+      }
+      pr={PAD_X}
+    >
       <Button
         variant="ghost"
-        size="sm"
+        size="xs"
         minH="44px"
-        w="full"
-        aria-label={`+${count} more from ${source}`}
+        maxW="full"
+        px={2}
+        color="fg.muted"
+        justifyContent="flex-start"
+        aria-label={label}
         title={source}
         onClick={onExpand}
       >
-        +{count} more
+        <Text as="span" truncate minW={0}>
+          {label}
+        </Text>
       </Button>
+    </Box>
+  );
+}
+
+/** The suggestion list: one outlined block, ruled rows, one shadow. */
+export function SuggestionList({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      as="ul"
+      m={0}
+      p={0}
+      borderWidth="outline"
+      borderColor="border.ink"
+      borderRadius="md"
+      boxShadow="md"
+      bg="bg.panel"
+      overflow="hidden"
+    >
+      {children}
     </Box>
   );
 }
