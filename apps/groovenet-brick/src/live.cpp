@@ -826,7 +826,8 @@ private:
               c = std::move(detail);
             }
             const auto end = std::min(c.loaded + 25, c.tracks.size());
-            for (; c.loaded < end && !cancel(); ++c.loaded) {
+            // Each bounded HTTP request checks cancellation.
+            for (; c.loaded < end; ++c.loaded) {
               try {
                 api.enrich(c.tracks[c.loaded], cancel);
               } catch (const NetworkError &e) {
@@ -865,11 +866,14 @@ private:
   std::atomic<bool> stop_{false};
   std::atomic<unsigned> generation_{0};
   std::string selected_, pending_, persistenceWarning_;
-  void publish(const PlayerState &session, unsigned generation) {
+  void publish(const PlayerState &session, unsigned generation,
+               const std::string &collectionStatus = "") {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!stop_ && generation == generation_) {
       auto next = session;
       next.view.collection = published_.view.collection;
+      if (!collectionStatus.empty())
+        next.view.collection.status = collectionStatus;
       next.view.commandToken =
           next.id + "/" + next.worker + "/" + std::to_string(next.revision);
       next.view.acknowledgment = published_.view.acknowledgment;
@@ -991,10 +995,7 @@ private:
             try {
               api.request("/api/players/" + session.id + "/commands", write,
                           true, cancel);
-              std::lock_guard<std::mutex> lock(mutex_);
-              if (!cancel())
-                published_.view.collection.status =
-                    "Player updated; review shared queue";
+              problem = "Player updated; review shared queue";
             } catch (const NetworkError &e) {
               if (e.acknowledgment) {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -1047,13 +1048,9 @@ private:
           api.request("/api/players/" + session.id + "/events", "", true,
                       cancel, [&](const std::string &event) {
                         if (session.event(event)) {
-                          if (!problem.empty()) {
+                          if (!problem.empty())
                             session.view.status = problem;
-                            std::lock_guard<std::mutex> lock(mutex_);
-                            if (!cancel())
-                              published_.view.collection.status = problem;
-                          }
-                          publish(session, generation);
+                          publish(session, generation, problem);
                           backoff = 250;
                         }
                       });

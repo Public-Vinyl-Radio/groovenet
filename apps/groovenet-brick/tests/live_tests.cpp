@@ -523,6 +523,8 @@ int networkTests(const std::string &mode) {
     data->acknowledge();
     data->advance(0);
     data->queueTracks(true, {}, token);
+    data->queueTracks(
+        true, {}, token); // Ignore another input while the write is pending.
     wait(*data, [](const Snapshot &s) {
       return s.connected && !s.acknowledgment.empty();
     });
@@ -568,6 +570,29 @@ int networkTests(const std::string &mode) {
       check(!data->snapshot().collection.status.empty() &&
             data->snapshot().connected);
     }
+    RestClient control(config);
+    auto no = [] { return false; };
+    auto waitForCollectionRequest = [&] {
+      auto deadline =
+          std::chrono::steady_clock::now() + std::chrono::seconds(3);
+      while (control.request("/collection-ready", "", true, no).find("true") ==
+             std::string::npos) {
+        check(std::chrono::steady_clock::now() < deadline);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      }
+    };
+    data->browse(7);
+    waitForCollectionRequest();
+    data->browse(2);
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.id == 2;
+    });
+    check(data->snapshot().collection.tracks.empty());
+    control.request("/reset-collection", "", true, no);
+    data->browse(7);
+    waitForCollectionRequest();
+    data.reset(); // Stop during real collection I/O; no stale publication.
+    data = liveAdapter(config);
     data->browse(1);
     data->browse(2); // Superseded work cannot replace the new playlist.
     wait(*data, [](const Snapshot &s) {

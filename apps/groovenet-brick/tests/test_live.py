@@ -19,6 +19,7 @@ binary = str(Path(sys.argv[1]).resolve())
 player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
 commands = []
 playlist_commands = []
+collection_started = threading.Event()
 command_release = threading.Event()
 streams = []
 failures = []
@@ -101,6 +102,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {"players": [{"id": "../bad", "name": "Bad"}]})
             if self.path.startswith("/unavailable/"):
                 return self.reply(503, {})
+            if self.path == "/collection-ready":
+                return self.reply(200, {"ready": collection_started.is_set()})
+            if self.path == "/reset-collection":
+                collection_started.clear()
+                return self.reply(200, {})
             if self.path == "/release-command":
                 command_release.set()
                 return self.reply(200, {})
@@ -137,6 +143,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self.reply(200, {"playlist_id": 9, "tracks": []})
                 if identity == 5:
                     return self.reply(503, {})
+                if identity == 7:
+                    return self.reply(200, {"playlist_id": 7, "tracks": [{"track_id": "slow", "friend_id": 1, "position": i} for i in range(2)]})
                 if identity == 6:
                     return self.reply(200, {"playlist_id": 6, "tracks": [{"track_id": "denied", "friend_id": 1, "position": 0}]})
                 refs = [] if identity == 2 else [
@@ -206,6 +214,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 race_started.set()
                 assert race_changed.wait(5)
                 time.sleep(0.2) # Finish obsolete metadata after the new track is visible.
+            if ref["track_id"] == "slow":
+                collection_started.set()
+                time.sleep(0.4)
             if ref["track_id"] == "denied":
                 return self.reply(403, {})
             if ref["friend_id"] == 3:
