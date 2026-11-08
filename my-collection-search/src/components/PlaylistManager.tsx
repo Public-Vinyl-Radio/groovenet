@@ -14,7 +14,12 @@ import PlaylistListItem, {
 import PlaylistTable from "@/components/PlaylistTable";
 import FriendSelectDialog from "@/components/FriendSelectDialog";
 import PageHeader from "@/components/layout/PageHeader";
-import PlaylistsToolbar from "@/components/PlaylistsToolbar";
+import PlaylistPhoneList from "@/components/PlaylistPhoneList";
+import PlaylistsToolbar, {
+  PlaylistImportButton,
+  PlaylistsPhoneMenu,
+} from "@/components/PlaylistsToolbar";
+import { ViewModeSwitch } from "@/components/layout/ListHeader";
 import { usePlaylistsViewMode } from "@/hooks/usePlaylistsViewMode";
 import {
   Box,
@@ -30,7 +35,6 @@ import {
 
 import { Toaster, toaster } from "@/components/ui/toaster"; // See below
 import { FiHeadphones } from "react-icons/fi";
-import { TbFileImport } from "react-icons/tb";
 import { usePlaylists } from "@/providers/PlaylistsProvider";
 import {
   createSetForPlaylist,
@@ -82,9 +86,10 @@ export default function PlaylistManager() {
   }, [playlists, filter]);
 
   const groups = React.useMemo(() => groupPlaylistsByMonth(filtered), [filtered]);
-  // The table is desktop only: a saved LIST choice still gets cards on a phone.
+  // LIST is a table on desktop and compact ruled rows on a phone.
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
-  const showTable = viewMode === "list" && !isMobile;
+  const showList = viewMode === "list";
+  const showTable = showList && !isMobile;
   const loadingId =
     typeof loadingPlaylists === "object" && loadingPlaylists !== null ? loadingPlaylists.id : null;
 
@@ -249,22 +254,30 @@ export default function PlaylistManager() {
           Playlists
         </PageHeader.Title>
         <PageHeader.Actions
-          actions={[{ label: "Import playlist", icon: <TbFileImport />, onClick: openImport }]}
+          desktop={
+            <>
+              <ViewModeSwitch
+                value={showList ? "row" : "card"}
+                onChange={(mode) => setViewMode(mode === "row" ? "list" : "cards")}
+              />
+              <PlaylistImportButton onImport={openImport} />
+            </>
+          }
+          phone={
+            <PlaylistsPhoneMenu
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              onImport={openImport}
+            />
+          }
         />
       </PageHeader>
       <PageHeader.Toolbar>
-        <PlaylistsToolbar
-          query={filter}
-          onQueryChange={setFilter}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          onImport={openImport}
-          importInHeader
-        />
+        <PlaylistsToolbar query={filter} onQueryChange={setFilter} />
       </PageHeader.Toolbar>
 
       {playlistsLoading ? (
-        <SimpleGrid columns={showTable ? 1 : PLAYLIST_GRID_COLUMNS} gap={3}>
+        <SimpleGrid columns={showList ? 1 : PLAYLIST_GRID_COLUMNS} gap={3}>
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} height="72px" borderRadius="md" />
           ))}
@@ -294,6 +307,8 @@ export default function PlaylistManager() {
         </Text>
       ) : showTable ? (
         <PlaylistTable groups={groups} loadingId={loadingId} getActions={playlistActions} />
+      ) : showList ? (
+        <PlaylistPhoneList groups={groups} loadingId={loadingId} getActions={playlistActions} />
       ) : (
         groups.map((group) => (
           <Box as="section" key={group.key} aria-label={group.label} mb={5}>

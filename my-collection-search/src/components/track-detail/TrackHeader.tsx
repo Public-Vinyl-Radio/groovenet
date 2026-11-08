@@ -276,6 +276,8 @@ export default function TrackHeader({
         borderRadius="md"
         borderColor="border.ink"
         boxShadow="md"
+        // Children paint their own fill: clip them to the frame's inner curve.
+        overflow="clip"
         css={{
           display: "grid",
           gridTemplateColumns: "108px minmax(0, 1fr)",

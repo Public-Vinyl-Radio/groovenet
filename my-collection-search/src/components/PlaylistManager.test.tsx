@@ -169,7 +169,7 @@ describe("PlaylistManager header and toolbar (#765)", () => {
 
   it("filters by name and updates the count", async () => {
     const { user } = renderWithProviders(<PlaylistManager />);
-    await user.type(screen.getByRole("textbox", { name: "Search playlists" }), "zzz");
+    await user.type(screen.getByRole("searchbox", { name: "Search playlists" }), "zzz");
     expect(screen.getByText('No playlists match "zzz"')).toBeTruthy();
     expect(screen.getByTestId("page-header-meta").textContent).toBe("0 playlists");
   });
@@ -185,11 +185,18 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("remembers the Cards/List choice", async () => {
     localStorage.clear();
     const { user } = renderWithProviders(<PlaylistManager />);
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "List", hidden: true }));
     expect(localStorage.getItem("playlistsViewMode")).toBe("list");
     expect(
-      screen.getByRole("button", { name: "LIST", hidden: true }).getAttribute("aria-pressed"),
-    ).toBe("true");
+      (screen.getByRole("radio", { name: "List", hidden: true }) as HTMLInputElement).checked,
+    ).toBe(true);
+  });
+
+  it("shows single-column skeletons while loading in list view", () => {
+    localStorage.setItem("playlistsViewMode", "list");
+    providerState.loading = true;
+    const { container } = renderWithProviders(<PlaylistManager />);
+    expect(container.querySelectorAll(".chakra-skeleton").length).toBeGreaterThan(0);
   });
 
   it("omits the count while loading", () => {
@@ -212,20 +219,52 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("renders the desktop table in list view", async () => {
     const { user } = renderWithProviders(<PlaylistManager />);
     expect(screen.queryByRole("table")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "List", hidden: true }));
     expect(screen.getByRole("table", { name: "Playlists" })).toBeTruthy();
     expect(screen.queryByTestId("playlist-card")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "CARDS", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "Grid", hidden: true }));
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getByTestId("playlist-card")).toBeTruthy();
   });
 
-  it("keeps cards on a phone even when LIST was saved", () => {
+  it("shows a saved LIST as compact rows on a phone", () => {
     localStorage.setItem("playlistsViewMode", "list");
     setViewportWidth(390);
     try {
       renderWithProviders(<PlaylistManager />);
       expect(screen.queryByRole("table")).toBeNull();
+      expect(screen.queryByTestId("playlist-card")).toBeNull();
+      const row = screen.getByTestId("playlist-phone-row");
+      const link = within(row).getByRole("link", { name: "Late Night" });
+      expect(link.getAttribute("href")).toBe("/playlists/5");
+      expect(within(row).getByText(/2 tracks · 1h 5m/)).toBeTruthy();
+      // The kebab is a sibling of the link, never inside it.
+      expect(link.contains(within(row).getByRole("button", { name: "Playlist actions" }))).toBe(
+        false,
+      );
+    } finally {
+      setViewportWidth(1280);
+      localStorage.clear();
+    }
+  });
+
+  it("lets a phone switch between List and Grid from the header kebab", async () => {
+    setViewportWidth(390);
+    try {
+      const { user } = renderWithProviders(<PlaylistManager />);
+      expect(screen.getByTestId("playlist-card")).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Playlists actions" }));
+      const list = await screen.findByRole("menuitemradio", { name: "List" });
+      expect(list.getAttribute("aria-checked")).toBe("false");
+      await user.click(list);
+      expect(localStorage.getItem("playlistsViewMode")).toBe("list");
+      expect(screen.getByTestId("playlist-phone-row")).toBeTruthy();
+
+      await user.click(screen.getByRole("button", { name: "Playlists actions" }));
+      expect(
+        (await screen.findByRole("menuitemradio", { name: "List" })).getAttribute("aria-checked"),
+      ).toBe("true");
+      await user.click(screen.getByRole("menuitemradio", { name: "Grid" }));
       expect(screen.getByTestId("playlist-card")).toBeTruthy();
     } finally {
       setViewportWidth(1280);
@@ -233,10 +272,37 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     }
   });
 
+  it("opens the file picker from the phone header kebab", async () => {
+    setViewportWidth(390);
+    try {
+      const { user, container } = renderWithProviders(<PlaylistManager />);
+      const click = vi.spyOn(
+        container.querySelector('input[type="file"]') as HTMLInputElement,
+        "click",
+      );
+      await user.click(screen.getByRole("button", { name: "Playlists actions" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Import playlist" }));
+      expect(click).toHaveBeenCalledTimes(1);
+    } finally {
+      setViewportWidth(1280);
+    }
+  });
+
+  it("puts the view switch in the header and the search on the shared field", () => {
+    renderWithProviders(<PlaylistManager />);
+    const actions = screen.getByTestId("page-header-desktop-actions");
+    expect(within(actions).getByRole("radio", { name: "List", hidden: true })).toBeTruthy();
+    expect(within(actions).getByRole("radio", { name: "Grid", hidden: true })).toBeTruthy();
+    expect(
+      within(actions).getByRole("button", { name: "Import playlist", hidden: true }),
+    ).toBeTruthy();
+    expect(screen.getByTestId("search-field")).toBeTruthy();
+  });
+
   it("opens a playlist from its table row and shares the card's actions", async () => {
     mocks.fetchTracksByIds.mockResolvedValue(tracks);
     const { user } = renderWithProviders(<PlaylistManager />);
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "List", hidden: true }));
     await user.click(screen.getByTestId("playlist-table-row"));
     expect(mocks.push).toHaveBeenCalledWith("/playlists/5");
     await user.click(
@@ -253,7 +319,7 @@ describe("PlaylistManager header and toolbar (#765)", () => {
     mocks.fetchTracksByIds.mockResolvedValue(tracks);
     mocks.createSet.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("no"));
     const { user } = renderWithProviders(<PlaylistManager />);
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "List", hidden: true }));
     const kebab = () =>
       within(screen.getByTestId("playlist-table-row")).getAllByRole("button", {
         name: "Playlist actions",
@@ -290,7 +356,7 @@ describe("PlaylistManager header and toolbar (#765)", () => {
   it("marks the table row of the playlist with a pending action", async () => {
     providerState.loadingId = 5;
     const { user, container } = renderWithProviders(<PlaylistManager />);
-    await user.click(screen.getByRole("button", { name: "LIST", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "List", hidden: true }));
     expect(container.querySelector(".chakra-spinner")).toBeTruthy();
   });
 

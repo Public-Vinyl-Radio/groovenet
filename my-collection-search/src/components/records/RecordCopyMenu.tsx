@@ -55,7 +55,14 @@ export default function RecordCopyMenu({ label, onLogCare, onEdit, onRemove }: P
           <TileRow
             onDone={() => setModalOpen(false)}
             tiles={[
-              { label: "Log care", icon: <FiDroplet />, solid: true, onClick: onLogCare },
+              {
+                label: "Log care",
+                icon: <FiDroplet />,
+                solid: true,
+                // The modal closes right after this runs; open the log dialog
+                // once that close has committed, or it is discarded with it.
+                onClick: () => void window.setTimeout(onLogCare, 0),
+              },
               { label: "Edit", icon: <FiEdit />, onClick: onEdit },
             ]}
           />

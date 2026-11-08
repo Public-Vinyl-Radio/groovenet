@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 const mocks = vi.hoisted(() => ({
   replacePlaylist: vi.fn(),
@@ -12,6 +12,12 @@ const mocks = vi.hoisted(() => ({
   setQueue: vi.fn(),
   routerPush: vi.fn(),
   toast: vi.fn(),
+  listRecordCopies: vi.fn(),
+  createRecordAction: vi.fn(),
+}));
+vi.mock("@/services/internalApi/recordCare", () => ({
+  listRecordCopies: mocks.listRecordCopies,
+  createRecordAction: mocks.createRecordAction,
 }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({
   usePlaybackPlayer: () => ({
@@ -64,7 +70,10 @@ function Harness({ loaded = false }: { loaded?: boolean }) {
   );
 }
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  setViewportWidth(1280);
+});
 
 describe("useAlbumActions", () => {
   it("plays in track order by replacing the playlist", async () => {
@@ -136,5 +145,42 @@ describe("useAlbumActions", () => {
     await user.click(screen.getByRole("button", { name: "Album actions" }));
     await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
     expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
+  });
+
+  describe("Log care from the header menu", () => {
+    const logCareDialog = () => screen.findByText("Log Record Care");
+
+    beforeEach(() => {
+      mocks.listRecordCopies.mockResolvedValue({ items: [], overdue_days: 365 });
+      mocks.createRecordAction.mockResolvedValue({});
+    });
+
+    // Regression: the phone modal ran the action and closed in one tick, so
+    // the new dialog was discarded along with the modal.
+    it("keeps the dialog open after the phone modal closes, and saves", async () => {
+      setViewportWidth(400);
+      const { user } = renderWithProviders(<Harness />);
+      await user.click(screen.getByRole("button", { name: "Album actions" }));
+      await user.click(within(screen.getByRole("dialog")).getByText("Log care"));
+      expect(await logCareDialog()).toBeTruthy();
+      await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(1));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(mocks.createRecordAction).toHaveBeenCalledWith(
+          expect.objectContaining({ friend_id: 7, release_id: "rel", action_type: "cleaned" }),
+        ),
+      );
+      await waitFor(() => expect(screen.queryByText("Log Record Care")).toBeNull());
+    });
+
+    it("opens and saves from the desktop menu", async () => {
+      const { user } = renderWithProviders(<Harness />);
+      await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[1]);
+      await user.click(await screen.findByRole("menuitem", { name: /Log care/i, hidden: true }));
+      expect(await logCareDialog()).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(mocks.createRecordAction).toHaveBeenCalledOnce());
+      await waitFor(() => expect(screen.queryByText("Log Record Care")).toBeNull());
+    });
   });
 });

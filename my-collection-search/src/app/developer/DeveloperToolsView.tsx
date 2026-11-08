@@ -46,10 +46,6 @@ export default function DeveloperToolsView({ storybookUrl }: { storybookUrl: str
         <PageHeader.Title>Developer tools</PageHeader.Title>
         <PageHeader.Actions />
       </PageHeader>
-      <Text color="fg.muted" mb={{ base: 6, md: 10 }}>
-        API references and component documentation for this GrooveNet instance.
-      </Text>
-
       <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
         {tools.map((tool) => (
           <Card.Root key={tool.href} variant="outline">

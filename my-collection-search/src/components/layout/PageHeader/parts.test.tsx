@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PageHeader, { type HeaderAction } from ".";
+import { pageHeader } from "@/app/houseStyle";
 
 const act = (label: string, extra: Partial<HeaderAction> = {}): HeaderAction => ({
   label,
@@ -262,5 +263,10 @@ describe("PageHeader parts", () => {
     const toolbar = screen.getByTestId("page-header-toolbar");
     expect(header.contains(toolbar)).toBe(false);
     expect(within(toolbar).getByRole("textbox", { name: "Search" })).toBeTruthy();
+  });
+
+  it("spaces header tabs on desktop and keeps a phone strip joined", () => {
+    // Each tab stands on the rule with its own outline: no -2px overlap.
+    expect(pageHeader.tabs["& [role=tablist]"].gap).toEqual({ base: 0, md: 1 });
   });
 });

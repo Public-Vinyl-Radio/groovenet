@@ -595,6 +595,9 @@ export const pageHeader = {
     // The tabs stand on the rule and open onto it: no bottom edge of their
     // own, and with rounded corners only their tops round.
     "& [role=tab]": { borderBottomWidth: 0, borderBottomRadius: 0 },
+    // Each tab keeps its own outline, with a gap between them on desktop. A
+    // phone strip stays joined: the page overlaps the borders itself.
+    "& [role=tablist]": { gap: { base: 0, md: 1 } },
   },
   toolbar: { mb: { base: 4, md: 6 } },
 } as const;
