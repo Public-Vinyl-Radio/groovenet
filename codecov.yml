@@ -4,6 +4,9 @@ flag_management:
     carryforward: true
 
 flags:
+  brick-probe:
+    paths:
+      - apps/groovenet-brick/probe/main.cpp
   groovenet-macos:
     paths:
       - packages/groovenet-player/macos/

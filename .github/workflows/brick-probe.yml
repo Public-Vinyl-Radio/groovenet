@@ -1,0 +1,33 @@
+name: Brick probe
+
+on:
+  pull_request:
+    paths:
+      - "apps/groovenet-brick/**"
+      - ".github/workflows/brick-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install native probe dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libcurl4-openssl-dev libpng-dev python3 openssl
+      - name: Build and exercise local TLS fixture
+        run: |
+          cmake -S apps/groovenet-brick/probe -B /tmp/brick-probe -DCMAKE_CXX_COMPILER=clang++ -DPROBE_COVERAGE=ON
+          cmake --build /tmp/brick-probe
+          LLVM_PROFILE_FILE='/tmp/brick-probe/probe-%p.profraw' python3 apps/groovenet-brick/probe/test_probe.py /tmp/brick-probe/brick-probe
+          llvm-profdata merge -sparse /tmp/brick-probe/*.profraw -o /tmp/brick-probe/coverage.profdata
+          llvm-cov report /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
+          llvm-cov export -format=lcov /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: /tmp/brick-probe/coverage.lcov
+          flags: brick-probe
+          fail_ci_if_error: true
