@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Command } from "cmdk";
+import { Command, defaultFilter } from "cmdk";
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -37,6 +37,11 @@ const NAV_ITEMS = [
   { href: "/jobs", label: "Jobs" },
   { href: "/settings", label: "Settings" },
 ];
+
+// Items carrying this prefix always sort first (cmdk scores top out at 1).
+const PINNED_PREFIX = "\u0000pinned ";
+const pinnedFilter = (value: string, search: string, keywords?: string[]): number =>
+  value.startsWith(PINNED_PREFIX) ? 2 : defaultFilter(value, search, keywords);
 
 const isEditableTarget = (el: EventTarget | null): boolean => {
   if (!el || !(el as HTMLElement).closest) return false;
@@ -74,6 +79,7 @@ export default function CommandPalette() {
   const { paletteOpen: open, setPaletteOpen: setOpen } = useCommandPalette();
 
   const [query, setQuery] = React.useState("");
+  const [highlighted, setHighlighted] = React.useState("");
   const [trackHits, setTrackHits] = React.useState<TrackHit[]>([]);
   const [albumHits, setAlbumHits] = React.useState<AlbumHit[]>([]);
   const [artistHits, setArtistHits] = React.useState<ArtistListItem[]>([]);
@@ -88,7 +94,6 @@ export default function CommandPalette() {
     const onKeyDown = (e: KeyboardEvent) => {
       // ⌘K / Ctrl+K — toggle palette
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
-        if (isEditableTarget(e.target)) return;
         e.preventDefault();
         setOpen((v) => !v);
         return;
@@ -304,6 +309,21 @@ export default function CommandPalette() {
 
   const trimmedQuery = query.trim();
 
+  const trackValue = (t: TrackHit) => `open ${t.title} ${t.artist} ${t.album}`;
+  const albumValue = (al: AlbumHit) => `${trimmedQuery} open ${al.title} ${al.artist}`;
+
+  // ⌘Enter / Ctrl+Enter plays whichever track or album row is highlighted.
+  const onCommandKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey)) return;
+    const t = trackHits.find((hit) => trackValue(hit) === highlighted);
+    const al = t ? undefined : albumHits.find((hit) => albumValue(hit) === highlighted);
+    if (!t && !al) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (t) onPlayTrack(t);
+    else if (al) void onPlayAlbum(al);
+  };
+
   // Only reachable once the Search group has rendered, which requires a query.
   const onSearchTracksQuery = () => {
     used("search_tracks_query");
@@ -336,7 +356,13 @@ export default function CommandPalette() {
       label="Command Palette"
     >
       <RadixDialog.Title className={styles.srOnly}>Command Palette</RadixDialog.Title>
-      <Command className={styles.command}>
+      <Command
+        className={styles.command}
+        filter={pinnedFilter}
+        value={highlighted}
+        onValueChange={setHighlighted}
+        onKeyDown={onCommandKeyDown}
+      >
         <Command.Input
           autoFocus
           placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
@@ -348,6 +374,32 @@ export default function CommandPalette() {
           <Command.Empty className={styles.empty}>
             {loadingTracks ? "Searching…" : "No results."}
           </Command.Empty>
+
+          {trimmedQuery.length > 0 && (
+            <>
+              <Command.Group heading="Search" className={styles.group}>
+                <Command.Item
+                  value={`${PINNED_PREFIX}tracks`}
+                  onSelect={onSearchTracksQuery}
+                  className={styles.item}
+                >
+                  <span className={styles.itemTitle}>
+                    Search tracks for &quot;{trimmedQuery}&quot;
+                  </span>
+                </Command.Item>
+                <Command.Item
+                  value={`${PINNED_PREFIX}albums`}
+                  onSelect={onSearchAlbumsQuery}
+                  className={styles.item}
+                >
+                  <span className={styles.itemTitle}>
+                    Search albums for &quot;{trimmedQuery}&quot;
+                  </span>
+                </Command.Item>
+              </Command.Group>
+              <Command.Separator className={styles.separator} />
+            </>
+          )}
 
           <Command.Group heading="Navigation" className={styles.group}>
             {NAV_ITEMS.map((item) => (
@@ -526,28 +578,17 @@ export default function CommandPalette() {
               <Command.Separator className={styles.separator} />
               <Command.Group heading="Albums" className={styles.group}>
                 {albumHits.map((album) => (
-                  <React.Fragment key={`al-${album.release_id}-${album.friend_id}`}>
-                    <Command.Item
-                      value={`${trimmedQuery} open ${album.title} ${album.artist}`}
-                      onSelect={() => onOpenAlbum(album)}
-                      className={styles.item}
-                    >
-                      <div className={styles.itemLabel}>
-                        <span className={styles.itemTitle}>{album.title}</span>
-                        <span className={styles.itemMeta}>Open Album · {album.artist}</span>
-                      </div>
-                    </Command.Item>
-                    <Command.Item
-                      value={`${trimmedQuery} play ${album.title} ${album.artist}`}
-                      onSelect={() => onPlayAlbum(album)}
-                      className={styles.item}
-                    >
-                      <div className={styles.itemLabel}>
-                        <span className={styles.itemTitle}>Play: {album.title}</span>
-                        <span className={styles.itemMeta}>Play Now · {album.artist}</span>
-                      </div>
-                    </Command.Item>
-                  </React.Fragment>
+                  <Command.Item
+                    key={`al-${album.release_id}-${album.friend_id}`}
+                    value={albumValue(album)}
+                    onSelect={() => onOpenAlbum(album)}
+                    className={styles.item}
+                  >
+                    <div className={styles.itemLabel}>
+                      <span className={styles.itemTitle}>{album.title}</span>
+                      <span className={styles.itemMeta}>Album · {album.artist}</span>
+                    </div>
+                  </Command.Item>
                 ))}
               </Command.Group>
             </>
@@ -557,60 +598,21 @@ export default function CommandPalette() {
 
           <Command.Group heading="Tracks" className={styles.group}>
             {trackHits.map((track) => (
-              <React.Fragment key={`tr-${track.track_id}-${track.friend_id}`}>
-                <Command.Item
-                  value={`open ${track.title} ${track.artist} ${track.album}`}
-                  onSelect={() => onOpenTrack(track)}
-                  className={styles.item}
-                >
-                  <div className={styles.itemLabel}>
-                    <span className={styles.itemTitle}>{track.title || track.track_id}</span>
-                    <span className={styles.itemMeta}>
-                      Open Track · {track.artist} · {track.album}
-                    </span>
-                  </div>
-                </Command.Item>
-                <Command.Item
-                  value={`play ${track.title} ${track.artist} ${track.album}`}
-                  onSelect={() => onPlayTrack(track)}
-                  className={styles.item}
-                >
-                  <div className={styles.itemLabel}>
-                    <span className={styles.itemTitle}>Play: {track.title || track.track_id}</span>
-                    <span className={styles.itemMeta}>
-                      Play Now · {track.artist} · {track.album}
-                    </span>
-                  </div>
-                </Command.Item>
-              </React.Fragment>
+              <Command.Item
+                key={`tr-${track.track_id}-${track.friend_id}`}
+                value={trackValue(track)}
+                onSelect={() => onOpenTrack(track)}
+                className={styles.item}
+              >
+                <div className={styles.itemLabel}>
+                  <span className={styles.itemTitle}>{track.title || track.track_id}</span>
+                  <span className={styles.itemMeta}>
+                    Track · {track.artist} · {track.album}
+                  </span>
+                </div>
+              </Command.Item>
             ))}
           </Command.Group>
-
-          {trimmedQuery.length > 0 && (
-            <>
-              <Command.Separator className={styles.separator} />
-              <Command.Group heading="Search" className={styles.group}>
-                <Command.Item
-                  value={`${trimmedQuery} search tracks for ${trimmedQuery}`}
-                  onSelect={onSearchTracksQuery}
-                  className={styles.item}
-                >
-                  <span className={styles.itemTitle}>
-                    Search tracks for &quot;{trimmedQuery}&quot;
-                  </span>
-                </Command.Item>
-                <Command.Item
-                  value={`${trimmedQuery} search albums for ${trimmedQuery}`}
-                  onSelect={onSearchAlbumsQuery}
-                  className={styles.item}
-                >
-                  <span className={styles.itemTitle}>
-                    Search albums for &quot;{trimmedQuery}&quot;
-                  </span>
-                </Command.Item>
-              </Command.Group>
-            </>
-          )}
         </Command.List>
 
         <div className={styles.footer}>
@@ -622,6 +624,10 @@ export default function CommandPalette() {
           <span className={styles.footerHint}>
             <kbd className={styles.kbd}>↵</kbd>
             select
+          </span>
+          <span className={styles.footerHint}>
+            <kbd className={styles.kbd}>⌘↵</kbd>
+            play
           </span>
           <span className={styles.footerHint}>
             <kbd className={styles.kbd}>esc</kbd>
