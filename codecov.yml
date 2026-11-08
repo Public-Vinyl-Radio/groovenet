@@ -7,6 +7,7 @@ flags:
   brick-preview:
     paths:
       - apps/groovenet-brick/src/
+      - apps/groovenet-brick/knulli/qualify.py
   brick-probe:
     paths:
       - apps/groovenet-brick/probe/main.cpp

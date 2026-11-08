@@ -25,7 +25,7 @@ public:
   explicit Desktop(bool knulli = false) : knulli_(knulli) {}
   Action input(const SDL_Event &event) override;
   std::string configDirectory() const override;
-  std::optional<int> batteryPercent() const override { return std::nullopt; }
+  std::optional<int> batteryPercent() const override;
 private:
   bool knulli_;
 };

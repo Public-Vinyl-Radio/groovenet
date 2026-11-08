@@ -1,0 +1,79 @@
+name: Brick Knulli package
+
+on:
+  pull_request:
+    paths:
+      - "apps/groovenet-brick/**"
+      - ".github/workflows/brick-release.yml"
+      - "package.json"
+      - "LICENSE"
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brick-package-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+      - uses: extractions/setup-just@v3
+      - name: Cross-compile using frozen dependencies
+        run: just brick-package
+      - name: Verify a second build is byte-for-byte reproducible
+        run: |
+          sha256sum apps/groovenet-brick/build-knulli/*.tar.gz > "$RUNNER_TEMP/brick-first.sha256"
+          just brick-package
+          sha256sum -c "$RUNNER_TEMP/brick-first.sha256"
+      - name: Inspect archive and exercise launcher and publication gate
+        run: |
+          archive=$(find apps/groovenet-brick/build-knulli -name '*.tar.gz')
+          BRICK_ARCHIVE="$archive" python3 apps/groovenet-brick/tests/test_package.py
+          python3 apps/groovenet-brick/tests/test_release.py
+          cd apps/groovenet-brick/build-knulli
+          sha256sum -c *.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: brick-knulli-${{ github.sha }}
+          path: |
+            apps/groovenet-brick/build-knulli/*.tar.gz
+            apps/groovenet-brick/build-knulli/*.sha256
+          if-no-files-found: error
+      - name: Require exact-binary physical qualification for stable release
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+          test "$TAG" = "v$version"
+          python3 apps/groovenet-brick/knulli/qualify.py \
+            "apps/groovenet-brick/build-knulli/groovenet-brick-$version-knulli-scarab-arm64.tar.gz" \
+            apps/groovenet-brick/evidence/release-qualification.json
+
+  publish:
+    needs: package
+    if: github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: brick-knulli-${{ github.sha }}
+          path: dist
+      - name: Attach qualified assets to the root app release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$TAG" dist/*.tar.gz dist/*.sha256

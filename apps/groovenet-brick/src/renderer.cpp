@@ -231,10 +231,12 @@ void Renderer::draw(const App &app, const Platform &platform) {
       text(remaining.substr(0, split), 80, 310 + line * 34, 860, ink);
       remaining.erase(0, std::min(split + 1, remaining.size()));
     }
-    text("Review actual assignments in Browse > Outputs.", 80, 426, 860, muted);
-    text("Approve each new action explicitly; no automatic retries.", 80, 460,
-         860, muted);
-    text("A/Enter: acknowledge   B/Esc: dismiss", 80, 502, 860, accent);
+    const bool approval = !state.approvalAction.empty();
+    text(approval ? state.approvalAction : "Review actual assignments in Browse > Outputs.", 80, 426, 860, muted);
+    text(approval ? "May interrupt speaker playback; this action only."
+                  : "No action was retried. Review state before trying again.", 80, 460, 860, muted);
+    text(approval ? "A/Enter: approve and retry   B/Esc: cancel"
+                  : "A/Enter: dismiss   B/Esc: dismiss", 80, 502, 860, accent);
   }
   if (app.suspended()) {
     box(40, 224, 944, 350, panel);

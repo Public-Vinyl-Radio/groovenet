@@ -121,8 +121,9 @@ derivation and fingerprint indexing, and `optimize` for playlist ordering.
 Other work needs no extra services. `analysis` runs Essentia alone; `all` runs
 every optional service. Gated integration recipes start their own dependencies. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
-worktree workspace off `origin/main`, runs `just worktree-setup` (`just
-bootstrap`, then its stack) and starts a coding agent once that succeeds. It
+worktree workspace off `origin/main` in the background (`--focus` switches to
+it), runs `just worktree-setup` (`just bootstrap`, then its stack) and starts a
+coding agent once that succeeds. It
 hands off to `herdr-agent` from the dotfiles, which owns the agent choice:
 pass `--agent`, `--model`, `--prompt-file` or `--issue N`, and `--no-stack`
 for work that needs no stack.
