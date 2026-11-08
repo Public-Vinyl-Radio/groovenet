@@ -88,17 +88,18 @@ running; the live adapter must replace local state with a fresh snapshot on wake
 `--mode mock` is the default. F1 cycles through this fixed sequence, resetting
 the fixture and all list focus, without using randomness or network requests:
 
-| `--scenario`      | Fixture                                                  |
-| ----------------- | -------------------------------------------------------- |
-| `playing`         | Lounge playing a three-track queue at 0:42, volume 55    |
-| `paused`          | Same queue, stopped clock; Space resumes                 |
-| `empty`           | Empty queue; playback commands have no effect            |
-| `loading`         | Loading message; transport/volume disabled               |
-| `disconnected`    | Disconnected with retained metadata; commands disabled   |
-| `unavailable`     | Selected player unavailable; commands disabled           |
-| `metadata`        | Long title and accented UTF-8 artist/album metadata      |
-| `missing-artwork` | Explicit artwork fallback                                |
-| `unknown-timing`  | Unknown duration, no progress fraction or invented total |
+| `--scenario`       | Fixture                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| `playing`          | Lounge playing a three-track queue at 0:42, volume 55        |
+| `paused`           | Same queue, stopped clock; Space resumes                     |
+| `empty`            | Empty queue; playback commands have no effect                |
+| `loading`          | Loading message; transport/volume disabled                   |
+| `disconnected`     | Disconnected with retained metadata; commands disabled       |
+| `unavailable`      | Selected player unavailable; commands disabled               |
+| `metadata`         | Long title and accented UTF-8 artist/album metadata          |
+| `missing-artwork`  | Explicit artwork fallback                                    |
+| `missing-metadata` | Empty title/artist/album during live refresh; renders safely |
+| `unknown-timing`   | Unknown duration, no progress fraction or invented total     |
 
 The playing clock advances from elapsed milliseconds; track end, Next and
 Previous rotate the fixture queue and reset timing. Long text is clipped at a

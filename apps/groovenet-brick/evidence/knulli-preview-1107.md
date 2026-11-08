@@ -31,8 +31,10 @@ Final artifact hashes will be recorded after final verification/build.
 
 - Installed the archive into `/userdata/roms/ports/`, with `Groovenet.sh` mode 755. No firmware/system libraries, autostart hooks, power service, network
   configuration or other Ports entries were changed.
-- Provisioned a separate mode-600 private config and public CA under
-  `/userdata/system/configs/groovenet-brick/` (directory mode 700). Player key
+- Provisioned a separate private config and public CA under
+  `/userdata/system/configs/groovenet-brick/`. Requested 700/600 modes are not
+  enforced by this card’s `fuseblk` userdata mount (synthetic 777); this limitation
+  is documented rather than claiming permission isolation. Player key
   came from the repository's established private secret reference; it was never
   printed or packaged. The local transient credential copy was removed. Collection
   credential is independently optional and was omitted in this session.
@@ -69,11 +71,27 @@ Final artifact hashes will be recorded after final verification/build.
   the conflicting inherited mapping and checks the effective SDL mapping. Installed
   that build and asked the owner to repeat navigation and select Lounge.
 
+- Owner confirmed navigation works after the priority fix, then reported an exit
+  after pause/play. The application log showed `Text has zero width`, not a kernel
+  crash: an empty live metadata field reached SDL_ttf 2.24 during refresh. The
+  shared renderer now skips empty strings; the missing-metadata fixture and
+  pause/resume rendering regression cover it without relying on host SDL_ttf's
+  empty-string behavior. Album artwork remains explicitly deferred to #1098.
+
 ## Physical smoke results
 
-Owner available; actual Ports launch and raw physical button/axis capture completed.
-Pending owner observations after correction: display orientation, D-pad navigation, A/B,
-Start/Select, Y, L/R, X+L/R, local volume, observational Lounge selection, external
+Owner confirmed navigation works after the mapping-priority correction. Pause/play
+then exposed the empty-metadata renderer exit described above. The fixed build
+passed an **actual on-device** two-frame Mali rendering test with the bundled font,
+`--scenario missing-metadata --actions play,play`, exit 0 and a 1024×768 BMP capture.
+The firmware does not include SDL's dummy video driver; that attempted run failed
+visibly before using the real display driver. This is a mock-data renderer check
+on the real runtime, not a claim of successful live transport.
+
+![On-device missing-metadata regression capture](../screenshots/knulli-missing-metadata.png)
+
+Pending owner observations after the renderer fix: live Y pause/resume, L/R,
+X+L/R, local volume, explicit Lounge identity confirmation, external
 track changes, actual server transport/volume, short Power/sleep/wake freshness,
 and clean quit/continued playback. No desktop test is substituted for these.
 Follow the exact [physical smoke steps](../knulli/README.md#physical-smoke-test-owner-observations-required).
@@ -88,8 +106,8 @@ as part of the preview. No full reliability or stable release claim is made.
 
 - `just brick-test`: three CTest suites passed (native behavior/resource failures,
   real loopback TLS/SSE fixture, isolated Ports launcher).
-- `just brick-coverage`: 99.38% native lines, 96.46% branches; changed desktop/input
-  implementation and platform header 100% lines/branches. All new executable native
+- `just brick-coverage`: 99.38% native lines, 96.34% branches; changed desktop/input
+  implementation, renderer and platform header 100% lines/branches. All new executable native
   lines covered, including mapping failure, modifier reset and wake-gap recovery.
 - `BRICK_ARCHIVE=... python3 apps/groovenet-brick/tests/test_package.py`: launcher
   behavior plus actual archive allowlist, AArch64 ELF, executable modes,

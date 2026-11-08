@@ -30,6 +30,10 @@ void Renderer::box(int x, int y, int w, int h, SDL_Color color) {
 }
 void Renderer::text(const std::string &value, int x, int y, int maxWidth,
                     SDL_Color color, bool large) {
+  // Live refreshes can briefly have no album/artist. Newer SDL_ttf rejects
+  // empty text with "Text has zero width" rather than producing a surface.
+  if (value.empty())
+    return;
   auto *surface =
       TTF_RenderUTF8_Blended(large ? large_ : font_, value.c_str(), color);
   if (!surface)

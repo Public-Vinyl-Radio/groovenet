@@ -12,7 +12,7 @@ const std::vector<std::string> &scenarios() {
   static const std::vector<std::string> names{
       "playing",  "paused",          "empty",
       "loading",  "disconnected",    "unavailable",
-      "metadata", "missing-artwork", "unknown-timing"};
+      "metadata", "missing-artwork", "unknown-timing", "missing-metadata"};
   return names;
 }
 const std::vector<std::string> &screenNames() {
@@ -69,6 +69,8 @@ MockData::MockData(const std::string &scenario) {
                        420, true};
   if (scenario == "missing-artwork")
     state_.queue[0].artwork = false;
+  if (scenario == "missing-metadata")
+    state_.queue[0] = {"", "", "", 300, false};
   if (scenario == "unknown-timing")
     state_.queue[0].duration.reset();
 }

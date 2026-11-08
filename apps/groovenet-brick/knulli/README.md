@@ -18,7 +18,7 @@ the source commit/diff hash, compiler, all package versions, ELF loader and dire
 dependencies. `SHA256SUMS` records the binary and font/license hashes.
 
 The archive contains `Groovenet.sh`, `groovenet-brick/groovenet-brick`, the
-redistributable DejaVu Sans font and license, placeholder config and these
+redistributable DejaVu Sans font and license, project MIT license, placeholder config and these
 instructions. It contains no credentials, CA, local config, cache or raw logs.
 
 This is **not an official pinned firmware SDK**. It uses the experimentally
@@ -56,8 +56,14 @@ proper Knulli SDK and full release qualification remain #1102.
    deleting those two Ports entries. Optionally delete the config directory to
    remove keys, CA and logs. No firmware files or power policy need restoring.
 
+On the measured card, `/userdata` is a `fuseblk` mount exposing synthetic 777
+modes: `chmod 600` does not enforce isolation there. The modes above express the
+intended policy, not a protection verified on this card. Keep credentials on this
+owner-controlled device, provision them privately, and do not share the config.
+Use storage that enforces Unix permissions if account isolation is required.
+
 Persistent config/log path: `/userdata/system/configs/groovenet-brick/`. The
-launcher overwrites `preview.log` at each launch, with private permissions. The
+launcher overwrites `preview.log` at each launch, with a restrictive umask (subject to the firmware filesystem behavior above). The
 application has no disk metadata/artwork cache and does not remember the player;
 `XDG_CACHE_HOME` reserves `cache/` under that same directory for future use. No
 player state is written to config. Never include real config or diagnostic logs

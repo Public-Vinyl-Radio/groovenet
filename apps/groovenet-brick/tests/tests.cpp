@@ -322,6 +322,17 @@ void renderTests() {
       app.handle(Action::Suspend);
       view.draw(app, platform);
     }
+    App missing("mock", "missing-metadata");
+    check(missing.snapshot().queue[0].title.empty());
+    check(missing.snapshot().queue[0].artist.empty());
+    check(missing.snapshot().queue[0].album.empty());
+    view.draw(missing, platform);
+    missing.handle(Action::PlayPause);
+    view.draw(missing, platform);
+    check(!missing.snapshot().playing);
+    missing.handle(Action::PlayPause);
+    view.draw(missing, platform);
+    check(missing.snapshot().playing);
     Desktop desktop;
     App live("live", "playing");
     view.draw(live, desktop);

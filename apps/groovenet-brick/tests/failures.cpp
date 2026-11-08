@@ -64,6 +64,8 @@ TTF_Font *faultFont(const char *path, int size) {
   return TTF_OpenFont(path, size);
 }
 SDL_Surface *faultText(TTF_Font *font, const char *text, SDL_Color color) {
+  if (!*text)
+    throw std::runtime_error("Empty text reached SDL_ttf");
   return fail(Fault::Text) ? nullptr
                            : TTF_RenderUTF8_Blended(font, text, color);
 }

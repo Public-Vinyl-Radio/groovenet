@@ -59,7 +59,7 @@ class LauncherTests(unittest.TestCase):
             files = {m.name: m for m in package.getmembers() if m.isfile()}
             self.assertEqual(set(files), {
                 "Groovenet.sh", "groovenet-brick/SHA256SUMS", "groovenet-brick/groovenet-brick",
-                "groovenet-brick/BUILD.txt", "groovenet-brick/INSTALL.md",
+                "groovenet-brick/BUILD.txt", "groovenet-brick/INSTALL.md", "groovenet-brick/LICENSE",
                 "groovenet-brick/config.example", "groovenet-brick/assets/DejaVuSans.ttf",
                 "groovenet-brick/assets/FONT-LICENSE",
             })
@@ -70,6 +70,7 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(int.from_bytes(binary[18:20], "little"), 183)  # AArch64
             self.assertTrue(files["Groovenet.sh"].mode & 0o111)
             self.assertTrue(files["groovenet-brick/groovenet-brick"].mode & 0o111)
+            self.assertEqual(read("groovenet-brick/LICENSE"), (ROOT.parents[1] / "LICENSE").read_bytes())
             self.assertIn(b"Permission", read("groovenet-brick/assets/FONT-LICENSE"))
             self.assertEqual(read("groovenet-brick/config.example"), (ROOT / "knulli/config.example").read_bytes())
             for line in read("groovenet-brick/SHA256SUMS").decode().splitlines():
