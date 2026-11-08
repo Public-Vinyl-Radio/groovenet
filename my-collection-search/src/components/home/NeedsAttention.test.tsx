@@ -23,6 +23,8 @@ describe("NeedsAttention", () => {
     expect(
       screen.getByRole("link", { name: "0 tracks missing bpm or key, open Tracks" }).textContent,
     ).toContain("0");
+    // The header row is a heading inside the card and carries no link of its own.
+    expect(screen.getByRole("heading", { name: "NEEDS ATTENTION" })).toBeTruthy();
     expect(screen.getAllByRole("link")).toHaveLength(4);
     expect(screen.queryAllByText("TRACKS →").length > 0).toBe(width === 1280);
     expect(getComputedStyle(screen.getByRole("list")).gridTemplateColumns).toBe(

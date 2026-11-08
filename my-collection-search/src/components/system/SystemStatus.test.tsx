@@ -35,6 +35,7 @@ it("shows services, counts, timings, build and links", async () => {
   expect(screen.getByText("Connection refused")).toBeTruthy();
   expect(screen.getByText("down")).toBeTruthy();
   expect(await screen.findByText("1.2.3")).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 3, name: "BUILD", hidden: true })).toBeTruthy();
   expect(screen.getByRole("link", { name: "abc123", hidden: true }).getAttribute("href")).toContain(
     "/commit/abc123",
   );

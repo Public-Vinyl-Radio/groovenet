@@ -6,7 +6,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Schemes, schemeControls, type SchemeArgs } from "./support/PaletteSchemes";
 
 // The two section components (#991). SectionHeading is the display face at
-// 18/24 (17/22 on phones); SectionLabel is the Labels face in three variants.
+// 18/24 (17/22 on phones); SectionLabel is the Labels face in four variants.
 // Both replace the sixteen looks recorded in Audit/Headers (#958).
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -97,6 +97,18 @@ function Labels() {
           <SectionLabel variant="bar" href="/spins/recap/2026-10" meta="Full recap →">
             October so far
           </SectionLabel>
+        </Box>
+      </Row>
+      <Row label="header (card header row)">
+        <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" mr="6px">
+          <SectionLabel
+            variant="header"
+            meta="last 30 days · least played first · 3 unrated"
+            link={{ href: "/albums", label: "All →" }}
+          >
+            New arrivals
+          </SectionLabel>
+          <Box p={3}>Card content</Box>
         </Box>
       </Row>
     </Stack>

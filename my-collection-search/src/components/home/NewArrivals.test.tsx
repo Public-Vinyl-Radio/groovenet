@@ -84,11 +84,11 @@ describe("NewArrivals", () => {
     expect(screen.getByText("LEAST PLAYED")).toBeTruthy();
   });
 
-  it("links 'All new arrivals' to Albums by date added, newest first", () => {
+  it("puts 'All →' in the header row, linking to Albums by date added, newest first", () => {
     renderWithProviders(<NewArrivals arrivals={HOME_ARRIVALS} friendId={1} now={now} />);
-    // Desktop only, so jsdom hides it and gives it no accessible name: find it by text.
-    const all = screen.getByText("All new arrivals →").closest("a");
-    expect(all?.getAttribute("href")).toBe("/albums?sort=date_added:desc");
+    const all = screen.getByRole("link", { name: "All →" });
+    expect(all.getAttribute("href")).toBe("/albums?sort=date_added:desc");
+    expect(screen.queryByText("All new arrivals →")).toBeNull();
   });
 
   it("shows a placeholder for a missing thumbnail and the image otherwise", () => {
@@ -120,7 +120,8 @@ describe("NewArrivals", () => {
     expect(screen.getByRole("region", { name: "NEW ARRIVALS" }).getAttribute("aria-busy")).toBe(
       "true",
     );
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    // Only the header row's link; the body has none.
+    expect(screen.getAllByRole("link").map((l) => l.textContent)).toEqual(["All →"]);
   });
 
   it("keeps the header and reports the error in the section", () => {

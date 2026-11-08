@@ -49,6 +49,7 @@ it("shows totals, disk, breakdowns and the not-probed hint", async () => {
   expect(screen.getAllByText("Not probed").length).toBe(2);
   expect(screen.getByText(/4 files have no stored metadata/)).toBeTruthy();
   expect(screen.getByText(/FREE 800.00 GB/)).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 3, name: "FREE SPACE" })).toBeTruthy();
 });
 
 it("handles an unreadable volume, no files, and no hint", async () => {

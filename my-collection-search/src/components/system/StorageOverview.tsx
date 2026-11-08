@@ -1,6 +1,7 @@
 "use client";
 import { Box, Flex, Grid, Spinner, Text } from "@chakra-ui/react";
 import type { StorageResponse } from "@groovenet/contracts";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { SourceTag } from "@/components/ui/RoleTags";
 import { fileSources } from "@/components/player/audioQuality";
 import { useStorageInfo } from "@/hooks/useSystemInfo";
@@ -160,12 +161,12 @@ export default function StorageOverview() {
             <Tile label="LOSSLESS FILES" value={String(data.totals.lossless_files)} />
             <Tile label="LOSSLESS SIZE" value={formatBytes(data.totals.lossless_size_bytes)} />
           </Grid>
-          <Box {...outlined} p={4}>
-            <Text fontFamily="mono" fontSize="xs" fontWeight="bold" mb={3}>
+          <Box {...outlined}>
+            <SectionLabel variant="header" level={3}>
               FREE SPACE
-            </Text>
+            </SectionLabel>
             {disk ? (
-              <>
+              <Box p={4}>
                 <Flex
                   role="img"
                   aria-label="Disk usage"
@@ -183,9 +184,9 @@ export default function StorageOverview() {
                   <Text>FREE {formatBytes(disk.free_bytes)}</Text>
                   <Text color="fg.muted">TOTAL {formatBytes(disk.total_bytes)}</Text>
                 </Flex>
-              </>
+              </Box>
             ) : (
-              <Text color="fg.muted" fontSize="sm">
+              <Text p={4} color="fg.muted" fontSize="sm">
                 The audio volume could not be read.
               </Text>
             )}

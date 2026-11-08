@@ -3,7 +3,7 @@
 import React from "react";
 import NextLink from "next/link";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { Box, Flex, Link, Text } from "@chakra-ui/react";
+import { Box, Link, Text } from "@chakra-ui/react";
 import type { HomeResponse } from "@/services/internalApi/home";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import {
@@ -41,10 +41,8 @@ function DraftCard({ set }: { set: DraftSet }) {
       gap="4px"
       px="14px"
       py="12px"
-      borderWidth="outline"
-      borderRadius="md"
+      borderBottomWidth="outline"
       borderColor="border.ink"
-      boxShadow="md"
       bg="accent.subtle"
       color="fg"
       textDecoration="none"
@@ -125,10 +123,6 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       role={role}
       px="14px"
       py={3}
-      borderWidth="outline"
-      borderRadius="md"
-      overflow="clip"
-      borderColor="border.ink"
       fontFamily="mono"
       fontSize="xs"
       letterSpacing="0.06em"
@@ -154,17 +148,7 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
   if (error) {
     body = <Notice role="alert">COULDN&apos;T LOAD PLAYLISTS · {error.toUpperCase()}</Notice>;
   } else if (!playlists || loading) {
-    body = (
-      <Box
-        data-testid="playlists-loading"
-        aria-hidden="true"
-        h="160px"
-        bg="bg.muted"
-        borderWidth="outline"
-        borderRadius="md"
-        borderColor="border.ink"
-      />
-    );
+    body = <Box data-testid="playlists-loading" aria-hidden="true" h="160px" bg="bg.muted" />;
   } else if (!draft && recent.length === 0) {
     body = (
       <Notice>
@@ -179,17 +163,7 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
       <>
         {draft && <DraftCard set={draft} />}
         {recent.length > 0 && (
-          <Box
-            as="ul"
-            role="list"
-            listStyleType="none"
-            m={0}
-            p={0}
-            borderWidth="outline"
-            borderRadius="md"
-            borderColor="border.ink"
-            boxShadow="md"
-          >
+          <Box as="ul" role="list" listStyleType="none" m={0} p={0}>
             {recent.map((playlist, i) => (
               <PlaylistRow
                 key={playlist.id}
@@ -205,33 +179,25 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
   }
 
   return (
-    <Flex
+    <Box
       as="section"
       aria-labelledby="home-playlists-heading"
       aria-busy={loading || (!playlists && !error) || undefined}
-      direction="column"
-      gap={{ base: "10px", md: "12px" }}
       mr="6px"
+      borderWidth="outline"
+      borderRadius="md"
+      borderColor="border.ink"
+      boxShadow="md"
+      overflow="clip"
     >
       <SectionLabel
-        variant="strip"
+        variant="header"
         id="home-playlists-heading"
-        meta={
-          <Link
-            asChild
-            fontFamily="mono"
-            fontSize={{ base: "11px", md: "xs" }}
-            fontWeight="semibold"
-            letterSpacing="0.04em"
-            color="fg"
-          >
-            <NextLink href={ALL_PLAYLISTS_HREF}>All playlists →</NextLink>
-          </Link>
-        }
+        link={{ href: ALL_PLAYLISTS_HREF, label: "All playlists →" }}
       >
         PLAYLISTS & SETS
       </SectionLabel>
       {body}
-    </Flex>
+    </Box>
   );
 }

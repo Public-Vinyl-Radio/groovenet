@@ -409,9 +409,60 @@ export const sectionRecipes = {
         overline: { fontSize: "11px", color: "fg.muted" },
         // The label inside a linked bar; the bar itself is `sectionBar`.
         bar: {},
+        // The label inside a card header row; the row is `sectionHeader`.
+        header: { fontSize: { base: "11px", md: "12px" }, order: 1 },
       },
     },
     defaultVariants: { variant: "overline" },
+  }),
+  // A card header row (#1133): the title of a single card, inside it. A label,
+  // muted meta after it and an optional trailing link. On a phone the label and
+  // link share the first line and the meta wraps to a second muted line.
+  sectionHeader: defineRecipe({
+    className: "section-header",
+    base: {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      columnGap: 3,
+      minH: "44px",
+      px: 3,
+      bg: "bg.subtle",
+      borderBottomWidth: "outline",
+      borderColor: "border.ink",
+    },
+  }),
+  sectionHeaderMeta: defineRecipe({
+    className: "section-header-meta",
+    base: {
+      fontFamily: "label",
+      fontSize: { base: "11px", md: "12px" },
+      lineHeight: "16px",
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
+      color: "fg.muted",
+      order: { base: 3, md: 2 },
+      flexBasis: { base: "100%", md: "auto" },
+      minW: 0,
+      pb: { base: 2, md: 0 },
+      mt: { base: "-6px", md: 0 },
+    },
+  }),
+  sectionHeaderLink: defineRecipe({
+    className: "section-header-link",
+    base: {
+      ...labelType,
+      display: "inline-flex",
+      alignItems: "center",
+      minH: "44px",
+      ml: "auto",
+      order: { base: 2, md: 3 },
+      fontSize: { base: "11px", md: "12px" },
+      color: "fg",
+      textDecoration: "none",
+      whiteSpace: "nowrap",
+      _hover: { textDecoration: "underline" },
+    },
   }),
   // A linked ink bar: label at the start, a trailing label at the end.
   sectionBar: defineRecipe({
