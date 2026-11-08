@@ -6,8 +6,9 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 
 const pathname = vi.hoisted(() => ({ value: "/chore" }));
 vi.mock("next/navigation", () => ({ usePathname: () => pathname.value }));
+const setPaletteOpen = vi.hoisted(() => vi.fn());
 vi.mock("@/providers/CommandPaletteProvider", () => ({
-  useCommandPalette: () => ({ setPaletteOpen: vi.fn() }),
+  useCommandPalette: () => ({ setPaletteOpen }),
 }));
 vi.mock("@/components/CommandPalette", () => ({ default: () => null }));
 const standaloneMode = vi.hoisted(() => ({ value: false }));
@@ -112,6 +113,35 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it.each([false, true])("lists the More tiles with developer tools %s", async (enabled) => {
+    const { user } = renderWithProviders(<AppShell developerToolsEnabled={enabled}>page</AppShell>);
+    await user.click(
+      within(screen.getByTestId("mobile-tab-bar")).getByRole("button", {
+        name: "More",
+        hidden: true,
+      }),
+    );
+    const nav = within(await screen.findByRole("dialog")).getByRole("navigation", { name: "More" });
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual([
+      "Artists",
+      "Playlists",
+      "Jobs",
+      "Chores",
+      "Settings",
+      "System",
+      ...(enabled ? ["Developer"] : []),
+    ]);
+    expect(within(nav).getByRole("link", { name: "Chores" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+    expect(within(nav).queryByRole("button", { name: /Playback/ })).toBeNull();
+    expect(within(nav).getByRole("button", { name: "Search" })).toBeTruthy();
+  });
+
   it("closes More after tapping a link or Search", async () => {
     const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
     const openMore = () =>
@@ -131,6 +161,7 @@ describe("AppShell", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Search" }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "More" })).toBeNull());
+    expect(setPaletteOpen).toHaveBeenCalledWith(true);
   });
 
   it("marks More as the current tab for a page under it, such as Chores", () => {
@@ -349,7 +380,7 @@ describe("AppShell", () => {
       playback.label = "This Mac";
       const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
       await user.click(screen.getByRole("button", { name: /^More$/, hidden: true }));
-      await user.click(await screen.findByText("Playback: This Mac"));
+      await user.click(await screen.findByRole("button", { name: "Playback This Mac" }));
       expect(usePlaybackTargetDialog.getState().open).toBe(true);
     });
   });

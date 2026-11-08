@@ -2,18 +2,9 @@
 
 import React from "react";
 import NextLink from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Box,
-  Button,
-  Flex,
-  Grid,
-  Link,
-  Skeleton,
-  Stack,
-  Text,
-  NativeSelect,
-} from "@chakra-ui/react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Box, Button, Flex, Grid, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { MetaTag } from "@/components/ui/RoleTags";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import AlbumResult from "@/components/AlbumResult";
@@ -42,11 +33,11 @@ export const ALBUM_PREVIEW = 12;
 const TRACK_PREVIEW = 10;
 
 export type AlbumSort = "year" | "title" | "added";
-const SORTS: { value: AlbumSort; label: string }[] = [
-  { value: "year", label: "Year" },
-  { value: "title", label: "Title" },
-  { value: "added", label: "Recently added" },
-];
+const VIEWS = [
+  { value: "all", label: "ALL" },
+  { value: "tracks", label: "TRACKS" },
+  { value: "albums", label: "ALBUMS" },
+] as const;
 
 type AlbumRef = {
   release_id: string;
@@ -152,25 +143,41 @@ function ArtistContent({
   const { artist, counts, aliases } = page;
   const { layout, viewMode, setViewMode, isMobile } = useTrackViewMode();
   const { replacePlaylist } = usePlaybackPlayer();
-  const [sort, setSort] = React.useState<AlbumSort>("year");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedView = searchParams.get("view");
+  const view =
+    page.top_tracks.length &&
+    page.albums.length &&
+    (requestedView === "tracks" || requestedView === "albums")
+      ? requestedView
+      : "all";
+  const setView = (next: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "all") params.delete("view");
+    else params.set("view", next);
+    const query = params.toString();
+    router.push(`${window.location.pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  };
   const [showAllAlbums, setShowAllAlbums] = React.useState(false);
   const [showAllTracks, setShowAllTracks] = React.useState(false);
   const [problem, setProblem] = React.useState<string | null>(null);
 
   const credited = sortAlbums(
     page.albums.filter((album) => album.appears_on_tracks === 0),
-    sort,
+    "year",
   );
   const appearsOn = sortAlbums(
     page.albums.filter((album) => album.appears_on_tracks > 0),
-    sort,
+    "year",
   );
   // An artist credited only on tracks gets the Appears on grid in place of an empty Albums one.
   const sections = [
     credited.length > 0 && { key: "albums", title: "Albums", albums: credited },
     appearsOn.length > 0 && { key: "appears", title: "Appears on", albums: appearsOn },
   ].filter((section) => section !== false);
-  const tracks = showAllTracks ? page.top_tracks : page.top_tracks.slice(0, TRACK_PREVIEW);
+  const tracks =
+    showAllTracks || view === "tracks" ? page.top_tracks : page.top_tracks.slice(0, TRACK_PREVIEW);
   const isEmpty = page.albums.length === 0 && page.top_tracks.length === 0;
   const years =
     counts.year_min === null
@@ -248,7 +255,46 @@ function ArtistContent({
           <Stat label="Tracks" value={counts.tracks.toLocaleString()} />
           <Stat label="Spins" value={counts.spins.toLocaleString()} />
           <Stat label="Years" value={years} />
+          {page.genres.length > 0 && (
+            <Box
+              gridColumn="1 / -1"
+              borderTopWidth="rule"
+              borderColor="border"
+              px={{ base: 3, md: 4 }}
+              py={3}
+            >
+              <Text
+                as="dt"
+                fontFamily="label"
+                fontSize="xs"
+                color="fg.muted"
+                textTransform="uppercase"
+              >
+                Genres
+              </Text>
+              <Flex as="dd" gap={2} wrap="wrap" mt={2}>
+                {page.genres.map((genre) => (
+                  <MetaTag key={genre.id} asChild>
+                    <NextLink href={genreHref(genre.slug)}>
+                      {genre.name} · {genre.track_count}
+                    </NextLink>
+                  </MetaTag>
+                ))}
+              </Flex>
+            </Box>
+          )}
         </Grid>
+        {page.top_tracks.length > 0 && page.albums.length > 0 && (
+          <SegmentedControl
+            framed
+            aria-label="Artist content"
+            items={VIEWS}
+            value={view}
+            onValueChange={setView}
+            w={{ base: "full", md: "auto" }}
+            alignSelf="start"
+          />
+        )}
         {problem && (
           <Text role="alert" color="fg.error">
             {problem}
@@ -264,123 +310,97 @@ function ArtistContent({
           >
             <Stack gap={7} minW={0}>
               {/* Phones: Top tracks above Albums. */}
-              <Stack as="section" aria-label="Top tracks" gap={3}>
-                <Flex justify="space-between" align="center" gap={3}>
-                  <SectionHeading>
-                    Top tracks{" "}
-                    <Text as="span" fontSize="sm" color="fg.muted">
-                      {page.top_tracks_by === "spins" ? "by spins" : "from the albums"}
-                    </Text>
-                  </SectionHeading>
-                  {!isMobile && (
-                    <Flex>
-                      <TrackViewToggle value={viewMode} onChange={setViewMode} />
-                    </Flex>
-                  )}
-                </Flex>
-                <Box
-                  borderWidth={layout === "row" ? "outline" : 0}
-                  borderRadius="md"
-                  borderColor="border.ink"
-                  boxShadow={layout === "row" ? "md" : "none"}
-                  css={{ containerType: "inline-size" }}
-                >
-                  {tracks.map((ref) => (
-                    <TrackRow
-                      key={`${ref.track_id}:${ref.friend_id}`}
-                      trackId={ref.track_id}
-                      friendId={ref.friend_id}
-                      layout={layout}
-                    />
-                  ))}
-                </Box>
-                {!showAllTracks && page.top_tracks.length > TRACK_PREVIEW && (
-                  <Button alignSelf="start" minH="44px" onClick={() => setShowAllTracks(true)}>
-                    Show all {page.top_tracks.length} tracks
-                  </Button>
-                )}
-              </Stack>
-              {sections.map((section, index) => {
-                const shown =
-                  showAllAlbums || section.albums.length <= ALBUM_PREVIEW
-                    ? section.albums
-                    : section.albums.slice(0, ALBUM_PREVIEW);
-                return (
-                  <Stack as="section" key={section.key} aria-label={section.title} gap={3}>
-                    <Flex justify="space-between" align="center" gap={3}>
-                      <SectionHeading>
-                        {section.title} [{section.albums.length.toLocaleString()}]
-                      </SectionHeading>
-                      {index === 0 && (
-                        <NativeSelect.Root size="sm" w="auto">
-                          <NativeSelect.Field
-                            aria-label="Sort albums"
-                            value={sort}
-                            onChange={(e) => setSort(e.target.value as AlbumSort)}
-                          >
-                            {SORTS.map((item) => (
-                              <option key={item.value} value={item.value}>
-                                {item.label}
-                              </option>
-                            ))}
-                          </NativeSelect.Field>
-                          <NativeSelect.Indicator />
-                        </NativeSelect.Root>
-                      )}
-                    </Flex>
-                    <Grid
-                      templateColumns={{
-                        base: "repeat(2, minmax(0, 1fr))",
-                        lg: "repeat(3, minmax(0, 1fr))",
-                      }}
-                      gap={5}
-                      p="0 6px 6px 0"
-                    >
-                      {shown.map((album) => (
-                        <Stack key={`${album.release_id}:${album.friend_id}`} gap={1} minW={0}>
-                          <AlbumResult
-                            albumRef={{ release_id: album.release_id, friend_id: album.friend_id }}
-                            layout="cover"
-                          />
-                          {album.appears_on_tracks > 0 && (
-                            <MetaTag alignSelf="start">
-                              Appears on · {album.appears_on_tracks}{" "}
-                              {album.appears_on_tracks === 1 ? "track" : "tracks"}
-                              {album.appears_on_positions.filter(Boolean).length > 0 &&
-                                ` · ${album.appears_on_positions.filter(Boolean).join(", ")}`}
-                            </MetaTag>
-                          )}
-                        </Stack>
-                      ))}
-                    </Grid>
-                  </Stack>
-                );
-              })}
-              {!showAllAlbums && page.albums.length > ALBUM_PREVIEW && (
+              {view !== "albums" && (
+                <Stack as="section" aria-label="Top tracks" gap={3}>
+                  <Flex justify="space-between" align="center" gap={3}>
+                    <SectionHeading>
+                      Top tracks{" "}
+                      <Text as="span" fontSize="sm" color="fg.muted">
+                        {page.top_tracks_by === "spins" ? "by spins" : "from the albums"}
+                      </Text>
+                    </SectionHeading>
+                    {!isMobile && (
+                      <Flex>
+                        <TrackViewToggle value={viewMode} onChange={setViewMode} />
+                      </Flex>
+                    )}
+                  </Flex>
+                  <Box
+                    borderWidth={layout === "row" ? "outline" : 0}
+                    borderRadius="md"
+                    borderColor="border.ink"
+                    boxShadow={layout === "row" ? "md" : "none"}
+                    css={{ containerType: "inline-size" }}
+                  >
+                    {tracks.map((ref) => (
+                      <TrackRow
+                        key={`${ref.track_id}:${ref.friend_id}`}
+                        trackId={ref.track_id}
+                        friendId={ref.friend_id}
+                        layout={layout}
+                      />
+                    ))}
+                  </Box>
+                  {view !== "tracks" &&
+                    !showAllTracks &&
+                    page.top_tracks.length > TRACK_PREVIEW && (
+                      <Button alignSelf="start" minH="44px" onClick={() => setShowAllTracks(true)}>
+                        Show all {page.top_tracks.length} tracks
+                      </Button>
+                    )}
+                </Stack>
+              )}
+              {view !== "tracks" &&
+                sections.map((section) => {
+                  const shown =
+                    view === "albums" || showAllAlbums || section.albums.length <= ALBUM_PREVIEW
+                      ? section.albums
+                      : section.albums.slice(0, ALBUM_PREVIEW);
+                  return (
+                    <Stack as="section" key={section.key} aria-label={section.title} gap={3}>
+                      <Flex justify="space-between" align="center" gap={3}>
+                        <SectionHeading>
+                          {section.title} [{section.albums.length.toLocaleString()}]
+                        </SectionHeading>
+                      </Flex>
+                      <Grid
+                        templateColumns={{
+                          base: "repeat(2, minmax(0, 1fr))",
+                          lg: "repeat(3, minmax(0, 1fr))",
+                        }}
+                        gap={5}
+                        p="0 6px 6px 0"
+                      >
+                        {shown.map((album) => (
+                          <Stack key={`${album.release_id}:${album.friend_id}`} gap={1} minW={0}>
+                            <AlbumResult
+                              albumRef={{
+                                release_id: album.release_id,
+                                friend_id: album.friend_id,
+                              }}
+                              layout="cover"
+                            />
+                            {album.appears_on_tracks > 0 && (
+                              <MetaTag alignSelf="start">
+                                Appears on · {album.appears_on_tracks}{" "}
+                                {album.appears_on_tracks === 1 ? "track" : "tracks"}
+                                {album.appears_on_positions.filter(Boolean).length > 0 &&
+                                  ` · ${album.appears_on_positions.filter(Boolean).join(", ")}`}
+                              </MetaTag>
+                            )}
+                          </Stack>
+                        ))}
+                      </Grid>
+                    </Stack>
+                  );
+                })}
+              {view === "all" && !showAllAlbums && page.albums.length > ALBUM_PREVIEW && (
                 <Button alignSelf="start" minH="44px" onClick={() => setShowAllAlbums(true)}>
                   Show all {page.albums.length} albums
                 </Button>
               )}
             </Stack>
             <Stack as="aside" aria-label="Artist insights" gap={7} minW={0} pe={1.5}>
-              <Stack as="section" aria-label="Genres" gap={2}>
-                <SectionHeading>Genres</SectionHeading>
-                {page.genres.length === 0 ? (
-                  <Text color="fg.muted" fontSize="sm">
-                    No genres yet.
-                  </Text>
-                ) : (
-                  <Flex gap={2} wrap="wrap">
-                    {page.genres.map((genre) => (
-                      <MetaTag key={genre.id} asChild>
-                        <NextLink href={genreHref(genre.slug)}>
-                          {genre.name} · {genre.track_count}
-                        </NextLink>
-                      </MetaTag>
-                    ))}
-                  </Flex>
-                )}
-              </Stack>
               <Stack as="section" aria-label="Collaborators" gap={2}>
                 <SectionHeading>Collaborators</SectionHeading>
                 {page.collaborators.length === 0 ? (

@@ -7,7 +7,28 @@ import { MetaTag, SourceTag, StatusTag } from "@/components/ui/RoleTags";
 import type { Track } from "@/types/track";
 import { fileInfo, fileSources } from "./audioQuality";
 
-export function FileInfoDetails({ track, fullPath = false }: { track: Track; fullPath?: boolean }) {
+export function FileInfoDetails({
+  track,
+  fullPath = false,
+  onReprobe,
+}: {
+  track: Track;
+  fullPath?: boolean;
+  onReprobe?: () => Promise<void>;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function reprobe() {
+    setPending(true);
+    setError(null);
+    try {
+      await onReprobe?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Re-probe failed");
+    } finally {
+      setPending(false);
+    }
+  }
   const info = fileInfo(track);
   const source = fileSources[info.source];
   return (
@@ -51,6 +72,16 @@ export function FileInfoDetails({ track, fullPath = false }: { track: Track; ful
           Probed {new Date(track.audio_probed_at).toLocaleString()}
         </Text>
       )}
+      {onReprobe && (
+        <Button mt={3} minH="44px" loading={pending} onClick={() => void reprobe()}>
+          Re-probe
+        </Button>
+      )}
+      {error && (
+        <Text role="alert" color="fg.error" mt={3}>
+          {error}
+        </Text>
+      )}
       {!fullPath && (
         <Link asChild mt={3} minH="44px">
           <NextLink
@@ -70,8 +101,24 @@ const touchTarget = {
   _before: { content: '""', position: "absolute", inset: "-12px", bg: "transparent" },
 } as const;
 
-export default function FileInfo({ track, mobile = false }: { track: Track; mobile?: boolean }) {
-  const [open, setOpen] = useState(false);
+export default function FileInfo({
+  track,
+  mobile = false,
+  fullPath = false,
+  onReprobe,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  track: Track;
+  mobile?: boolean;
+  fullPath?: boolean;
+  onReprobe?: () => Promise<void>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const info = fileInfo(track);
   const badge = (
     <MetaTag
@@ -111,7 +158,7 @@ export default function FileInfo({ track, mobile = false }: { track: Track; mobi
                 </Drawer.CloseTrigger>
               </Flex>
               <Drawer.Body p={0} overflowY="auto">
-                <FileInfoDetails track={track} />
+                <FileInfoDetails track={track} fullPath={fullPath} onReprobe={onReprobe} />
               </Drawer.Body>
             </Drawer.Content>
           </Drawer.Positioner>
@@ -149,7 +196,7 @@ export default function FileInfo({ track, mobile = false }: { track: Track; mobi
                 </Button>
               </Popover.CloseTrigger>
             </Flex>
-            <FileInfoDetails track={track} />
+            <FileInfoDetails track={track} fullPath={fullPath} onReprobe={onReprobe} />
           </Popover.Content>
         </Popover.Positioner>
       </Portal>

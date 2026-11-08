@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Album } from "@/types/track";
+import { TRACK_CARD_COVER_SIZE, TRACK_ROW_COVER_SIZE } from "@/components/TrackResult";
 
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
@@ -235,6 +236,15 @@ describe("AlbumResult full actions", () => {
 });
 
 describe("AlbumResult card", () => {
+  it("sizes the cover like a track card and keeps it at the top", () => {
+    renderWithProviders(<AlbumResult album={full} />);
+    const wrap = screen.getByTestId("album-card").firstElementChild as HTMLElement;
+    const cover = wrap.firstElementChild as HTMLElement;
+    expect(getComputedStyle(wrap).alignSelf).toBe("start");
+    expect(getComputedStyle(cover).width).toBe(TRACK_CARD_COVER_SIZE.base);
+    expect(getComputedStyle(cover).height).toBe(TRACK_CARD_COVER_SIZE.base);
+  });
+
   it("shows label, country and year, the meta line and the genre tags", () => {
     renderWithProviders(<AlbumResult album={full} missingTags={["missing_audio"]} />);
     expect(screen.getByTestId("album-card")).toBeTruthy();
@@ -290,6 +300,18 @@ describe("AlbumResult card", () => {
 });
 
 describe("AlbumResult row", () => {
+  it("sizes the cover like a track row", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult album={full} layout="row" />
+      </AlbumTable>,
+    );
+    const cover = screen.getByTestId("album-row").querySelector("[data-cover-placeholder], img")
+      ?.parentElement as HTMLElement;
+    expect(cover).toBeTruthy();
+    expect(getComputedStyle(cover).width).toBe(TRACK_ROW_COVER_SIZE.base);
+  });
+
   it("keeps every genre tag", () => {
     renderWithProviders(
       <AlbumTable>

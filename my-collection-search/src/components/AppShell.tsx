@@ -12,7 +12,7 @@ import {
   VStack,
   Icon,
   Button,
-  Stack,
+  Grid,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import RetroDialog from "@/components/ui/RetroDialog";
@@ -28,6 +28,7 @@ import {
   FiHome,
   FiServer,
 } from "react-icons/fi";
+import type { IconType } from "react-icons";
 import { TbPlaylist } from "react-icons/tb";
 import { LuCloudDownload, LuMicVocal, LuTags } from "react-icons/lu";
 import { IoBookSharp, IoMusicalNotes, IoSettings, IoAlbums } from "react-icons/io5";
@@ -72,6 +73,56 @@ function getItemIcon(href: string) {
   if (href === "/chore") return FiDroplet;
   if (href === "/developer") return FiCode;
   return IoBookSharp;
+}
+
+function NavTile({
+  icon,
+  label,
+  active = false,
+  labels = "always",
+  detail,
+}: {
+  icon: IconType;
+  label: string;
+  active?: boolean;
+  labels?: "always" | "selected" | "never";
+  detail?: string;
+}) {
+  return (
+    <VStack
+      w="full"
+      minW={0}
+      minH="44px"
+      gap={1}
+      py={1.5}
+      px={1}
+      justify="center"
+      borderWidth="outline"
+      borderRadius="md"
+      borderColor={active ? "border.ink" : "transparent"}
+      bg={active ? "bg.subtle" : "transparent"}
+    >
+      <Icon as={icon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
+      {labels !== "never" && (
+        <Text
+          fontFamily="label"
+          fontSize="xs"
+          fontWeight={active ? "semibold" : "medium"}
+          color={active ? "fg" : "fg.muted"}
+          lineHeight="1"
+          visibility={labels === "selected" && !active ? "hidden" : undefined}
+          aria-hidden={labels === "selected" && !active ? true : undefined}
+        >
+          {label}
+        </Text>
+      )}
+      {detail && (
+        <Text fontFamily="label" fontSize="xs" color="fg.muted" maxW="full" truncate title={detail}>
+          {detail}
+        </Text>
+      )}
+    </VStack>
+  );
 }
 
 function isActiveRoute(currentPath: string, href: string) {
@@ -358,17 +409,18 @@ export default function AppShell({
 
       {/* Mobile More menu: a RetroDialog like every other phone modal */}
       <RetroDialog open={drawerOpen} onOpenChange={setDrawerOpen} title="More">
-        <Stack
+        <Grid
           as="nav"
           aria-label="More"
-          gap={0}
+          templateColumns="repeat(3, minmax(0, 1fr))"
+          gap={1}
           m={4}
+          p={1}
           borderWidth="outline"
           borderColor="border.ink"
         >
           {secondaryMobileMenuItems.map((item) => {
             const active = isActiveRoute(current, item.href);
-            const ItemIcon = getItemIcon(item.href);
             return (
               <Link
                 key={item.href}
@@ -376,66 +428,41 @@ export default function AppShell({
                 href={item.href}
                 onClick={() => setDrawerOpen(false)}
                 aria-current={active ? "page" : undefined}
-                _hover={{ textDecoration: "none", bg: "bg.subtle" }}
-                px={4}
-                minH="44px"
+                minW={0}
+                minH="80px"
                 display="flex"
-                alignItems="center"
-                borderTopWidth="rule"
-                borderColor="border"
-                css={{ "&:first-of-type": { borderTopWidth: 0 } }}
-                bg={active ? "bg.subtle" : undefined}
+                borderRadius="md"
+                _hover={{ textDecoration: "none", bg: "bg.subtle" }}
               >
-                <HStack gap={3} align="center">
-                  <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
-                  <Text fontWeight={active ? "bold" : "normal"}>{item.label}</Text>
-                </HStack>
+                <NavTile icon={getItemIcon(item.href)} label={item.label} active={active} />
               </Link>
             );
           })}
           {playbackLabel !== null && (
             <Box
               as="button"
+              minW={0}
+              minH="80px"
               onClick={() => {
                 openPlaybackDialog(true);
                 setDrawerOpen(false);
               }}
-              textAlign="left"
-              px={4}
-              minH="44px"
-              display="flex"
-              alignItems="center"
-              borderTopWidth="rule"
-              borderColor="border"
-              _hover={{ bg: "bg.subtle" }}
             >
-              <HStack gap={3} align="center">
-                <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
-                <Text>Playback: {playbackLabel}</Text>
-              </HStack>
+              <NavTile icon={FiSpeaker} label="Playback" detail={playbackLabel} />
             </Box>
           )}
           <Box
             as="button"
+            minW={0}
+            minH="80px"
             onClick={() => {
               setPaletteOpen(true);
               setDrawerOpen(false);
             }}
-            textAlign="left"
-            px={4}
-            minH="44px"
-            display="flex"
-            alignItems="center"
-            borderTopWidth="rule"
-            borderColor="border"
-            _hover={{ bg: "bg.subtle" }}
           >
-            <HStack gap={3} align="center">
-              <Icon as={FiSearch} boxSize={5} color="fg.muted" />
-              <Text>Search</Text>
-            </HStack>
+            <NavTile icon={FiSearch} label="Search" />
           </Box>
-        </Stack>
+        </Grid>
       </RetroDialog>
 
       {/* Mobile bottom navigation */}
@@ -483,34 +510,7 @@ export default function AppShell({
                 flex="1 1 0"
                 _hover={{ textDecoration: "none" }}
               >
-                <VStack
-                  w="full"
-                  gap={1}
-                  py={1.5}
-                  px={1}
-                  minH={tabLabels === "never" ? "44px" : undefined}
-                  justify="center"
-                  borderWidth="outline"
-                  borderRadius="md"
-                  borderColor={active ? "border.ink" : "transparent"}
-                  bg={active ? "bg.subtle" : "transparent"}
-                >
-                  <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
-                  {tabLabels !== "never" && (
-                    <Text
-                      fontFamily="label"
-                      fontSize="xs"
-                      fontWeight={active ? "semibold" : "medium"}
-                      color={active ? "fg" : "fg.muted"}
-                      lineHeight="1"
-                      // Hidden, not removed, so the icon keeps its place.
-                      visibility={tabLabels === "selected" && !active ? "hidden" : undefined}
-                      aria-hidden={tabLabels === "selected" && !active ? true : undefined}
-                    >
-                      {item.label}
-                    </Text>
-                  )}
-                </VStack>
+                <NavTile icon={ItemIcon} label={item.label} active={active} labels={tabLabels} />
               </Link>
             );
           })}
@@ -522,34 +522,10 @@ export default function AppShell({
             aria-label={tabLabels === "always" ? undefined : "More"}
             flex="1 1 0"
             h="auto"
-            minH={tabLabels === "never" ? "44px" : undefined}
-            py={1.5}
-            px={1}
-            borderWidth="outline"
-            borderRadius="md"
-            borderColor={moreActive ? "border.ink" : "transparent"}
-            bg={moreActive ? "bg.subtle" : "transparent"}
+            minH="44px"
+            p={0}
           >
-            <VStack gap={1}>
-              <Icon
-                as={FiMoreHorizontal}
-                boxSize={5}
-                color={moreActive ? "accent.fg" : "fg.muted"}
-              />
-              {tabLabels !== "never" && (
-                <Text
-                  fontFamily="label"
-                  fontSize="xs"
-                  fontWeight={moreActive ? "semibold" : "medium"}
-                  color={moreActive ? "fg" : "fg.muted"}
-                  lineHeight="1"
-                  visibility={tabLabels === "selected" && !moreActive ? "hidden" : undefined}
-                  aria-hidden={tabLabels === "selected" && !moreActive ? true : undefined}
-                >
-                  More
-                </Text>
-              )}
-            </VStack>
+            <NavTile icon={FiMoreHorizontal} label="More" active={moreActive} labels={tabLabels} />
           </Button>
         </Flex>
       </Box>

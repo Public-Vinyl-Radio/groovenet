@@ -1,6 +1,8 @@
 "use client";
 
-import FileSection from "@/components/track-detail/FileSection";
+import { FiPlay } from "react-icons/fi";
+import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
+import { reprobeTrackAudio } from "@/services/internalApi/tracks";
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Box, Skeleton, Text, VStack, useBreakpointValue } from "@chakra-ui/react";
@@ -31,6 +33,8 @@ export default function TrackPage() {
   const { friend: currentUserFriend } = useUsername();
   const showUsername = friendId !== currentUserFriend?.id;
   const [debugOpen, setDebugOpen] = useState(false);
+  const [fileInfoOpen, setFileInfoOpen] = useState(false);
+  const { replacePlaylist } = usePlaybackPlayer();
   const [artworkOpen, setArtworkOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
 
@@ -63,6 +67,7 @@ export default function TrackPage() {
         track={track}
         prominent={prominent}
         onOpenTrackDebug={() => setDebugOpen(true)}
+        onOpenFileInfo={() => setFileInfoOpen(true)}
         onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
       />
     );
@@ -77,6 +82,17 @@ export default function TrackPage() {
           </PageHeader.Title>
           {/* The menu sits in the header at both widths, not in the card. */}
           <PageHeader.Actions
+            actions={[
+              {
+                label: "Play",
+                icon: <FiPlay />,
+                primary: true,
+                phone: "icon",
+                disabled: !track.local_audio_url,
+                title: track.local_audio_url ? undefined : "No audio file for this track",
+                onClick: () => replacePlaylist([track], { autoplay: true, startIndex: 0 }),
+              },
+            ]}
             phone={isMobile ? trackMenu(true) : undefined}
             desktop={isMobile ? undefined : trackMenu(false)}
           />
@@ -121,14 +137,13 @@ export default function TrackPage() {
                 friendId={friendId}
                 fallbackTrack={trackQuery.data}
                 showUsername={showUsername}
-                menuInPageHeader
-                onOpenTrackDebug={() => setDebugOpen(true)}
-                onChangeArtwork={
-                  trackQuery.data.release_id ? () => setArtworkOpen(true) : undefined
-                }
+                fileInfoOpen={fileInfoOpen}
+                onFileInfoOpenChange={setFileInfoOpen}
+                onReprobe={async () => {
+                  const updated = await reprobeTrackAudio(trackQuery.data);
+                  useTrackStore.getState().setTrack(updated);
+                }}
               />
-
-              {track && <FileSection key={`${track.friend_id}:${track.track_id}`} track={track} />}
 
               <TrackPlaylistsSection query={playlistsQuery} />
 

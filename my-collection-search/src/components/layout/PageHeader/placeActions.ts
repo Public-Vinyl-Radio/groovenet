@@ -4,6 +4,7 @@ import type React from "react";
 export type HeaderAction = {
   /** The desktop button's text; the phone icon's accessible name. */
   label: string;
+  title?: string;
   /** Needed for a phone icon; shown before the label on desktop. */
   icon?: React.ReactNode;
   onClick: () => void;
