@@ -71,8 +71,14 @@ export default function FileInfo({ track, mobile = false }: { track: Track; mobi
     <MetaTag
       asChild
       variant={info.lossless ? "lossless" : "plain"}
-      minH={mobile ? "44px" : undefined}
       cursor="pointer"
+      // Phones keep the standard 20px tag with a 44px invisible hit area.
+      position={mobile ? "relative" : undefined}
+      _before={
+        mobile
+          ? { content: '""', position: "absolute", inset: "-12px", bg: "transparent" }
+          : undefined
+      }
     >
       <button type="button" aria-label={`File info: ${info.label}`}>
         {info.label}

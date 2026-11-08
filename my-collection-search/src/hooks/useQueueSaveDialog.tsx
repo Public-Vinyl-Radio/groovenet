@@ -4,16 +4,17 @@ import React from "react";
 import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { toaster } from "@/components/ui/toaster";
 import { importPlaylist } from "@/services/internalApi/playlists";
-import { usePlaylistPlayer } from "@/providers/PlaylistPlayerProvider";
+import { usePlayerControlsController } from "@/components/player/usePlayerControlsController";
 
 /**
  * Hook for save queue as playlist dialog
- * Works directly with queue data from PlaylistPlayerProvider
+ * Saves the queue the panel shows: the server session in server mode, the local
+ * queue otherwise.
  */
 export function useQueueSaveDialog() {
   const [open, setOpen] = React.useState(false);
   const [playlistName, setPlaylistName] = React.useState("");
-  const { playlist } = usePlaylistPlayer();
+  const { playlist } = usePlayerControlsController();
 
   const onConfirm = React.useCallback(
     async (finalName: string) => {
@@ -33,7 +34,6 @@ export function useQueueSaveDialog() {
           track_id: track.track_id,
           friend_id: track.friend_id,
         }));
-        console.log("Saving queue as playlist with tracks:", tracksWithFriendId);
 
         await importPlaylist(finalName.trim(), tracksWithFriendId);
 
@@ -59,7 +59,7 @@ export function useQueueSaveDialog() {
         trackCount={playlist.length}
         onConfirm={onConfirm}
         onCancel={onCancel}
-        confirmLabel="Save Queue as Playlist"
+        confirmLabel="Save playlist"
       />
     ),
     [open, playlistName, playlist.length, onConfirm, onCancel],

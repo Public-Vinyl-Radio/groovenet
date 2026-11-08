@@ -820,7 +820,9 @@ export const globalCss: Record<string, SystemStyleObject> = {
   // line, 68px row). Desktop has no tab bar and a 92px docked bar. `data-player`
   // is set while a queue is loaded; `data-tabbar-hidden` on fullscreen edit
   // routes; `data-queue-panel` while the desktop queue panel is open, which
-  // the content makes room for (`--queue-w`).
+  // sizes the panel (`--queue-panel-w`). The content only makes room for it
+  // (`--queue-w`) when `data-queue-docked` is also set and the viewport is xl
+  // or wider; between md and xl the panel overlays the page.
   html: {
     "--safe-top": "env(safe-area-inset-top, 0px)",
     "--safe-bottom": "env(safe-area-inset-bottom, 0px)",
@@ -828,6 +830,7 @@ export const globalCss: Record<string, SystemStyleObject> = {
     "--player-h": "0px",
     "--chrome-bottom": "calc(var(--tabbar-h) + var(--player-h))",
     "--queue-w": "0px",
+    "--queue-panel-w": "0px",
     // PageHeader (phones): the sticky bar's height, and the shell's top padding,
     // which the bar replaces once a page mounts one (`data-page-header`).
     "--header-h": "52px",
@@ -839,7 +842,11 @@ export const globalCss: Record<string, SystemStyleObject> = {
     "@media (min-width: 768px)": {
       "--tabbar-h": "0px",
       "&[data-player]": { "--player-h": "92px" },
-      "&[data-queue-panel]": { "--queue-w": "400px" },
+      "&[data-queue-panel]": { "--queue-panel-w": "400px" },
+    },
+    // Wide enough to dock: the panel pushes the content. Below this it overlays.
+    "@media (min-width: 1280px)": {
+      "&[data-queue-docked]": { "--queue-w": "400px" },
     },
   },
   ":focus-visible": {

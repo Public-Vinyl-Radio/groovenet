@@ -86,6 +86,53 @@ describe("AppShell", () => {
     ).toBe("/system");
   });
 
+  it("opens More as a RetroDialog: titled MORE, current row marked, a row closes it", async () => {
+    pathname.value = "/system";
+    const { user } = renderWithProviders(<AppShell developerToolsEnabled={false}>page</AppShell>);
+    await user.click(
+      within(screen.getByTestId("mobile-tab-bar")).getByRole("button", {
+        name: "More",
+        hidden: true,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("More")).toBeTruthy();
+    expect(within(dialog).queryByText("Navigation and tools")).toBeNull();
+    expect(
+      within(dialog)
+        .getByRole("link", { name: /System/ })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      within(dialog)
+        .getByRole("link", { name: /Settings/ })
+        .getAttribute("aria-current"),
+    ).toBe(null);
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("closes More after tapping a link or Search", async () => {
+    const { user } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+    const openMore = () =>
+      user.click(
+        within(screen.getByTestId("mobile-tab-bar")).getByRole("button", {
+          name: "More",
+          hidden: true,
+        }),
+      );
+    await openMore();
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("link", { name: /Settings/ }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await openMore();
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Search" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "More" })).toBeNull());
+  });
+
   it("marks More as the current tab for a page under it, such as Chores", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
     const tabBar = screen.getByTestId("mobile-tab-bar");

@@ -30,6 +30,13 @@ describe("File info", () => {
     await user.click(await screen.findByRole("button", { name: /close/i }));
     await waitFor(() => expect(screen.queryByRole("button", { name: /close/i })).toBeNull());
   });
+  it("keeps the mobile tag at standard size with an invisible touch area", () => {
+    renderWithProviders(<FileInfo track={track} mobile />);
+    const button = screen.getByRole("button", { name: "File info: ALAC 24/96" });
+    const tag = button.closest("[class]") as HTMLElement;
+    expect(getComputedStyle(tag).minHeight).not.toBe("44px");
+    expect(getComputedStyle(button).minHeight).not.toBe("44px");
+  });
   it("shows the full path and pending metadata without a track link", () => {
     renderWithProviders(
       <FileInfoDetails

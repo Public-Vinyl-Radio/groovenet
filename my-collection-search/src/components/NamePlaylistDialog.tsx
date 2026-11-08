@@ -47,9 +47,14 @@ export default function NamePlaylistDialog({
       onOpenChange={(nextOpen) => !nextOpen && handleCancel()}
       title="Name Playlist"
       initialFocusEl={() => inputRef.current}
-
       footer={
-        <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
+        // Phones stack full width, primary on top; desktop is one row, Cancel left.
+        <Flex
+          p={4}
+          gap={2}
+          direction={{ base: "column", md: "row-reverse" }}
+          justify={{ md: "flex-start" }}
+        >
           <Button
             minH="44px"
             onClick={handleConfirm}
@@ -58,7 +63,7 @@ export default function NamePlaylistDialog({
           >
             {confirmLabel}
           </Button>
-          <Button minH="44px" ml={2} variant="ghost" onClick={handleCancel}>
+          <Button minH="44px" variant="ghost" onClick={handleCancel}>
             Cancel
           </Button>
         </Flex>

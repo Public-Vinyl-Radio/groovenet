@@ -225,8 +225,10 @@ an invalid value the browser drops, so it fails silently.
   range, square ink thumb, named for keyboard and screen readers. Times and
   meta (`A1 · 134 BPM · 7A`) are mono. Phones: mini player, then a full-screen
   Now playing / queue; desktop: a bar docked full width under the sidebar, and
-  a 400px queue panel that sets `data-queue-panel` (`--queue-w`, which the
-  shell's content padding makes room for). Clearing the queue is one tap and an
+  a 400px queue panel that sets `data-queue-panel` (`--queue-panel-w`). From xl
+  (1280px) it also sets `data-queue-docked` (`--queue-w`, which the shell's
+  content padding makes room for); between md and xl it overlays the page with
+  a scrim instead of squeezing it. Clearing the queue is one tap and an
   Undo toast, never a dialog.
 - **App shell (iOS PWA):** `viewport-fit=cover` + `black-translucent`, so the page
   draws under the status bar; an opaque `--safe-top` strip in `AppShell` caps it.
@@ -379,9 +381,8 @@ an invalid value the browser drops, so it fails silently.
   "B2", "LP-342"), no emoji in the UI.
 - **Layout:** every page sits in `PageContainer`, one 1360px width with no size
   option, so page edges line up across the app (constrain a form or block
-  inside the page, never the container); phones use `RetroDialog` modals for filters, menus and
-  forms, and the bottom drawer for navigation. `QueueDrawer` is the other
-  intentional drawer.
+  inside the page, never the container); phones use `RetroDialog` modals for filters, menus, forms
+  and the More navigation menu. `QueueDrawer` is the only intentional drawer.
 
 ## How to extend safely
 
