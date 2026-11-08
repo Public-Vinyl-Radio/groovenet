@@ -333,6 +333,7 @@ describe("font blocks", () => {
     expect(html["--player-h"]).toBe("0px");
     expect(html["--chrome-bottom"]).toBe("calc(var(--tabbar-h) + var(--player-h))");
     expect(html["--queue-w"]).toBe("0px");
+    expect(html["--queue-panel-w"]).toBe("0px");
     expect(html["&[data-player]"]).toEqual({ "--player-h": "74px" });
     expect(html["&[data-tabbar-hidden]"]).toEqual({ "--tabbar-h": "0px" });
     expect(html["&[data-tabbar-labels='never']"]).toEqual({
@@ -342,7 +343,10 @@ describe("font blocks", () => {
       "--tabbar-h": "0px",
       "&[data-tabbar-labels='never']": { "--tabbar-h": "0px" },
       "&[data-player]": { "--player-h": "92px" },
-      "&[data-queue-panel]": { "--queue-w": "400px" },
+      "&[data-queue-panel]": { "--queue-panel-w": "400px" },
+    });
+    expect(html["@media (min-width: 1280px)"]).toEqual({
+      "&[data-queue-docked]": { "--queue-w": "400px" },
     });
   });
 });

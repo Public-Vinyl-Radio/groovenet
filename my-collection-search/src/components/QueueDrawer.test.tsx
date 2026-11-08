@@ -76,6 +76,7 @@ vi.mock("@/components/player/ServerSessionStrip", () => ({
 import QueueDrawer from "./QueueDrawer";
 
 const panelFlag = () => document.documentElement.hasAttribute("data-queue-panel");
+const dockedFlag = () => document.documentElement.hasAttribute("data-queue-docked");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -103,6 +104,17 @@ describe("QueueDrawer — phone", () => {
     expect(screen.getByRole("group", { name: "Transport" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Play on: This iPhone" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "AirPlay" })).toBeNull();
+    expect(panelFlag()).toBe(false);
+    expect(dockedFlag()).toBe(false);
+  });
+
+  it("puts the file tag on the meta line, not on its own row", async () => {
+    renderWithProviders(
+      <QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
+    const meta = await screen.findByText("A1 · 120 BPM · 8A");
+    const tag = screen.getByRole("button", { name: /^File info/ });
+    expect(meta.parentElement?.contains(tag)).toBe(true);
   });
 
   it("sets the volume from the keyboard and closes on Escape", async () => {
@@ -190,6 +202,8 @@ describe("QueueDrawer — desktop panel", () => {
     const panel = screen.getByRole("complementary", { name: "Queue" });
     expect(panel).toBeTruthy();
     expect(panelFlag()).toBe(true);
+    expect(dockedFlag()).toBe(true);
+    expect(screen.queryByTestId("queue-scrim")).toBeNull();
     expect(screen.getByText("3 tracks · 3:00")).toBeTruthy();
     expect(screen.getByTestId("queue-now-playing")).toBeTruthy();
 
@@ -207,6 +221,32 @@ describe("QueueDrawer — desktop panel", () => {
     );
     expect(screen.queryByRole("complementary", { name: "Queue" })).toBeNull();
     expect(panelFlag()).toBe(false);
+  });
+
+  it("overlays at mid widths: no docked flag, a scrim, Escape and scrim close, focus returns", async () => {
+    setViewportWidth(870);
+    const onClose = vi.fn();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { rerender } = renderWithProviders(
+      <QueueDrawer isOpen onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
+    expect(panelFlag()).toBe(true);
+    expect(dockedFlag()).toBe(false);
+    const panel = screen.getByRole("complementary", { name: "Queue" });
+    expect(document.activeElement).toBe(panel);
+    fireEvent.click(screen.getByTestId("queue-scrim"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(document, { key: "a" });
+    expect(onClose).toHaveBeenCalledTimes(2);
+    rerender(
+      <QueueDrawer isOpen={false} onClose={onClose} onQueueToggle={vi.fn()} isQueueOpen={false} />,
+    );
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 
   it("clears in one tap, with no dialog, and closes", async () => {

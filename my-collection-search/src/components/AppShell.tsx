@@ -10,14 +10,12 @@ import {
   Text,
   IconButton,
   VStack,
-  Drawer,
   Icon,
-  Portal,
   Button,
   Stack,
-  CloseButton,
 } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
+import RetroDialog from "@/components/ui/RetroDialog";
 import {
   FiChevronLeft,
   FiChevronRight,
@@ -358,118 +356,87 @@ export default function AppShell({
         </Flex>
       </Box>
 
-      {/* Mobile More sheet */}
-      <Portal>
-        <Drawer.Root
-          open={drawerOpen}
-          onOpenChange={(e) => setDrawerOpen(e.open)}
-          placement="bottom"
+      {/* Mobile More menu: a RetroDialog like every other phone modal */}
+      <RetroDialog open={drawerOpen} onOpenChange={setDrawerOpen} title="More">
+        <Stack
+          as="nav"
+          aria-label="More"
+          gap={0}
+          m={4}
+          borderWidth="outline"
+          borderColor="border.ink"
         >
-          <Drawer.Backdrop bg="overlay.backdrop" />
-          <Drawer.Positioner paddingTop={0} paddingBottom="calc(var(--tabbar-h) + 16px)">
-            <Drawer.Content
-              mx={4}
-              borderWidth="outline"
-              borderColor="border.ink"
-              boxShadow="md"
-              borderRadius="md"
+          {secondaryMobileMenuItems.map((item) => {
+            const active = isActiveRoute(current, item.href);
+            const ItemIcon = getItemIcon(item.href);
+            return (
+              <Link
+                key={item.href}
+                as={NextLink}
+                href={item.href}
+                onClick={() => setDrawerOpen(false)}
+                aria-current={active ? "page" : undefined}
+                _hover={{ textDecoration: "none", bg: "bg.subtle" }}
+                px={4}
+                minH="44px"
+                display="flex"
+                alignItems="center"
+                borderTopWidth="rule"
+                borderColor="border"
+                css={{ "&:first-of-type": { borderTopWidth: 0 } }}
+                bg={active ? "bg.subtle" : undefined}
+              >
+                <HStack gap={3} align="center">
+                  <Icon as={ItemIcon} boxSize={5} color={active ? "accent.fg" : "fg.muted"} />
+                  <Text fontWeight={active ? "bold" : "normal"}>{item.label}</Text>
+                </HStack>
+              </Link>
+            );
+          })}
+          {playbackLabel !== null && (
+            <Box
+              as="button"
+              onClick={() => {
+                openPlaybackDialog(true);
+                setDrawerOpen(false);
+              }}
+              textAlign="left"
+              px={4}
+              minH="44px"
+              display="flex"
+              alignItems="center"
+              borderTopWidth="rule"
+              borderColor="border"
+              _hover={{ bg: "bg.subtle" }}
             >
-              <Drawer.Header borderBottomWidth="1px" py={3} px={5} position="relative">
-                <Box
-                  position="absolute"
-                  top={2}
-                  left="50%"
-                  transform="translateX(-50%)"
-                  w="40px"
-                  h="4px"
-                  borderRadius="full"
-                  bg="overlay.backdrop"
-                />
-                <Box pr={8}>
-                  <Text fontWeight="semibold" fontSize="sm">
-                    More
-                  </Text>
-                  <Text fontSize="xs" color="fg.muted">
-                    Navigation and tools
-                  </Text>
-                </Box>
-                <Drawer.CloseTrigger asChild>
-                  <CloseButton
-                    size="sm"
-                    position="absolute"
-                    right={3}
-                    top="50%"
-                    transform="translateY(-50%)"
-                  />
-                </Drawer.CloseTrigger>
-              </Drawer.Header>
-              <Drawer.Body p={0}>
-                <Stack gap={0} py={2}>
-                  {secondaryMobileMenuItems.map((item) => {
-                    const active = isActiveRoute(current, item.href);
-                    const ItemIcon = getItemIcon(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        as={NextLink}
-                        href={item.href}
-                        onClick={() => setDrawerOpen(false)}
-                        _hover={{ textDecoration: "none", bg: "bg.subtle" }}
-                        px={5}
-                        py={3.5}
-                        bg={active ? "bg.subtle" : undefined}
-                      >
-                        <HStack gap={3} align="center">
-                          <Icon
-                            as={ItemIcon}
-                            boxSize={5}
-                            color={active ? "accent.fg" : "fg.muted"}
-                          />
-                          <Text fontWeight={active ? "bold" : "normal"}>{item.label}</Text>
-                        </HStack>
-                      </Link>
-                    );
-                  })}
-                  {playbackLabel !== null && (
-                    <Box
-                      as="button"
-                      onClick={() => {
-                        openPlaybackDialog(true);
-                        setDrawerOpen(false);
-                      }}
-                      textAlign="left"
-                      px={5}
-                      py={3.5}
-                      _hover={{ bg: "bg.subtle" }}
-                    >
-                      <HStack gap={3} align="center">
-                        <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
-                        <Text>Playback: {playbackLabel}</Text>
-                      </HStack>
-                    </Box>
-                  )}
-                  <Box
-                    as="button"
-                    onClick={() => {
-                      setPaletteOpen(true);
-                      setDrawerOpen(false);
-                    }}
-                    textAlign="left"
-                    px={5}
-                    py={3.5}
-                    _hover={{ bg: "bg.subtle" }}
-                  >
-                    <HStack gap={3} align="center">
-                      <Icon as={FiSearch} boxSize={5} color="fg.muted" />
-                      <Text>Search</Text>
-                    </HStack>
-                  </Box>
-                </Stack>
-              </Drawer.Body>
-            </Drawer.Content>
-          </Drawer.Positioner>
-        </Drawer.Root>
-      </Portal>
+              <HStack gap={3} align="center">
+                <Icon as={FiSpeaker} boxSize={5} color="fg.muted" />
+                <Text>Playback: {playbackLabel}</Text>
+              </HStack>
+            </Box>
+          )}
+          <Box
+            as="button"
+            onClick={() => {
+              setPaletteOpen(true);
+              setDrawerOpen(false);
+            }}
+            textAlign="left"
+            px={4}
+            minH="44px"
+            display="flex"
+            alignItems="center"
+            borderTopWidth="rule"
+            borderColor="border"
+            _hover={{ bg: "bg.subtle" }}
+          >
+            <HStack gap={3} align="center">
+              <Icon as={FiSearch} boxSize={5} color="fg.muted" />
+              <Text>Search</Text>
+            </HStack>
+          </Box>
+        </Stack>
+      </RetroDialog>
 
       {/* Mobile bottom navigation */}
       <Box

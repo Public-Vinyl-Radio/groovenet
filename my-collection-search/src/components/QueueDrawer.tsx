@@ -114,8 +114,30 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
   const { Dialog: SaveDialog, open: openSaveDialog } = useQueueSaveDialog();
   const [mobileView, setMobileView] = React.useState<MobileView>("player");
 
-  // Feeds --queue-w, which the shell's content padding makes room for.
+  // Wide viewports dock the panel beside the page; mid widths overlay it.
+  const docked = useBreakpointValue({ base: false, xl: true }) ?? false;
+  // --queue-panel-w sizes the panel; --queue-w (docked only) is what the
+  // shell's content padding makes room for.
   useRootFlag("data-queue-panel", isOpen && !isMobile);
+  useRootFlag("data-queue-docked", isOpen && !isMobile && docked);
+  const overlay = !isMobile && !docked;
+  const panelRef = React.useRef<HTMLElement>(null);
+
+  // An overlay behaves like a drawer: focus moves in, Escape closes, and focus
+  // returns to where it was.
+  React.useEffect(() => {
+    if (!isOpen || !overlay) return;
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
+  }, [isOpen, overlay, onClose]);
 
   React.useEffect(() => {
     if (isOpen) setMobileView("player");
@@ -135,15 +157,31 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
     if (!isOpen) return <SaveDialog />;
     return (
       <>
+        {overlay && (
+          <Box
+            data-testid="queue-scrim"
+            position="fixed"
+            inset={0}
+            bottom="var(--player-h)"
+            zIndex={98}
+            bg="overlay.scrim"
+            onClick={onClose}
+          />
+        )}
         <chakra.aside
+          ref={panelRef}
           aria-label="Queue"
           data-testid="queue-panel"
+          tabIndex={-1}
+          outline="none"
           position="fixed"
           top={0}
           right={0}
           bottom="var(--player-h)"
-          w="var(--queue-w)"
+          w="var(--queue-panel-w)"
+          maxW="100vw"
           zIndex={99}
+          boxShadow={overlay ? "md" : undefined}
           display="flex"
           flexDirection="column"
           bg="bg"
@@ -290,19 +328,26 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                         "—"
                       )}
                     </Text>
-                    {trackMetaLine(track) && (
-                      <Text
-                        mt="4px"
-                        fontFamily="mono"
-                        fontSize="12px"
-                        lineHeight="16px"
-                        color="fg.muted"
-                      >
-                        {trackMetaLine(track)}
-                      </Text>
-                    )}
-                    {track && (
-                      <FileInfo key={`${track.friend_id}:${track.track_id}`} track={track} mobile />
+                    {(trackMetaLine(track) || track) && (
+                      <Flex mt="4px" align="center" columnGap="8px" rowGap="4px" wrap="wrap">
+                        {trackMetaLine(track) && (
+                          <Text
+                            fontFamily="mono"
+                            fontSize="12px"
+                            lineHeight="16px"
+                            color="fg.muted"
+                          >
+                            {trackMetaLine(track)}
+                          </Text>
+                        )}
+                        {track && (
+                          <FileInfo
+                            key={`${track.friend_id}:${track.track_id}`}
+                            track={track}
+                            mobile
+                          />
+                        )}
+                      </Flex>
                     )}
                   </Box>
                   <ProgressSlider
@@ -366,10 +411,11 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                   </Box>
                   <Button
                     size="sm"
-                    variant="outline"
-                    h="44px"
+                    variant="ghost"
                     onClick={openSaveDialog}
                     disabled={empty}
+                    position="relative"
+                    _before={{ content: '""', position: "absolute", inset: "-12px 0" }}
                   >
                     <FiSave />
                     Save

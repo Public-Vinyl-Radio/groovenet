@@ -64,6 +64,12 @@ export function FileInfoDetails({ track, fullPath = false }: { track: Track; ful
   );
 }
 
+// Phones keep the standard 20px tag with a 44px invisible hit area.
+const touchTarget = {
+  position: "relative",
+  _before: { content: '""', position: "absolute", inset: "-12px", bg: "transparent" },
+} as const;
+
 export default function FileInfo({ track, mobile = false }: { track: Track; mobile?: boolean }) {
   const [open, setOpen] = useState(false);
   const info = fileInfo(track);
@@ -71,8 +77,8 @@ export default function FileInfo({ track, mobile = false }: { track: Track; mobi
     <MetaTag
       asChild
       variant={info.lossless ? "lossless" : "plain"}
-      minH={mobile ? "44px" : undefined}
       cursor="pointer"
+      {...(mobile ? touchTarget : {})}
     >
       <button type="button" aria-label={`File info: ${info.label}`}>
         {info.label}
