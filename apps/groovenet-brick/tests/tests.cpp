@@ -68,7 +68,8 @@ void stateTests() {
   mock.selectPlayer(99);
   check(mock.snapshot().player == "Kitchen");
   mock.refresh();
-  for (const auto &name : {"loading", "disconnected", "unavailable", "refreshing"}) {
+  for (const auto &name :
+       {"loading", "disconnected", "unavailable", "refreshing"}) {
     MockData blocked(name);
     blocked.command(Action::Next);
     blocked.command(Action::RemoteUp);
@@ -158,7 +159,18 @@ void stateTests() {
     blocked.handle(Action::Down);
     check(blocked.snapshot().volume == 55);
   }
-  App live("live", "playing");
+  for (auto acknowledgment : {Action::Select, Action::Back}) {
+    App busy("mock", "speaker-busy");
+    busy.handle(Action::Next);
+    busy.handle(Action::RemoteUp);
+    check(busy.snapshot().queue.front().title == "Days To Come" &&
+          busy.snapshot().volume == 55);
+    busy.handle(acknowledgment);
+    check(busy.snapshot().acknowledgment.empty());
+    check(busy.snapshot().queue.front().title == "Days To Come" &&
+          busy.snapshot().playing);
+  }
+  App live("live", "playing", "/no/such/brick-config");
   live.handle(Action::Scenario);
   live.handle(Action::PlayPause);
   live.advance(1000);
@@ -267,7 +279,8 @@ void optionTests() {
   check(parseOptions({"--platform", "knulli"}).knulli);
   check(!parseOptions({"--platform", "desktop"}).knulli);
   for (const auto &args :
-       std::vector<std::vector<std::string>>{{"--bad"}, {"--platform", "unknown"},
+       std::vector<std::vector<std::string>>{{"--bad"},
+                                             {"--platform", "unknown"},
                                              {"--bad", "value"},
                                              {"--scale", "NaN"},
                                              {"--scale", "inf"},
@@ -366,21 +379,27 @@ void renderTests() {
   check(runDesktop(options) == 0);
   // Drive actual SDL axis-to-D-pad translation using the production Brick map.
   check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) == 0);
-  int brickDevice = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 2, 17, 1);
+  int brickDevice =
+      SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 2, 17, 1);
   check(brickDevice >= 0);
   char guid[33];
-  SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(brickDevice), guid, sizeof(guid));
+  SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(brickDevice), guid,
+                            sizeof(guid));
   std::string mapping = knulliControllerMapping;
   mapping.replace(0, 32, guid);
   check(SDL_GameControllerAddMapping(mapping.c_str()) >= 0);
   auto *controller = SDL_GameControllerOpen(brickDevice);
   check(controller);
   auto *raw = SDL_GameControllerGetJoystick(controller);
-  for (auto button : {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
-                      SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}) {
-    bool vertical = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN;
-    bool negative = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_LEFT;
-    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, negative ? -32768 : 32767) == 0);
+  for (auto button :
+       {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
+        SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}) {
+    bool vertical = button == SDL_CONTROLLER_BUTTON_DPAD_UP ||
+                    button == SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+    bool negative = button == SDL_CONTROLLER_BUTTON_DPAD_UP ||
+                    button == SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0,
+                                     negative ? -32768 : 32767) == 0);
     SDL_GameControllerUpdate();
     check(SDL_GameControllerGetButton(controller, button) == 1);
     check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, -1) == 0);

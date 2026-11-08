@@ -34,6 +34,11 @@ enum class Screen { NowPlaying, Players, Playlists, Queue, Outputs, Menu };
 const std::vector<std::string> &scenarios();
 const std::vector<std::string> &screenNames();
 Action namedAction(const std::string &name);
+struct Artwork {
+  int width = 0, height = 0;
+  std::vector<unsigned char>
+      pixels; // Bounded RGBA, decoded on the network worker.
+};
 struct Track {
   Track(std::string title, std::string artist, std::string album,
         std::optional<int> duration, bool artwork)
@@ -43,13 +48,16 @@ struct Track {
   std::optional<int> duration;
   bool artwork = true;
   std::string trackId, artworkUrl;
+  std::shared_ptr<const Artwork> image;
   int64_t friendId = 0;
   std::optional<bool> playable;
 };
 struct Snapshot {
-  std::string status, player;
+  std::string status, player, playerId, acknowledgment,
+      playbackState = "playing";
   bool connected = true, available = true, loading = false, playing = true;
-  bool refreshing = false; // Retained read-only state while awaiting a fresh snapshot.
+  bool refreshing =
+      false; // Retained read-only state while awaiting a fresh snapshot.
   int volume = 55, position = 42;
   std::vector<Track> queue;
   size_t currentIndex = 0;
@@ -65,6 +73,7 @@ public:
   virtual void selectPlayer(size_t index) = 0;
   virtual void advance(int milliseconds) = 0;
   virtual void refresh() = 0;
+  virtual void acknowledge() {}
 };
 class MockData final : public DataAdapter {
 public:
@@ -73,16 +82,19 @@ public:
   void command(Action action) override;
   void selectPlayer(size_t index) override;
   void advance(int milliseconds) override;
+  void acknowledge() override { state_.acknowledgment.clear(); }
   void refresh() override {} // Mock state is already authoritative.
 private:
   Snapshot state_;
   int remainder_ = 0;
 };
-std::unique_ptr<DataAdapter> dataAdapter(const std::string &mode,
-                                         const std::string &scenario);
+std::unique_ptr<DataAdapter>
+dataAdapter(const std::string &mode, const std::string &scenario,
+            const std::string &configDirectory = "");
 class App {
 public:
-  App(std::string mode, std::string scenario);
+  App(std::string mode, std::string scenario,
+      const std::string &configDirectory = "");
   void handle(Action action);
   void advance(int milliseconds);
   const Snapshot &snapshot() const { return data_->snapshot(); }

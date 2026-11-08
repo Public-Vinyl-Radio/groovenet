@@ -10,9 +10,10 @@
 namespace brick {
 const std::vector<std::string> &scenarios() {
   static const std::vector<std::string> names{
-      "playing",  "paused",          "empty",
-      "loading",  "disconnected",    "unavailable",
-      "metadata", "missing-artwork", "unknown-timing", "missing-metadata", "refreshing"};
+      "playing",        "paused",           "empty",      "loading",
+      "disconnected",   "unavailable",      "metadata",   "missing-artwork",
+      "unknown-timing", "missing-metadata", "refreshing", "artwork",
+      "speaker-busy"};
   return names;
 }
 const std::vector<std::string> &screenNames() {
@@ -48,6 +49,8 @@ MockData::MockData(const std::string &scenario) {
       scenarios().end())
     throw std::invalid_argument("Unknown scenario: " + scenario);
   state_.player = "Lounge";
+  state_.playerId = "lounge";
+  state_.playerIds = {"lounge", "studio", "kitchen"};
   state_.players = {"Lounge", "Studio", "Kitchen"};
   state_.playlists = {"After hours", "Warm-up selections", "Sunday records"};
   state_.outputs = {"Lounge speakers (selected)", "Studio speakers (available)",
@@ -57,6 +60,7 @@ MockData::MockData(const std::string &scenario) {
                   {"So Flute", "St Germain", "Tourist", 490, true}};
   state_.status = "Mock · " + scenario;
   state_.playing = scenario != "paused";
+  state_.playbackState = state_.playing ? "playing" : "paused";
   state_.connected = scenario != "disconnected" && scenario != "refreshing";
   state_.refreshing = scenario == "refreshing";
   state_.available = scenario != "unavailable";
@@ -72,11 +76,21 @@ MockData::MockData(const std::string &scenario) {
     state_.queue[0].artwork = false;
   if (scenario == "missing-metadata")
     state_.queue[0] = {"", "", "", 300, false};
+  if (scenario == "artwork") {
+    auto image = std::make_shared<Artwork>();
+    image->width = image->height = 2;
+    image->pixels = {255, 0, 0,   255, 0,   255, 0,   255,
+                     0,   0, 255, 255, 255, 255, 255, 255};
+    state_.queue[0].image = image;
+  }
+  if (scenario == "speaker-busy")
+    state_.acknowledgment = "Speaker busy: explicit takeover is required";
   if (scenario == "unknown-timing")
     state_.queue[0].duration.reset();
 }
 void MockData::command(Action action) {
-  if (!state_.connected || !state_.available || state_.loading)
+  if (!state_.connected || !state_.available || state_.loading ||
+      !state_.acknowledgment.empty())
     return;
   if (action == Action::RemoteDown)
     state_.volume = std::max(0, state_.volume - 5);
@@ -84,8 +98,10 @@ void MockData::command(Action action) {
     state_.volume = std::min(100, state_.volume + 5);
   if (state_.queue.empty())
     return;
-  if (action == Action::PlayPause)
+  if (action == Action::PlayPause) {
     state_.playing = !state_.playing;
+    state_.playbackState = state_.playing ? "playing" : "paused";
+  }
   if (action == Action::Next) {
     std::rotate(state_.queue.begin(), state_.queue.begin() + 1,
                 state_.queue.end());
@@ -98,8 +114,10 @@ void MockData::command(Action action) {
   }
 }
 void MockData::selectPlayer(size_t index) {
-  if (index < state_.players.size())
+  if (index < state_.players.size()) {
     state_.player = state_.players[index];
+    state_.playerId = state_.playerIds[index];
+  }
 }
 void MockData::advance(int milliseconds) {
   if (milliseconds <= 0 || !state_.playing || !state_.connected ||
@@ -113,16 +131,22 @@ void MockData::advance(int milliseconds) {
     command(Action::Next);
 }
 std::unique_ptr<DataAdapter> dataAdapter(const std::string &mode,
-                                         const std::string &scenario) {
+                                         const std::string &scenario,
+                                         const std::string &configDirectory) {
   if (mode == "mock")
     return std::make_unique<MockData>(scenario);
-  if (mode == "live")
-    return liveAdapter(LiveConfig::environment());
+  if (mode == "live") {
+    auto config = LiveConfig::environment();
+    if (!configDirectory.empty())
+      config.selectionPath = configDirectory + "/selected-player";
+    return liveAdapter(std::move(config));
+  }
   throw std::invalid_argument("Mode must be mock or live");
 }
-App::App(std::string mode, std::string scenario)
+App::App(std::string mode, std::string scenario,
+         const std::string &configDirectory)
     : mode_(std::move(mode)), scenario_(std::move(scenario)),
-      data_(dataAdapter(mode_, scenario_)) {}
+      data_(dataAdapter(mode_, scenario_, configDirectory)) {}
 const std::string &App::scenario() const { return scenario_; }
 void App::open(Screen screen) {
   history_.push_back(screen_);
@@ -134,8 +158,15 @@ std::vector<std::string> App::rows() const {
   switch (screen_) {
   case Screen::Menu:
     return screenNames();
-  case Screen::Players:
-    return state.players;
+  case Screen::Players: {
+    auto rows = state.players;
+    for (size_t i = 0; i < rows.size() && i < state.playerIds.size(); ++i) {
+      rows[i] += " [" + state.playerIds[i] + "]";
+      if (state.playerIds[i] == state.playerId)
+        rows[i] += " · following";
+    }
+    return rows;
+  }
   case Screen::Playlists:
     return state.playlists;
   case Screen::Outputs:
@@ -158,7 +189,8 @@ void App::handle(Action action) {
   }
   if (action == Action::Suspend) {
     suspended_ = true;
-    data_->refresh(); // Discard unsent commands; waking obtains another snapshot.
+    data_->refresh(); // Discard unsent commands; waking obtains another
+                      // snapshot.
     return;
   }
   if (action == Action::Wake) {
@@ -177,6 +209,11 @@ void App::handle(Action action) {
     notice_.clear();
     return;
   }
+  if (!snapshot().acknowledgment.empty()) {
+    if (action == Action::Select || action == Action::Back)
+      data_->acknowledge();
+    return;
+  }
   if (action == Action::Back ||
       (action == Action::Menu && screen_ == Screen::Menu)) {
     if (!history_.empty()) {
@@ -193,6 +230,7 @@ void App::handle(Action action) {
   auto &focus = focus_[static_cast<size_t>(screen_)];
   const auto items = rows();
   if (!items.empty()) {
+    focus %= items.size();
     if (action == Action::Up)
       focus = (focus + items.size() - 1) % items.size();
     if (action == Action::Down)
@@ -202,7 +240,7 @@ void App::handle(Action action) {
         open(static_cast<Screen>(focus));
       else if (screen_ == Screen::Players) {
         data_->selectPlayer(focus);
-        notice_ = "Following " + snapshot().player + " · playback unchanged";
+        notice_ = "Following " + items[focus] + " · playback unchanged";
       } else
         notice_ = "Navigation preview · server controls follow in #1099–1101";
     }
@@ -220,8 +258,13 @@ void App::handle(Action action) {
   data_->command(action);
 }
 void App::advance(int milliseconds) {
-  if (!suspended_)
+  if (!suspended_) {
     data_->advance(milliseconds);
+    auto count = rows().size();
+    auto &focus = focus_[static_cast<size_t>(screen_)];
+    if (count == 0 || focus >= count)
+      focus = 0;
+  }
 }
 std::string timing(const Snapshot &snapshot) {
   if (snapshot.currentIndex >= snapshot.queue.size() ||

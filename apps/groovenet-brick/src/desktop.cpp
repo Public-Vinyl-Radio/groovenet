@@ -3,8 +3,8 @@
 #include "renderer.hpp"
 #include <SDL_ttf.h>
 #include <algorithm>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -175,7 +175,8 @@ int runDesktop(const Options &options) {
     }
   } cleanup;
   // Ports exports a firmware-generated hat mapping. SDL gives environment maps
-  // higher priority than AddMapping(), so override the hint before SDL loads it.
+  // higher priority than AddMapping(), so override the hint before SDL loads
+  // it.
   if (options.knulli &&
       !SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLERCONFIG,
                                knulliControllerMapping, SDL_HINT_OVERRIDE))
@@ -189,12 +190,12 @@ int runDesktop(const Options &options) {
   if (TTF_Init() != 0)
     throw std::runtime_error(TTF_GetError());
   std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window(
-      SDL_CreateWindow("Groovenet Brick · F1 scenarios · Q quit",
-                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                       static_cast<int>(width * options.scale),
-                       static_cast<int>(height * options.scale),
-                       (options.knulli ? SDL_WINDOW_FULLSCREEN_DESKTOP
-                                       : SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI)),
+      SDL_CreateWindow(
+          "Groovenet Brick · F1 scenarios · Q quit", SDL_WINDOWPOS_CENTERED,
+          SDL_WINDOWPOS_CENTERED, static_cast<int>(width * options.scale),
+          static_cast<int>(height * options.scale),
+          (options.knulli ? SDL_WINDOW_FULLSCREEN_DESKTOP
+                          : SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI)),
       SDL_DestroyWindow);
   if (!window)
     throw std::runtime_error(SDL_GetError());
@@ -233,14 +234,16 @@ int runDesktop(const Options &options) {
     connect(i);
   Desktop platform(options.knulli);
   Renderer view(renderer.get(), options.font);
-  App app(options.mode, options.scenario);
+  App app(options.mode, options.scenario,
+          options.mode == "live" ? platform.configDirectory() : "");
   Uint64 last = SDL_GetTicks64();
   auto lastWall = std::chrono::system_clock::now();
   int frame = 0;
   while (app.running()) {
     auto wall = std::chrono::system_clock::now();
     if (options.knulli && wall - lastWall > std::chrono::seconds(2)) {
-      // Wall time includes Linux suspend. Cancel unsent writes before handling input.
+      // Wall time includes Linux suspend. Cancel unsent writes before handling
+      // input.
       app.handle(Action::Suspend);
       app.handle(Action::Wake);
       app.advance(0);
