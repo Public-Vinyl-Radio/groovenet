@@ -122,7 +122,9 @@ void failureTests() {
       rejected = true;
     }
     if (!rejected || SDL_WasInit(0) != 0 || TTF_WasInit() != 0)
-      throw std::runtime_error("Resource failure did not unwind cleanly");
+      throw std::runtime_error(
+          "Resource failure did not unwind cleanly at stage " +
+          std::to_string(static_cast<int>(stage)));
   }
   fault = Fault::PrefPath;
   bool rejected = false;

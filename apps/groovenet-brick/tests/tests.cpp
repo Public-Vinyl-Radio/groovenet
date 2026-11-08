@@ -349,6 +349,7 @@ void renderTests() {
   std::filesystem::remove(capture);
   SDL_setenv("SDL_VIDEODRIVER", "groovenet-invalid-driver", 1);
   rejects([&] { runDesktop(options); });
+  check(SDL_WasInit(0) == 0 && TTF_WasInit() == 0);
   SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
 }
 } // namespace

@@ -155,14 +155,15 @@ Options parseOptions(const std::vector<std::string> &args) {
   return options;
 }
 int runDesktop(const Options &options) {
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
-    throw std::runtime_error(SDL_GetError());
+  // SDL may initialize some subsystems before reporting failure.
   struct Cleanup {
     ~Cleanup() {
       TTF_Quit();
       SDL_Quit();
     }
   } cleanup;
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
+    throw std::runtime_error(SDL_GetError());
   if (TTF_Init() != 0)
     throw std::runtime_error(TTF_GetError());
   std::unique_ptr<SDL_Window, decltype(&SDL_DestroyWindow)> window(
