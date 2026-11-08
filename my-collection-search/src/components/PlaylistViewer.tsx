@@ -4,9 +4,9 @@ import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Box, EmptyState, Flex, VStack, Skeleton, Button } from "@chakra-ui/react";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import { useQueryClient } from "@tanstack/react-query";
-import { FiHeadphones, FiSave, FiZap } from "react-icons/fi";
+import { FiHeadphones, FiSave } from "react-icons/fi";
 
-import TrackViewToggle from "@/components/TrackViewToggle";
+import { ViewModeSwitch } from "@/components/layout/ListHeader";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import DraggableTrackList from "@/components/DraggableTrackList";
 import PlaylistStatsPanel from "@/components/PlaylistStatsPanel";
@@ -31,12 +31,14 @@ import {
 import NamePlaylistDialog from "@/components/NamePlaylistDialog";
 import { queryKeys } from "@/lib/queryKeys";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
+import { useLiveSet } from "@/hooks/useLiveSet";
 import PageHeader from "@/components/layout/PageHeader";
 
 const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const { playlistCounts } = useSearchResults({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const liveSet = useLiveSet(playlistId);
 
   // State for friend selection dialog
   const [friendSelectDialogOpen, setFriendSelectDialogOpen] = useState(false);
@@ -72,7 +74,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true));
 
   const { replacePlaylist, playlist: queue, currentTrackIndex: queueIndex } = usePlaybackPlayer();
-  const { viewMode, setViewMode, layout, isMobile } = useTrackViewMode();
+  const { viewMode, setViewMode, layout } = useTrackViewMode();
 
   const { exportPlaylist, exportToPDF, getTotalPlaytime } = usePlaylistActions(playlistId);
 
@@ -406,6 +408,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
       onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
       onOpenRecommendations={() => setSuggestionsOpen(true)}
+      onCreateSet={playlistId && !liveSet.loading && !liveSet.set ? liveSet.create : undefined}
       enqueuePlaylist={() =>
         replacePlaylist(tracks, {
           autoplay: true,
@@ -438,16 +441,6 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       <PageHeader.Title meta={meta}>{displayName}</PageHeader.Title>
       <PageHeader.Actions
         actions={[
-          ...(trackCount > 0
-            ? [
-                {
-                  label: "Suggestions",
-                  icon: <FiZap />,
-                  onClick: () => setSuggestionsOpen((open) => !open),
-                  pressed: suggestionsOpen,
-                },
-              ]
-            : []),
           ...(hasUnsavedChanges && playlistId
             ? [
                 {
@@ -460,7 +453,12 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             : []),
         ]}
         phone={actionsMenu}
-        desktop={actionsMenu}
+        desktop={
+          <>
+            <ViewModeSwitch value={viewMode} onChange={setViewMode} />
+            {actionsMenu}
+          </>
+        }
       />
     </PageHeader>
   );
@@ -523,35 +521,25 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       {header}
       <Flex direction={{ base: "column", xl: "row" }} align="flex-start" gap={4} w="100%">
         <Box flex="1" minW={{ xl: "560px" }} w="100%">
-          <Flex align="flex-start" w="100%">
-            <Box flex="1">
-              <Flex align="center" gap={2} flexWrap="wrap">
-                {hasUnsavedChanges && (
-                  <StatusTag
-                    tone="analysis"
-                    size="sm"
-                    display={{ base: "none", md: "inline-flex" }}
-                  >
-                    Unsaved changes
-                  </StatusTag>
-                )}
-              </Flex>
-            </Box>
-            <Flex gap={2} align="flex-start">
-              {hasUnsavedChanges && playlistId && (
-                <Button
-                  size="sm"
-                  colorPalette="accent"
-                  display={{ base: "none", md: "inline-flex" }}
-                  onClick={saveExisting}
-                >
+          {hasUnsavedChanges && (
+            <Flex
+              display={{ base: "none", md: "flex" }}
+              align="center"
+              justify="space-between"
+              gap={2}
+              w="100%"
+            >
+              <StatusTag tone="analysis" size="sm">
+                Unsaved changes
+              </StatusTag>
+              {playlistId && (
+                <Button size="sm" colorPalette="accent" onClick={saveExisting}>
                   Save Changes
                 </Button>
               )}
-              {!isMobile && <TrackViewToggle value={viewMode} onChange={setViewMode} />}
             </Flex>
-          </Flex>
-          {playlistId && <SetDetailsPanel playlistId={playlistId} />}
+          )}
+          {playlistId && <SetDetailsPanel playlistId={playlistId} liveSet={liveSet} />}
           <PlaylistStatsPanel tracks={tracks} />
           <Box overflowY="auto">
             <DraggableTrackList

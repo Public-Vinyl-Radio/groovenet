@@ -15,19 +15,23 @@ import {
 } from "react-icons/fi";
 import { toaster } from "@/components/ui/toaster";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
+import type { LiveSetState } from "@/hooks/useLiveSet";
 import {
-  createSetForPlaylist,
   deleteLiveSet,
-  fetchLiveSet,
   type LiveSetDetail,
   type LiveSetMediaType,
   updateLiveSet,
 } from "@/services/internalApi/playlists";
 
-export default function SetDetailsPanel({ playlistId }: { playlistId: number }) {
+export default function SetDetailsPanel({
+  playlistId,
+  liveSet,
+}: {
+  playlistId: number;
+  liveSet: LiveSetState;
+}) {
+  const { set, setSet, loading, load } = liveSet;
   const { friends } = useFriendsQuery({ showCurrentUser: true });
-  const [set, setSet] = React.useState<LiveSetDetail | null>(null);
-  const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [performedAt, setPerformedAt] = React.useState("");
@@ -35,49 +39,8 @@ export default function SetDetailsPanel({ playlistId }: { playlistId: number }) 
   const [performanceCity, setPerformanceCity] = React.useState("");
   const [mediaUrl, setMediaUrl] = React.useState("");
   const [mediaType, setMediaType] = React.useState<LiveSetMediaType>("flyer");
-  const load = React.useCallback(async () => {
-    try {
-      setSet(await fetchLiveSet(playlistId));
-    } catch {
-      setSet(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [playlistId]);
-  React.useEffect(() => {
-    void load();
-  }, [load]);
-  if (loading) return null;
-  if (!set)
-    return (
-      <Card.Root size="sm" variant="outline" mt={2} mb={4}>
-        <Card.Body p={3}>
-          <Flex justify="space-between" align="center" gap={3}>
-            <Flex align="center" gap={2} minW={0}>
-              <FiCalendar />
-              <Box>
-                <Text fontWeight="semibold" fontSize="sm">
-                  Turn this playlist into a set
-                </Text>
-                <Text fontSize="xs" color="fg.muted">
-                  Add performances, collaborators, venues, and media when you need them.
-                </Text>
-              </Box>
-            </Flex>
-            <Button
-              size="sm"
-              onClick={async () => {
-                await createSetForPlaylist(playlistId);
-                await load();
-              }}
-              flexShrink={0}
-            >
-              Create set
-            </Button>
-          </Flex>
-        </Card.Body>
-      </Card.Root>
-    );
+  // Not a set yet: the call to action lives in the playlist's actions menu.
+  if (loading || !set) return null;
   if (!editing)
     return (
       <Card.Root size="sm" variant="outline" mt={2} mb={4}>

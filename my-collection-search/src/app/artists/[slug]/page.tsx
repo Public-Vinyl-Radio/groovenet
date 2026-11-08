@@ -20,7 +20,8 @@ import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackViewToggle from "@/components/TrackViewToggle";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHeader, { type HeaderAction } from "@/components/layout/PageHeader";
+import { FiPlay } from "react-icons/fi";
 import PageContainer from "@/components/layout/PageContainer";
 import { artistHref } from "@/components/ArtistLink";
 import { useArtistPageQuery } from "@/hooks/useArtistPageQuery";
@@ -191,11 +192,33 @@ function ArtistContent({
     replacePlaylist(playable, { autoplay: true, startIndex: 0 });
   };
 
-  const actions = (
-    <Button minH="44px" variant="solid" colorPalette="accent" onClick={playAll} disabled={isEmpty}>
-      Play all
-    </Button>
-  );
+  // Play all is the header's one solid button (a play key on phones); the
+  // Discogs profile moves into the header menu instead of taking a body row.
+  const headerActions: HeaderAction[] = [
+    {
+      label: "Play all",
+      icon: <FiPlay />,
+      onClick: playAll,
+      primary: true,
+      disabled: isEmpty,
+      phone: "icon",
+    },
+    ...(artist.discogs_artist_id
+      ? [
+          {
+            label: "View on Discogs",
+            onClick: () =>
+              window.open(
+                `https://www.discogs.com/artist/${artist.discogs_artist_id}`,
+                "_blank",
+                "noopener,noreferrer",
+              ),
+            phone: "menu",
+            desktop: "menu",
+          } satisfies HeaderAction,
+        ]
+      : []),
+  ];
 
   return (
     <>
@@ -203,24 +226,13 @@ function ArtistContent({
         <PageHeader.Title meta={`${counts.tracks.toLocaleString()} tracks`} metaOnPhone={false}>
           {artist.name}
         </PageHeader.Title>
-        <PageHeader.Actions desktop={actions} />
+        <PageHeader.Actions actions={headerActions} />
       </PageHeader>
       <Stack gap={5}>
         {aliases.length > 0 && (
           <Text color="fg.muted" fontSize="sm">
             Also credited as {aliases.join(", ")}
           </Text>
-        )}
-        {artist.discogs_artist_id && (
-          <Link
-            alignSelf="start"
-            fontSize="sm"
-            href={`https://www.discogs.com/artist/${artist.discogs_artist_id}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Discogs profile
-          </Link>
         )}
         {/* Room for an image and a profile (v2); nothing is built here. */}
         <Grid
@@ -237,7 +249,6 @@ function ArtistContent({
           <Stat label="Spins" value={counts.spins.toLocaleString()} />
           <Stat label="Years" value={years} />
         </Grid>
-        <Box display={{ base: "block", md: "none" }}>{actions}</Box>
         {problem && (
           <Text role="alert" color="fg.error">
             {problem}

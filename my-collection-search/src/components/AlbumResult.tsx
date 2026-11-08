@@ -4,7 +4,7 @@ import { artworkOf } from "@/components/player/trackMeta";
 import Cover from "@/components/Cover";
 import React, { useState } from "react";
 import NextLink from "next/link";
-import { Box, Flex, Table, Text, Link } from "@chakra-ui/react";
+import { Box, Flex, Table, Text, Link, useBreakpointValue } from "@chakra-ui/react";
 import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Album } from "@/types/track";
 import { useUpdateAlbumMutation } from "@/hooks/useAlbumsQuery";
@@ -65,7 +65,7 @@ export type AlbumResultProps = {
   album?: Album;
   albumRef?: { release_id: string; friend_id: number };
   showEditFields?: boolean;
-  /** "card": outlined card; "row": album table row; "discovery": compact recent arrival; "cover": artwork grid. */
+  /** "card": outlined card; "row": album table row; "discovery": compact recent arrival (the cover card on phones); "cover": artwork grid card, one link. */
   layout?: "card" | "row" | "discovery" | "cover";
   /** Active Missing filters, shown as tags. */
   missingTags?: AlbumMissingKey[];
@@ -94,6 +94,7 @@ export default function AlbumResult({
     [album, albumFromStore, friendId, releaseId],
   );
 
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
   const artworkSrc = artworkOf(resolvedAlbum);
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
 
@@ -203,31 +204,79 @@ export default function AlbumResult({
     </Text>
   ) : null;
 
-  // Compact arrivals on the genre index: artwork above on phones, beside the title on desktop.
-  if (layout === "discovery" || layout === "cover") {
+  // Cover grids (artist, genre pages) and, on phones, the genre index's recent
+  // arrivals: the New arrivals card. The whole card is
+  // one link, so nothing inside it is a link and the card is the 44px target.
+  if (layout === "cover" || (layout === "discovery" && isMobile)) {
+    const meta = [displayYear, resolvedAlbum.format].filter(Boolean).join(" · ");
+    return (
+      <Link
+        asChild
+        data-testid="album-cover-card"
+        display="flex"
+        flexDirection="column"
+        alignItems="stretch"
+        minW={0}
+        overflow="hidden"
+        borderWidth="outline"
+        borderRadius="md"
+        borderColor="border.ink"
+        boxShadow="md"
+        color="fg"
+        textDecoration="none"
+        _hover={{ textDecoration: "none", bg: "bg.muted" }}
+      >
+        <NextLink href={albumHref} aria-label={`Open ${resolvedAlbum.title}`}>
+          <Box mx="-2px" mt="-2px">
+            {cover("100%")}
+          </Box>
+          <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
+            <Text
+              as="span"
+              fontSize="14px"
+              lineHeight="18px"
+              fontWeight="semibold"
+              truncate
+              title={resolvedAlbum.title}
+            >
+              {resolvedAlbum.title}
+            </Text>
+            <Text
+              as="span"
+              fontSize="12px"
+              lineHeight="16px"
+              color="fg.muted"
+              truncate
+              title={resolvedAlbum.artist}
+            >
+              {resolvedAlbum.artist}
+            </Text>
+            {meta && (
+              <Text as="span" fontFamily="mono" fontSize="10px" lineHeight="14px" mt="4px" truncate>
+                {meta}
+              </Text>
+            )}
+          </Flex>
+        </NextLink>
+      </Link>
+    );
+  }
+
+  // Desktop recent arrivals on the genre index: artwork beside the title.
+  if (layout === "discovery") {
     return (
       <Flex
         data-testid="album-discovery-card"
-        direction={layout === "cover" ? "column" : { base: "column", md: "row" }}
-        borderWidth={layout === "cover" ? 0 : { base: 0, md: "outline" }}
+        borderWidth="outline"
         borderRadius="md"
         borderColor="border.ink"
-        boxShadow={layout === "cover" ? "none" : { base: "none", md: "sm" }}
-        p={layout === "cover" ? 0 : { base: 0, md: 3 }}
+        boxShadow="sm"
+        p={3}
         gap={2}
         minW={0}
-        css={{
-          "@media (max-width: 47.99em)": { "& a": { minHeight: "44px", alignItems: "center" } },
-        }}
       >
-        <Link
-          asChild
-          flexShrink={0}
-          alignSelf="start"
-          w={layout === "cover" ? "full" : undefined}
-          aria-label={`Open ${resolvedAlbum.title}`}
-        >
-          <NextLink href={albumHref}>{cover({ base: "144px", md: "64px" })}</NextLink>
+        <Link asChild flexShrink={0} alignSelf="start" aria-label={`Open ${resolvedAlbum.title}`}>
+          <NextLink href={albumHref}>{cover("64px")}</NextLink>
         </Link>
         <Box minW={0}>
           <Link asChild display="flex" fontWeight="semibold" title={resolvedAlbum.title}>
@@ -243,22 +292,7 @@ export default function AlbumResult({
               stopPropagation
             />
           </Text>
-          <Flex
-            gap={1}
-            flexWrap="wrap"
-            mt={1}
-            css={
-              layout === "cover"
-                ? {
-                    "& > a, & > span": {
-                      maxWidth: "100%",
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                    },
-                  }
-                : undefined
-            }
-          >
+          <Flex gap={1} flexWrap="wrap" mt={1}>
             <GenreBadgeList items={displayGenres} kind="discogs-genre" size="sm" />
           </Flex>
         </Box>

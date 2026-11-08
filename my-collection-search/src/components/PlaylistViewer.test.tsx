@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   insertTrack: vi.fn(),
   saved: (() => {}) as () => void,
   markChanged: (() => {}) as () => void,
+  liveSet: { set: null as unknown, loading: false, create: vi.fn() },
 }));
 
 const refs = [
@@ -82,11 +83,21 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
 vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: vi.fn() }) }));
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
+vi.mock("@/hooks/useLiveSet", () => ({ useLiveSet: () => mocks.liveSet }));
 vi.mock("@/components/PlaylistActionsMenu", () => ({
-  default: ({ onOpenRecommendations }: { onOpenRecommendations: () => void }) => (
-    <button data-testid="actions-menu" onClick={onOpenRecommendations}>
-      Recommendations
-    </button>
+  default: ({
+    onOpenRecommendations,
+    onCreateSet,
+  }: {
+    onOpenRecommendations: () => void;
+    onCreateSet?: () => void;
+  }) => (
+    <>
+      <button data-testid="actions-menu" onClick={onOpenRecommendations}>
+        Recommendations
+      </button>
+      {onCreateSet && <button onClick={onCreateSet}>Create set</button>}
+    </>
   ),
 }));
 vi.mock("@/components/PlaylistItemMenu", () => ({
@@ -140,12 +151,12 @@ describe("PlaylistViewer view mode", () => {
     expect(await screen.findByTestId("track-table")).toBeTruthy();
     expect(screen.getAllByTestId("track-result-row")).toHaveLength(2);
     expect(screen.getAllByText("item menu")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Rows view", pressed: true })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "List", checked: true, hidden: true })).toBeTruthy();
   });
 
   it("switches to cards and keeps the choice for the other lists", async () => {
     const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
-    await user.click(await screen.findByRole("button", { name: "Cards view" }));
+    await user.click(await screen.findByText("Grid"));
     expect(screen.queryByTestId("track-table")).toBeNull();
     expect(screen.queryByTestId("track-result-row")).toBeNull();
     expect(localStorage.getItem("searchViewMode")).toBe("card");
@@ -154,17 +165,24 @@ describe("PlaylistViewer view mode", () => {
   it("starts from the saved mode", async () => {
     localStorage.setItem("searchViewMode", "card");
     renderWithProviders(<PlaylistViewer playlistId={1} />);
-    expect(await screen.findByRole("button", { name: "Cards view", pressed: true })).toBeTruthy();
+    expect(
+      await screen.findByRole("radio", { name: "Grid", checked: true, hidden: true }),
+    ).toBeTruthy();
     expect(screen.queryByTestId("track-table")).toBeNull();
   });
 
-  it("gives phones cards and no toggle, whatever was saved", async () => {
+  it("gives phones cards and no view switch, whatever was saved", async () => {
     setViewportWidth(390);
     localStorage.setItem("searchViewMode", "row");
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     expect((await screen.findAllByText("item menu")).length).toBe(2);
     expect(screen.queryByTestId("track-table")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Rows view" })).toBeNull();
+    // The switch lives in the desktop-only header slot; the phone bar has none.
+    expect(
+      within(screen.getByTestId("page-header-phone-actions")).queryByRole("radio", {
+        hidden: true,
+      }),
+    ).toBeNull();
   });
 
   it("plays the playlist from the clicked row", async () => {
@@ -269,30 +287,23 @@ describe("PlaylistViewer page header", () => {
 });
 
 describe("PlaylistViewer suggestions panel", () => {
-  it("toggles the panel from the header, pressed while it is open", async () => {
-    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+  it("has no Suggestions key in the header, at either width: the menu carries it", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
     const desktop = within(await screen.findByTestId("page-header-desktop-actions"));
-    expect(screen.queryByTestId("panel")).toBeNull();
-    await user.click(desktop.getByRole("button", { name: /Suggestions/, hidden: true }));
-    expect(await screen.findByTestId("panel")).toBeTruthy();
-    expect(
-      desktop.getByRole("button", { name: /Suggestions/, pressed: true, hidden: true }),
-    ).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "close panel" }));
-    expect(screen.queryByTestId("panel")).toBeNull();
+    expect(desktop.queryByRole("button", { name: /Suggestions/, hidden: true })).toBeNull();
+    expect(desktop.getByRole("radio", { name: "Grid", hidden: true })).toBeTruthy();
+    expect(desktop.getAllByTestId("actions-menu")).toHaveLength(1);
+    const phone = within(screen.getByTestId("page-header-phone-actions"));
+    expect(phone.queryByRole("button", { name: /Suggestions/, hidden: true })).toBeNull();
+    expect(phone.getAllByTestId("actions-menu")).toHaveLength(1);
   });
 
-  it("on phones is one icon beside the page's own menu, not a second ⋯ menu", async () => {
-    setViewportWidth(390);
-    try {
-      renderWithProviders(<PlaylistViewer playlistId={1} />);
-      const phone = within(await screen.findByTestId("page-header-phone-actions"));
-      expect(phone.getByRole("button", { name: "Suggestions" })).toBeTruthy();
-      expect(phone.queryByRole("button", { name: "More actions" })).toBeNull();
-      expect(phone.getAllByTestId("actions-menu")).toHaveLength(1);
-    } finally {
-      setViewportWidth(1280);
-    }
+  it("closes from the panel's own control", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByTestId("actions-menu"))[0]);
+    expect(await screen.findByTestId("panel")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "close panel" }));
+    expect(screen.queryByTestId("panel")).toBeNull();
   });
 
   it("opens from the actions menu", async () => {
@@ -326,5 +337,27 @@ describe("PlaylistViewer suggestions panel", () => {
     act(() => mocks.markChanged());
     act(() => mocks.saved());
     expect(screen.queryByText("Just added")).toBeNull();
+  });
+});
+
+describe("PlaylistViewer create set", () => {
+  beforeEach(() => {
+    mocks.liveSet = { set: null, loading: false, create: vi.fn() };
+  });
+
+  it("offers Create set in the menu while the playlist isn't a set, and runs the create action", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByRole("button", { name: "Create set" }))[0]);
+    expect(mocks.liveSet.create).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["once it is a set", { set: { title: "x" }, loading: false, create: vi.fn() }],
+    ["while the set loads", { set: null, loading: true, create: vi.fn() }],
+  ])("leaves Create set out %s", async (_label, liveSet) => {
+    mocks.liveSet = liveSet;
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findAllByTestId("actions-menu");
+    expect(screen.queryByRole("button", { name: "Create set" })).toBeNull();
   });
 });

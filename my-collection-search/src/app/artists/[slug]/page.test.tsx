@@ -126,9 +126,8 @@ describe("ArtistPage", () => {
     renderWithProviders(<ArtistPage />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Los Mirlos");
     expect(screen.getByText("Also credited as Mirlos")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Discogs profile" }).getAttribute("href")).toContain(
-      "/artist/77",
-    );
+    // No body row for Discogs; the header menu carries it.
+    expect(screen.queryByRole("link", { name: "Discogs profile" })).toBeNull();
     const stats = screen.getByLabelText("Artist stats");
     expect(stats.textContent).toContain("1970–1985");
     const albums = screen.getByRole("region", { name: "Albums" });
@@ -165,7 +164,22 @@ describe("ArtistPage", () => {
     expect(screen.getByText("No genres yet.")).toBeTruthy();
     expect(screen.getByText("No collaborators credited.")).toBeTruthy();
     expect(screen.queryByText(/Also credited/)).toBeNull();
-    expect(screen.queryByRole("link", { name: "Discogs profile" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More actions", hidden: true })).toBeNull();
+  });
+
+  it("opens the Discogs profile from the header menu", async () => {
+    mocks.query.data = page();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const { user } = renderWithProviders(<ArtistPage />);
+    await user.click(screen.getAllByRole("button", { name: "More actions", hidden: true })[0]);
+    const items = await screen.findAllByRole("menuitem", { name: "View on Discogs", hidden: true });
+    await user.click(items[0]);
+    expect(open).toHaveBeenCalledWith(
+      "https://www.discogs.com/artist/77",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    open.mockRestore();
   });
 
   it("caps a big catalogue at 12 albums and 10 tracks until Show all", async () => {
