@@ -24,6 +24,7 @@ import CustomPaletteEditor from "./CustomPaletteEditor";
 import { CategoryTag } from "@/components/ui/RoleTags";
 import { toaster } from "@/components/ui/toaster";
 import { useColorMode, type ThemeSetting } from "@/components/ui/color-mode";
+import { TAB_BAR_LABELS, isTabBarLabels, useTabBarLabels } from "@/lib/tabBarLabels";
 import {
   useAppearanceSettingsQuery,
   useUpdateAppearanceSettings,
@@ -151,6 +152,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
   const settings = useAppearanceSettingsQuery();
   const update = useUpdateAppearanceSettings();
   const { colorMode, colorModeSetting, setColorModeSetting } = useColorMode();
+  const [tabBarLabels, setTabBarLabels] = useTabBarLabels();
 
   // The cached setting already holds a change that is still saving, so the
   // selection follows the click at once.
@@ -384,6 +386,24 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
         >
           <SegmentGroup.Indicator />
           <SegmentGroup.Items items={MODES} />
+        </SegmentGroup.Root>
+      </Part>
+
+      <Part
+        title="Tab bar labels"
+        device="this"
+        help="On phones. Hide the labels to give the bar less height."
+      >
+        <SegmentGroup.Root
+          size="sm"
+          value={tabBarLabels}
+          aria-label="Tab bar labels"
+          onValueChange={(details) => {
+            if (isTabBarLabels(details.value)) setTabBarLabels(details.value);
+          }}
+        >
+          <SegmentGroup.Indicator />
+          <SegmentGroup.Items items={TAB_BAR_LABELS} />
         </SegmentGroup.Root>
       </Part>
     </Box>

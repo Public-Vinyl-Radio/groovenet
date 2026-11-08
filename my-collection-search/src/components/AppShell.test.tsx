@@ -109,6 +109,67 @@ describe("AppShell", () => {
     ).toBe("page");
   });
 
+  describe("tab bar labels", () => {
+    const tabBar = () => screen.getByTestId("mobile-tab-bar");
+    const visibleLabel = (name: string) => {
+      const el = within(tabBar()).getByText(name, { selector: "p" });
+      return rulesFor(el).includes("visibility: hidden") ? "hidden" : "shown";
+    };
+
+    it("makes the active tab's box fill its slot, whichever tab is active", () => {
+      for (const path of ["/", "/tracks", "/spins"]) {
+        pathname.value = path;
+        const { unmount } = renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+        const link = within(tabBar()).getByRole("link", { hidden: true, current: "page" });
+        expect(rulesFor(link.firstElementChild!)).toMatch(/width:\s*var\(--chakra-sizes-full\)/);
+        unmount();
+      }
+    });
+
+    it("shows every label and sets the root flag by default", () => {
+      renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      expect(document.documentElement.getAttribute("data-tabbar-labels")).toBe("always");
+      for (const name of ["Home", "Tracks", "More"]) expect(visibleLabel(name)).toBe("shown");
+      expect(within(tabBar()).getByRole("link", { name: "Home", hidden: true })).toBeTruthy();
+    });
+
+    it("selected only: keeps labels in layout but hides the inactive ones, still named", () => {
+      localStorage.setItem("tabbar-labels", "selected");
+      pathname.value = "/tracks";
+      renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      expect(document.documentElement.getAttribute("data-tabbar-labels")).toBe("selected");
+      expect(visibleLabel("Tracks")).toBe("shown");
+      expect(visibleLabel("Home")).toBe("hidden");
+      expect(visibleLabel("More")).toBe("hidden");
+      expect(within(tabBar()).getByRole("link", { name: "Home", hidden: true })).toBeTruthy();
+      expect(
+        within(tabBar())
+          .getByRole("link", { name: "Tracks", hidden: true })
+          .getAttribute("aria-current"),
+      ).toBe("page");
+    });
+
+    it("selected only: shows More's label when a page under it is current", () => {
+      localStorage.setItem("tabbar-labels", "selected");
+      renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      expect(visibleLabel("More")).toBe("shown");
+    });
+
+    it("never: renders icons only, every tab still named, at least 44px tall", () => {
+      localStorage.setItem("tabbar-labels", "never");
+      pathname.value = "/tracks";
+      renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
+      expect(document.documentElement.getAttribute("data-tabbar-labels")).toBe("never");
+      expect(within(tabBar()).queryByText("Home", { selector: "p" })).toBeNull();
+      for (const name of ["Home", "Tracks", "Albums", "Genres", "Spins"]) {
+        const link = within(tabBar()).getByRole("link", { name, hidden: true });
+        expect(rulesFor(link.firstElementChild!)).toMatch(/min-height:\s*44px/);
+      }
+      const more = within(tabBar()).getByRole("button", { name: "More", hidden: true });
+      expect(rulesFor(more)).toMatch(/min-height:\s*44px/);
+    });
+  });
+
   it("links to the record-care chores", () => {
     renderWithProviders(<AppShell developerToolsEnabled>page</AppShell>);
 
