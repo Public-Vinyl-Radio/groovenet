@@ -174,3 +174,15 @@ executable lines and branches covered. `just lint-all` and actual ARM64 archive
 checks passed. Installation was attempted after validation, but ADB reported the
 device disconnected before the archive could be copied; the earlier installation
 was left untouched while awaiting reconnection.
+
+The owner reconnected the Brick and requested copying the update. Two clean builds
+from source `8d1f6fb8` produced identical archives (SHA-256
+`8ef7ea5d7513ce11062c7ac3e126bfdfc1d8ebb04f08eff424dffd1f30fad532`). That archive
+was copied, verified, and installed into Ports after closing the prior remote;
+every installed payload passed its manifest. The installed executable SHA-256 is
+`0441f6b8d628846726c8dc272c4d2bfe46d3181b647e5aa71bdf4fc9f32691ce`.
+Config/CA and remembered selection were preserved. The previous app-only backup is
+`/userdata/system/groovenet-brick-backup-flows-20261108-183523`. Temporary diagnostics
+were removed. The owner was asked to reopen INNER SIGNALS and deliberately test
+playback approval; those owner observations are pending. Codecov patch and the
+cross-package/reproducibility CI jobs passed; native coverage CI was still running.
