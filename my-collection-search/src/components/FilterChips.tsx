@@ -19,8 +19,10 @@ interface FilterChipsProps {
   onClearAll?: () => void;
   /** The result count ("81 albums"), in mono: right-aligned on the chip line from `md` up, its own line on phones. */
   summary?: React.ReactNode;
-  /** False where the page shows its count elsewhere on phones (Albums, beside the sort). */
+  /** False where the page shows its count elsewhere on phones. */
   summaryOnPhones?: boolean;
+  /** False where the desktop shows the same thing elsewhere (Albums' active sort, which is in the search row). */
+  summaryOnDesktop?: boolean;
   /** Space above the row, which goes with it when it's hidden. */
   mt?: FlexProps["mt"];
 }
@@ -33,22 +35,29 @@ export default function FilterChips({
   onClearAll,
   summary,
   summaryOnPhones = true,
+  summaryOnDesktop = true,
   mt,
 }: FilterChipsProps) {
   const anyActive = chips.some((c) => c.active);
   const hasChips = chips.length > 0;
   const phoneSummary = summary !== undefined && summaryOnPhones;
+  // Nothing to show on the row means nothing is rendered: the count is in the page title,
+  // and a reserved empty row was dead space. The first chip shifts the list down by a row.
+  const hasContent = hasChips || (summary !== undefined && summaryOnDesktop);
 
   return (
     <Box
       mt={mt}
+      data-empty={hasContent ? undefined : "true"}
       // On phones there are only chips and the count, so with neither it takes no space.
-      display={{ base: hasChips || phoneSummary ? "block" : "none", md: "block" }}
+      display={{
+        base: hasChips || phoneSummary ? "block" : "none",
+        md: hasContent ? "block" : "none",
+      }}
     >
       {/*
         The chip line: active filters, Clear all, and the result count at the
-        right end. It holds its height empty from `md` up, so the results below
-        don't jump when the first chip appears.
+        right end. With none of those it isn't rendered at all.
       */}
       <Flex
         data-testid="filter-row"
@@ -98,7 +107,10 @@ export default function FilterChips({
         {summary !== undefined && (
           <Text
             data-testid="filter-summary"
-            display={{ base: phoneSummary ? "block" : "none", md: "block" }}
+            display={{
+              base: phoneSummary ? "block" : "none",
+              md: summaryOnDesktop ? "block" : "none",
+            }}
             fontFamily="mono"
             fontSize="12px"
             color="fg.muted"

@@ -40,7 +40,7 @@ import AlbumFiltersModal, {
   type AlbumFilterControls,
 } from "@/components/AlbumFiltersModal";
 import AlbumSearchMenu, { AlbumOptionsMenu } from "@/components/AlbumSearchMenu";
-import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from "@/components/AlbumSortMenu";
+import AlbumSortMenu, { DEFAULT_ALBUM_SORT, albumSortOption } from "@/components/AlbumSortMenu";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
 
@@ -251,7 +251,7 @@ function AlbumsPageContent() {
                 }
                 controls={
                   <>
-                    <AlbumSortMenu value={sort} onChange={handleSortChange} trigger="button" />
+                    <AlbumSortMenu value={sort} onChange={handleSortChange} />
                     <FiltersPanel
                       open={panelOpen}
                       onOpenChange={setPanelOpen}
@@ -270,6 +270,7 @@ function AlbumsPageContent() {
             <AlbumFiltersModal
               open={filtersOpen}
               onOpenChange={setFiltersOpen}
+              sort={{ value: sort, onChange: handleSortChange }}
               {...filterControls}
             />
 
@@ -283,8 +284,14 @@ function AlbumsPageContent() {
               ]}
               onToggle={handleAlbumFilterToggle}
               onClearAll={filterCount > 0 ? clearAll : undefined}
-              // Phones keep the count beside the sort above the results.
-              summaryOnPhones={false}
+              // A sort other than the default is named passively on phones ("414 albums · Oldest
+              // releases"); desktop shows it in the SORT button and the count in the title.
+              summary={
+                sort !== DEFAULT_ALBUM_SORT && total !== null
+                  ? `${albumCountLabel(total)} · ${albumSortOption(sort).label}`
+                  : undefined
+              }
+              summaryOnDesktop={false}
             />
 
             {/* Album Results */}
@@ -300,7 +307,6 @@ function AlbumsPageContent() {
                 onAddedGenresChange={setAddedGenres}
                 onFilterArtistsChange={setFilterArtists}
                 onTotalChange={setTotal}
-                onSortChange={handleSortChange}
                 layout={layout}
               />
             </Suspense>

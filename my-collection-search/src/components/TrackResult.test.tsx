@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { sampleTrack } from "@/stories/fixtures/track";
 import type { Track } from "@/types/track";
@@ -852,6 +852,80 @@ describe("TrackResult row layout (#685)", () => {
   });
 });
 
+describe("TrackResult phone rating (#1119)", () => {
+  it("shows a rated card's rating on the meta line, after the key, and nothing when unrated", () => {
+    const rated = {
+      ...track,
+      library_identifier: "LP-1",
+      bpm: "124",
+      key: "A major",
+      star_rating: 4,
+    };
+    const { unmount } = renderWithProviders(<TrackResult track={rated as Track} />);
+    const meta = screen.getByTestId("track-card-meta");
+    const rating = within(meta).getByTestId("track-card-rating");
+    expect(rating.textContent).toBe("★4");
+    expect(rating.tagName).toBe("BUTTON");
+    expect(rating.closest("a")).toBeNull();
+    const kids = Array.from(meta.children);
+    expect(kids.indexOf(rating)).toBeGreaterThan(
+      kids.indexOf(within(meta).getByTestId("track-card-key")),
+    );
+    unmount();
+
+    renderWithProviders(<TrackResult track={{ ...rated, star_rating: 0 } as Track} />);
+    expect(screen.queryByTestId("track-card-rating")).toBeNull();
+  });
+
+  it("opens a dialog that saves a star and closes, without triggering the card", async () => {
+    mocks.saveTrack.mockClear();
+    const onRowClick = vi.fn();
+    const { user } = renderWithProviders(
+      <TrackResult track={{ ...track, star_rating: 2 } as Track} onRowClick={onRowClick} />,
+    );
+    await user.click(screen.getByTestId("track-card-rating"));
+    await user.click(await screen.findByRole("button", { name: "5 stars" }));
+
+    expect(mocks.saveTrack).toHaveBeenCalledWith({
+      track_id: track.track_id,
+      friend_id: track.friend_id,
+      star_rating: 5,
+    });
+    expect(onRowClick).not.toHaveBeenCalled();
+    expect(screen.getByTestId("track-card-rating").textContent).toBe("★5");
+    await waitFor(() => expect(screen.queryByRole("button", { name: "5 stars" })).toBeNull());
+  });
+
+  it("clears the rating from the dialog", async () => {
+    mocks.saveTrack.mockClear();
+    const { user } = renderWithProviders(
+      <TrackResult track={{ ...track, star_rating: 3 } as Track} />,
+    );
+    await user.click(screen.getByTestId("track-card-rating"));
+    await user.click(await screen.findByRole("button", { name: "Clear rating" }));
+    expect(mocks.saveTrack).toHaveBeenCalledWith(expect.objectContaining({ star_rating: 0 }));
+    expect(screen.queryByTestId("track-card-rating")).toBeNull();
+  });
+
+  it("keeps the dialog's stars at 44px or more and marks the current one", async () => {
+    const { user } = renderWithProviders(
+      <TrackResult track={{ ...track, star_rating: 3 } as Track} />,
+    );
+    await user.click(screen.getByTestId("track-card-rating"));
+    const dialog = await screen.findByRole("dialog", { name: "Rate track" });
+    const stars = within(dialog).getAllByRole("button", { name: /stars?$/ });
+    expect(stars).toHaveLength(5);
+    stars.forEach((star) =>
+      expect(parseInt(getComputedStyle(star).minWidth)).toBeGreaterThanOrEqual(44),
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "3 stars" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    // Nothing nested: no button inside a button, no link in the dialog.
+    expect(dialog.querySelector("button button, a")).toBeNull();
+  });
+});
+
 describe("TrackResult card (#722)", () => {
   const cardTrack = {
     ...track,
@@ -926,7 +1000,8 @@ describe("TrackResult card (#722)", () => {
 
     const titleRow = screen.getByRole("link", { name: track.title }).parentElement as HTMLElement;
     expect(getComputedStyle(titleRow).paddingRight).toBe("32px");
-    const artistRow = screen.getByText(track.artist).closest("a")?.parentElement as HTMLElement;
+    const artistRow = screen.getByText(track.artist).closest("[data-artist-line]")
+      ?.parentElement as HTMLElement;
     expect(getComputedStyle(artistRow).paddingRight).toBe("32px");
     const actions = screen.getByTestId("track-card-actions");
     expect(getComputedStyle(actions).position).toBe("absolute");
