@@ -62,3 +62,7 @@ coverage.xml
 site/dist/
 site/.astro/
 site/.netlify/
+
+# Independent native Brick application builds and instrumented runs.
+apps/groovenet-brick/build*/
+*.profraw
