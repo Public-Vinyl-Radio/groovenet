@@ -27,6 +27,11 @@ elif [[ -f "${PROJECT_DIR}/my-collection-search/.env.tpl" ]]; then
 else
   COMPOSE_TEMPLATE_FILE=""
 fi
+# Let an explicit shell or env-file selection override the production default.
+profile_file="${COMPOSE_ENV_FILE:-$COMPOSE_TEMPLATE_FILE}"
+if [[ -z "${COMPOSE_PROFILES+x}" ]] && { [[ -z "$profile_file" ]] || ! grep -Eq '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file"; }; then
+  export COMPOSE_PROFILES=all
+fi
 OP_BIN="$(command -v op || true)"
 COMPOSE_CMD=()
 if [[ -n "${COMPOSE_ENV_FILE}" ]]; then

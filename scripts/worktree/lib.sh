@@ -239,6 +239,7 @@ WORKTREE_SLUG=$slug
 COMPOSE_PROJECT_NAME=$project
 WORKTREE_HOST=$host
 APP_PORT=$port
+COMPOSE_PROFILES=
 EOF
   )
 }
@@ -258,7 +259,30 @@ ensure_worktree_env() {
   [[ -f "$env_file" ]] || create_worktree_env
 
   ensure_worktree_audio_mount_env "$env_file"
+  if ! grep -q '^COMPOSE_PROFILES=' "$env_file"; then
+    printf 'COMPOSE_PROFILES=\n' >>"$env_file"
+  fi
   load_worktree_env
+}
+
+# Validate and normalize comma-separated profile names.
+normalize_profiles() {
+  local input="${1//,/ }" profile result=""
+  for profile in $input; do
+    case "$profile" in analysis|downloads|fingerprint|optimize|all) ;; *) usage_error "Unknown profile: $profile" ;; esac
+    case ",$result," in *",$profile,"*) ;; *) result="${result:+$result,}$profile" ;; esac
+  done
+  printf '%s' "$result"
+}
+
+save_profiles() {
+  local file tmp
+  file="$(worktree_env_file)"
+  tmp="${file}.tmp.$$"
+  sed '/^COMPOSE_PROFILES=/d' "$file" >"$tmp"
+  printf 'COMPOSE_PROFILES=%s\n' "$1" >>"$tmp"
+  mv "$tmp" "$file"
+  COMPOSE_PROFILES="$1"
 }
 
 default_worktree_audio_mount() {
@@ -331,6 +355,7 @@ run_compose() {
         COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}" \
         WORKTREE_HOST="${WORKTREE_HOST:-}" \
         APP_PORT="${APP_PORT:-}" \
+        COMPOSE_PROFILES="${COMPOSE_PROFILES:-}" \
         APP_AUDIO_MOUNT="${APP_AUDIO_MOUNT:-}" \
         WORKER_AUDIO_MOUNT="${WORKER_AUDIO_MOUNT:-}" \
         docker compose "$@"

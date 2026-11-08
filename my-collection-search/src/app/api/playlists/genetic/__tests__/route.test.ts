@@ -255,6 +255,15 @@ describe("POST /api/playlists/genetic — multiple invalid tracks", () => {
 // ─── GA service integration ───────────────────────────────────────────────────
 
 describe("POST /api/playlists/genetic — GA service integration", () => {
+  it("reports a stopped optimization service", async () => {
+    mockFetch.mockRejectedValueOnce(
+      new TypeError("fetch failed", { cause: { code: "ENOTFOUND" } }),
+    );
+    const res = await POST(makeReq({ playlist: [makeTrack()] }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Optimization service not running" });
+  });
+
   it("calls ga-service/optimize with POST", async () => {
     const track = makeTrack();
     await POST(makeReq({ playlist: [track] }));

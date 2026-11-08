@@ -111,7 +111,15 @@ just lint-all         # every pre-commit hook, as CI runs them
 ```
 
 Parallel tasks run in git worktrees, each with its own compose stack via
-`just worktree-up`. With [herdr](https://herdr.dev), `just herdr` attaches to
+`just worktree-up`. The core stack runs app, db and redis. Profiles persist in
+the worktree env file: use `just worktree-up --profile fingerprint` (repeat or
+comma-separate profiles), `just worktree-services add downloads`,
+`just worktree-services remove downloads`, and `just worktree-services list`.
+Before testing, agents should add the profile their issue needs: `downloads`
+for downloads and analysis, `fingerprint` for play tracking, ingest, set
+derivation and fingerprint indexing, and `optimize` for playlist ordering.
+Other work needs no extra services. `analysis` runs Essentia alone; `all` runs
+every optional service. Gated integration recipes start their own dependencies. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
 worktree workspace off `origin/main` in the background (`--focus` switches to
 it), runs `just worktree-setup` (`just bootstrap`, then its stack) and starts a
