@@ -18,6 +18,14 @@ import { useQueueSaveDialog } from "../useQueueSaveDialog";
 
 const t = (n: number) => ({ track_id: `t${n}`, friend_id: n }) as unknown as Track;
 
+// Typing before the dialog has moved focus into it can read as an outside
+// interaction and close it, which only shows under load.
+async function findFocusedNameInput() {
+  const input = await screen.findByPlaceholderText("Playlist name");
+  await waitFor(() => expect(document.activeElement).toBe(input));
+  return input;
+}
+
 function Harness() {
   const { Dialog, open, close, isOpen } = useQueueSaveDialog();
   return (
@@ -41,7 +49,7 @@ describe("useQueueSaveDialog", () => {
     const { user } = renderWithProviders(<Harness />);
     await user.click(screen.getByText("open"));
     expect(await screen.findByText("3 tracks will be saved.")).toBeTruthy();
-    await user.type(screen.getByPlaceholderText("Playlist name"), "Lounge");
+    await user.type(await findFocusedNameInput(), "Lounge");
     await user.click(screen.getByRole("button", { name: "Save playlist" }));
     await waitFor(() =>
       expect(importPlaylist).toHaveBeenCalledWith("Lounge", [
@@ -57,7 +65,7 @@ describe("useQueueSaveDialog", () => {
     state.playlist = [];
     const { user } = renderWithProviders(<Harness />);
     await user.click(screen.getByText("open"));
-    await user.type(await screen.findByPlaceholderText("Playlist name"), "X");
+    await user.type(await findFocusedNameInput(), "X");
     await user.click(await screen.findByRole("button", { name: "Save playlist" }));
     expect(toast).toHaveBeenCalledWith({ title: "Cannot save empty queue", type: "error" });
     expect(importPlaylist).not.toHaveBeenCalled();
@@ -69,7 +77,7 @@ describe("useQueueSaveDialog", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { user } = renderWithProviders(<Harness />);
     await user.click(screen.getByText("open"));
-    await user.type(await screen.findByPlaceholderText("Playlist name"), "X");
+    await user.type(await findFocusedNameInput(), "X");
     await user.click(await screen.findByRole("button", { name: "Save playlist" }));
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
