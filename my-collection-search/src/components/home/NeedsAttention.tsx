@@ -17,11 +17,20 @@ export default function NeedsAttention({
 }) {
   const phone = useBreakpointValue({ base: true, md: false });
   return (
-    <Box as="section" aria-labelledby="home-attention-heading">
-      <SectionLabel variant="strip" id="home-attention-heading" mb={3}>
+    <Box
+      as="section"
+      aria-labelledby="home-attention-heading"
+      borderWidth="outline"
+      borderColor="border.ink"
+      boxShadow="md"
+      mr="6px"
+      borderRadius="md"
+      overflow="clip"
+    >
+      <SectionLabel variant="header" id="home-attention-heading">
         NEEDS ATTENTION
       </SectionLabel>
-      <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" mr="6px" borderRadius="md">
+      <Box>
         {error ? (
           <Text role="alert" p={3} color="fg.muted">
             Couldn&apos;t load needs attention · {error}

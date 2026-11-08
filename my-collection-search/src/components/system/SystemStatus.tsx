@@ -142,17 +142,9 @@ export default function SystemStatus() {
           borderColor="border.ink"
           boxShadow="md"
         >
-          <Text
-            bg="bg.subtle"
-            borderBottomWidth="outline"
-            borderColor="border.ink"
-            p={4}
-            fontFamily="mono"
-            fontSize="xs"
-            fontWeight="bold"
-          >
+          <SectionLabel variant="header" level={3}>
             BUILD
-          </Text>
+          </SectionLabel>
           {version.isLoading ? (
             <Spinner m={4} />
           ) : version.error ? (

@@ -98,4 +98,30 @@ describe("SectionLabel", () => {
     );
     expect(screen.getByRole("heading", { level: 3, name: "Recap" })).toBeTruthy();
   });
+
+  it("renders a card header row with label, meta and a trailing link", () => {
+    renderWithProviders(
+      <SectionLabel
+        variant="header"
+        id="h"
+        meta="last 30 days"
+        link={{ href: "/albums", label: "All →" }}
+      >
+        New arrivals
+      </SectionLabel>,
+    );
+    expect(screen.getByRole("heading", { level: 2, name: "New arrivals" }).id).toBe("h");
+    expect(screen.getByText("last 30 days")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "All →" }).getAttribute("href")).toBe("/albums");
+  });
+
+  it("renders a card header row at level 3 with no meta or link", () => {
+    renderWithProviders(
+      <SectionLabel variant="header" level={3}>
+        Build
+      </SectionLabel>,
+    );
+    expect(screen.getByRole("heading", { level: 3, name: "Build" })).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
 });

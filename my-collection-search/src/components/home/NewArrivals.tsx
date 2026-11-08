@@ -145,7 +145,7 @@ function Card({ item, friendId }: { item: Arrival; friendId: number }) {
 function Skeletons() {
   return (
     <Box data-testid="new-arrivals-loading" aria-hidden="true">
-      <Flex display={{ base: "flex", md: "none" }} gap="14px" overflow="hidden">
+      <Flex display={{ base: "flex", md: "none" }} gap="14px" overflow="hidden" p="12px">
         {[0, 1, 2].map((i) => (
           <Box
             key={i}
@@ -159,14 +159,7 @@ function Skeletons() {
           />
         ))}
       </Flex>
-      <Box
-        display={{ base: "none", md: "block" }}
-        borderWidth="outline"
-        borderRadius="md"
-        overflow="clip"
-        borderColor="border.ink"
-        boxShadow="md"
-      >
+      <Box display={{ base: "none", md: "block" }}>
         {[0, 1, 2].map((i) => (
           <Box
             key={i}
@@ -187,9 +180,6 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
       role={role}
       px="14px"
       py={3}
-      borderWidth="outline"
-      borderRadius="md"
-      borderColor="border.ink"
       fontFamily="mono"
       fontSize="xs"
       letterSpacing="0.06em"
@@ -199,15 +189,6 @@ function Notice({ role, children }: { role?: "alert"; children: React.ReactNode 
     </Text>
   );
 }
-
-const linkProps = {
-  alignSelf: "flex-start",
-  fontFamily: "mono",
-  fontSize: "xs",
-  fontWeight: "semibold",
-  letterSpacing: "0.04em",
-  color: "fg",
-} as const;
 
 /**
  * Home's New arrivals (#882): albums added in the last 30 days, least played
@@ -246,11 +227,8 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           listStyleType="none"
           gap="14px"
           overflowX="auto"
-          mx="-16px"
-          my={0}
-          px="16px"
-          pt="2px"
-          pb="8px"
+          m={0}
+          p="12px"
         >
           {items.map((item) => (
             <Card key={item.release_id} item={item} friendId={friendId} />
@@ -263,10 +241,6 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           listStyleType="none"
           m={0}
           p={0}
-          borderWidth="outline"
-          borderRadius="md"
-          borderColor="border.ink"
-          boxShadow="md"
         >
           {items.map((item, i) => (
             <ListRow
@@ -278,44 +252,33 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
             />
           ))}
         </Box>
-        <Link asChild display={{ base: "none", md: "inline-flex" }} {...linkProps}>
-          <NextLink href={ALL_ARRIVALS_HREF}>All new arrivals →</NextLink>
-        </Link>
       </>
     );
   }
 
   return (
-    <Flex
+    <Box
       as="section"
       aria-labelledby="home-new-arrivals-heading"
       aria-busy={loading || (!arrivals && !error) || undefined}
-      direction="column"
-      gap={{ base: "10px", md: "12px" }}
       mr={{ md: "6px" }}
+      borderWidth="outline"
+      borderRadius="md"
+      borderColor="border.ink"
+      boxShadow="md"
+      overflow="clip"
     >
       <SectionLabel
-        variant="strip"
+        variant="header"
         id="home-new-arrivals-heading"
+        link={{ href: ALL_ARRIVALS_HREF, label: "All →" }}
         meta={
           showCaption ? (
             <>
-              <Text
-                as="span"
-                display={{ base: "none", md: "inline" }}
-                fontFamily="mono"
-                fontSize="xs"
-                color="fg.muted"
-              >
+              <Text as="span" display={{ base: "none", md: "inline" }}>
                 {arrivalsCaption(unrated, windowDays, "desktop")}
               </Text>
-              <Text
-                as="span"
-                display={{ base: "inline", md: "none" }}
-                fontFamily="mono"
-                fontSize="11px"
-                color="fg.muted"
-              >
+              <Text as="span" display={{ base: "inline", md: "none" }}>
                 {arrivalsCaption(unrated, windowDays, "phone")}
               </Text>
             </>
@@ -325,6 +288,6 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
         NEW ARRIVALS
       </SectionLabel>
       {body}
-    </Flex>
+    </Box>
   );
 }
