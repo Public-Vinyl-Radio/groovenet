@@ -78,6 +78,13 @@ class FakeObserver {
   observe() {}
   disconnect() {}
 }
+// jsdom renders both header widths: the labelled desktop button, and on phones
+// the Play all key and a kebab holding Shuffle.
+const desktopButton = (name: string) =>
+  within(screen.getByTestId("page-header-desktop-actions")).getByRole("button", {
+    name,
+    hidden: true,
+  }) as HTMLButtonElement;
 const scrollToEnd = () => observers.callbacks.at(-1)?.([{ isIntersecting: true }]);
 const ref = (id: string, name: string, track_count: number) => ({
   id,
@@ -237,9 +244,9 @@ describe("genre detail", () => {
     mocks.query.data = fullPage;
     const { user } = renderWithProviders(<GenrePage />);
     expect(screen.getByTestId("track-row")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Play all" }));
+    await user.click(desktopButton("Play all"));
     expect(mocks.play).toHaveBeenCalledWith(false);
-    await user.click(screen.getByRole("button", { name: "Shuffle" }));
+    await user.click(desktopButton("Shuffle"));
     expect(mocks.play).toHaveBeenCalledWith(true);
     await user.click(screen.getByRole("button", { name: "Albums [9]" }));
     expect(screen.getByTestId("album-row")).toBeTruthy();
@@ -265,9 +272,7 @@ describe("genre detail", () => {
     expect(screen.getByText("No BPM data for this genre yet.")).toBeTruthy();
     expect(screen.getByText("No related genres in the collection yet.")).toBeTruthy();
     expect(screen.queryByText("Custom")).toBeNull();
-    expect((screen.getByRole("button", { name: "Play all" }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(desktopButton("Play all").disabled).toBe(true);
     await user.click(screen.getByRole("button", { name: "Albums [9]" }));
     expect(screen.getByText("No albums in this genre yet.")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Subgenres" })).toBeNull();
@@ -278,9 +283,7 @@ describe("genre detail", () => {
     mocks.playback = { busy: true, problem: "Playback failed" };
     renderWithProviders(<GenrePage />);
     expect(screen.getByTestId("genre-results-loading")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Shuffle" }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(desktopButton("Shuffle").disabled).toBe(true);
     expect(screen.getByRole("alert").textContent).toBe("Playback failed");
   });
   it("retries a failed initial results query and a failed next page", async () => {
@@ -352,8 +355,8 @@ describe("genre detail", () => {
     expect(screen.getByTestId("track-row")).toBeTruthy();
     expect(screen.queryByText("Build this crate")).toBeNull();
     expect(screen.getByRole("region", { name: "Neighbouring crates" })).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Play all" }));
-    await user.click(screen.getByRole("button", { name: "Shuffle" }));
+    await user.click(desktopButton("Play all"));
+    await user.click(desktopButton("Shuffle"));
     expect(mocks.play.mock.calls).toEqual([[false], [true]]);
     await user.click(screen.getByRole("button", { name: "Albums [1]" }));
     expect(screen.getByRole("heading", { name: "Build this crate" })).toBeTruthy();
@@ -458,5 +461,92 @@ describe("genre detail", () => {
     renderWithProviders(<GenrePage />);
     expect(mocks.useGenreResults).toHaveBeenCalledTimes(1);
     expect(mocks.useGenreResults).toHaveBeenLastCalledWith("psychedelic-cumbia", 6, "tracks", 10);
+  });
+  it("puts Play all and Shuffle in the phone header and drops the in-page row", async () => {
+    mocks.query.data = fullPage;
+    setViewportWidth(390);
+    const { user } = renderWithProviders(<GenrePage />);
+    const bar = within(screen.getByTestId("page-header-phone-actions"));
+    await user.click(bar.getByRole("button", { name: "Play all" }));
+    expect(mocks.play).toHaveBeenLastCalledWith(false);
+    await user.click(bar.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Shuffle" }));
+    expect(mocks.play).toHaveBeenLastCalledWith(true);
+    // Only the header has them: no third pair in the body.
+    expect(screen.getAllByRole("button", { name: "Play all", hidden: true })).toHaveLength(2);
+  });
+  it("disables the phone Play all key and Shuffle item with nothing playable", async () => {
+    mocks.query.data = { ...fullPage, stats: { ...fullPage.stats, playable_tracks: 0 } };
+    setViewportWidth(390);
+    const { user } = renderWithProviders(<GenrePage />);
+    const bar = within(screen.getByTestId("page-header-phone-actions"));
+    expect((bar.getByRole("button", { name: "Play all" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.getByText("No playable tracks in this genre yet.")).toBeTruthy();
+    await user.click(bar.getByRole("button", { name: "More actions" }));
+    expect(
+      (await screen.findByRole("menuitem", { name: "Shuffle" })).getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+  it("shows track cards on a phone, with no list header", () => {
+    mocks.query.data = fullPage;
+    setViewportWidth(390);
+    renderWithProviders(<GenrePage />);
+    expect(screen.getByTestId("track-row").textContent).toBe("r1 cardr1");
+    expect(screen.queryByText("Release")).toBeNull();
+  });
+  it("offers Rows/Cards on desktop for Tracks only, and remembers the choice", async () => {
+    mocks.query.data = fullPage;
+    const { user } = renderWithProviders(<GenrePage />);
+    expect(screen.getByTestId("track-row").textContent).toBe("r1 rowr1");
+    const rowsHeader = () => screen.queryByText("Release");
+    const view = () => screen.getByRole("radiogroup", { name: "View", hidden: true });
+    expect(view()).toBeTruthy();
+    expect(rowsHeader()).not.toBeNull();
+    await user.click(within(view()).getByText("Grid"));
+    expect(screen.getByTestId("track-row").textContent).toBe("r1 cardr1");
+    expect(localStorage.getItem("searchViewMode")).toBe("card");
+    expect(rowsHeader()).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Albums [9]" }));
+    expect(screen.queryByRole("radiogroup", { name: "View", hidden: true })).toBeNull();
+  });
+  it("below xl: related chips above the tabs, no sentinel, Show more fetches", async () => {
+    mocks.query.data = fullPage;
+    setViewportWidth(1000);
+    const { user } = renderWithProviders(<GenrePage />);
+    expect(screen.queryByTestId("genre-results-sentinel")).toBeNull();
+    // The chip row replaces the aside's crate.
+    const chips = screen.getByRole("region", { name: "Related genres" });
+    expect(
+      within(chips)
+        .getByRole("link", { name: /Chicha/ })
+        .getAttribute("href"),
+    ).toBe("/genres/chicha");
+    expect(screen.queryByRole("article", { name: "Related genres crate" })).toBeNull();
+    expect(screen.getByText("Showing 1 of 24")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+    expect(mocks.results.fetchNextPage).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Albums [9]" }));
+    expect(screen.getByText("Showing 1 of 9")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+    expect(mocks.results.fetchNextPage).toHaveBeenCalledTimes(2);
+    // The insights below the list are reachable.
+    expect(screen.getByRole("img", { name: /90–100 BPM/ })).toBeTruthy();
+  });
+  it("below xl: no Show more at the end, and no chip row without relatives", () => {
+    mocks.query.data = { ...fullPage, related: [] };
+    mocks.results.hasNextPage = false;
+    setViewportWidth(1000);
+    renderWithProviders(<GenrePage />);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Related genres" })).toBeNull();
+  });
+  it("at xl: the aside crate stays, with no chip row or Show more", () => {
+    mocks.query.data = fullPage;
+    renderWithProviders(<GenrePage />);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    expect(screen.getByRole("article", { name: "Related genres crate" })).toBeTruthy();
+    expect(screen.getAllByRole("region", { name: "Related genres" })).toHaveLength(1);
   });
 });

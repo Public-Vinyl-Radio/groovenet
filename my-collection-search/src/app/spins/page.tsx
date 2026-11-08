@@ -35,6 +35,7 @@ import {
 import { groupListeningLog, type ListeningLogDay } from "@/components/spins/spinSummary";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useSpinRecapQuery, useSpinsInfiniteQuery } from "@/hooks/useSpinsQuery";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import { useUsername } from "@/providers/UsernameProvider";
@@ -269,32 +270,13 @@ function SpinsPageContent() {
                 >
                   LISTENING LOG
                 </SectionLabel>
-                <Tabs.List
+                <SegmentedControl
+                  tabs
+                  framed
                   aria-label="Source"
-                  gap={0}
-                  display="grid"
-                  gridTemplateColumns="repeat(3, minmax(0, 1fr))"
+                  items={MEDIUM_TABS}
                   w={{ base: "full", md: "auto" }}
-                >
-                  {MEDIUM_TABS.map((tab, index) => (
-                    <Tabs.Trigger
-                      key={tab.value}
-                      value={tab.value}
-                      justifyContent="center"
-                      h="44px"
-                      px={3}
-                      ml={index ? "-2px" : 0}
-                      // One joined strip: only its outer corners are rounded.
-                      borderRadius="0"
-                      borderStartRadius={index === 0 ? "md" : undefined}
-                      borderEndRadius={index === MEDIUM_TABS.length - 1 ? "md" : undefined}
-                      fontSize={{ base: "xs", md: "11px" }}
-                      letterSpacing="0.06em"
-                    >
-                      {tab.label}
-                    </Tabs.Trigger>
-                  ))}
-                </Tabs.List>
+                />
               </Flex>
             </Tabs.Root>
             {log}

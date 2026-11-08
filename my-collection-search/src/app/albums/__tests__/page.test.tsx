@@ -30,13 +30,11 @@ function StubAlbumSearchResults({
   onAddedGenresChange,
   onFilterArtistsChange,
   onTotalChange,
-  onSortChange,
   layout,
 }: {
   onAddedGenresChange?: (g: typeof mocks.addedGenres) => void;
   onFilterArtistsChange?: (a: typeof mocks.filterArtists) => void;
   onTotalChange?: (total: number) => void;
-  onSortChange?: (sort: string) => void;
   layout?: string;
 }) {
   React.useEffect(() => {
@@ -48,7 +46,6 @@ function StubAlbumSearchResults({
   return (
     <div data-testid="results" data-layout={layout}>
       <button onClick={() => onTotalChange?.(42)}>report total</button>
-      <button onClick={() => onSortChange?.("title:asc")}>pick sort</button>
     </div>
   );
 }
@@ -56,11 +53,11 @@ vi.mock("@/components/AlbumSearchResults", () => ({ default: StubAlbumSearchResu
 
 import AlbumsPage from "../page";
 
-/** The phone's Filters modal, from the header kebab (jsdom renders the phone layout). */
+/** The phone's Sort & filter modal, from the header kebab (jsdom renders the phone layout). */
 const openFilters = async (user: ReturnType<typeof renderWithProviders>["user"]) => {
   await user.click(screen.getByRole("button", { name: /^Albums actions/ }));
-  await user.click(await screen.findByRole("menuitem", { name: /^Filters/ }));
-  return screen.findByRole("dialog", { name: "Filters" });
+  await user.click(await screen.findByRole("menuitem", { name: /^Sort & filter/ }));
+  return screen.findByRole("dialog", { name: "Sort & filter" });
 };
 const genreNode = (id: string, name: string, parent_id: string | null = null) => ({
   id,
@@ -346,19 +343,46 @@ describe("albums page simplified search (#751)", () => {
     ).toBe(true);
   });
 
-  it("sorts through the URL, keeping the search", async () => {
+  it("sorts from the modal's Sort by section, through the URL, keeping the search", async () => {
     mocks.searchParams = new URLSearchParams("q=dub");
     const { user } = renderWithProviders(<AlbumsPage />);
-    await user.click(await screen.findByRole("button", { name: "pick sort" }));
+    const modal = await openFilters(user);
+    expect(within(modal).getByText("Sort by")).toBeTruthy();
+    await user.selectOptions(within(modal).getByRole("combobox", { name: "Sort by" }), "Title A–Z");
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dub&sort=title%3Aasc");
+  });
+
+  it("leaves the sort alone when the modal's Reset clears filters", async () => {
+    mocks.searchParams = new URLSearchParams("sort=year%3Aasc&missing_audio=1");
+    const { user } = renderWithProviders(<AlbumsPage />);
+    const modal = await openFilters(user);
+    await user.click(within(modal).getByRole("button", { name: "Reset" }));
+    const target = mocks.replace.mock.calls.at(-1)?.[0] ?? mocks.push.mock.calls.at(-1)?.[0];
+    expect(String(target)).toContain("sort=year%3Aasc");
+    expect(String(target)).not.toContain("missing_audio");
+  });
+
+  it("names a non-default sort beside the count on phones, and nothing for the default", async () => {
+    mocks.searchParams = new URLSearchParams("sort=year%3Aasc");
+    const { user, unmount } = renderWithProviders(<AlbumsPage />);
+    await user.click(await screen.findByRole("button", { name: "report total" }));
+    expect((await screen.findByTestId("filter-summary")).textContent).toBe(
+      "42 albums · Oldest releases",
+    );
+    unmount();
+
+    mocks.searchParams = new URLSearchParams();
+    const again = renderWithProviders(<AlbumsPage />);
+    await again.user.click(await screen.findByRole("button", { name: "report total" }));
+    expect(screen.queryByTestId("filter-summary")).toBeNull();
   });
 
   it("sorts from SORT in the desktop search row", async () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     await user.click(
-      await screen.findByRole("button", { name: "Sort: Recently Added", hidden: true }),
+      await screen.findByRole("button", { name: "Sort: Recently added", hidden: true }),
     );
-    await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)", hidden: true }));
+    await user.click(await screen.findByRole("menuitem", { name: "Title A–Z", hidden: true }));
     expect(mocks.push).toHaveBeenCalledWith("/albums?sort=title%3Aasc");
   });
 });
@@ -382,6 +406,8 @@ describe("albums page desktop header (#794)", () => {
 
     const panel = await openPanel(user);
     expect(screen.getByRole("button", { name: "Filters · 2", hidden: true })).toBeTruthy();
+    // Desktop's panel is filters only: sort stays in the search row.
+    expect(screen.queryByText("Sort by")).toBeNull();
     expect(within(panel).getByText("Albums · 2 active")).toBeTruthy();
     expect(within(panel).getByRole("group", { name: "Only albums missing" })).toBeTruthy();
     expect(within(panel).getByRole("button", { name: "Show albums" })).toBeTruthy();

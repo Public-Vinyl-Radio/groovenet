@@ -25,7 +25,7 @@ describe("AlbumSearchMenu (#751)", () => {
     expect(kebab.textContent).toBe("");
 
     await user.click(kebab);
-    await user.click(await screen.findByRole("menuitem", { name: "Filters" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Sort & filter" }));
     expect(onOpenFilters).toHaveBeenCalledTimes(1);
 
     await user.click(kebab);
@@ -38,6 +38,6 @@ describe("AlbumSearchMenu (#751)", () => {
     const kebab = screen.getByRole("button", { name: "Albums actions, 3 filters on" });
     expect(kebab.textContent).toBe("3");
     await user.click(kebab);
-    expect(await screen.findByRole("menuitem", { name: "Filters (3)" })).toBeTruthy();
+    expect(await screen.findByRole("menuitem", { name: "Sort & filter (3)" })).toBeTruthy();
   });
 });
