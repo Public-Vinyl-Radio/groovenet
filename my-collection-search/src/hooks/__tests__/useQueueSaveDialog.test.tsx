@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -53,26 +53,31 @@ describe("useQueueSaveDialog", () => {
     await waitFor(() => expect(screen.getByText("is-closed")).toBeTruthy());
   });
 
-  it("refuses an empty queue and reports a failed save", async () => {
+  it("refuses an empty queue", async () => {
     state.playlist = [];
-    const { user, rerender } = renderWithProviders(<Harness />);
+    const { user } = renderWithProviders(<Harness />);
     await user.click(screen.getByText("open"));
     await user.type(await screen.findByPlaceholderText("Playlist name"), "X");
-    await user.click(screen.getByRole("button", { name: "Save playlist" }));
+    await user.click(await screen.findByRole("button", { name: "Save playlist" }));
     expect(toast).toHaveBeenCalledWith({ title: "Cannot save empty queue", type: "error" });
+    expect(importPlaylist).not.toHaveBeenCalled();
+  });
 
+  it("reports a failed save and closes from outside", async () => {
     state.playlist = [t(1)];
     importPlaylist.mockRejectedValueOnce(new Error("boom"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    rerender(<Harness />);
-    await user.click(screen.getByRole("button", { name: "Save playlist" }));
+    const { user } = renderWithProviders(<Harness />);
+    await user.click(screen.getByText("open"));
+    await user.type(await screen.findByPlaceholderText("Playlist name"), "X");
+    await user.click(await screen.findByRole("button", { name: "Save playlist" }));
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
         title: "Failed to save queue as playlist",
         type: "error",
       }),
     );
-    await act(async () => {});
+    expect(screen.getByText("is-open")).toBeTruthy();
     fireEvent.click(screen.getByText("shut"));
     expect(screen.getByText("is-closed")).toBeTruthy();
   });
