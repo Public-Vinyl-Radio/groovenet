@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box } from "@chakra-ui/react";
 import SuggestionsPanel from "@/components/SuggestionsPanel";
+import { UsernameProvider } from "@/providers/UsernameProvider";
 import type { Track } from "@/types/track";
 import { sampleTrack } from "./fixtures/track";
 
@@ -87,9 +88,11 @@ const meta: Meta<typeof SuggestionsPanel> = {
   decorators: [
     (Story) => (
       <SeededRecommendations>
-        <Box maxW="460px">
-          <Story />
-        </Box>
+        <UsernameProvider initialFriend={{ id: 6, username: "saegey" }}>
+          <Box maxW="460px">
+            <Story />
+          </Box>
+        </UsernameProvider>
       </SeededRecommendations>
     ),
   ],
