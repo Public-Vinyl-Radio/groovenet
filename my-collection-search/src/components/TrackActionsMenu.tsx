@@ -54,6 +54,8 @@ type Props = {
   audioActions?: TrackAudioActions;
   /** Told when the track is played, queued or added to a playlist. */
   onAction?: (action: TrackMenuAction) => void;
+  /** Told once Add to Playlist has put the track in a playlist; never on cancel or failure. */
+  onAddedToPlaylist?: (playlistId: number) => void;
   /** A full 44px borderless trigger on phones too (the track page header), not the compact one. */
   prominent?: boolean;
   /**
@@ -72,6 +74,7 @@ export default function TrackActionsMenu({
   hideEdit,
   audioActions,
   onAction,
+  onAddedToPlaylist,
   prominent = false,
   compact: compactProp,
 }: Props) {
@@ -92,7 +95,10 @@ export default function TrackActionsMenu({
   };
   const editHref = `/tracks/${encodeURIComponent(track.track_id)}/edit?friend_id=${track.friend_id}`;
   const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog({
-    onAdded: () => onAction?.("added_to_playlist"),
+    onAdded: (_track, playlistId) => {
+      onAction?.("added_to_playlist");
+      onAddedToPlaylist?.(playlistId);
+    },
   });
   const queryClient = useQueryClient();
   const router = useRouter();

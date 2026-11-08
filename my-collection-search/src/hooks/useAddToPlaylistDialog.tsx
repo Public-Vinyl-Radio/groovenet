@@ -12,9 +12,12 @@ import { analytics } from "@/lib/analytics/client";
 
 /**
  * Hook for managing add-to-playlist dialog workflow. `onAdded` runs once the
- * track is actually in a playlist, not when the dialog opens.
+ * track is actually in a playlist (with that playlist's id), not when the
+ * dialog opens and never on cancel.
  */
-export function useAddToPlaylistDialog({ onAdded }: { onAdded?: (track: Track) => void } = {}) {
+export function useAddToPlaylistDialog({
+  onAdded,
+}: { onAdded?: (track: Track, playlistId: number) => void } = {}) {
   const queryClient = useQueryClient();
   const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = React.useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = React.useState(false);
@@ -78,7 +81,7 @@ export function useAddToPlaylistDialog({ onAdded }: { onAdded?: (track: Track) =
           playlist_id: playlist.id,
           is_new_playlist: false,
         });
-        onAdded?.(track);
+        onAdded?.(track, playlist.id);
       });
       resetState();
     },
@@ -94,13 +97,13 @@ export function useAddToPlaylistDialog({ onAdded }: { onAdded?: (track: Track) =
   // Mutation for creating new playlist with tracks
   const createPlaylistMutation = useMutation({
     mutationFn: async ({ name, tracks }: { name: string; tracks: Track[] }) => {
-      await importPlaylist(
+      const playlist = await importPlaylist(
         name,
         tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id })),
       );
-      return { name, tracks };
+      return { name, tracks, playlistId: playlist.id };
     },
-    onSuccess: ({ name, tracks }) => {
+    onSuccess: ({ name, tracks, playlistId }) => {
       toaster.create({
         title:
           tracks.length === 1
@@ -116,7 +119,7 @@ export function useAddToPlaylistDialog({ onAdded }: { onAdded?: (track: Track) =
           track_id: track.track_id,
           is_new_playlist: true,
         });
-        onAdded?.(track);
+        onAdded?.(track, playlistId);
       });
       resetState();
     },
