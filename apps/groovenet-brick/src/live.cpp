@@ -10,6 +10,7 @@
 #include <json-c/json.h>
 #include <mutex>
 #include <thread>
+#include <unordered_set>
 
 namespace brick {
 namespace {
@@ -464,6 +465,7 @@ void PlayerState::detail(const std::string &text) {
   auto *queue = field(state, "queue", json_type_array);
   if (json_object_array_length(queue) > 10000)
     throw NetworkError("Queue exceeds size limit");
+  std::unordered_set<std::string> queueIds;
   for (size_t i = 0; i < json_object_array_length(queue); ++i) {
     auto *q = json_object_array_get_idx(queue, i);
     Track track{str(q, "title"), str(q, "artist"), "", std::nullopt, false};
@@ -472,6 +474,9 @@ void PlayerState::detail(const std::string &text) {
     if (track.trackId.empty() || track.friendId == 0)
       throw NetworkError("Malformed track identity");
     auto queueId = str(q, "id");
+    if (queueId.empty() || !queueIds.insert(queueId).second)
+      throw NetworkError("Invalid queue entry identity");
+    track.entryId = queueId;
     next.queue.push_back(track);
     if (queueId == entry) {
       next.queue.back().duration = dur;
@@ -620,6 +625,33 @@ std::string queueCommand(const std::vector<Track> &tracks, bool play,
     json_object_object_add(root.get(), "play", json_object_new_boolean(true));
   return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
 }
+std::string queueEditCommand(const Snapshot &state, QueueEdit edit,
+                             const std::string &entry) {
+  Json root(json_object_new_object(), json_object_put);
+  const char *type = edit == QueueEdit::Clear    ? "queue.clear"
+                     : edit == QueueEdit::Play   ? "play"
+                     : edit == QueueEdit::Remove ? "queue.remove"
+                                                 : "queue.move";
+  json_object_object_add(root.get(), "type", json_object_new_string(type));
+  if (edit != QueueEdit::Clear) {
+    auto it = std::find_if(state.queue.begin(), state.queue.end(),
+                           [&](const Track &t) { return t.entryId == entry; });
+    if (entry.empty() || it == state.queue.end())
+      throw NetworkError("Queue entry changed; review queue and choose again");
+    json_object_object_add(root.get(), "entry_id",
+                           json_object_new_string(entry.c_str()));
+    if (edit == QueueEdit::Up || edit == QueueEdit::Down) {
+      auto index = static_cast<size_t>(it - state.queue.begin());
+      if ((edit == QueueEdit::Up && index == 0) ||
+          (edit == QueueEdit::Down && index + 1 == state.queue.size()))
+        throw NetworkError("Entry is already at the queue boundary");
+      json_object_object_add(
+          root.get(), "to",
+          json_object_new_int64(edit == QueueEdit::Up ? index - 1 : index + 1));
+    }
+  }
+  return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
+}
 namespace {
 class LiveData final : public DataAdapter {
 public:
@@ -742,6 +774,28 @@ public:
     }
     ++serial_;
   }
+  void editQueue(QueueEdit edit, const std::string &entry,
+                 const std::string &token) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!published_.view.acknowledgment.empty() || !pending_.empty())
+      return;
+    try {
+      if (token.empty() || token != published_.view.commandToken ||
+          !published_.view.connected)
+        throw NetworkError(
+            "Queue changed; review refreshed queue and choose again");
+      pending_ =
+          published_.command(queueEditCommand(published_.view, edit, entry));
+      published_.view.connected = false;
+      published_.view.refreshing = true;
+      published_.view.status = "Queue edit pending; awaiting server state";
+      ++generation_;
+      wake_.notify_all();
+    } catch (const NetworkError &e) {
+      published_.view.acknowledgment = e.what();
+    }
+    ++serial_;
+  }
   void command(Action action) override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!published_.view.connected || !published_.view.acknowledgment.empty() ||
@@ -785,7 +839,7 @@ private:
   LiveConfig config_;
   Snapshot state_;
   PlayerState published_, display_;
-  uint64_t serial_ = 1, seen_ = 0;
+  uint64_t serial_ = 1, seen_ = 0, connection_ = 0;
   std::mutex mutex_;
   std::condition_variable wake_;
   std::thread thread_, metadataThread_, collectionThread_;
@@ -874,8 +928,9 @@ private:
       next.view.collection = published_.view.collection;
       if (!collectionStatus.empty())
         next.view.collection.status = collectionStatus;
-      next.view.commandToken =
-          next.id + "/" + next.worker + "/" + std::to_string(next.revision);
+      next.view.commandToken = next.id + "/" + next.worker + "/" +
+                               std::to_string(next.revision) + "/" +
+                               std::to_string(connection_);
       next.view.acknowledgment = published_.view.acknowledgment;
       if (next.view.currentIndex < next.view.queue.size()) {
         auto &track = next.view.queue[next.view.currentIndex];
@@ -974,6 +1029,7 @@ private:
         {
           std::lock_guard<std::mutex> lock(mutex_);
           generation = generation_.load();
+          ++connection_;
           // A new subscription retries metadata that failed on the old
           // connection.
           metadataIdentity_.clear();

@@ -29,6 +29,160 @@ template <typename F> void rejects(F work) {
   check(rejected);
 }
 using namespace brick;
+void queueTests() {
+  App app("mock", "playing");
+  app.handle(Action::Menu);
+  for (int i = 0; i < 3; ++i)
+    app.handle(Action::Down);
+  app.handle(Action::Select);
+  app.handle(Action::Left);
+  check(app.focus() == 0);
+  check(app.rows()[1].find("[current]") != std::string::npos);
+  app.handle(Action::RemoteUp);
+  check(app.snapshot().volume == 60);
+  app.handle(Action::PlayPause);
+  check(!app.snapshot().playing);
+  app.handle(Action::PlayPause);
+  check(app.snapshot().playing);
+  app.handle(Action::Select);
+  check(app.screen() == Screen::ClearConfirm && app.focus() == 0);
+  app.handle(Action::Select); // Cancel is the default.
+  check(app.snapshot().queue.size() == 3);
+  app.handle(Action::Down);
+  auto first = app.snapshot().queue[0].entryId;
+  app.handle(Action::Select);
+  app.handle(Action::Down);
+  app.handle(Action::Down);
+  app.handle(Action::Down);
+  app.handle(Action::Select); // Move focused current entry down.
+  app.advance(0);
+  check(app.screen() == Screen::Queue && app.focus() == 2);
+  check(app.snapshot().queue[1].entryId == first &&
+        app.snapshot().currentIndex == 1);
+  app.handle(Action::Select);
+  app.handle(Action::Down);
+  app.handle(Action::Select); // Remove current entry, focus successor.
+  app.advance(0);
+  check(app.snapshot().queue.size() == 2 && !app.snapshot().playing &&
+        app.focus() == 2);
+  app.handle(Action::Select);
+  app.handle(Action::Select); // Play selected UUID.
+  check(app.snapshot().playing && app.snapshot().currentIndex == 1);
+  app.handle(Action::Up);
+  app.handle(Action::Up);
+  app.handle(Action::Select);
+  app.handle(Action::Down);
+  app.handle(Action::Select);
+  app.advance(0);
+  check(app.snapshot().queue.empty() && !app.snapshot().playing &&
+        app.focus() == 0);
+  App cancelClear("mock", "playing");
+  for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Down,
+                      Action::Select, Action::Select})
+    cancelClear.handle(action);
+  check(cancelClear.screen() == Screen::ClearConfirm);
+  cancelClear.handle(Action::Menu);
+  check(cancelClear.screen() == Screen::Menu &&
+        cancelClear.snapshot().queue.size() == 3);
+  App move("mock", "playing");
+  for (auto action :
+       {Action::Menu, Action::Down, Action::Down, Action::Down, Action::Select,
+        Action::Down, Action::Down, Action::Select, Action::Down, Action::Down,
+        Action::Select})
+    move.handle(action);
+  check(move.snapshot().queue[0].title == "Les Nuits");
+  move.handle(Action::Select);
+  move.handle(Action::Menu);
+  check(move.screen() == Screen::Menu);
+  MockData navigation("playing");
+  navigation.editQueue(QueueEdit::Play, "entry-1", "");
+  navigation.command(Action::Next);
+  check(navigation.snapshot().currentIndex == 0 &&
+        navigation.snapshot().queue[0].entryId == "entry-2");
+  navigation.command(Action::Previous);
+  check(navigation.snapshot().queue[0].entryId == "entry-1");
+  MockData duplicate("playing");
+  duplicate.browse(1);
+  duplicate.queueTracks(false, 0, "");
+  auto original = duplicate.snapshot().queue[0].entryId;
+  auto added = duplicate.snapshot().queue.back().entryId;
+  check(original != added);
+  duplicate.editQueue(QueueEdit::Up, added, "");
+  duplicate.editQueue(QueueEdit::Play, added, "");
+  check(duplicate.snapshot().currentIndex == 2);
+  duplicate.editQueue(QueueEdit::Remove, original, "");
+  check(duplicate.snapshot().queue[1].entryId == added &&
+        duplicate.snapshot().playing);
+  duplicate.editQueue(QueueEdit::Down, added, "");
+  check(duplicate.snapshot().currentIndex == 2);
+  duplicate.editQueue(QueueEdit::Down, added, "");
+  check(!duplicate.snapshot().acknowledgment.empty());
+  duplicate.acknowledge();
+  duplicate.editQueue(QueueEdit::Remove, "missing", "");
+  check(!duplicate.snapshot().acknowledgment.empty());
+  for (const auto &scenario :
+       {"disconnected", "loading", "unavailable", "speaker-busy"}) {
+    MockData blocked(scenario);
+    blocked.editQueue(QueueEdit::Clear, "", "");
+    check(blocked.snapshot().queue.size() == 3);
+  }
+}
+class ScriptedData final : public DataAdapter {
+public:
+  Snapshot state = MockData("playing").snapshot();
+  const Snapshot &snapshot() const override { return state; }
+  void command(Action) override {}
+  void selectPlayer(size_t) override {}
+  void advance(int) override {}
+  void refresh() override {}
+  void browse(int64_t, bool) override {}
+  void queueTracks(bool, std::optional<size_t>, const std::string &) override {}
+  void editQueue(QueueEdit, const std::string &, const std::string &) override {
+  }
+};
+void queueFocusTests() {
+  auto data = std::make_unique<ScriptedData>();
+  auto *remote = data.get();
+  for (int i = 3; i < 27; ++i) {
+    auto t = remote->state.queue.front();
+    t.entryId = "duplicate-" + std::to_string(i);
+    remote->state.queue.push_back(t);
+  }
+  App app(std::move(data));
+  app.handle(Action::Menu);
+  for (int i = 0; i < 3; ++i)
+    app.handle(Action::Down);
+  app.handle(Action::Select);
+  for (int i = 0; i < 26; ++i)
+    app.handle(Action::Down);
+  check(app.focus() == 26);
+  app.handle(Action::Right);
+  check(app.focus() == 27);
+  app.handle(Action::Left);
+  check(app.focus() == 22);
+  for (int i = 0; i < 4; ++i)
+    app.handle(Action::Down);
+  auto entry = remote->state.queue[25];
+  remote->state.queue.erase(remote->state.queue.begin() + 25);
+  remote->state.queue.insert(remote->state.queue.begin(), entry);
+  app.advance(0);
+  check(app.focus() == 1);
+  app.handle(Action::Select); // Remote edit while actions are open.
+  remote->state.queue.erase(remote->state.queue.begin());
+  app.advance(0);
+  app.handle(Action::Back);
+  check(app.screen() == Screen::Queue && app.focus() == 1);
+  remote->state.queue[0].title.clear();
+  remote->state.queue[0].playable = false;
+  check(app.rows()[1].find("Unknown title") != std::string::npos);
+  check(app.rows()[1].find("Unavailable") != std::string::npos);
+  remote->state.queue.clear();
+  app.advance(0);
+  check(app.focus() == 0);
+  remote->state.playerId = "other";
+  app.advance(0);
+  check(app.focus() == 0);
+}
 void stateTests() {
   rejects([] { MockData bad("bad"); });
   rejects([] { dataAdapter("invalid", "playing"); });
@@ -132,9 +286,10 @@ void stateTests() {
   app.handle(Action::Back);
   app.handle(Action::Down);
   app.handle(Action::Select);
-  check(app.screen() == Screen::Queue && app.rows().size() == 3);
+  check(app.screen() == Screen::Queue && app.rows().size() == 4);
   app.handle(Action::Select);
-  check(!app.notice().empty());
+  check(app.screen() == Screen::ClearConfirm);
+  app.handle(Action::Back);
   app.handle(Action::Suspend);
   app.handle(Action::Next);
   app.handle(Action::Up);
@@ -386,6 +541,24 @@ void renderTests() {
     check(playlist.screen() == Screen::Confirm);
     playlist.handle(Action::Menu);
     check(playlist.screen() == Screen::Menu);
+    App queue("mock", "playing");
+    for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Down,
+                        Action::Select, Action::Select, Action::Back,
+                        Action::Down, Action::Select}) {
+      queue.handle(action);
+      view.draw(queue, platform);
+    }
+    check(queue.screen() == Screen::QueueActions);
+    queue.handle(Action::Menu);
+    check(queue.screen() == Screen::Menu);
+    queue.handle(Action::Down);
+    queue.handle(Action::Down);
+    queue.handle(Action::Down);
+    queue.handle(Action::Select);
+    queue.handle(Action::Up);
+    queue.handle(Action::Select);
+    queue.handle(Action::Menu);
+    check(queue.screen() == Screen::Menu);
     App missing("mock", "missing-metadata");
     check(missing.snapshot().queue[0].title.empty());
     check(missing.snapshot().queue[0].artist.empty());
@@ -506,6 +679,8 @@ int main(int argc, char **argv) {
       return networkTests(argv[1]);
     liveTests();
     stateTests();
+    queueTests();
+    queueFocusTests();
     inputTests();
     optionTests();
     renderTests();

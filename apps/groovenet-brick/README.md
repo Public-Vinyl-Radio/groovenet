@@ -77,8 +77,10 @@ stays there. Selecting a player is observational and leaves playback unchanged.
 Playlists opens saved playlists, then their ordered tracks. The first row opens
 playlist actions; a track opens actions for that track only. Play now opens a
 replacement confirmation with Cancel selected by default. Add to queue appends
-without starting idle playback. Back preserves list focus. Queue and Outputs
-remain navigation shells for #1100–1101. Button hints remain visible on every screen.
+without starting idle playback. Back preserves list focus. Queue shows the selected player’s shared queue, with the current entry marked.
+Select an entry to play it, remove it, or move it up/down one position. Left/right
+pages through five rows at a time; Up/Down wraps. The first row opens Clear queue
+with Cancel selected by default. Outputs remains a navigation shell for #1101. Button hints remain visible on every screen.
 
 Losing window focus simulates a suspended UI; focus gain requests an adapter
 refresh. Quit, suspend and wake never issue playback commands. The mock clock
@@ -211,7 +213,8 @@ No backend endpoint gap was found for this client slice.
 3. Open Playlists → After hours → Playlist actions. Choose Play now, cancel,
    then deliberately confirm replacement. Back to tracks, select one and choose
    Add to queue. Back restores focus. Warm-up selections demonstrates missing
-   local audio; Sunday records is empty. Queue and Outputs show scope notices.
+   local audio; Sunday records is empty. Open Queue, select an entry and move or remove it.
+   Check Clear queue cancellation before confirming; clearing also stops playback.
 4. Cycle F1 through every scenario. Check empty/loading/error states, missing
    artwork, metadata clipping and unknown timing. Resize the window and try
    `--scale 0.5` and `--scale 2`.
@@ -378,3 +381,29 @@ player, verifies append stays idle, starts a saved playlist and appends a track
 while an independent REST controller observes the shared queue. See
 [evidence](evidence/playlists-1099.md). Physical playback/device qualification
 remains under #1102.
+
+### Shared queue (#1100)
+
+![Shared queue](screenshots/queue.png)
+
+Queue rows keep the server entry UUID separately from track identity, so repeated
+copies of a track can be played, removed and moved independently. Focus follows
+that UUID across snapshots and reorders, including while entry actions are open.
+Removing the focused entry selects its successor or the last remaining entry;
+changing players resets queue focus. Retained disconnected queues remain browsable.
+
+Opening entry actions or clear confirmation captures the selected player, worker,
+revision and subscription identity. A changed revision or reconnect invalidates
+that action. Each mutation sends `expected_revision` and is attempted once, with
+retained confirmed rows and a pending status until a fresh SSE snapshot arrives.
+Conflict, lost response and timeout refresh state without retrying the write.
+Playback uses the existing speaker availability/takeover acknowledgment; only an
+explicit action in the web controller can grant takeover or unknown availability.
+
+Validation covers duplicate tracks, current/focused removal, reordering, long
+queues, remote edits, clear cancellation, revision conflicts, reconnects, lost
+responses and the real eight-second HTTP timeout. The development smoke exercises
+a native controller and independent REST controller against the production player
+manager and disposable Postgres, using a silent backend. See
+[queue validation evidence](evidence/queue-1100.md). Physical speaker/device
+qualification remains under #1102.

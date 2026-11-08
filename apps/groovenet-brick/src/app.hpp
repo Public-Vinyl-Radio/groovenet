@@ -39,7 +39,9 @@ enum class Screen {
   Menu,
   PlaylistTracks,
   TrackActions,
-  Confirm
+  Confirm,
+  QueueActions,
+  ClearConfirm
 };
 const std::vector<std::string> &scenarios();
 const std::vector<std::string> &screenNames();
@@ -57,7 +59,7 @@ struct Track {
   std::string title, artist, album;
   std::optional<int> duration;
   bool artwork = true;
-  std::string trackId, artworkUrl;
+  std::string trackId, artworkUrl, entryId;
   std::shared_ptr<const Artwork> image;
   int64_t friendId = 0;
   std::optional<bool> playable;
@@ -86,6 +88,7 @@ struct Snapshot {
   std::vector<std::string> playerIds;
 };
 // Shared by the deterministic mock and asynchronous REST/SSE adapter.
+enum class QueueEdit { Play, Remove, Up, Down, Clear };
 class DataAdapter {
 public:
   virtual ~DataAdapter() = default;
@@ -95,6 +98,8 @@ public:
   virtual void advance(int milliseconds) = 0;
   virtual void refresh() = 0;
   virtual void acknowledge() {}
+  virtual void editQueue(QueueEdit edit, const std::string &entry,
+                         const std::string &token) = 0;
   virtual void browse(int64_t id = 0, bool more = false) = 0;
   virtual void queueTracks(bool play, std::optional<size_t> track,
                            const std::string &token) = 0;
@@ -110,11 +115,14 @@ public:
   void browse(int64_t id = 0, bool more = false) override;
   void queueTracks(bool play, std::optional<size_t> track,
                    const std::string &token) override;
+  void editQueue(QueueEdit edit, const std::string &entry,
+                 const std::string &token) override;
   void refresh() override {} // Mock state is already authoritative.
 private:
   Snapshot state_;
   std::vector<Track> saved_;
   int remainder_ = 0;
+  size_t nextEntry_ = 100;
 };
 std::unique_ptr<DataAdapter>
 dataAdapter(const std::string &mode, const std::string &scenario,
@@ -123,6 +131,7 @@ class App {
 public:
   App(std::string mode, std::string scenario,
       const std::string &configDirectory = "");
+  explicit App(std::unique_ptr<DataAdapter> data);
   void handle(Action action);
   void advance(int milliseconds);
   const Snapshot &snapshot() const { return data_->snapshot(); }
@@ -140,9 +149,10 @@ private:
   std::unique_ptr<DataAdapter> data_;
   Screen screen_ = Screen::NowPlaying;
   std::vector<Screen> history_;
-  std::array<size_t, 9> focus_{};
+  std::array<size_t, 11> focus_{};
   std::optional<size_t> selectedTrack_;
-  std::string queueToken_;
+  std::string queueToken_, selectedEntry_, focusedEntry_, focusedPlayer_;
+  void rememberQueueFocus();
   bool running_ = true, suspended_ = false;
 };
 std::string timing(const Snapshot &snapshot);

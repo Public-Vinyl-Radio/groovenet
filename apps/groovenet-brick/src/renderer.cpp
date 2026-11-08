@@ -70,6 +70,8 @@ void Renderer::draw(const App &app, const Platform &platform) {
   text(app.screen() == Screen::Menu             ? "Browse"
        : app.screen() == Screen::PlaylistTracks ? "Playlist tracks"
        : app.screen() == Screen::TrackActions   ? "Choose action"
+       : app.screen() == Screen::QueueActions   ? "Queue entry actions"
+       : app.screen() == Screen::ClearConfirm   ? "Clear shared queue?"
        : app.screen() == Screen::Confirm
            ? "Replace existing shared queue?"
            : screenNames()[static_cast<size_t>(app.screen())],
@@ -170,7 +172,8 @@ void Renderer::draw(const App &app, const Platform &platform) {
                     app.screen() == Screen::TrackActions;
   text(app.notice().empty()
            ? (collection ? state.collection.status
-              : app.screen() == Screen::Confirm
+              : (app.screen() == Screen::Confirm ||
+                 app.screen() == Screen::ClearConfirm)
                   ? "This removes the selected player's queue. B/Esc cancels."
                   : state.status)
            : app.notice(),
@@ -180,8 +183,10 @@ void Renderer::draw(const App &app, const Platform &platform) {
            ? "Up/down: server volume   A/Enter: select   B/Esc: back"
            : "Up/down: focus   A/Enter: select   B/Esc: back",
        40, 672, 944, ink);
-  text("Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next", 40, 704, 944,
-       muted);
+  text(app.screen() == Screen::Queue
+           ? "Left/right: page   Start/Tab: menu"
+           : "Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next",
+       40, 704, 944, muted);
   text("+/-: server volume   Select/Q: quit", 40, 736, 944, muted);
   if (!state.acknowledgment.empty()) {
     box(40, 224, 944, 350, panel);
