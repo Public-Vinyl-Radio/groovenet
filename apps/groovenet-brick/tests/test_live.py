@@ -36,6 +36,13 @@ order_listed = False
 race_started = threading.Event()
 race_changed = threading.Event()
 flaky_art_requests = 0
+batch_retry_requests = 0
+detail_retry_requests = 0
+approval_commands = []
+approval_revision = 5
+approval_hold = False
+approval_release = threading.Event()
+approval_error = "AVAILABILITY_UNKNOWN"
 
 
 def player(identity="a"):
@@ -91,7 +98,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
-        global reordered, order_listed, flaky_art_requests, output_lost, output_idle, output_discovery_fail, output_hold
+        global reordered, order_listed, flaky_art_requests, output_lost, output_idle, output_discovery_fail, output_hold, detail_retry_requests, approval_revision, approval_hold, approval_error
+        approval_mode = self.path.startswith("/approvals/")
+        if approval_mode:
+            self.path = self.path.removeprefix("/approvals")
         output_mode = self.path.startswith("/outputs/")
         if output_mode:
             self.path = self.path.removeprefix("/outputs")
@@ -105,6 +115,41 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self.auth():
             return
         try:
+            if approval_mode:
+                if self.path.startswith("/case/"):
+                    approval_error = self.path.removeprefix("/case/")
+                    return self.reply(200, {})
+                if self.path == "/change":
+                    approval_revision += 1
+                    return self.reply(200, {})
+                if self.path == "/hold":
+                    approval_hold = True
+                    approval_release.clear()
+                    return self.reply(200, {})
+                if self.path == "/release":
+                    approval_hold = False
+                    approval_release.set()
+                    return self.reply(200, {})
+                def approval_player(identity="a"):
+                    value = player(identity)
+                    value["revision"] = approval_revision
+                    return value
+                if self.path == "/api/players":
+                    return self.reply(200, {"players": [approval_player(), approval_player("b")]})
+                if self.path.endswith("/events"):
+                    if approval_hold:
+                        approval_release.wait(5)
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+                    for sequence in range(1, 200):
+                        value = {"type": "snapshot", "player": approval_player(self.path.split("/")[-2]), "worker_instance": "worker-a", "sequence": sequence}
+                        self.wfile.write(("data: " + json.dumps(value) + "\n\n").encode())
+                        self.wfile.flush()
+                        time.sleep(0.02)
+                    return
+                if self.path.startswith("/api/players/"):
+                    return self.reply(200, approval_player(self.path.split("/")[-1]))
             if self.path.startswith("/empty/"):
                 return self.reply(200, {"players": []})
             if self.path.startswith("/large-list/"):
@@ -195,6 +240,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, [{"id": i, "name": f"Playlist {i}"} for i in (1, 2, 3)])
             if self.path.startswith("/api/playlists/"):
                 identity = int(self.path.split("/")[3])
+                if identity == 8:
+                    detail_retry_requests += 1
+                    if detail_retry_requests == 1:
+                        return self.reply(503, {})
+                    return self.reply(200, {"playlist_id": 8, "tracks": [{"track_id": "retry", "friend_id": 1, "position": 0}]})
                 if identity == 4:
                     return self.reply(200, {"playlist_id": 9, "tracks": []})
                 if identity == 5:
@@ -258,6 +308,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
+        approval_mode = self.path.startswith("/approvals/")
+        if approval_mode:
+            self.path = self.path.removeprefix("/approvals")
         output_mode = self.path.startswith("/outputs/")
         if output_mode:
             self.path = self.path.removeprefix("/outputs")
@@ -267,34 +320,64 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self.auth():
             return
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if approval_mode and self.path.endswith("/commands"):
+            approval_commands.append(body)
+            assert body["expected_revision"] == approval_revision
+            if approval_error == "AMBIGUOUS":
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            flag = "allow_unknown" if approval_error == "AVAILABILITY_UNKNOWN" else "takeover"
+            if not body.get(flag):
+                return self.reply(409, {"code": approval_error})
+            expected = {**approval_commands[-2], flag: True}
+            assert body == expected, "approval must preserve the exact rejected command"
+            return self.reply(200, {})
         if self.path == "/api/tracks/batch":
-            ref = body["tracks"][0]
+            global batch_retry_requests
+            refs = body["tracks"]
+            assert 1 <= len(refs) <= 25
+            ref = refs[0]
             if racing and ref["friend_id"] == 2:
                 race_started.set()
                 assert race_changed.wait(5)
-                time.sleep(0.2) # Finish obsolete metadata after the new track is visible.
+                time.sleep(0.2)
             if ref["track_id"] == "slow":
                 collection_started.set()
                 time.sleep(0.4)
+            if ref["track_id"] == "retry":
+                batch_retry_requests += 1
+                if batch_retry_requests == 1:
+                    return self.reply(503, {})
             if ref["track_id"] == "denied":
                 return self.reply(403, {})
-            if ref["friend_id"] == 3:
-                return self.reply(200, [])
-            if ref["friend_id"] == 4:
-                ref["friend_id"] = 6
-            return self.reply(
-                200,
-                [
-                    {
-                        **ref,
-                        "title": "Track title",
-                        "artist": "Track artist",
-                        "album": ("Stale album" if ref["friend_id"] == 2 else "Current album") if racing else "Album",
-                        "local_audio_url": None if ref["friend_id"] == 5 else "/audio/file.m4a",
-                        "album_thumbnail": "/covers/flaky",
-                    }
-                ],
-            )
+            rows = []
+            seen = set()
+            for ref in refs:
+                identity = (ref["track_id"], ref["friend_id"])
+                if identity in seen or ref["friend_id"] == 3:
+                    continue
+                seen.add(identity)
+                ref = dict(ref)
+                if ref["friend_id"] == 4:
+                    ref["friend_id"] = 6
+                row = {
+                    **ref, "title": "Track title", "artist": "Track artist",
+                    "album": ("Stale album" if ref["friend_id"] == 2 else "Current album") if racing else "Album",
+                    "local_audio_url": None if ref["friend_id"] == 5 else "/audio/file.m4a",
+                    "album_thumbnail": "/covers/flaky",
+                }
+                if ref["track_id"] == "wrong-id":
+                    row["track_id"] = "different"
+                if ref["track_id"] == "sparse":
+                    del row["title"]
+                    del row["artist"]
+                if ref["track_id"] == "malformed":
+                    del row["album"]
+                rows.append(row)
+                if ref["track_id"] == "duplicate":
+                    rows.append(row)
+            return self.reply(200, list(reversed(rows)))
         if output_mode:
             output_commands.append(body)
             n = len(output_commands)
@@ -428,6 +511,9 @@ with tempfile.TemporaryDirectory() as directory:
             check=True,
             timeout=25,
         )
+        subprocess.run([binary, "batch-pages"], env=environment, check=True, timeout=20)
+        subprocess.run([binary, "approvals"], env=environment, check=True, timeout=30)
+        assert len(approval_commands) == 20, "only explicit policy approvals may retry"
         subprocess.run([binary, "adapter"], env=environment, check=True, timeout=40)
         subprocess.run([binary, "selection-failure"], env=environment, check=True, timeout=15)
         subprocess.run([binary, "metadata-race"], env=environment, check=True, timeout=15)

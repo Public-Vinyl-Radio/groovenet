@@ -118,6 +118,11 @@ There is no L3/R3 dependency. Server volume and local device volume are distinct
 Navigation, unavailable/disconnected states and playback share the desktop
 implementation. Controls stay disabled without authoritative live state. Writes
 are attempted once; ambiguous writes refresh state and require deliberate retry.
+Definitive speaker/engine policy rejections offer **A: approve and retry** for the
+named playback action, or **B: cancel**. Approval may interrupt existing speaker
+playback and expires if player state or the subscription changes. Dismiss-only
+errors never replay a write. Playlist tracks load 25 metadata rows per batch;
+a failed read offers an explicit retry while retaining the saved playlist refs.
 During a command/wake refresh, the last known metadata stays visible with an
 UPDATING indicator and controls disabled until fresh server state arrives. Actual
 network failures still show disconnected; no volume/playback change is predicted.

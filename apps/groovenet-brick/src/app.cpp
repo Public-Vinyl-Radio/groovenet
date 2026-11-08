@@ -329,6 +329,8 @@ std::vector<std::string> App::rows() const {
   case Screen::PlaylistTracks: {
     if (state.collection.loading && state.collection.tracks.empty())
       return {};
+    if (state.collection.retry && state.collection.tracks.empty())
+      return {"Retry loading playlist"};
     std::vector<std::string> rows{"Playlist actions"};
     for (size_t i = 0; i < state.collection.loaded; ++i) {
       const auto &t = state.collection.tracks[i];
@@ -337,7 +339,7 @@ std::vector<std::string> App::rows() const {
           (t.playable == false ? " · No local audio / unindexed" : ""));
     }
     if (state.collection.loaded < state.collection.tracks.size())
-      rows.push_back("Load next 25 tracks");
+      rows.push_back(state.collection.retry ? "Retry loading tracks" : "Load next 25 tracks");
     return rows;
   }
   case Screen::TrackActions:
@@ -410,7 +412,9 @@ void App::handle(Action action) {
     return;
   }
   if (!snapshot().acknowledgment.empty()) {
-    if (action == Action::Select || action == Action::Back)
+    if (action == Action::Select && !snapshot().approvalAction.empty())
+      data_->approve();
+    else if (action == Action::Select || action == Action::Back)
       data_->acknowledge();
     return;
   }
@@ -515,6 +519,10 @@ void App::handle(Action action) {
       } else if (screen_ == Screen::PlaylistTracks) {
         if (snapshot().collection.loading)
           return;
+        if (snapshot().collection.retry && snapshot().collection.tracks.empty()) {
+          data_->browse(snapshot().collection.id);
+          return;
+        }
         if (focus > snapshot().collection.loaded) {
           data_->browse(snapshot().collection.id, true);
           return;

@@ -126,3 +126,51 @@ Follow-up `just brick-coverage`: four suites passed, 99.51% native lines and 96.
 branches overall; new hat handling has complete line/branch coverage. Publication
 gate remains 100% lines/branches and additionally checks the bundled decoder hash.
 Actual archive tests cover the ARM64 decoder, its license and full manifest.
+
+## Playlist loading and playback approval follow-up
+
+The owner reported that playlist names loaded but tracks/playback did not, naming
+**INNER SIGNALS** (playlist 176, 40 saved refs). They also reported accepting
+“Player action needs attention” without playback proceeding. A read-only framebuffer
+capture showed the specific error: **Speaker availability unknown: approval is
+required** on Lounge. The old dialog's A action only dismissed the warning; it did
+not grant the requested exception or submit the rejected action.
+
+Read-only API checks on the Brick confirmed playlist detail and metadata succeed
+with the existing setup; no collection credential is provisioned, but this server
+allows these collection reads. No keys were printed or changed. The old native
+adapter made up to 25 individual metadata requests for a page. On-device native
+checks reproduced intermittent failures at metadata indices 6, 10 and 18; one
+adapter run loaded just 1 of 40 refs before a timeout. A separate firmware curl
+probe confirmed an intermittent result 28 timeout (~5 seconds), also with HTTP/1.1;
+this is not evidence of an HTTP/2-only failure or resolved Wi-Fi reliability.
+
+The updated collection adapter makes one bounded 25-ref metadata request per page,
+matches unordered/deduplicated responses by composite identity, preserves saved
+order and repeated entries, and marks missing rows unplayable. Failed detail and
+metadata reads offer explicit retry rows without discarding saved references or
+prior pages. An on-device **read-only** run of this updated native adapter loaded
+25 of INNER SIGNALS' 40 tracks in **201 ms**. This is one observed run, not a
+latency distribution or a claim that intermittent firmware/network failures ended.
+
+Known, definitive playback policy rejections now offer a named **Approve and retry**
+action. A sends the original rejected command once, adding only the explicitly
+requested `allow_unknown` or `takeover` flag; B cancels. The UI warns that approval
+may interrupt existing speaker playback. Revision/worker/player/subscription
+changes and wake/refresh invalidate the pending approval; fresh authoritative
+state is required. A second policy rejection needs another explicit approval,
+retaining only already-approved flags. Conflicts, ambiguous responses and
+non-playback errors remain dismiss-only. No agent playback/routing writes were
+sent during diagnosis; physical live-write acceptance belongs to the owner.
+
+TLS/SSE regression cases cover unordered/deduplicated pages, repeated refs, missing
+rows/audio, transactional rejection of bad metadata, failed detail/page retries,
+explicit/cancelled/chained approvals, exact original request preservation,
+state-change invalidation, no retry before fresh state and no automatic replay.
+
+Follow-up validation: `just brick-coverage` passed all four suites with **99.53%**
+native lines and **97.15%** branches. Diff-to-coverage inspection found all changed
+executable lines and branches covered. `just lint-all` and actual ARM64 archive
+checks passed. Installation was attempted after validation, but ADB reported the
+device disconnected before the archive could be copied; the earlier installation
+was left untouched while awaiting reconnection.

@@ -130,7 +130,10 @@ void queueTests() {
 }
 class ScriptedData final : public DataAdapter {
 public:
-  int outputWrites = 0, outputBrowses = 0;
+  int outputWrites = 0, outputBrowses = 0, approvals = 0, dismissals = 0;
+  int64_t browsed = -1;
+  void approve() override { ++approvals; }
+  void acknowledge() override { ++dismissals; state.acknowledgment.clear(); state.approvalAction.clear(); }
   bool unknown = false, takeover = false;
   std::string body, token;
   void browseOutputs() override { ++outputBrowses; }
@@ -148,11 +151,41 @@ public:
   void selectPlayer(size_t) override {}
   void advance(int) override {}
   void refresh() override {}
-  void browse(int64_t, bool) override {}
+  void browse(int64_t id, bool) override { browsed = id; }
   void queueTracks(bool, std::optional<size_t>, const std::string &) override {}
   void editQueue(QueueEdit, const std::string &, const std::string &) override {
   }
 };
+void approvalUiTests() {
+  auto data = std::make_unique<ScriptedData>();
+  auto *remote = data.get();
+  App app(std::move(data));
+  remote->state.acknowledgment = "Speaker availability unknown";
+  remote->state.approvalAction = "Start playback on Room";
+  app.handle(Action::Select);
+  check(remote->approvals == 1 && remote->dismissals == 0);
+  app.handle(Action::Back);
+  check(remote->approvals == 1 && remote->dismissals == 1);
+  remote->state.collection.ids = {8};
+  remote->state.collection.names = {"Unavailable playlist"};
+  for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Select, Action::Select})
+    app.handle(action);
+  remote->state.collection.id = 8;
+  remote->state.collection.retry = true;
+  check(app.rows() == std::vector<std::string>{"Retry loading playlist"});
+  remote->browsed = -1;
+  app.handle(Action::Select);
+  check(remote->browsed == 8);
+  remote->state.collection.tracks = {Track("Unknown", "Unknown", "", {}, false)};
+  check(app.rows().back() == "Retry loading tracks");
+  app.handle(Action::Up);
+  remote->browsed = -1;
+  app.handle(Action::Select);
+  check(remote->browsed == 8);
+  MockData mock("speaker-busy");
+  mock.approve();
+  check(!mock.snapshot().acknowledgment.empty());
+}
 void outputUiTests() {
   auto data = std::make_unique<ScriptedData>();
   auto *remote = data.get();
@@ -640,6 +673,7 @@ void renderTests() {
         "Partial transfer failed · Source detached · Target not attached · "
         "Engine conflict";
     view.draw(output, platform);
+    outputRemote->state.approvalAction = "Resume playback on Room";
     outputRemote->state.acknowledgment = std::string(90, 'x');
     view.draw(output, platform);
     outputRemote->state.acknowledgment.clear();
@@ -840,6 +874,7 @@ int main(int argc, char **argv) {
     liveTests();
     stateTests();
     queueTests();
+    approvalUiTests();
     outputUiTests();
     queueFocusTests();
     inputTests();

@@ -43,6 +43,8 @@ public:
   // Collection reads preserve composite identity; the UI receives metadata
   // only.
   void enrich(Track &track, const std::function<bool()> &cancel);
+  size_t enrichPage(std::vector<Track> &tracks, size_t first,
+                    const std::function<bool()> &cancel);
   std::shared_ptr<const Artwork> artwork(const std::string &url,
                                          const std::function<bool()> &cancel);
   std::string playlists(const std::function<bool()> &cancel);
