@@ -23,7 +23,7 @@ same clean source and toolchain should yield identical archives; verify both
 sidecars before claiming reproduction. Untracked files are not source inputs.
 
 The archive allowlists the binary, launcher, DejaVu Sans plus its license,
-project license, placeholder config and instructions. Credentials, private CA,
+project license, a private JPEG ABI 62 decoder with its license, placeholder config and instructions. Credentials, private CA,
 config, remembered selection and logs are never packaging inputs.
 
 `Brick Knulli package` CI builds scoped PR changes and manual previews. Download
@@ -39,8 +39,10 @@ qualification must be present in that tagged source. Do not edit old release tag
 Use a new release if evidence was not included in the previous tag.
 
 This remains an older Debian ABI baseline, **not a pinned Knulli firmware SDK**.
-The package uses firmware SDL2/SDL_ttf, curl, json-c, PNG/JPEG and C++ runtime
+The package uses firmware SDL2/SDL_ttf, curl, json-c, PNG and C++ runtime
 libraries and `/lib/ld-linux-aarch64.so.1`; it never overwrites firmware libraries.
+Scarab lacks Debian’s JPEG ABI 62, so `lib/libjpeg.so.62` is bundled privately
+and the launcher adds only that application library directory to `LD_LIBRARY_PATH`.
 The observed curl symbol-version warning is unresolved. Stable publication stays
 blocked until an exact-binary loader/ABI review and physical qualification are
 recorded; cross-compilation alone does not establish compatibility.
@@ -95,14 +97,15 @@ in a shared archive. Application network diagnostics omit headers/body/secrets.
 
 The device profile overrides SDL's erroneous Xbox mapping for the Brick GUID
 `030000005e0400008e02000014010000`, using the installed Scarab EmulationStation
-button assignments, with physical axis-based D-pad correction. It overrides
+button assignments, with physical axis-based D-pad correction and a raw-hat
+fallback for the hat events observed in a subsequent device session. It overrides
 Ports’ inherited `SDL_GAMECONTROLLERCONFIG` before SDL initializes, since the
 firmware exports a conflicting hat mapping with higher priority than SDL’s normal
 mapping API. Physical verification status is in the evidence record.
 
 | Physical control   | Action                                                                    | Firmware raw SDL assignment |
 | ------------------ | ------------------------------------------------------------------------- | --------------------------- |
-| D-pad              | Now Playing: up/down remote volume; lists: up/down focus; left/right skip | axes 0/1                    |
+| D-pad              | Now Playing: up/down remote volume; lists: up/down focus; left/right skip | axes 0/1 or hat 0           |
 | A / B              | Select / back                                                             | buttons 5 / 4               |
 | Start              | Browse menu                                                               | button 13                   |
 | Y                  | Play/pause                                                                | button 7                    |

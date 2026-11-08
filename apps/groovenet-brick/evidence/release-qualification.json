@@ -6,6 +6,7 @@
   "report": "release-1102.md",
   "binary_sha256": "",
   "launcher_sha256": "",
+  "jpeg_sha256": "",
   "checks": {
     "sdk_abi": false,
     "launch": false,

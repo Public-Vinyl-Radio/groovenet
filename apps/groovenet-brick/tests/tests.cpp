@@ -530,6 +530,19 @@ void inputTests() {
   event.type = SDL_QUIT;
   check(desktop.input(event) == Action::Quit);
   Desktop device(true);
+  event.type = SDL_JOYHATMOTION;
+  event.jhat.hat = 0;
+  for (const auto &[hat, action] : std::vector<std::pair<Uint8, Action>>{
+           {SDL_HAT_UP, Action::Up}, {SDL_HAT_DOWN, Action::Down},
+           {SDL_HAT_LEFT, Action::Left}, {SDL_HAT_RIGHT, Action::Right},
+           {SDL_HAT_CENTERED, Action::None}, {SDL_HAT_RIGHTUP, Action::None}}) {
+    event.jhat.value = hat;
+    check(device.input(event) == action);
+    check(desktop.input(event) == Action::None);
+  }
+  event.jhat.hat = 1;
+  event.jhat.value = SDL_HAT_UP;
+  check(device.input(event) == Action::None);
   event.type = SDL_KEYDOWN;
   event.key.keysym.sym = SDLK_POWER;
   event.key.repeat = 0;
@@ -759,6 +772,27 @@ void renderTests() {
     check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, -1) == 0);
     SDL_GameControllerUpdate();
     check(SDL_GameControllerGetButton(controller, button) == 0);
+  }
+  SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+  for (const auto &[hat, action] : std::vector<std::pair<Uint8, Action>>{
+           {SDL_HAT_UP, Action::Up}, {SDL_HAT_DOWN, Action::Down},
+           {SDL_HAT_LEFT, Action::Left}, {SDL_HAT_RIGHT, Action::Right}}) {
+    check(SDL_JoystickSetVirtualHat(raw, 0, hat) == 0);
+    SDL_GameControllerUpdate();
+    SDL_Event input;
+    int actions = 0;
+    while (SDL_PollEvent(&input)) {
+      auto actual = Desktop(true).input(input);
+      if (actual != Action::None) {
+        check(actual == action);
+        ++actions;
+      }
+    }
+    check(actions == 1); // No duplicate mapped-controller action for raw hats.
+    check(SDL_JoystickSetVirtualHat(raw, 0, SDL_HAT_CENTERED) == 0);
+    SDL_GameControllerUpdate();
+    while (SDL_PollEvent(&input))
+      check(Desktop(true).input(input) == Action::None);
   }
   SDL_GameControllerClose(controller);
   SDL_Quit();

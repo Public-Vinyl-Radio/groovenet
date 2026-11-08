@@ -32,6 +32,9 @@ class QualificationTests(unittest.TestCase):
                 info = tarfile.TarInfo("Groovenet.sh")
                 info.size = 8
                 package.addfile(info, io.BytesIO(b"launcher"))
+                info = tarfile.TarInfo("groovenet-brick/lib/libjpeg.so.62")
+                info.size = 4
+                package.addfile(info, io.BytesIO(b"jpeg"))
             evidence = root / "qualification.json"
             report = root / "report.md"
             report.write_text("Measured operator observations")
@@ -40,6 +43,7 @@ class QualificationTests(unittest.TestCase):
                 "operator": "Test operator", "date": "2026-11-08", "report": "report.md",
                 "binary_sha256": hashlib.sha256(b"binary").hexdigest(),
                 "launcher_sha256": hashlib.sha256(b"launcher").hexdigest(),
+                "jpeg_sha256": hashlib.sha256(b"jpeg").hexdigest(),
                 "checks": dict.fromkeys(module.CHECKS, True),
             }
             def run(value):
@@ -48,7 +52,7 @@ class QualificationTests(unittest.TestCase):
             run(record)
             with patch.object(sys, "argv", ["qualify.py", str(archive), str(evidence)]):
                 runpy.run_path(str(Path(module.__file__)), run_name="__main__")
-            for field in ("device", "firmware", "operator", "date", "report", "binary_sha256", "launcher_sha256"):
+            for field in ("device", "firmware", "operator", "date", "report", "binary_sha256", "launcher_sha256", "jpeg_sha256"):
                 invalid = copy.deepcopy(record)
                 invalid[field] = ""
                 with self.assertRaises(ValueError):

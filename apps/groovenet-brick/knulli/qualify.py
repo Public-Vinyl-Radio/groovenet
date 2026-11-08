@@ -26,10 +26,11 @@ def qualify(archive, evidence):
         raise ValueError("Physical qualification is incomplete; publish a CI preview only")
     with tarfile.open(archive) as package:
         for name, key in (("groovenet-brick/groovenet-brick", "binary_sha256"),
-                          ("Groovenet.sh", "launcher_sha256")):
+                          ("Groovenet.sh", "launcher_sha256"),
+                          ("groovenet-brick/lib/libjpeg.so.62", "jpeg_sha256")):
             payload = package.extractfile(name).read()
             if hashlib.sha256(payload).hexdigest() != record[key]:
-                raise ValueError("Qualification does not apply to this binary/launcher")
+                raise ValueError("Qualification does not apply to this binary/launcher/decoder")
     report = Path(evidence).parent / record["report"]
     if not report.is_file() or not report.read_text().strip():
         raise ValueError("Qualification report is missing")

@@ -92,6 +92,17 @@ Action Desktop::input(const SDL_Event &event) {
       return Action::None;
     }
   }
+  // Scarab has emitted both axis and hat forms across physical sessions.
+  // The controller map handles axes; consume unmapped raw hat events as well.
+  if (knulli_ && event.type == SDL_JOYHATMOTION && event.jhat.hat == 0) {
+    switch (event.jhat.value) {
+    case SDL_HAT_UP: return Action::Up;
+    case SDL_HAT_DOWN: return Action::Down;
+    case SDL_HAT_LEFT: return Action::Left;
+    case SDL_HAT_RIGHT: return Action::Right;
+    default: return Action::None;
+    }
+  }
   if (event.type == SDL_CONTROLLERBUTTONDOWN) {
     switch (event.cbutton.button) {
     case SDL_CONTROLLER_BUTTON_DPAD_UP:

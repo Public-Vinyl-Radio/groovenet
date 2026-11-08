@@ -46,9 +46,9 @@ normal/error/termination exit. No custom governor or screen policy is installed.
 
 `release-qualification.json` deliberately has false checks and empty operator/hash
 fields. After completing the session, add the measured report here and fill the
-record with actual observations, date, operator and **both** executable/launcher
+record with actual observations, date, operator and executable/launcher/decoder
 hashes. The report path is relative to the JSON file. The release gate requires all
-shipped flows to pass and rejects a different binary or launcher. A new executable
+shipped flows to pass and rejects a different binary or launcher. A new executable, decoder
 or launcher needs fresh review/qualification; never carry hashes forward blindly.
 
 Supported matrix: Brick/Scarab 2026/05/11 is experimental until this record passes.
@@ -73,3 +73,53 @@ are recorded. #1098/#1099 are merged but their complete hardware acceptance is p
 - `just lint-all`: all repository pre-commit checks passed after formatting.
 
 None of these checks certifies physical firmware behavior or battery reliability.
+
+## Follow-up device install and D-pad regression, 2026-11-08 UTC
+
+The owner requested installation over the established USB ADB connection and
+reported that the previously fixed D-pad stopped working while A/B still worked.
+The connected device again reports Scarab `2026/05/11 21:44` and kernel 4.9.191.
+The old installed executable hash matched the final #1107 preview
+(`a7703826366e05b7857b78e90f53827b51e48fcaea9feb3733bb0e65d02a608e`), and its
+command line included `--platform knulli`; it was not an accidental desktop launch.
+
+With the remote closed to prevent playback writes, a 45-second `sdl2-jstest
+--event 0` capture during owner presses showed hat 0 values **1, 4, 8, 2** for
+Up/Down/Left/Right and centered 0 between presses. The controller GUID is unchanged:
+`030000005e0400008e02000014010000`. This differs from the earlier axis capture;
+why the firmware/runtime event representation changed is not established. The
+application now handles raw cardinal hat events as well as the existing mapped
+axis events, retaining the A/B and environment-mapping corrections. SDL virtual
+controller tests exercise both forms and assert exactly one action per hat press.
+Desktop mode, other hats, neutral and diagonals do not become playback actions.
+
+The first staging dependency check found **libjpeg.so.62 missing**: this firmware
+provides JPEG ABI 8 and 9. Installation was stopped before replacing the old app.
+The revised package bundles the frozen ARM64 Debian JPEG ABI 62 decoder and its
+license under the app's `lib/`, with a private launcher library search path. A
+second on-device `ldd` resolved all dependencies. The existing curl symbol-version
+warning remains; this is not a completed firmware SDK/ABI qualification.
+
+The revised app was installed into Ports after closing the old remote. Every
+installed payload passed `SHA256SUMS`. Private config and CA were preserved;
+previous app files are backed up on-device under
+`/userdata/system/groovenet-brick-backup-1102-20261108-180403` (no credentials in
+that app-only backup). No firmware libraries/services or power policy were changed.
+No agent playback commands were sent. The owner was asked to relaunch from Ports
+and test Start/menu navigation; visual acceptance is pending their reply.
+
+Installed executable SHA-256:
+`28aedd306ede1cc6e2db22de6dd57447128f268c2fae14a7434800c630b78699`.
+Installed launcher SHA-256:
+`1c0b0867ae4913cde7e9d010dc297f1ef048513af62edb2e78cf1945a3d3120c`.
+Bundled JPEG SHA-256:
+`4021b9b82df1affabe252aec393c00f2ec61b7ab570e760f4b4cf76db9b449ab`.
+Installed archive SHA-256 (working-tree build after the D-pad patch):
+`7f3d6de566c9d225d594140a417ed4fba31be60e478d6c8053df8de01acae374`.
+Final documentation/commit builds may change the archive provenance and checksum;
+these hashes identify the actual installed payload.
+
+Follow-up `just brick-coverage`: four suites passed, 99.51% native lines and 96.92%
+branches overall; new hat handling has complete line/branch coverage. Publication
+gate remains 100% lines/branches and additionally checks the bundled decoder hash.
+Actual archive tests cover the ARM64 decoder, its license and full manifest.

@@ -7,7 +7,11 @@ version=$(cat /out/version.txt)
 archive="groovenet-brick-$version-knulli-scarab-arm64.tar.gz"
 stage=/tmp/brick-package
 rm -rf "$stage"
-mkdir -p "$stage/groovenet-brick/assets"
+mkdir -p "$stage/groovenet-brick/assets" "$stage/groovenet-brick/lib"
+# Scarab supplies JPEG ABI 8, while this frozen baseline targets ABI 62.
+# Keep the compatible decoder private; never overwrite firmware libraries.
+cp -L /usr/lib/aarch64-linux-gnu/libjpeg.so.62 "$stage/groovenet-brick/lib/"
+cp /usr/share/doc/libjpeg62-turbo/copyright "$stage/groovenet-brick/lib/JPEG-LICENSE"
 cp /tmp/brick-build/groovenet-brick "$stage/groovenet-brick/"
 cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf "$stage/groovenet-brick/assets/"
 cp /usr/share/doc/fonts-dejavu-core/copyright "$stage/groovenet-brick/assets/FONT-LICENSE"
@@ -24,7 +28,7 @@ cp /src/knulli/README.md "$stage/groovenet-brick/INSTALL.md"
   readelf -l -d "$stage/groovenet-brick/groovenet-brick"
 } > "$stage/groovenet-brick/BUILD.txt"
 cd "$stage"
-sha256sum Groovenet.sh groovenet-brick/groovenet-brick groovenet-brick/assets/* groovenet-brick/LICENSE groovenet-brick/config.example groovenet-brick/INSTALL.md groovenet-brick/BUILD.txt > groovenet-brick/SHA256SUMS
+sha256sum Groovenet.sh groovenet-brick/groovenet-brick groovenet-brick/assets/* groovenet-brick/lib/* groovenet-brick/LICENSE groovenet-brick/config.example groovenet-brick/INSTALL.md groovenet-brick/BUILD.txt > groovenet-brick/SHA256SUMS
 # Allowlist packaging: no host environment, private config, certificates or logs.
 tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf /out/"$archive" Groovenet.sh groovenet-brick
 cd /out
