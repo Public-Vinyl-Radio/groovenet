@@ -5,6 +5,12 @@
 #include <string>
 
 namespace brick {
+// Physical presses captured on Scarab: D-pad uses axes, despite es_input.cfg's hat.
+inline constexpr char knulliControllerMapping[] =
+    "030000005e0400008e02000014010000,TRIMUI Brick Controller,"
+    "a:b5,b:b4,x:b6,y:b7,leftshoulder:b8,rightshoulder:b9,"
+    "back:b12,start:b13,guide:b14,dpup:-a1,dpdown:+a1,"
+    "dpleft:-a0,dpright:+a0,platform:Linux,";
 // Device adapters own firmware mappings, storage, battery and power events.
 // They must never translate Power/local volume into server playback commands.
 class Platform {

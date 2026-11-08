@@ -51,12 +51,28 @@ Final artifact hashes will be recorded after final verification/build.
   one hat. SDL defaults to an incorrect Xbox mapping (`a:b0`, with b0 actually
   Linux local-volume keycode 114). The app overrides it using Scarab's own A/B,
   X/Y, shoulders, Start/Select and D-pad definitions. No guessed L3/R3 mapping is
-  used. This is **firmware mapping evidence**, not yet physical press confirmation.
+  used.
+- The owner launched the real application and reported initial Aswitch observation
+  and a nonfunctional D-pad. A 45-second `sdl2-jstest --test 0` capture during the
+  owner's ordered physical presses established: Up/Down emit axis 1 −32768/+32767;
+  Left/Right emit axis 0 −32768/+32767; neutral is −1. The advertised hat stays 0.
+  A/B/X/Y emitted buttons 5/4/6/7, L/R 8/9, Start/Select 13/12, matching the
+  firmware's button assignments. The preview was frozen during diagnostic input
+  and terminated without draining queued inputs before replacement.
+- Corrected the mapping to signed D-pad axes and added an SDL virtual-controller
+  regression exercising each direction and return to neutral. The owner's retest
+  still failed: inspecting **only SDL environment variables** in the real Ports
+  process exposed `SDL_GAMECONTROLLERCONFIG` with the firmware's wrong hat mapping
+  and swapped A/B/X/Y semantic positions. SDL environment mappings outrank normal
+  `SDL_GameControllerAddMapping` calls. The device profile now overrides that hint
+  at `SDL_HINT_OVERRIDE` priority **before SDL initialization**; a regression uses
+  the conflicting inherited mapping and checks the effective SDL mapping. Installed
+  that build and asked the owner to repeat navigation and select Lounge.
 
 ## Physical smoke results
 
-Owner available and asked to launch from Ports and verify display/navigation.
-Pending owner observations: application launch/orientation, D-pad, A/B,
+Owner available; actual Ports launch and raw physical button/axis capture completed.
+Pending owner observations after correction: display orientation, D-pad navigation, A/B,
 Start/Select, Y, L/R, X+L/R, local volume, observational Lounge selection, external
 track changes, actual server transport/volume, short Power/sleep/wake freshness,
 and clean quit/continued playback. No desktop test is substituted for these.
@@ -72,7 +88,9 @@ as part of the preview. No full reliability or stable release claim is made.
 
 - `just brick-test`: three CTest suites passed (native behavior/resource failures,
   real loopback TLS/SSE fixture, isolated Ports launcher).
-- `just brick-coverage`: Clang native coverage run; final results recorded below.
+- `just brick-coverage`: 99.38% native lines, 96.46% branches; changed desktop/input
+  implementation and platform header 100% lines/branches. All new executable native
+  lines covered, including mapping failure, modifier reset and wake-gap recovery.
 - `BRICK_ARCHIVE=... python3 apps/groovenet-brick/tests/test_package.py`: launcher
   behavior plus actual archive allowlist, AArch64 ELF, executable modes,
   placeholder-only config, font license and binary/font hashes passed.

@@ -12,6 +12,7 @@ enum class Fault {
   None,
   Resume,
   Mapping,
+  Hint,
   Init,
   Ttf,
   Window,
@@ -87,8 +88,21 @@ char *faultPrefPath(const char *org, const char *app) {
 } // namespace
 
 int faultMapping(const char *mapping) {
-  return fail(Fault::Mapping) ? -1 : SDL_GameControllerAddMapping(mapping);
+  if (fail(Fault::Mapping))
+    return -1;
+  int result = SDL_GameControllerAddMapping(mapping);
+  auto *effective = SDL_GameControllerMappingForGUID(
+      SDL_JoystickGetGUIDFromString("030000005e0400008e02000014010000"));
+  bool correct = effective && std::string(effective).find("dpup:-a1") != std::string::npos;
+  SDL_free(effective);
+  if (!correct)
+    throw std::runtime_error("Inherited firmware mapping overrode device profile");
+  return result;
 }
+SDL_bool faultHint(const char *name, const char *value, SDL_HintPriority priority) {
+  return fail(Fault::Hint) ? SDL_FALSE : SDL_SetHintWithPriority(name, value, priority);
+}
+#define SDL_SetHintWithPriority faultHint
 #define SDL_GameControllerAddMapping faultMapping
 void faultDelay(Uint32 ms) {
   if (fault == Fault::Resume) {
@@ -120,11 +134,11 @@ void failureTests() {
        (std::filesystem::temp_directory_path() / "brick-failure-test.bmp")
            .string()});
   for (auto stage :
-       {Fault::Init, Fault::Mapping, Fault::Ttf, Fault::Window, Fault::RenderDevice,
+       {Fault::Init, Fault::Mapping, Fault::Hint, Fault::Ttf, Fault::Window, Fault::RenderDevice,
         Fault::Canvas, Fault::Texture, Fault::FirstFont, Fault::SecondFont,
         Fault::Text, Fault::Surface, Fault::Pixels}) {
     fault = stage;
-    options.knulli = stage == Fault::Mapping;
+    options.knulli = stage == Fault::Mapping || stage == Fault::Hint;
     fontCalls = 0;
     bool rejected = false;
     try {
@@ -155,11 +169,14 @@ void failureTests() {
   if (brick::runDesktop(options) != 0)
     throw std::runtime_error("Controller failure prevented keyboard preview");
   std::filesystem::remove(options.screenshot);
+  SDL_setenv("SDL_GAMECONTROLLERCONFIG",
+             "030000005e0400008e02000014010000,Firmware Wrong Hat,dpup:h0.1,platform:Linux,", 1);
   fault = Fault::Resume;
   options.knulli = true;
   options.frames = 2;
   options.screenshot.clear();
   if (brick::runDesktop(options) != 0)
     throw std::runtime_error("Resume gap prevented rendering");
+  SDL_setenv("SDL_GAMECONTROLLERCONFIG", "", 1);
   fault = Fault::None;
 }

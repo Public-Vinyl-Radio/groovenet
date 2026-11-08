@@ -357,6 +357,31 @@ void renderTests() {
   rejects([&] { runDesktop(options); });
   options = parseOptions({"--frames", "1", "--actions", "quit"});
   check(runDesktop(options) == 0);
+  // Drive actual SDL axis-to-D-pad translation using the production Brick map.
+  check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) == 0);
+  int brickDevice = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 2, 17, 1);
+  check(brickDevice >= 0);
+  char guid[33];
+  SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(brickDevice), guid, sizeof(guid));
+  std::string mapping = knulliControllerMapping;
+  mapping.replace(0, 32, guid);
+  check(SDL_GameControllerAddMapping(mapping.c_str()) >= 0);
+  auto *controller = SDL_GameControllerOpen(brickDevice);
+  check(controller);
+  auto *raw = SDL_GameControllerGetJoystick(controller);
+  for (auto button : {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_DOWN,
+                      SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}) {
+    bool vertical = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+    bool negative = button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, negative ? -32768 : 32767) == 0);
+    SDL_GameControllerUpdate();
+    check(SDL_GameControllerGetButton(controller, button) == 1);
+    check(SDL_JoystickSetVirtualAxis(raw, vertical ? 1 : 0, -1) == 0);
+    SDL_GameControllerUpdate();
+    check(SDL_GameControllerGetButton(controller, button) == 0);
+  }
+  SDL_GameControllerClose(controller);
+  SDL_Quit();
   // Startup and hotplug both go through SDL's actual game-controller API.
   check(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) == 0);
   int device =

@@ -49,7 +49,8 @@ proper Knulli SDK and full release qualification remain #1102.
 4. Launch **Groovenet** from Ports. The device profile uses a fullscreen 1024×768
    logical canvas and the firmware display driver/orientation. Use Start to open
    Browse, then Players; deliberately select the desired player before issuing
-   any controls. Selection only observes it. Verify its name and current state.
+   any controls. The client initially observes the first returned player (Aswitch
+   on the test server); selection only observes the chosen player. Verify its name and current state.
 5. Update while the app is closed: replace the script and application directory
    from a new verified archive. Configuration survives outside Ports. Remove by
    deleting those two Ports entries. Optionally delete the config directory to
@@ -66,11 +67,14 @@ in a shared archive. Application network diagnostics omit headers/body/secrets.
 
 The device profile overrides SDL's erroneous Xbox mapping for the Brick GUID
 `030000005e0400008e02000014010000`, using the installed Scarab EmulationStation
-mapping. Physical verification status is in the evidence record.
+button assignments, with physical axis-based D-pad correction. It overrides
+Ports’ inherited `SDL_GAMECONTROLLERCONFIG` before SDL initializes, since the
+firmware exports a conflicting hat mapping with higher priority than SDL’s normal
+mapping API. Physical verification status is in the evidence record.
 
 | Physical control   | Action                                  | Firmware raw SDL assignment |
 | ------------------ | --------------------------------------- | --------------------------- |
-| D-pad              | Focus up/down, previous/next left/right | hat 0                       |
+| D-pad              | Focus up/down, previous/next left/right | axes 0/1                    |
 | A / B              | Select / back                           | buttons 5 / 4               |
 | Start              | Browse menu                             | button 13                   |
 | Y                  | Play/pause                              | button 7                    |

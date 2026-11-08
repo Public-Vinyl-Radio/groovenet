@@ -58,7 +58,7 @@ class LauncherTests(unittest.TestCase):
         with tarfile.open(archive) as package:
             files = {m.name: m for m in package.getmembers() if m.isfile()}
             self.assertEqual(set(files), {
-                "Groovenet.sh", "SHA256SUMS", "groovenet-brick/groovenet-brick",
+                "Groovenet.sh", "groovenet-brick/SHA256SUMS", "groovenet-brick/groovenet-brick",
                 "groovenet-brick/BUILD.txt", "groovenet-brick/INSTALL.md",
                 "groovenet-brick/config.example", "groovenet-brick/assets/DejaVuSans.ttf",
                 "groovenet-brick/assets/FONT-LICENSE",
@@ -72,7 +72,7 @@ class LauncherTests(unittest.TestCase):
             self.assertTrue(files["groovenet-brick/groovenet-brick"].mode & 0o111)
             self.assertIn(b"Permission", read("groovenet-brick/assets/FONT-LICENSE"))
             self.assertEqual(read("groovenet-brick/config.example"), (ROOT / "knulli/config.example").read_bytes())
-            for line in read("SHA256SUMS").decode().splitlines():
+            for line in read("groovenet-brick/SHA256SUMS").decode().splitlines():
                 digest, name = line.split()
                 self.assertEqual(hashlib.sha256(read(name)).hexdigest(), digest)
             self.assertIn(b"aarch64-linux-gnu", read("groovenet-brick/BUILD.txt"))

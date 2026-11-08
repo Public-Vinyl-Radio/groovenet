@@ -20,8 +20,8 @@ cp /src/knulli/README.md "$stage/groovenet-brick/INSTALL.md"
   readelf -l -d "$stage/groovenet-brick/groovenet-brick"
 } > "$stage/groovenet-brick/BUILD.txt"
 cd "$stage"
-sha256sum groovenet-brick/groovenet-brick groovenet-brick/assets/* > SHA256SUMS
+sha256sum groovenet-brick/groovenet-brick groovenet-brick/assets/* > groovenet-brick/SHA256SUMS
 # Allowlist packaging: no host environment, private config, certificates or logs.
-tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf /out/groovenet-brick-knulli-preview.tar.gz Groovenet.sh groovenet-brick SHA256SUMS
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf /out/groovenet-brick-knulli-preview.tar.gz Groovenet.sh groovenet-brick
 cd /out
 sha256sum groovenet-brick-knulli-preview.tar.gz > groovenet-brick-knulli-preview.tar.gz.sha256

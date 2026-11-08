@@ -193,15 +193,16 @@ int runDesktop(const Options &options) {
       SDL_Quit();
     }
   } cleanup;
+  // Ports exports a firmware-generated hat mapping. SDL gives environment maps
+  // higher priority than AddMapping(), so override the hint before SDL loads it.
+  if (options.knulli &&
+      !SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLERCONFIG,
+                               knulliControllerMapping, SDL_HINT_OVERRIDE))
+    throw std::runtime_error("Cannot override firmware controller mapping");
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0)
     throw std::runtime_error(SDL_GetError());
   if (options.knulli) {
-    // Read from Scarab's es_input.cfg; physical qualification is recorded separately.
-    if (SDL_GameControllerAddMapping(
-        "030000005e0400008e02000014010000,TRIMUI Brick Controller,"
-        "a:b5,b:b4,x:b6,y:b7,leftshoulder:b8,rightshoulder:b9,"
-        "back:b12,start:b13,guide:b14,dpup:h0.1,dpdown:h0.4,"
-        "dpleft:h0.8,dpright:h0.2,platform:Linux,") < 0)
+    if (SDL_GameControllerAddMapping(knulliControllerMapping) < 0)
       throw std::runtime_error("Cannot install Brick controller mapping");
   }
   if (TTF_Init() != 0)
