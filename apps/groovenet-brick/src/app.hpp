@@ -30,7 +30,17 @@ enum class Action {
   Suspend,
   Wake
 };
-enum class Screen { NowPlaying, Players, Playlists, Queue, Outputs, Menu };
+enum class Screen {
+  NowPlaying,
+  Players,
+  Playlists,
+  Queue,
+  Outputs,
+  Menu,
+  PlaylistTracks,
+  TrackActions,
+  Confirm
+};
 const std::vector<std::string> &scenarios();
 const std::vector<std::string> &screenNames();
 Action namedAction(const std::string &name);
@@ -52,7 +62,18 @@ struct Track {
   int64_t friendId = 0;
   std::optional<bool> playable;
 };
+struct Collection {
+  std::vector<std::string> names;
+  std::vector<int64_t> ids;
+  std::vector<Track> tracks;
+  std::string status = "Open Playlists to load saved music";
+  int64_t id = 0;
+  size_t loaded = 0;
+  bool loading = false;
+};
 struct Snapshot {
+  Collection collection;
+  std::string commandToken;
   std::string status, player, playerId, acknowledgment,
       playbackState = "playing";
   bool connected = true, available = true, loading = false, playing = true;
@@ -74,6 +95,9 @@ public:
   virtual void advance(int milliseconds) = 0;
   virtual void refresh() = 0;
   virtual void acknowledge() {}
+  virtual void browse(int64_t id = 0, bool more = false) = 0;
+  virtual void queueTracks(bool play, std::optional<size_t> track,
+                           const std::string &token) = 0;
 };
 class MockData final : public DataAdapter {
 public:
@@ -83,9 +107,13 @@ public:
   void selectPlayer(size_t index) override;
   void advance(int milliseconds) override;
   void acknowledge() override { state_.acknowledgment.clear(); }
+  void browse(int64_t id = 0, bool more = false) override;
+  void queueTracks(bool play, std::optional<size_t> track,
+                   const std::string &token) override;
   void refresh() override {} // Mock state is already authoritative.
 private:
   Snapshot state_;
+  std::vector<Track> saved_;
   int remainder_ = 0;
 };
 std::unique_ptr<DataAdapter>
@@ -112,7 +140,9 @@ private:
   std::unique_ptr<DataAdapter> data_;
   Screen screen_ = Screen::NowPlaying;
   std::vector<Screen> history_;
-  std::array<size_t, 6> focus_{};
+  std::array<size_t, 9> focus_{};
+  std::optional<size_t> selectedTrack_;
+  std::string queueToken_;
   bool running_ = true, suspended_ = false;
 };
 std::string timing(const Snapshot &snapshot);

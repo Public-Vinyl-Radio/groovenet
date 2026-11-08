@@ -18,6 +18,7 @@ import time
 binary = str(Path(sys.argv[1]).resolve())
 player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
 commands = []
+playlist_commands = []
 command_release = threading.Event()
 streams = []
 failures = []
@@ -128,8 +129,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {"players": rows})
             if self.path in ("/api/players/a", "/api/players/b"):
                 return self.reply(200, player(self.path[-1]))
-            if self.path.startswith("/api/playlists"):
-                return self.reply(200, [])
+            if self.path == "/api/playlists":
+                return self.reply(200, [{"id": i, "name": f"Playlist {i}"} for i in (1, 2, 3)])
+            if self.path.startswith("/api/playlists/"):
+                identity = int(self.path.split("/")[3])
+                if identity == 4:
+                    return self.reply(200, {"playlist_id": 9, "tracks": []})
+                if identity == 5:
+                    return self.reply(503, {})
+                if identity == 6:
+                    return self.reply(200, {"playlist_id": 6, "tracks": [{"track_id": "denied", "friend_id": 1, "position": 0}]})
+                refs = [] if identity == 2 else [
+                    {"track_id": "same", "friend_id": (i % 2 + 1) if identity == 1 else i + 3, "position": i}
+                    for i in range(27 if identity == 1 else 2)
+                ]
+                if identity == 3:
+                    refs[1]["friend_id"] = 5
+                return self.reply(200, {"playlist_id": identity, "tracks": list(reversed(refs))})
             if self.path.startswith("/api/players/") and self.path.endswith("/events"):
                 identity = self.path.split("/")[-2]
                 streams.append(identity)
@@ -190,6 +206,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 race_started.set()
                 assert race_changed.wait(5)
                 time.sleep(0.2) # Finish obsolete metadata after the new track is visible.
+            if ref["track_id"] == "denied":
+                return self.reply(403, {})
             if ref["friend_id"] == 3:
                 return self.reply(200, [])
             if ref["friend_id"] == 4:
@@ -199,6 +217,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 [
                     {
                         **ref,
+                        "title": "Track title",
+                        "artist": "Track artist",
                         "album": ("Stale album" if ref["friend_id"] == 2 else "Current album") if racing else "Album",
                         "local_audio_url": None if ref["friend_id"] == 5 else "/audio/file.m4a",
                         "album_thumbnail": "/covers/flaky",
@@ -208,6 +228,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         assert self.path.endswith("/commands")
         assert body["expected_revision"] == 5
         assert body.get("takeover") is not True
+        if body["type"].startswith("queue."):
+            playlist_commands.append(body)
+            if len(playlist_commands) == 1:
+                assert len(body["entries"]) == 27 and body["play"] is True
+                assert [r["friend_id"] for r in body["entries"]] == [i % 2 + 1 for i in range(27)]
+                return self.reply(409, {"code": "REVISION_CONFLICT"})
+            if len(playlist_commands) == 2:
+                assert body["tracks"] == [{"track_id": "same", "friend_id": 2}]
+                assert "play" not in body
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            if len(playlist_commands) == 3:
+                return self.reply(422, {"code": "NO_AUDIO"})
+            return self.reply(200, {"player": player("a")})
         commands.append(body)
         if len(commands) == 1:
             assert command_release.wait(5), "command UI check did not release fixture"
@@ -288,6 +323,9 @@ with tempfile.TemporaryDirectory() as directory:
         subprocess.run(
             [binary, "collection-unavailable"], env={**environment, "BRICK_COLLECTION_KEY": ""}, check=True, timeout=15
         )
+        subprocess.run([binary, "playlists"], env=environment, check=True, timeout=40)
+        subprocess.run([binary, "browse-ui"], env=environment, check=True, timeout=30)
+        assert len(playlist_commands) == 4, "no automatic queue retries"
         assert flaky_art_requests >= 2, "reconnect must retry failed artwork"
         assert not failures, failures
         assert [c["type"] for c in commands] == ["next", "pause", "volume", "volume", "previous", "resume"], commands

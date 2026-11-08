@@ -298,6 +298,11 @@ void RestClient::enrich(Track &track, const std::function<bool()> &cancel) {
   if (str(row, "track_id") != track.trackId ||
       number(row, "friend_id") != track.friendId)
     throw NetworkError("Wrong collection track identity");
+  json_object *metadata = nullptr;
+  if (json_object_object_get_ex(row, "title", &metadata))
+    track.title = nullable(row, "title");
+  if (json_object_object_get_ex(row, "artist", &metadata))
+    track.artist = nullable(row, "artist");
   track.album = nullable(row, "album");
   track.playable = !nullable(row, "local_audio_url").empty();
   track.artworkUrl = nullable(row, "album_thumbnail");
@@ -541,6 +546,80 @@ std::string PlayerState::command(const std::string &text) const {
                          json_object_new_int64(revision));
   return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
 }
+Collection playlistList(const std::string &text) {
+  auto root = parse(text, json_type_array);
+  if (json_object_array_length(root.get()) > 1000)
+    throw NetworkError(
+        "Playlist list exceeds 1000; narrow collection in web controller");
+  Collection c;
+  for (size_t i = 0; i < json_object_array_length(root.get()); ++i) {
+    auto *row = json_object_array_get_idx(root.get(), i);
+    auto id = number(row, "id");
+    if (!id || std::find(c.ids.begin(), c.ids.end(), id) != c.ids.end())
+      throw NetworkError("Invalid playlist identity");
+    c.ids.push_back(id);
+    c.names.push_back(str(row, "name"));
+  }
+  c.status = c.ids.empty() ? "No saved playlists" : "Choose a saved playlist";
+  return c;
+}
+Collection playlistTracks(const std::string &text) {
+  auto root = parse(text);
+  Collection c;
+  c.id = number(root.get(), "playlist_id");
+  if (!c.id)
+    throw NetworkError("Invalid playlist identity");
+  auto *rows = field(root.get(), "tracks", json_type_array);
+  if (json_object_array_length(rows) > 1000)
+    throw NetworkError("Playlist exceeds 1000 tracks; use web controller");
+  std::vector<std::pair<int64_t, Track>> ordered;
+  for (size_t i = 0; i < json_object_array_length(rows); ++i) {
+    auto *row = json_object_array_get_idx(rows, i);
+    Track t{"Unknown title", "Unknown artist", "", std::nullopt, false};
+    t.trackId = str(row, "track_id");
+    t.friendId = number(row, "friend_id");
+    if (t.trackId.empty() || !t.friendId)
+      throw NetworkError("Invalid collection track identity");
+    ordered.emplace_back(number(row, "position"), std::move(t));
+  }
+  std::stable_sort(
+      ordered.begin(), ordered.end(),
+      [](const auto &a, const auto &b) { return a.first < b.first; });
+  for (auto &entry : ordered)
+    c.tracks.push_back(std::move(entry.second));
+  c.status = c.tracks.empty()
+                 ? "Empty playlist"
+                 : "Saved order · server validates unchecked audio";
+  return c;
+}
+std::string queueCommand(const std::vector<Track> &tracks, bool play,
+                         std::optional<size_t> selected) {
+  if (tracks.empty() || (selected && *selected >= tracks.size()))
+    throw NetworkError("No tracks selected");
+  Json root(json_object_new_object(), json_object_put);
+  json_object_object_add(
+      root.get(), "type",
+      json_object_new_string(play ? "queue.replace" : "queue.add"));
+  auto *refs = json_object_new_array();
+  json_object_object_add(root.get(), play ? "entries" : "tracks", refs);
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    if (selected && i != *selected)
+      continue;
+    const auto &t = tracks[i];
+    if (t.playable == false)
+      throw NetworkError("No local audio / unindexed track; queue unchanged");
+    if (t.trackId.empty() || t.friendId <= 0)
+      throw NetworkError("Invalid collection track identity");
+    auto *ref = json_object_new_object();
+    json_object_object_add(ref, "track_id",
+                           json_object_new_string(t.trackId.c_str()));
+    json_object_object_add(ref, "friend_id", json_object_new_int64(t.friendId));
+    json_object_array_add(refs, ref);
+  }
+  if (play)
+    json_object_object_add(root.get(), "play", json_object_new_boolean(true));
+  return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
+}
 namespace {
 class LiveData final : public DataAdapter {
 public:
@@ -556,13 +635,16 @@ public:
     published_.view = state_;
     metadataThread_ = std::thread([this] { metadataLoop(); });
     thread_ = std::thread([this] { run(); });
+    collectionThread_ = std::thread([this] { collectionLoop(); });
   }
   ~LiveData() override {
     stop_ = true;
     ++generation_;
     wake_.notify_all();
     metadataWake_.notify_all();
+    collectionWake_.notify_all();
     thread_.join();
+    collectionThread_.join();
     metadataThread_.join();
   }
   const Snapshot &snapshot() const override { return state_; }
@@ -617,6 +699,49 @@ public:
     ++generation_;
     wake_.notify_all();
   }
+  void browse(int64_t id, bool more) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto &c = published_.view.collection;
+    if (more && (c.loading || c.id != id || c.loaded >= c.tracks.size()))
+      return;
+    if (!more) {
+      c.tracks.clear();
+      c.loaded = 0;
+      c.id = id;
+    }
+    c.loading = true;
+    c.status = "Loading collection…";
+    state_.collection = c; // Invalidate old rows before another input event.
+    collectionJob_ = std::make_pair(id, more);
+    ++collectionVersion_;
+    ++serial_;
+    collectionWake_.notify_all();
+  }
+  void queueTracks(bool play, std::optional<size_t> track,
+                   const std::string &token) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!published_.view.acknowledgment.empty() || !pending_.empty())
+      return;
+    try {
+      if (token.empty() || token != published_.view.commandToken ||
+          !published_.view.connected)
+        throw NetworkError(
+            "Player state changed; review queue and choose action again");
+      if (published_.view.collection.loading)
+        throw NetworkError("Wait for collection loading");
+      pending_ = published_.command(
+          queueCommand(published_.view.collection.tracks, play, track));
+      published_.view.connected = false;
+      published_.view.refreshing = true;
+      published_.view.collection.status =
+          "Updating queue once; awaiting server state";
+      ++generation_;
+      wake_.notify_all();
+    } catch (const NetworkError &e) {
+      published_.view.acknowledgment = e.what();
+    }
+    ++serial_;
+  }
   void command(Action action) override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!published_.view.connected || !published_.view.acknowledgment.empty() ||
@@ -663,7 +788,72 @@ private:
   uint64_t serial_ = 1, seen_ = 0;
   std::mutex mutex_;
   std::condition_variable wake_;
-  std::thread thread_, metadataThread_;
+  std::thread thread_, metadataThread_, collectionThread_;
+  std::condition_variable collectionWake_;
+  std::atomic<unsigned> collectionVersion_{0};
+  std::optional<std::pair<int64_t, bool>> collectionJob_;
+  void collectionLoop() {
+    try {
+      RestClient api(config_);
+      while (!stop_) {
+        Collection c;
+        unsigned version;
+        std::pair<int64_t, bool> job;
+        {
+          std::unique_lock<std::mutex> lock(mutex_);
+          collectionWake_.wait(
+              lock, [this] { return stop_ || collectionJob_.has_value(); });
+          if (stop_)
+            return;
+          job = *collectionJob_;
+          collectionJob_.reset();
+          version = collectionVersion_;
+          c = published_.view.collection;
+        }
+        auto cancel = [this, version] {
+          return stop_ || collectionVersion_ != version;
+        };
+        try {
+          if (!job.first)
+            c = playlistList(api.playlists(cancel));
+          else {
+            if (!job.second) {
+              auto detail = playlistTracks(api.playlist(job.first, cancel));
+              if (detail.id != job.first)
+                throw NetworkError("Wrong playlist identity");
+              detail.names = c.names;
+              detail.ids = c.ids;
+              c = std::move(detail);
+            }
+            const auto end = std::min(c.loaded + 25, c.tracks.size());
+            for (; c.loaded < end && !cancel(); ++c.loaded) {
+              try {
+                api.enrich(c.tracks[c.loaded], cancel);
+              } catch (const NetworkError &e) {
+                if (std::string(e.what()) != "Collection track not found")
+                  throw;
+                c.tracks[c.loaded].playable = false;
+              }
+            }
+            c.status =
+                c.tracks.empty()
+                    ? "Empty playlist"
+                    : "Saved order · missing/unindexed audio cannot play";
+          }
+        } catch (const NetworkError &e) {
+          c.status = e.what();
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!cancel()) {
+          c.loading = false;
+          published_.view.collection = std::move(c);
+          ++serial_;
+        }
+      }
+    } catch (
+        const NetworkError &) { /* State worker reports configuration errors. */
+    }
+  }
   std::condition_variable metadataWake_;
   std::atomic<unsigned> metadataVersion_{0};
   struct MetadataJob {
@@ -679,6 +869,9 @@ private:
     std::lock_guard<std::mutex> lock(mutex_);
     if (!stop_ && generation == generation_) {
       auto next = session;
+      next.view.collection = published_.view.collection;
+      next.view.commandToken =
+          next.id + "/" + next.worker + "/" + std::to_string(next.revision);
       next.view.acknowledgment = published_.view.acknowledgment;
       if (next.view.currentIndex < next.view.queue.size()) {
         auto &track = next.view.queue[next.view.currentIndex];
@@ -798,6 +991,10 @@ private:
             try {
               api.request("/api/players/" + session.id + "/commands", write,
                           true, cancel);
+              std::lock_guard<std::mutex> lock(mutex_);
+              if (!cancel())
+                published_.view.collection.status =
+                    "Player updated; review shared queue";
             } catch (const NetworkError &e) {
               if (e.acknowledgment) {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -850,8 +1047,12 @@ private:
           api.request("/api/players/" + session.id + "/events", "", true,
                       cancel, [&](const std::string &event) {
                         if (session.event(event)) {
-                          if (!problem.empty())
+                          if (!problem.empty()) {
                             session.view.status = problem;
+                            std::lock_guard<std::mutex> lock(mutex_);
+                            if (!cancel())
+                              published_.view.collection.status = problem;
+                          }
                           publish(session, generation);
                           backoff = 250;
                         }

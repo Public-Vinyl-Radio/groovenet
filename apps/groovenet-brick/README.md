@@ -74,9 +74,11 @@ Tab opens Browse with Now Playing, Players, Playlists, Queue and Outputs. Focus
 wraps within each list and is remembered per screen. Enter selects, Escape
 returns to the previous screen, and Escape at the initial Now Playing screen
 stays there. Selecting a player is observational and leaves playback unchanged.
-Playlist, queue and output rows are navigation shells; selecting them displays a
-notice rather than pretending to send a server mutation. Their commands follow
-in #1099–1101. Button hints remain visible on every screen.
+Playlists opens saved playlists, then their ordered tracks. The first row opens
+playlist actions; a track opens actions for that track only. Play now opens a
+replacement confirmation with Cancel selected by default. Add to queue appends
+without starting idle playback. Back preserves list focus. Queue and Outputs
+remain navigation shells for #1100–1101. Button hints remain visible on every screen.
 
 Losing window focus simulates a suspended UI; focus gain requests an adapter
 refresh. Quit, suspend and wake never issue playback commands. The mock clock
@@ -206,9 +208,10 @@ No backend endpoint gap was found for this client slice.
    +/- changes **remote** volume. Leave the window focused to watch track timing.
 2. Tab, Down, Enter opens Players. Down, Enter follows Studio without starting or
    stopping playback. Escape returns with Browse focus still on Players.
-3. Visit Playlists, Queue and Outputs with the same controls. Confirm each shell
-   shows a focused row and returns consistently. Selecting a row shows its scope
-   notice; it never alters speaker routing or starts a playlist.
+3. Open Playlists → After hours → Playlist actions. Choose Play now, cancel,
+   then deliberately confirm replacement. Back to tracks, select one and choose
+   Add to queue. Back restores focus. Warm-up selections demonstrates missing
+   local audio; Sunday records is empty. Queue and Outputs show scope notices.
 4. Cycle F1 through every scenario. Check empty/loading/error states, missing
    artwork, metadata clipping and unknown timing. Resize the window and try
    `--scale 0.5` and `--scale 2`.
@@ -337,3 +340,41 @@ remembered selection and exits while the server retains playback and its queue.
 This passed on macOS on 2026-11-07. No physical speaker or device lifecycle is
 validated by this smoke; those remain under #1102 and the selected firmware
 adapter. See [validation evidence](evidence/now-playing-1098.md).
+
+### Saved playlists (#1099)
+
+Collection browsing has its own cancellable worker, independent of player SSE
+and current-track artwork. Existing collection APIs return complete lists rather
+than server pagination: responses are capped at 2 MiB, lists at 1,000 playlists
+and details at 1,000 track refs. Larger collections fail visibly instead of
+silently truncating or replacing a queue with a partial playlist. Track metadata
+loads in explicit pages of 25, with at most 25 single-ref batch API requests per
+page. Each request retains the existing deadlines; navigation and cancellation
+remain available while loading. No API changes or new credentials are required.
+
+Tracks are sorted by saved position and keep both track ID and friend ID. A
+missing batch row or missing local audio is shown as unplayable, and blocks an
+action containing that known track. Whole-playlist actions include every saved
+reference, including metadata pages not yet visited; the server validates those
+unchecked references atomically and may reject the playlist. No track is silently
+skipped. Collection authorization/offline errors appear in the browse status and
+do not disable the selected player's controls.
+
+Play now sends one revision-guarded `queue.replace` with `play: true`; Add to queue
+sends one `queue.add` without a playback flag. Replacement confirmation is bound
+to the selected player, worker identity and revision. A changed state requires a
+fresh deliberate action. Neither conflict nor lost response is automatically
+retried; review the refreshed shared queue before retrying. Output/takeover
+warnings use the same acknowledgment as Now Playing, granting no takeover or
+availability exception.
+
+![Saved playlist tracks](screenshots/playlist-tracks.png)
+![Replacement confirmation](screenshots/playlist-replace.png)
+
+Validation includes native navigation/rendering, bounded loading, composite
+identity/order, empty and missing audio, collection errors, concurrent revisions,
+server rejection and ambiguous writes. The development smoke also stops the
+player, verifies append stays idle, starts a saved playlist and appends a track
+while an independent REST controller observes the shared queue. See
+[evidence](evidence/playlists-1099.md). Physical playback/device qualification
+remains under #1102.

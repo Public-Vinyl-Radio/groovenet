@@ -52,6 +52,51 @@ void wait(DataAdapter &data,
 }
 } // namespace
 void liveTests() {
+  check(playlistList("[]").names.empty());
+  check(playlistList(R"([{"id":1,"name":"Saved"}])").ids[0] == 1);
+  for (const auto &bad : {"{}", R"([{"id":0,"name":"bad"}])",
+                          R"([{"id":1,"name":"x"},{"id":1,"name":"y"}])"})
+    rejects([&] { playlistList(bad); });
+  std::string largeCollection = "[";
+  for (int i = 1; i <= 1001; ++i)
+    largeCollection += (i == 1 ? "" : ",") + std::string("{\"id\":") +
+                       std::to_string(i) + ",\"name\":\"x\"}";
+  rejects([&] { playlistList(largeCollection + "]"); });
+  auto saved = playlistTracks(
+      R"({"playlist_id":7,"tracks":[{"track_id":"same","friend_id":2,"position":1},{"track_id":"same","friend_id":1,"position":0}]})");
+  check(saved.tracks.size() == 2 && saved.tracks[0].friendId == 1 &&
+        saved.tracks[1].friendId == 2);
+  check(playlistTracks(R"({"playlist_id":7,"tracks":[]})").tracks.empty());
+  for (
+      const auto &bad :
+      {R"({"playlist_id":0,"tracks":[]})",
+       R"({"playlist_id":7,"tracks":[{"track_id":"","friend_id":1,"position":0}]})",
+       R"({"playlist_id":7,"tracks":[{"track_id":"same","friend_id":0,"position":0}]})"})
+    rejects([&] { playlistTracks(bad); });
+  largeCollection = R"({"playlist_id":7,"tracks":[)";
+  for (int i = 0; i < 1001; ++i)
+    largeCollection +=
+        (i ? "," : "") +
+        std::string(R"({"track_id":"same","friend_id":1,"position":0})");
+  rejects([&] { playlistTracks(largeCollection + "]}"); });
+  auto add = queueCommand(saved.tracks, false, std::nullopt);
+  check(
+      add ==
+      R"({"type":"queue.add","tracks":[{"track_id":"same","friend_id":1},{"track_id":"same","friend_id":2}]})");
+  check(
+      queueCommand(saved.tracks, true, 1) ==
+      R"({"type":"queue.replace","entries":[{"track_id":"same","friend_id":2}],"play":true})");
+  rejects([&] { queueCommand({}, true, {}); });
+  rejects([&] { queueCommand(saved.tracks, true, 9); });
+  saved.tracks[0].playable = false;
+  rejects([&] { queueCommand(saved.tracks, true, {}); });
+  check(!queueCommand(saved.tracks, false, 1).empty());
+  saved.tracks[0].playable.reset();
+  saved.tracks[0].trackId.clear();
+  rejects([&] { queueCommand(saved.tracks, false, {}); });
+  saved.tracks[0].trackId = "same";
+  saved.tracks[0].friendId = 0;
+  rejects([&] { queueCommand(saved.tracks, false, {}); });
   LiveConfig config{"https://localhost", "", "", "", false, ""};
   rejects([&] { config.validate(); });
   config.playerKey = "unused";
@@ -391,19 +436,179 @@ int networkTests(const std::string &mode) {
     wait(*data, [](const Snapshot &s) {
       return s.connected && s.currentIndex == 1 && s.volume == 33;
     });
+    data->browse();
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.ids.size() == 1;
+    });
+    data->browse(1);
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.loaded == 2;
+    });
+    control("{\"type\":\"stop\"}");
+    wait(*data, [](const Snapshot &s) { return s.connected && !s.playing; });
+    data->queueTracks(false, 1, data->snapshot().commandToken);
+    wait(*data,
+         [](const Snapshot &s) { return s.connected && s.queue.size() == 3; });
+    check(!data->snapshot().playing);
+    data->queueTracks(true, {}, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.playing && s.currentIndex == 0 &&
+             s.queue[0].trackId == "two";
+    });
+    PlayerState observer;
+    observer.detail(second.request("/api/players/brick-smoke", "", true, no));
+    check(observer.view.queue.size() == 2 &&
+          observer.view.queue[0].trackId == "two" &&
+          observer.view.queue[1].trackId == "one");
+    data->queueTracks(false, 1, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.playing && s.queue.size() == 3;
+    });
+    observer.detail(second.request("/api/players/brick-smoke", "", true, no));
+    check(observer.view.queue.size() == 3 &&
+          observer.view.queue[2].trackId == "one" && observer.view.playing);
     data.reset();
     data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) {
-      return s.connected && s.playerId == "brick-smoke" && s.currentIndex == 1;
+      return s.connected && s.playerId == "brick-smoke" && s.currentIndex == 0;
     });
     data.reset();
     PlayerState remaining;
     remaining.detail(second.request("/api/players/brick-smoke", "", true, no));
-    check(remaining.view.playing && remaining.view.queue.size() == 2 &&
+    check(remaining.view.playing && remaining.view.queue.size() == 3 &&
           remaining.view.volume == 33);
     std::cout << "Development player: second-controller pause/name/volume, "
-                 "Brick resume/next/volume, wake, remembered selection and "
+                 "Brick resume/next/volume, saved playlist replacement/append, "
+                 "wake, remembered selection and "
                  "non-destructive exit passed\n";
+  } else if (mode == "playlists") {
+    auto data = liveAdapter(config);
+    wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
+    data->queueTracks(false, {}, "");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->selectPlayer(0);
+    wait(*data, [](const Snapshot &s) { return s.connected; });
+    auto beforeRefresh = data->snapshot().commandToken;
+    data->refresh();
+    data->queueTracks(false, {}, beforeRefresh);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.acknowledgment.empty();
+    });
+    data->acknowledge();
+    data->browse();
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.ids.size() == 3;
+    });
+    data->browse(1);
+    data->queueTracks(false, 0, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->queueTracks(false, 0,
+                      data->snapshot().commandToken); // Warning blocks writes.
+    data->acknowledge();
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.loaded == 25;
+    });
+    check(data->snapshot().collection.tracks.size() == 27);
+    check(data->snapshot().collection.tracks[0].friendId == 1);
+    data->browse(1, true);
+    data->browse(1, true); // A second load request cannot duplicate a page.
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.loaded == 27;
+    });
+    data->browse(9, true); // Wrong playlist cannot advance the visible page.
+    data->browse(1, true); // Already complete.
+    auto token = data->snapshot().commandToken;
+    data->queueTracks(false, 0, "stale-token");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->advance(0);
+    data->queueTracks(true, {}, token);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.acknowledgment.empty();
+    });
+    check(data->snapshot().acknowledgment.find("Conflict") !=
+          std::string::npos);
+    data->acknowledge();
+    data->advance(0);
+    data->queueTracks(false, 1, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected &&
+             s.collection.status.find("unknown") != std::string::npos;
+    });
+    data->queueTracks(false, 0, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected &&
+             s.collection.status.find("No playable") != std::string::npos;
+    });
+    data->queueTracks(false, 0, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected &&
+             s.collection.status.find("Player updated") != std::string::npos;
+    });
+    data->browse(2);
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.id == 2;
+    });
+    check(data->snapshot().collection.tracks.empty());
+    data->queueTracks(false, {}, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->advance(0);
+    data->browse(3);
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.loaded == 2;
+    });
+    check(data->snapshot().collection.tracks[0].playable == false &&
+          data->snapshot().collection.tracks[1].playable == false);
+    data->queueTracks(true, {}, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    for (int64_t id : {4, 5, 6}) {
+      data->browse(id);
+      wait(*data, [](const Snapshot &s) { return !s.collection.loading; });
+      check(!data->snapshot().collection.status.empty() &&
+            data->snapshot().connected);
+    }
+    data->browse(1);
+    data->browse(2); // Superseded work cannot replace the new playlist.
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading && s.collection.id == 2;
+    });
+  } else if (mode == "browse-ui") {
+    App app("live", "playing");
+    auto waitUI = [&](const std::function<bool()> &predicate) {
+      auto deadline =
+          std::chrono::steady_clock::now() + std::chrono::seconds(8);
+      do {
+        app.advance(0);
+        if (predicate())
+          return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      } while (std::chrono::steady_clock::now() < deadline);
+      throw std::runtime_error("Timed out browsing playlists");
+    };
+    for (auto action :
+         {Action::Menu, Action::Down, Action::Down, Action::Select})
+      app.handle(action);
+    waitUI([&] { return app.rows().size() == 3; });
+    app.handle(Action::Select);
+    app.advance(0);
+    check(app.rows().empty()); // Loading detail does not expose stale tracks.
+    app.handle(Action::Select);
+    waitUI([&] { return app.snapshot().collection.loaded == 25; });
+    check(app.rows().size() == 27 &&
+          app.rows().back() == "Load next 25 tracks");
+    app.handle(Action::Up);
+    app.handle(Action::Select);
+    app.advance(0);
+    app.handle(Action::Select); // Loading input remains responsive and bounded.
+    waitUI([&] { return app.snapshot().collection.loaded == 27; });
+    app.handle(Action::Back);
+    check(app.screen() == Screen::Playlists && app.focus() == 0);
+    app.handle(Action::Select);
+    waitUI([&] { return app.snapshot().collection.loaded == 25; });
+    app.handle(Action::Select);
+    app.handle(Action::Menu); // Menu abandons any pending action context.
+    check(app.screen() == Screen::Menu);
   } else if (mode == "smoke") {
     RestClient api(config);
     auto no = [] { return false; };
@@ -480,6 +685,13 @@ int networkTests(const std::string &mode) {
       return s.connected && s.status.find("Collection metadata unavailable") !=
                                 std::string::npos;
     });
+    data->browse();
+    wait(*data, [](const Snapshot &s) {
+      return !s.collection.loading &&
+             s.collection.status.find("Unauthorized") != std::string::npos;
+    });
+    check(data->snapshot().connected &&
+          data->snapshot().acknowledgment.empty());
   } else if (mode == "adapter") {
     auto data = liveAdapter(config);
     data->command(Action::None);
