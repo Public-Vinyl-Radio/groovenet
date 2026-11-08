@@ -39,7 +39,7 @@ down_args=(down --remove-orphans)
 if [[ "$PURGE" == true ]]; then
   down_args+=(-v)
 fi
-compose_exec "${down_args[@]}"
+compose_exec --profile '*' "${down_args[@]}"
 
 rm -f "$(caddy_fragment_file)"
 if command -v caddy >/dev/null 2>&1; then

@@ -174,6 +174,9 @@ compose-dev-reset: check-compose mount-music
 worktree-up *args:
   ./scripts/worktree/setup.sh {{args}}
 
+worktree-services *args:
+  ./scripts/worktree/services.sh {{args}}
+
 worktree-down *args:
   ./scripts/worktree/teardown.sh {{args}}
 

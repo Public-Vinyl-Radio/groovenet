@@ -1,3 +1,4 @@
+import { serviceNotRunning } from "@/lib/serviceConnection";
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
@@ -152,6 +153,9 @@ export async function POST(req: NextRequest) {
     }
     analysisResult = responseText;
   } catch (err) {
+    if (serviceNotRunning(err)) {
+      return NextResponse.json({ error: "Essentia service not running" }, { status: 503 });
+    }
     return NextResponse.json(
       {
         error: `Essentia API call failed: ${err instanceof Error ? err.message : String(err)}`,

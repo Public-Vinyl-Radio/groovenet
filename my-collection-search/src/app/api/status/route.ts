@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { ServiceHealth, ServiceStatus, StatusResponse } from "@groovenet/contracts";
 
+import { serviceNotRunning } from "@/lib/serviceConnection";
 import { dbQuery } from "@/lib/serverDb";
 import { getRedisConnection } from "@/lib/redis";
 import { checkEmbeddingProvider } from "@/server/services/embeddingHealthService";
@@ -40,7 +41,12 @@ async function timed(service: string, probe: () => Promise<void>): Promise<Servi
       service,
       status: "down",
       latencyMs: Date.now() - start,
-      detail: err instanceof Error ? err.message : String(err),
+      detail:
+        (service === "essentia" || service === "ga-service") && serviceNotRunning(err)
+          ? "Service not running"
+          : err instanceof Error
+            ? err.message
+            : String(err),
     };
   }
 }

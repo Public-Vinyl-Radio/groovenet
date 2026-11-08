@@ -1,3 +1,4 @@
+import { serviceNotRunning } from "@/lib/serviceConnection";
 import { NextResponse } from "next/server";
 import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
@@ -107,6 +108,9 @@ export async function POST(req: Request) {
     }
     return NextResponse.json(responseJson, { status: res.status });
   } catch (error) {
+    if (serviceNotRunning(error)) {
+      return NextResponse.json({ error: "Optimization service not running" }, { status: 503 });
+    }
     console.error("Error creating playlist:", error);
     return NextResponse.json({ error: "Failed to create playlist" }, { status: 500 });
   }

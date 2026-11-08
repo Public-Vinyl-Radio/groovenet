@@ -242,3 +242,5 @@ node packages/groovenet-cli/build/bin/groovenet.js sets derive set.mp3 --playlis
 
 > `just release` no longer tags/builds/deploys in one shot — releases are cut by
 > release-please.
+
+Production deploys default to `COMPOSE_PROFILES=all`, starting all optional services. Set `COMPOSE_PROFILES` explicitly to select a different set.

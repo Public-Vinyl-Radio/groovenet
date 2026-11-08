@@ -86,6 +86,13 @@ describe("GET /api/status", () => {
     expect(byName(body, "embeddings")).toMatchObject({ status: "down", detail: "quota" });
   });
 
+  it("reports stopped optional services", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed", { cause: { code: "ECONNREFUSED" } }));
+    const body = await (await GET()).json();
+    expect(byName(body, "essentia").detail).toBe("Service not running");
+    expect(byName(body, "ga-service").detail).toBe("Service not running");
+  });
+
   it("marks a paused embedding queue down, and an unreadable one unknown", async () => {
     mocks.getQueueHealth.mockResolvedValue({
       paused: true,

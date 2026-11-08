@@ -7,12 +7,18 @@ source "$SCRIPT_DIR/lib.sh"
 
 SEED_MODE="auto"
 SEED_DIR_OVERRIDE=""
+REQUESTED_PROFILES=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --)
       shift
       continue
+      ;;
+    --profile)
+      [[ -n "${2:-}" ]] || usage_error "--profile requires a value"
+      REQUESTED_PROFILES="${REQUESTED_PROFILES:+$REQUESTED_PROFILES,}$2"
+      shift 2
       ;;
     --no-seed)
       SEED_MODE="skip"
@@ -26,7 +32,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<EOF
-Usage: $(basename "$0") [--no-seed] [--seed PATH]
+Usage: $(basename "$0") [--no-seed] [--seed PATH] [--profile NAME]
 
 Bootstraps the current git worktree with:
 - a unique Docker Compose project
@@ -45,6 +51,9 @@ done
 require_command git docker caddy
 
 ensure_worktree_env
+if [[ -n "$REQUESTED_PROFILES" ]]; then
+  save_profiles "$(normalize_profiles "${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}$REQUESTED_PROFILES")"
+fi
 write_caddy_fragment
 reload_caddy
 compose_exec up -d --remove-orphans
