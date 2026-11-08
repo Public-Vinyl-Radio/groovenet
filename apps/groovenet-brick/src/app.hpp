@@ -72,7 +72,7 @@ struct Collection {
   std::string status = "Open Playlists to load saved music";
   int64_t id = 0;
   size_t loaded = 0;
-  bool loading = false;
+  bool loading = false, retry = false;
 };
 struct Output {
   std::string id, name, assigned, availability;
@@ -90,7 +90,7 @@ struct Snapshot {
   bool outputUnknown = false, outputTakeover = false;
   Collection collection;
   std::string commandToken;
-  std::string status, player, playerId, acknowledgment,
+  std::string status, player, playerId, acknowledgment, approvalAction,
       playbackState = "playing";
   bool connected = true, available = true, loading = false, playing = true;
   bool refreshing =
@@ -112,6 +112,7 @@ public:
   virtual void advance(int milliseconds) = 0;
   virtual void refresh() = 0;
   virtual void acknowledge() {}
+  virtual void approve() {}
   virtual void browseOutputs() = 0;
   virtual void output(const std::string &body, const std::string &token,
                       bool allowUnknown = false, bool takeover = false) = 0;

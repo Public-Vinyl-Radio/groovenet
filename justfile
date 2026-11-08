@@ -174,6 +174,9 @@ compose-dev-reset: check-compose mount-music
 worktree-up *args:
   ./scripts/worktree/setup.sh {{args}}
 
+worktree-services *args:
+  ./scripts/worktree/services.sh {{args}}
+
 worktree-down *args:
   ./scripts/worktree/teardown.sh {{args}}
 
@@ -985,6 +988,6 @@ brick-coverage:
   "${brick_cov[@]}" report "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/'
   "${brick_cov[@]}" export "$brick_build/brick-tests" -object "$brick_build/CMakeFiles/groovenet-brick.dir/src/main.cpp.o" -instr-profile="$brick_build/coverage.profdata" -ignore-filename-regex='tests/|/usr/|/opt/' -format=lcov > "$brick_build/coverage.lcov"
 
-# Experimental ARM64 Knulli archive; independent of npm and desktop builds.
+# Versioned ARM64 Knulli archive; independent of npm and desktop builds.
 brick-package:
   apps/groovenet-brick/knulli/build.sh

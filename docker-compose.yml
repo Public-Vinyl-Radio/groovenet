@@ -108,6 +108,7 @@ services:
       start_period: 20s
 
   essentia:
+    profiles: [analysis, downloads, all]
     build:
       context: essentia-api
     restart: unless-stopped
@@ -117,6 +118,7 @@ services:
       SENTRY_SERVICE: essentia-api
 
   ga-service:
+    profiles: [optimize, all]
     build:
       context: ga-service
     restart: unless-stopped
@@ -138,6 +140,7 @@ services:
       start_period: 10s
 
   download-worker:
+    profiles: [downloads, all]
     build:
       context: .
       dockerfile: download-worker/Dockerfile
@@ -162,6 +165,7 @@ services:
   # Queue-driven: pops fingerprint_queue, decodes the chunk, matches it, and
   # reports back over the app's REST API. No published port on purpose.
   fingerprint-service:
+    profiles: [fingerprint, all]
     build:
       context: .
       dockerfile: fingerprint-service/Dockerfile
@@ -201,6 +205,7 @@ services:
   # Same image, second process: derives tracklists from whole set recordings
   # (#282). Its own heartbeat key, or each worker would vouch for the other.
   fingerprint-set-worker:
+    profiles: [fingerprint, all]
     extends: fingerprint-service
     environment:
       FINGERPRINT_QUEUES: fingerprint_set_queue

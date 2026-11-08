@@ -34,10 +34,14 @@ class LauncherTests(unittest.TestCase):
                 '#!/bin/sh\n[ "$BRICK_PLAYER_KEY" = private-test-value ] || exit 8\n'
                 '[ "$BRICK_URL" = https://example.invalid ] || exit 9\n'
                 '[ "$XDG_CACHE_HOME" = "$XDG_CONFIG_HOME/cache" ] || exit 10\n'
+                '[ "$XDG_DATA_HOME" = "$XDG_CONFIG_HOME" ] || exit 11\n'
+                'case "$LD_LIBRARY_PATH" in "$PWD/lib"|"$PWD/lib:/firmware/lib") ;; *) exit 12;; esac\n'
                 'printf "%s\\n" "$@"\nexit 17\n'
             )
             binary.chmod(0o755)
-            result = subprocess.run(["sh", str(launcher)], capture_output=True)
+            environment = dict(os.environ)
+            environment.pop("LD_LIBRARY_PATH", None)
+            result = subprocess.run(["sh", str(launcher)], capture_output=True, env=environment)
             self.assertEqual(result.returncode, 17)  # exec preserves failures for Ports
             self.assertEqual(result.stdout, b"")
             log = state / "preview.log"
@@ -51,6 +55,9 @@ class LauncherTests(unittest.TestCase):
             subprocess.run(["sh", str(launcher)], capture_output=True)
             self.assertNotIn("old log", log.read_text())
             self.assertNotIn("private-test-value", log.read_text())
+            environment["LD_LIBRARY_PATH"] = "/firmware/lib"
+            inherited = subprocess.run(["sh", str(launcher)], capture_output=True, env=environment)
+            self.assertEqual(inherited.returncode, 17)
 
     @unittest.skipUnless(os.environ.get("BRICK_ARCHIVE"), "build with just brick-package first")
     def test_archive(self):
@@ -62,18 +69,28 @@ class LauncherTests(unittest.TestCase):
                 "groovenet-brick/BUILD.txt", "groovenet-brick/INSTALL.md", "groovenet-brick/LICENSE",
                 "groovenet-brick/config.example", "groovenet-brick/assets/DejaVuSans.ttf",
                 "groovenet-brick/assets/FONT-LICENSE",
+                "groovenet-brick/lib/libjpeg.so.62", "groovenet-brick/lib/JPEG-LICENSE",
             })
             def read(name):
                 return package.extractfile(name).read()
             binary = read("groovenet-brick/groovenet-brick")
             self.assertEqual(binary[:5], b"\x7fELF\x02")  # ELF64
             self.assertEqual(int.from_bytes(binary[18:20], "little"), 183)  # AArch64
+            jpeg = read("groovenet-brick/lib/libjpeg.so.62")
+            self.assertEqual(jpeg[:5], b"\x7fELF\x02")
+            self.assertEqual(int.from_bytes(jpeg[18:20], "little"), 183)
+            self.assertIn(b"libjpeg-turbo", read("groovenet-brick/lib/JPEG-LICENSE"))
             self.assertTrue(files["Groovenet.sh"].mode & 0o111)
             self.assertTrue(files["groovenet-brick/groovenet-brick"].mode & 0o111)
             self.assertEqual(read("groovenet-brick/LICENSE"), (ROOT.parents[1] / "LICENSE").read_bytes())
             self.assertIn(b"Permission", read("groovenet-brick/assets/FONT-LICENSE"))
             self.assertEqual(read("groovenet-brick/config.example"), (ROOT / "knulli/config.example").read_bytes())
-            for line in read("groovenet-brick/SHA256SUMS").decode().splitlines():
+            manifest = read("groovenet-brick/SHA256SUMS").decode().splitlines()
+            self.assertEqual(
+                {line.split()[1] for line in manifest},
+                set(files) - {"groovenet-brick/SHA256SUMS"},
+            )
+            for line in manifest:
                 digest, name = line.split()
                 self.assertEqual(hashlib.sha256(read(name)).hexdigest(), digest)
             self.assertIn(b"aarch64-linux-gnu", read("groovenet-brick/BUILD.txt"))

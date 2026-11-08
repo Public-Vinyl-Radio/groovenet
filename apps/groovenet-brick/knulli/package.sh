@@ -1,10 +1,17 @@
 #!/bin/sh
 set -eu
 umask 022
-cmake -S /src -B /tmp/brick-build -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -DCMAKE_TOOLCHAIN_FILE=/src/knulli/toolchain.cmake -S /src -B /tmp/brick-build -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build /tmp/brick-build --parallel 2
+version=$(cat /out/version.txt)
+archive="groovenet-brick-$version-knulli-scarab-arm64.tar.gz"
 stage=/tmp/brick-package
-mkdir -p "$stage/groovenet-brick/assets"
+rm -rf "$stage"
+mkdir -p "$stage/groovenet-brick/assets" "$stage/groovenet-brick/lib"
+# Scarab supplies JPEG ABI 8, while this frozen baseline targets ABI 62.
+# Keep the compatible decoder private; never overwrite firmware libraries.
+cp -L /usr/lib/aarch64-linux-gnu/libjpeg.so.62 "$stage/groovenet-brick/lib/"
+cp /usr/share/doc/libjpeg62-turbo/copyright "$stage/groovenet-brick/lib/JPEG-LICENSE"
 cp /tmp/brick-build/groovenet-brick "$stage/groovenet-brick/"
 cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf "$stage/groovenet-brick/assets/"
 cp /usr/share/doc/fonts-dejavu-core/copyright "$stage/groovenet-brick/assets/FONT-LICENSE"
@@ -13,16 +20,16 @@ cp /project-license "$stage/groovenet-brick/LICENSE"
 cp /src/knulli/config.example "$stage/groovenet-brick/"
 cp /src/knulli/README.md "$stage/groovenet-brick/INSTALL.md"
 {
-  echo 'Experimental preview: Knulli Scarab 2026/05/11; physical acceptance tracked separately.'
+  echo "Groovenet Brick $version: Knulli Scarab 2026/05/11; see qualification evidence."
   cat /out/source-version.txt
-  c++ --version
-  c++ -dumpmachine
+  aarch64-linux-gnu-g++ --version
+  aarch64-linux-gnu-g++ -dumpmachine
   dpkg-query -W
   readelf -l -d "$stage/groovenet-brick/groovenet-brick"
 } > "$stage/groovenet-brick/BUILD.txt"
 cd "$stage"
-sha256sum groovenet-brick/groovenet-brick groovenet-brick/assets/* groovenet-brick/LICENSE > groovenet-brick/SHA256SUMS
+sha256sum Groovenet.sh groovenet-brick/groovenet-brick groovenet-brick/assets/* groovenet-brick/lib/* groovenet-brick/LICENSE groovenet-brick/config.example groovenet-brick/INSTALL.md groovenet-brick/BUILD.txt > groovenet-brick/SHA256SUMS
 # Allowlist packaging: no host environment, private config, certificates or logs.
-tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf /out/groovenet-brick-knulli-preview.tar.gz Groovenet.sh groovenet-brick
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -czf /out/"$archive" Groovenet.sh groovenet-brick
 cd /out
-sha256sum groovenet-brick-knulli-preview.tar.gz > groovenet-brick-knulli-preview.tar.gz.sha256
+sha256sum "$archive" > "$archive.sha256"

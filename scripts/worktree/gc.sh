@@ -135,7 +135,7 @@ if ((${#orphan_projects[@]} > 0)); then
 
     if [[ "$APPLY" == true ]]; then
       echo "  removing $name ($status)"
-      docker compose -p "$name" "${down_args[@]}"
+      docker compose -p "$name" --profile '*' "${down_args[@]}"
       if [[ -f "$fragment" ]]; then
         rm -f "$fragment"
         echo "  removed Caddy fragment $fragment"
@@ -143,7 +143,7 @@ if ((${#orphan_projects[@]} > 0)); then
       fi
     else
       echo "  $name ($status)"
-      echo "    would run: docker compose -p $name ${down_args[*]}"
+      echo "    would run: docker compose -p $name --profile '*' ${down_args[*]}"
       if [[ -f "$fragment" ]]; then
         echo "    would remove Caddy fragment: $fragment"
       fi

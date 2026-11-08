@@ -1,0 +1,27 @@
+{
+  "device": "TrimUI Brick",
+  "firmware": "Scarab 2026/05/11",
+  "operator": "",
+  "date": "",
+  "report": "release-1102.md",
+  "binary_sha256": "",
+  "launcher_sha256": "",
+  "jpeg_sha256": "",
+  "checks": {
+    "sdk_abi": false,
+    "launch": false,
+    "remembered_player": false,
+    "artwork": false,
+    "saved_playlist": false,
+    "volume_isolation": false,
+    "external_controller": false,
+    "long_display": false,
+    "wifi_reconnect": false,
+    "screen_off": false,
+    "real_suspend_resume": false,
+    "exit_keeps_playing": false,
+    "unplugged_battery": false,
+    "queue": false,
+    "outputs": false
+  }
+}

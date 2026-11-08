@@ -5,12 +5,14 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <filesystem>
+#include <csignal>
 #include <stdexcept>
 
 namespace {
 enum class Fault {
   None,
   Resume,
+  Terminate,
   Mapping,
   Hint,
   Init,
@@ -120,12 +122,23 @@ SDL_bool faultHint(const char *name, const char *value,
 #define SDL_SetHintWithPriority faultHint
 #define SDL_GameControllerAddMapping faultMapping
 void faultDelay(Uint32 ms) {
+  if (fault == Fault::Terminate) {
+    std::raise(SIGTERM);
+    return;
+  }
   if (fault == Fault::Resume) {
     fault = Fault::None;
     SDL_Delay(2100);
   } else
     SDL_Delay(ms);
 }
+SDL_PowerState powerState = SDL_POWERSTATE_UNKNOWN;
+int powerPercent = -1;
+SDL_PowerState testPower(int *, int *percent) {
+  *percent = powerPercent;
+  return powerState;
+}
+#define SDL_GetPowerInfo testPower
 #define SDL_Delay faultDelay
 #define SDL_Init faultInit
 #define TTF_Init faultTtf
@@ -145,6 +158,24 @@ void faultDelay(Uint32 ms) {
 #undef SDL_Init
 
 void failureTests() {
+  brick::Desktop device(true);
+  if (brick::Desktop().batteryPercent())
+    throw std::runtime_error("Desktop must not report device battery");
+  for (auto state : {SDL_POWERSTATE_UNKNOWN, SDL_POWERSTATE_NO_BATTERY,
+                     SDL_POWERSTATE_ON_BATTERY, SDL_POWERSTATE_CHARGING,
+                     SDL_POWERSTATE_CHARGED}) {
+    powerState = state;
+    for (int percent : {-1, 0, 55, 100, 101}) {
+      powerPercent = percent;
+      const auto expected = state != SDL_POWERSTATE_UNKNOWN &&
+                            state != SDL_POWERSTATE_NO_BATTERY &&
+                            percent >= 0 && percent <= 100;
+      const auto actual = device.batteryPercent();
+      if (actual.has_value() != expected || (actual && *actual != percent))
+        throw std::runtime_error("Incorrect firmware battery reading");
+    }
+  }
+  powerState = SDL_POWERSTATE_UNKNOWN;
   auto options = brick::parseOptions(
       {"--frames", "1", "--screenshot",
        (std::filesystem::temp_directory_path() / "brick-failure-test.bmp")
@@ -204,5 +235,12 @@ void failureTests() {
   if (brick::runDesktop(options) != 0)
     throw std::runtime_error("Resume gap prevented rendering");
   SDL_setenv("SDL_GAMECONTROLLERCONFIG", "", 1);
+  fault = Fault::Terminate;
+  options.frames = 100;
+  auto previous = std::signal(SIGTERM, SIG_IGN);
+  if (brick::runDesktop(options) != 0)
+    throw std::runtime_error("Firmware termination did not exit cleanly");
+  if (std::signal(SIGTERM, previous) != SIG_IGN)
+    throw std::runtime_error("Termination handler not restored");
   fault = Fault::None;
 }

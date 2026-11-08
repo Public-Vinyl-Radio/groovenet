@@ -91,6 +91,15 @@ function essentiaResponse(tonal: unknown) {
 }
 
 describe("POST /api/tracks/upload", () => {
+  it("reports a stopped Essentia service", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(
+      new TypeError("fetch failed", { cause: { code: "ECONNREFUSED" } }),
+    );
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Essentia service not running" });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockMkdir.mockResolvedValue(undefined);
