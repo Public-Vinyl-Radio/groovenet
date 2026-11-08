@@ -52,14 +52,17 @@ describe("File info", () => {
     const onReprobe = vi
       .fn()
       .mockRejectedValueOnce(new Error("probe failed"))
+      .mockRejectedValueOnce("failed")
       .mockResolvedValueOnce(undefined);
     const { user } = renderWithProviders(<FileInfo track={track} fullPath onReprobe={onReprobe} />);
     await user.click(screen.getByRole("button", { name: /^File info:/ }));
     await user.click(await screen.findByRole("button", { name: "Re-probe" }));
     expect((await screen.findByRole("alert")).textContent).toBe("probe failed");
     await user.click(screen.getByRole("button", { name: "Re-probe" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Re-probe failed");
+    await user.click(screen.getByRole("button", { name: "Re-probe" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-    expect(onReprobe).toHaveBeenCalledTimes(2);
+    expect(onReprobe).toHaveBeenCalledTimes(3);
   });
   it("clearly labels nominal stream values", () => {
     renderWithProviders(<FileInfoDetails track={{ ...track, local_audio_url: undefined }} />);
