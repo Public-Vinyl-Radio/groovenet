@@ -53,6 +53,7 @@ struct Snapshot {
   std::vector<Track> queue;
   size_t currentIndex = 0;
   std::vector<std::string> players, playlists, outputs;
+  std::vector<std::string> playerIds;
 };
 // Shared by the deterministic mock and asynchronous REST/SSE adapter.
 class DataAdapter {

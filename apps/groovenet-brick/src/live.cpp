@@ -428,9 +428,9 @@ public:
   }
   void selectPlayer(size_t index) override {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (index >= ids_.size())
+    if (index >= state_.playerIds.size())
       return;
-    selected_ = ids_[index];
+    selected_ = state_.playerIds[index];
     pending_.clear();
     published_.view.connected = false;
     published_.view.queue.clear();
@@ -482,7 +482,6 @@ private:
   std::atomic<bool> stop_{false};
   std::atomic<unsigned> generation_{0};
   std::string selected_, pending_;
-  std::vector<std::string> ids_;
   void publish(const PlayerState &session, unsigned generation) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!stop_ && generation == generation_)
@@ -542,10 +541,10 @@ private:
             std::lock_guard<std::mutex> lock(mutex_);
             if (cancel())
               continue;
-            ids_ = ids;
             selected_ = session.id;
           }
           session.view.players = names;
+          session.view.playerIds = ids;
           session.begin();
           if (session.id.empty())
             throw NetworkError("No players configured");

@@ -18,6 +18,8 @@ player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32
 commands = []
 streams = []
 failures = []
+reordered = False
+order_listed = False
 
 
 def player(identity="a"):
@@ -64,6 +66,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
+        global reordered, order_listed
         if not self.auth():
             return
         try:
@@ -75,8 +78,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {"players": [{"id": "../bad", "name": "Bad"}]})
             if self.path.startswith("/unavailable/"):
                 return self.reply(503, {})
+            if self.path == "/reorder":
+                reordered = True
+                return self.reply(200, {})
+            if self.path == "/order-ready":
+                return self.reply(200, {"ready": order_listed})
             if self.path == "/api/players":
-                return self.reply(200, {"players": [player(), player("b")]})
+                rows = [player(), player("b")]
+                if reordered:
+                    rows.reverse()
+                    order_listed = True
+                return self.reply(200, {"players": rows})
             if self.path in ("/api/players/a", "/api/players/b"):
                 return self.reply(200, player(self.path[-1]))
             if self.path.startswith("/api/playlists"):

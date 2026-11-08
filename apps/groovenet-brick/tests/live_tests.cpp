@@ -261,6 +261,23 @@ int networkTests(const std::string &mode) {
     wait(*data, [](const Snapshot &s) { return s.connected; });
     data->command(Action::PlayPause);
     wait(*data, [](const Snapshot &s) { return s.connected; });
+    // A refreshed list can reorder while the old rows are still on screen.
+    // Selection must use the IDs belonging to those displayed rows.
+    RestClient control(config);
+    auto no = [] { return false; };
+    control.request("/reorder", "", true, no);
+    data->refresh();
+    bool ready = false;
+    for (int i = 0; i < 100 && !ready; ++i) {
+      auto body = control.request("/order-ready", "", true, no);
+      ready = body.find("true") != std::string::npos;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    check(ready);
+    data->selectPlayer(1);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.player == "Other room";
+    });
     data->refresh(); // Exit while a request is pending: bounded
                      // cancellation/join.
   } else {
