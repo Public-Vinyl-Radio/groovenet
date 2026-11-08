@@ -86,6 +86,22 @@ void liveTests() {
     check(blocked.snapshot().routing.token == "mock" && blocked.snapshot().acknowledgment.empty());
   }
   mock.output("{}", "", false, false); // Pending acknowledgment blocks writes.
+  MockData same("playing");
+  same.output("{\"type\":\"play\"}", "", false,
+              false); // Already assigned here.
+  check(same.snapshot().playing);
+  MockData mixed("playing");
+  mixed.output(outputCommand(mixed.snapshot().routing.devices[1], "lounge"), "",
+               false, false);
+  mixed.acknowledge();
+  mixed.output("{\"type\":\"play\"}", "", true, false);
+  check(mixed.snapshot().outputUnknown && mixed.snapshot().outputTakeover);
+  mixed.acknowledge();
+  mixed.output(outputCommand(mixed.snapshot().routing.devices[2], "lounge"), "",
+               false, false);
+  mixed.acknowledge();
+  mixed.output("{\"type\":\"play\"}", "", false, true);
+  check(mixed.snapshot().outputUnknown && mixed.snapshot().outputTakeover);
   MockData owned("playing");
   owned.selectPlayer(1);
   owned.output("{\"type\":\"play\"}", "", true, true);
@@ -536,7 +552,13 @@ int networkTests(const std::string &mode) {
     config.url += "/outputs";
     auto data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
+    data->output("{}", "unselected");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
     data->browseOutputs(); // No selection: no output read or write.
+    std::this_thread::sleep_for(std::chrono::milliseconds(2100));
+    data->advance(0);
+    check(data->snapshot().playerId.empty());
     data->selectPlayer(0);
     data->browseOutputs();
     auto ready = [](const Snapshot &s) {
@@ -599,6 +621,20 @@ int networkTests(const std::string &mode) {
       data->acknowledge();
     }
     wait(*data, ready);
+    for (const auto &code :
+         {"REVISION_CONFLICT", "SPEAKER_OCCUPIED", "DEVICE_BUSY"}) {
+      data->refresh(); // Each is a new action without any previous approval.
+      wait(*data, ready);
+      data->output(play, token());
+      wait(*data, [](const Snapshot &s) {
+        return s.connected && !s.acknowledgment.empty();
+      });
+      check(std::string(code) == "REVISION_CONFLICT"
+                ? data->snapshot().outputApproval.empty()
+                : data->snapshot().outputApproval == code);
+      data->acknowledge();
+    }
+    wait(*data, ready);
     auto oldToken = token();
     api.request("/hold-discovery", "", true, [] { return false; });
     data->browseOutputs();
@@ -639,6 +675,14 @@ int networkTests(const std::string &mode) {
       return s.routing.token.empty() &&
              s.routing.status.find("unavailable") != std::string::npos;
     });
+    api.request("/hold-discovery", "", true, [] { return false; });
+    data->browseOutputs();
+    wait(*data, [&](const Snapshot &) {
+      return api.request("/discovery-started", "", true, [] { return false; })
+                 .find("true") != std::string::npos;
+    });
+    data.reset(); // Quit while a discovery read is blocked on the socket.
+    api.request("/release-discovery", "", true, [] { return false; });
     return 0;
   }
   if (mode == "queue-edits") {

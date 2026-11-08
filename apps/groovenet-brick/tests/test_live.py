@@ -310,6 +310,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(200, {"transfer": {"detached": True, "attached": False, "error": {"code": "DEVICE_BUSY"}}})
             if n == 5:
                 return self.reply(409, {"code": "REVISION_CONFLICT"})
+            if n in (8, 9, 10):
+                assert body["type"] == "play" and not body.get("allow_unknown") and not body.get("takeover")
+                return self.reply(409, {"code": {8: "REVISION_CONFLICT", 9: "SPEAKER_OCCUPIED", 10: "DEVICE_BUSY"}[n]})
             if n == 6:
                 self.connection.shutdown(socket.SHUT_RDWR)
                 self.connection.close()
@@ -434,8 +437,8 @@ with tempfile.TemporaryDirectory() as directory:
         )
         subprocess.run([binary, "playlists"], env=environment, check=True, timeout=40)
         subprocess.run([binary, "browse-ui"], env=environment, check=True, timeout=30)
-        subprocess.run([binary, "outputs"], env=environment, check=True, timeout=45)
-        assert len(output_commands) == 7, "output writes must never replay"
+        subprocess.run([binary, "outputs"], env=environment, check=True, timeout=60)
+        assert len(output_commands) == 10, "output writes must never replay"
         subprocess.run([binary, "queue-edits"], env=environment, check=True, timeout=40)
         assert len(queue_commands) == 6, "queue edits must never be replayed"
         assert len(playlist_commands) == 4, "no automatic queue retries"

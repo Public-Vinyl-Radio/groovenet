@@ -623,9 +623,8 @@ void App::advance(int milliseconds) {
 void App::rememberOutputFocus() {
   auto index = focus_[static_cast<size_t>(Screen::Outputs)];
   outputPlayer_ = snapshot().playerId;
-  focusedOutput_ = index && index <= snapshot().routing.devices.size()
-                       ? snapshot().routing.devices[index - 1].id
-                       : "";
+  // Both callers reconcile focus against the current discovery first.
+  focusedOutput_ = index ? snapshot().routing.devices.at(index - 1).id : "";
 }
 void App::rememberQueueFocus() {
   auto index = focus_[static_cast<size_t>(Screen::Queue)];

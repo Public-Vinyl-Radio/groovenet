@@ -183,6 +183,9 @@ void outputUiTests() {
   app.handle(Action::Select);
   check(remote->outputWrites == 1 && remote->takeover && !remote->unknown);
   app.handle(Action::Down);
+  app.handle(Action::Select); // Select the speaker already assigned here.
+  check(app.notice().find("detach source") == std::string::npos);
+  app.handle(Action::Back);
   app.handle(Action::Down); // speaker assigned to studio
   app.handle(Action::Select);
   check(app.notice().find("detach source studio") != std::string::npos);
@@ -636,7 +639,23 @@ void renderTests() {
     App longOutput(std::move(longData));
     for (auto a : {Action::Menu, Action::Up, Action::Select, Action::Select}) longOutput.handle(a);
     view.draw(longOutput, platform);
-
+    auto wrappedData = std::make_unique<ScriptedData>();
+    auto *wrappedRemote = wrappedData.get();
+    std::string words;
+    for (int i = 0; i < 100; ++i)
+      words += "word ";
+    wrappedRemote->state.routing.desired = words.substr(0, 255);
+    wrappedRemote->state.routing.devices[0].id =
+        wrappedRemote->state.routing.desired;
+    wrappedRemote->state.outputUnknown = wrappedRemote->state.outputTakeover =
+        true;
+    App wrappedOutput(std::move(wrappedData));
+    for (auto a : {Action::Menu, Action::Up, Action::Select, Action::Select})
+      wrappedOutput.handle(a);
+    view.draw(wrappedOutput, platform); // Confirmation reaches its line limit.
+    wrappedRemote->state.acknowledgment = words;
+    view.draw(wrappedOutput,
+              platform); // Acknowledgment reaches its line limit.
 
     App playlist("mock", "paused");
     for (auto action :
