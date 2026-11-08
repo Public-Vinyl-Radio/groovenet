@@ -43,7 +43,7 @@ vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toast } }))
 
 import TrackActionsMenu from "./TrackActionsMenu";
 import { useTrackStore } from "@/stores/trackStore";
-import { TrackCardContext } from "./trackCardContext";
+import { TrackCardContext, TrackRowContext } from "./trackCardContext";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -85,6 +85,23 @@ describe("TrackActionsMenu phone trigger", () => {
     const prominent = screen.getAllByRole("button", { name: "Track actions", hidden: true })[0];
     expect(getComputedStyle(prominent).width).toBe("44px");
     expect(getComputedStyle(prominent).height).toBe("44px");
+  });
+});
+
+describe("TrackActionsMenu in a dense row", () => {
+  it("is a quiet ghost xs icon button with a 44px hit area on desktop", () => {
+    renderWithProviders(
+      <TrackRowContext.Provider value={true}>
+        <TrackActionsMenu track={trackMinimal} />
+      </TrackRowContext.Provider>,
+    );
+    const desktop = screen.getAllByRole("button", { name: "Track actions", hidden: true })[1];
+    expect(getComputedStyle(desktop).width).toBe("44px");
+    expect(getComputedStyle(desktop).height).toBe("44px");
+    expect(desktop.className).not.toBe(
+      screen.getAllByRole("button", { name: "Track actions", hidden: true })[0].className,
+    );
+    expect(getComputedStyle(desktop).borderWidth).not.toBe("2px");
   });
 });
 

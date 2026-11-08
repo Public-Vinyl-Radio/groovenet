@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: vi.fn().mockResolvedValue([]) }));
 vi.mock("@/services/internalApi/artists", () => ({ listArtists: vi.fn() }));
 
-import AlbumFiltersModal, { albumCountLabel } from "./AlbumFiltersModal";
+import AlbumFiltersModal, { AlbumFilterSections, albumCountLabel } from "./AlbumFiltersModal";
 
 function setup(props: Partial<React.ComponentProps<typeof AlbumFiltersModal>> = {}) {
   const handlers = {
@@ -32,6 +32,68 @@ function setup(props: Partial<React.ComponentProps<typeof AlbumFiltersModal>> = 
   );
   return { ...view, ...handlers };
 }
+
+describe("AlbumFiltersModal sort (#1119)", () => {
+  it("is titled Sort & filter", async () => {
+    setup();
+    expect(await screen.findByText("Sort & filter")).toBeTruthy();
+  });
+
+  it("lists the seven sorts as 44px radios, the current one selected, and applies a choice", async () => {
+    const onChange = vi.fn();
+    const { user } = setup({ sort: { value: "year:asc", onChange } });
+    const group = await screen.findByRole("radiogroup", { name: "Sort by" });
+    const radios = within(group).getAllByRole("radio", { hidden: true });
+    expect(radios).toHaveLength(7);
+    expect(
+      (
+        within(group).getByRole("radio", {
+          name: "Oldest releases",
+          hidden: true,
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    radios.forEach((radio) => {
+      const row = radio.closest("label") as HTMLElement;
+      expect(getComputedStyle(row).minHeight).toBe("44px");
+    });
+
+    await user.click(screen.getByText("Title A–Z"));
+    expect(onChange).toHaveBeenCalledWith("title:asc");
+  });
+
+  it("leaves the sort alone when Reset clears the filters", async () => {
+    const onChange = vi.fn();
+    const { user, onReset } = setup({ activeCount: 2, sort: { value: "title:asc", onChange } });
+    await user.click(await screen.findByRole("button", { name: "Reset" }));
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("has no Sort by section without a sort, and the shared filter sections never render one", async () => {
+    setup();
+    await screen.findByRole("group", { name: "Only albums missing" });
+    expect(screen.queryByText("Sort by")).toBeNull();
+
+    // The desktop panel renders AlbumFilterSections alone.
+    renderWithProviders(
+      <AlbumFilterSections
+        genres={[]}
+        onAddGenre={vi.fn()}
+        onRemoveGenre={vi.fn()}
+        includeSimilar={false}
+        onIncludeSimilarChange={vi.fn()}
+        missing={{}}
+        onToggleMissing={vi.fn()}
+        activeCount={0}
+        resultCount={1}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Sort by")).toBeNull();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+});
 
 describe("AlbumFiltersModal (#751)", () => {
   it("shows the album count on the primary button and closes from it", async () => {

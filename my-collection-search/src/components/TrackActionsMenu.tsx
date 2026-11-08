@@ -17,7 +17,7 @@ import {
 } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { TrackCardContext } from "@/components/trackCardContext";
+import { TrackCardContext, TrackRowContext } from "@/components/trackCardContext";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
 import NextLink from "next/link";
@@ -74,6 +74,7 @@ export default function TrackActionsMenu({
   compact: compactProp,
 }: Props) {
   const inCard = useContext(TrackCardContext);
+  const inRow = useContext(TrackRowContext);
   const compact = compactProp ?? inCard;
   const { saveTrack: saveTrackRating } = useTracksQuery();
   const [rating, setRating] = useState(track.star_rating ?? 0);
@@ -369,11 +370,12 @@ export default function TrackActionsMenu({
         <Menu.Root>
           <Menu.Trigger asChild>
             <Button
-              variant="outline"
-              size={compact ? "xs" : "sm"}
+              variant={inRow ? "ghost" : "outline"}
+              size={compact || inRow ? "xs" : "sm"}
               px={2}
               aria-label="Track actions"
               {...(compact ? { boxSize: "32px", minW: "32px", px: 0 } : {})}
+              {...(inRow ? { boxSize: "44px", minW: "44px", px: 0, color: "fg.muted" } : {})}
             >
               <FiMoreVertical />
             </Button>

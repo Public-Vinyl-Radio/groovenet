@@ -9,6 +9,7 @@ import AlbumLink from "./AlbumLink";
 import TrackPlaylistUsage from "./TrackPlaylistUsage";
 import {
   Box,
+  chakra,
   Flex,
   Grid,
   Text,
@@ -35,7 +36,8 @@ import {
 } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { GenreBadgeList, GenreBadgeRow, type GenreBadgeKind } from "./GenreBadge";
-import { TrackCardContext } from "./trackCardContext";
+import { TrackCardContext, TrackRowContext } from "./trackCardContext";
+import TrackRatingDialog from "./TrackRatingDialog";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import type { SortPositionChange } from "@/hooks/usePlaylistMutations";
@@ -63,22 +65,25 @@ export const TRACK_ROW_EDGE_WIDTH = "44px";
 export const TRACK_ROW_GRID_TEMPLATE =
   "minmax(200px, 2fr) 112px 48px 112px minmax(168px, 1.4fr) 76px";
 const TRACK_ROW_GRID_BASE = "minmax(150px, 2fr) 112px 48px 56px";
-const TRACK_ROW_GRID_WITH_KEY = "minmax(150px, 2fr) 112px 48px 112px";
-/** Width of the list block at which the key joins BPM, then Genre and Rating have room to show. */
-const TRACK_ROW_KEY_MIN_WIDTH = "780px";
+/** Key beside BPM and Genre, no Rating: Track is capped so the spare width goes to Genre. */
+const TRACK_ROW_GRID_MID = "minmax(200px, 1.2fr) 112px 48px 112px minmax(140px, 1fr)";
+/** Width of the list block at which the key joins BPM and Genre returns. */
+const TRACK_ROW_MID_MIN_WIDTH = "780px";
+/** Width at which Rating has room too. */
 const TRACK_ROW_FULL_MIN_WIDTH = "1040px";
 
 /**
  * Styles for the grid in a row and in the header. Columns drop off the right as the
  * list block (a `container-type: inline-size` ancestor) narrows, rather than being
- * cut mid-cell: below 780px the key (beside BPM), Genre and Rating go, below 1040px Genre and Rating.
+ * cut mid-cell: below 780px the key (beside BPM), Genre and Rating go, below 1040px only Rating.
  */
 export const trackRowGridCss = {
   gridTemplateColumns: TRACK_ROW_GRID_BASE,
   "& [data-col]": { display: "none" },
-  [`@container (min-width: ${TRACK_ROW_KEY_MIN_WIDTH})`]: {
-    gridTemplateColumns: TRACK_ROW_GRID_WITH_KEY,
+  [`@container (min-width: ${TRACK_ROW_MID_MIN_WIDTH})`]: {
+    gridTemplateColumns: TRACK_ROW_GRID_MID,
     "& [data-col=key]": { display: "contents" },
+    "& [data-col=genre]": { display: "block" },
   },
   [`@container (min-width: ${TRACK_ROW_FULL_MIN_WIDTH})`]: {
     gridTemplateColumns: TRACK_ROW_GRID_TEMPLATE,
@@ -202,7 +207,7 @@ export function KeyChip({
           {keyName}
         </Text>
       )}
-      {typeof keyConfidence === "number" && (
+      {typeof keyConfidence === "number" && isKeyConfidenceLow(keyConfidence) && (
         <KeyConfidenceIndicator keyConfidence={keyConfidence} />
       )}
     </MetaTag>
@@ -210,18 +215,15 @@ export function KeyChip({
 }
 
 /**
- * Trigger that always reveals a confidence on click — an orange "!" below the
- * low threshold, a neutral "i" above it. Showing the number is the point: a
- * confident estimate used to look identical to a dubious one with nothing to
- * click at all (#524, #531). `subject` is "key" or "BPM".
+ * The orange "!" for an estimate below the low-confidence threshold, opening a
+ * popover with the number. A confident estimate shows nothing, in rows and on
+ * cards alike. `subject` is "key" or "BPM".
  */
 function ConfidenceIndicator({
   subject,
-  low,
   percent,
 }: {
   subject: "key" | "BPM";
-  low: boolean;
   percent: number | null;
 }) {
   return (
@@ -232,16 +234,13 @@ function ConfidenceIndicator({
           display="inline-flex"
           alignItems="center"
           flexShrink={0}
-          color={low ? "fg.warning" : "fg.subtle"}
-          _hover={{ color: low ? "fg.warning" : "fg.muted" }}
-          aria-label={
-            low ? `Uncertain ${subject}` : `${subject === "key" ? "Key" : "BPM"} confidence`
-          }
+          color="fg.warning"
+          aria-label={`Uncertain ${subject}`}
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
           onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
         >
           <Text as="span" fontSize="xs" fontWeight="bold">
-            {low ? "!" : "i"}
+            !
           </Text>
         </Box>
       </Popover.Trigger>
@@ -250,9 +249,7 @@ function ConfidenceIndicator({
           <Popover.Content maxW="260px">
             <Popover.Body>
               <Text fontSize="sm">
-                {low
-                  ? `Uncertain ${subject} — Essentia's estimate is only ${percent}% confident. Worth a listen before trusting it.`
-                  : `${percent}% confident in this ${subject}.`}
+                {`Uncertain ${subject} — Essentia's estimate is only ${percent}% confident. Worth a listen before trusting it.`}
               </Text>
             </Popover.Body>
           </Popover.Content>
@@ -263,13 +260,7 @@ function ConfidenceIndicator({
 }
 
 function KeyConfidenceIndicator({ keyConfidence }: { keyConfidence: number }) {
-  return (
-    <ConfidenceIndicator
-      subject="key"
-      low={isKeyConfidenceLow(keyConfidence)}
-      percent={formatKeyConfidencePercent(keyConfidence)}
-    />
-  );
+  return <ConfidenceIndicator subject="key" percent={formatKeyConfidencePercent(keyConfidence)} />;
 }
 
 /** Bold, tabular-nums BPM; an orange "No BPM" badge when there's none. */
@@ -301,12 +292,8 @@ function BpmValue({
       <Text fontSize="sm" fontWeight="semibold" fontVariantNumeric="tabular-nums" textAlign={align}>
         {num}
       </Text>
-      {typeof bpmConfidence === "number" && (
-        <ConfidenceIndicator
-          subject="BPM"
-          low={isBpmConfidenceLow(bpmConfidence)}
-          percent={formatBpmConfidencePercent(bpmConfidence)}
-        />
+      {typeof bpmConfidence === "number" && isBpmConfidenceLow(bpmConfidence) && (
+        <ConfidenceIndicator subject="BPM" percent={formatBpmConfidencePercent(bpmConfidence)} />
       )}
     </Flex>
   );
@@ -540,6 +527,7 @@ export default function TrackResult({
   listPosition,
 }: TrackResultProps) {
   const [localRating, setLocalRating] = useState(track.star_rating ?? 0);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const { saveTrack } = useTracksQuery();
 
   React.useEffect(() => {
@@ -690,20 +678,16 @@ export default function TrackResult({
             )}
           </Flex>
           <Flex gap={1.5} align="center" minW={0} overflow="hidden" fontSize="xs" color="fg.muted">
-            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
-              {(text) => (
-                <Text
-                  as="span"
-                  onClick={stopRowEvent}
-                  onMouseDown={stopRowEvent}
-                  overflow="hidden"
-                  textOverflow="ellipsis"
-                  whiteSpace="nowrap"
-                >
-                  {text}
-                </Text>
-              )}
-            </ArtistLink>
+            {/* One truncating line for the whole credit string ("A / B"), links inline inside it. */}
+            <Text as="span" truncate minW={0} title={track.artist}>
+              <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
+                {(text) => (
+                  <Text as="span" onClick={stopRowEvent} onMouseDown={stopRowEvent}>
+                    {text}
+                  </Text>
+                )}
+              </ArtistLink>
+            </Text>
             <Text aria-hidden="true" color="fg.subtle">
               ·
             </Text>
@@ -980,22 +964,20 @@ export default function TrackResult({
                 </StatusTag>
               )}
             </Flex>
-            <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
-              {(text) => (
-                <Text
-                  fontSize="13px"
-                  lineHeight="18px"
-                  fontWeight="500"
-                  color="fg.muted"
-                  overflow="hidden"
-                  textOverflow="ellipsis"
-                  whiteSpace="nowrap"
-                  title={track.artist}
-                >
-                  {text}
-                </Text>
-              )}
-            </ArtistLink>
+            <Text
+              fontSize="13px"
+              lineHeight="18px"
+              fontWeight="500"
+              color="fg.muted"
+              truncate
+              title={track.artist}
+            >
+              <ArtistLink
+                artist={track.artist}
+                credits={track.artists}
+                friendId={track.friend_id}
+              />
+            </Text>
             <AlbumLink releaseId={track.release_id} friendId={track.friend_id}>
               <Text
                 data-testid="track-album-line"
@@ -1092,7 +1074,7 @@ export default function TrackResult({
 
         <Flex flexShrink={0} alignItems="center" justifyContent="flex-end" gap={1}>
           <AddToCrateButton track={track} />
-          {buttons}
+          <TrackRowContext.Provider value={true}>{buttons}</TrackRowContext.Provider>
         </Flex>
       </Flex>
     );
@@ -1176,7 +1158,7 @@ export default function TrackResult({
               fontSize={{ base: "14px", md: "16px" }}
               lineHeight={{ base: "20px", md: "24px" }}
               css={{
-                "& > a": {
+                "& > a, & > [data-artist-line]": {
                   minWidth: 0,
                   display: "block",
                   overflow: "hidden",
@@ -1185,18 +1167,18 @@ export default function TrackResult({
                 },
                 // On a phone the artist keeps its width up to 65% of the line and the album takes the rest.
                 "@media (max-width: 47.99em)": {
-                  "& > a:first-of-type": { maxWidth: "65%", flex: "0 1 auto" },
-                  "& > a:last-of-type": { flex: "1 1 0" },
+                  "& > [data-artist-line]": { maxWidth: "65%", flex: "0 1 auto" },
+                  "& > a": { flex: "1 1 0" },
                 },
               }}
             >
-              <ArtistLink artist={track.artist} credits={track.artists} friendId={track.friend_id}>
-                {(text) => (
-                  <Text as="span" fontWeight="500" title={track.artist}>
-                    {text}
-                  </Text>
-                )}
-              </ArtistLink>
+              <Text as="span" data-artist-line fontWeight="500" title={track.artist}>
+                <ArtistLink
+                  artist={track.artist}
+                  credits={track.artists}
+                  friendId={track.friend_id}
+                />
+              </Text>
               {track.album && (
                 <Text
                   as="span"
@@ -1303,7 +1285,6 @@ export default function TrackResult({
                 {showBpmWarning && (
                   <ConfidenceIndicator
                     subject="BPM"
-                    low
                     percent={formatBpmConfidencePercent(track.bpm_confidence as number)}
                   />
                 )}
@@ -1343,18 +1324,41 @@ export default function TrackResult({
                 {showKeyWarning && (
                   <ConfidenceIndicator
                     subject="key"
-                    low
                     percent={formatKeyConfidencePercent(track.key_confidence as number)}
                   />
                 )}
               </Flex>
+            )}
+            {showRating && localRating > 0 && (
+              // Phones only (desktop has the hover stars): a sibling button, never inside a link.
+              <chakra.button
+                type="button"
+                data-testid="track-card-rating"
+                display={{ base: "inline-flex", md: "none" }}
+                position="relative"
+                alignItems="center"
+                flexShrink={0}
+                fontFamily="label"
+                fontWeight="bold"
+                color="fg"
+                aria-label={`Rated ${localRating} of 5, change rating`}
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  setRatingOpen(true);
+                }}
+                onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+                // A 44px touch target without growing the meta line.
+                _before={{ content: '""', position: "absolute", inset: "-12px -8px" }}
+              >
+                ★{localRating}
+              </chakra.button>
             )}
             {cardExtras}
             {hasNotes && showNotes && <NotesIndicator notes={track.notes as string} />}
           </Flex>
         )}
 
-        {/* Phones show genres only; the rating lives in the card menu there. */}
+        {/* Phones show genres only; a rated track's rating is on the meta line above. */}
         <Flex
           display={{
             base: genresShown ? "flex" : "none",
@@ -1386,6 +1390,14 @@ export default function TrackResult({
 
         {footer && <Box mt={1}>{footer}</Box>}
       </Flex>
+      {ratingOpen && (
+        <TrackRatingDialog
+          open
+          onOpenChange={setRatingOpen}
+          value={localRating}
+          onChange={handleRatingChange}
+        />
+      )}
     </Flex>
   );
 }

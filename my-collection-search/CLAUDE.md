@@ -288,8 +288,11 @@ an invalid value the browser drops, so it fails silently.
   `Album · Year`), then a Release cell that holds what must never clip (library
   ID as an `id` MetaTag, side/position, extras) and wraps instead of truncating. The
   key cell is `KeyChip`, a MetaTag that keeps its wheel dot. Header and rows share
-  `trackRowGridCss`; Genre and Rating, then Key, drop off as the list block (a
-  `container-type: inline-size` ancestor) narrows. Anything that can overflow ends
+  `trackRowGridCss`; Rating, then Genre and Key, drop off as the list block (a
+  `container-type: inline-size` ancestor) narrows (Track is capped between 780 and 1040px so the
+  spare width goes to Genre). Rows flag only a low-confidence BPM or key with "!" (no neutral
+  "i"), and their menu is the cards' quiet ghost `xs` icon button with a 44px hit area
+  (`TrackRowContext`). Anything that can overflow ends
   in an ellipsis with a `title` tooltip; never cut a badge or tag mid-glyph.
   A list that offers Rows/Cards uses `useTrackViewMode` (persisted `searchViewMode`,
   phones always cards) and `TrackViewToggle`; search, the track page's Related
@@ -320,7 +323,11 @@ an invalid value the browser drops, so it fails silently.
   On a card the key is plain text, not a tag; a "!" follows it, and the BPM, only below
   the confidence threshold. Genre tags go through `GenreBadgeRow` (Category tags):
   wrapping on desktop, one line with the first three and a "+N" CountTag on a phone. The "+" and the star rating
-  show on hover on desktop only; on a phone they live in the card menu, which
+  show on hover on desktop only. On a phone a rated track shows `★4` on the meta line
+  after the key (#1119); it is a sibling button (never inside a link) that stops
+  propagation and opens `TrackRatingDialog`, five 44px stars plus "Clear rating", saving
+  through the same `saveTrack` path on tap. Unrated cards show nothing there: they rate from
+  the card menu's Rating row, which sits right under the action tiles and which
   `TrackActionsMenu` recognises through `TrackCardContext`.
 - **List header** (Tracks, Albums; #794): three rows, no toolbar box, every control a
   2px outline with mono capital labels (`components/layout/ListHeader.tsx`).
@@ -329,12 +336,17 @@ an invalid value the browser drops, so it fails silently.
   2. Search row (`ListSearchRow`): the 48px `SearchField` (44px on phones; text in the
      body face at 16px), with Tracks' `SearchModeMenu` fused onto its right end, then
      Albums' SORT and FILTERS last. Its controls are desktop only.
-  3. Chip row: `FilterChips`, with the mono result count (`summary`) at its right end.
+  3. Chip row: `FilterChips`, with the mono result count (`summary`) at its right end. With no
+     chips and no summary it renders nothing (no reserved height), so the list sits one gap under
+     the search row and shifts down a row when the first chip appears.
 - **Filters** live in one place per page: a `*FilterControls` object the page builds
   once and spreads into both the phone modal (`TrackSearchOptionsModal`,
-  `AlbumFiltersModal`) and the desktop `FiltersPanel` (a 460px popover under FILTERS,
+  `AlbumFiltersModal`, titled "Sort & filter" on Albums) and the desktop `FiltersPanel` (a 460px popover under FILTERS,
   the modal's shell: ink label strip, `*FilterSections`, fixed `FiltersFooter`). Never
-  give the panel its own state. Changes apply as they're made; "Show N" only closes.
+  give the panel its own state. Changes apply as they're made; "Show N" only closes. Albums' sort
+  is the exception to "same sections in both": phones get a "Sort by" radio section at the top of the
+  modal (`AlbumSortSection`, from the page's one sort state; Reset leaves it alone) and desktop keeps
+  SORT in the search row, so the panel never renders sort.
 - **Filter chips** (`FilterChips`): square, outlined, surface fill, an x, named
   "Remove filter …"; "Clear all" is an underlined text button. "+ Similar genres" is
   its own chip while Include similar is on; once the results say it added nothing,
@@ -1070,7 +1082,9 @@ string. Track search, track batch and album search hits carry them too.
 credited artist links to `/artists/{slug}`, found in the string by the spelling
 the release credits, so the joiner stays (`A & B`); placeholders and strings
 with no credits render as plain text. With `credits` omitted (not loaded) it
-falls back to the album search. A function child styles each link. Command
+falls back to the album search. A function child styles each link and
+must return inline content (a string or `as="span"`); the caller wraps the whole `ArtistLink` in one
+truncating `Text` so "A / B" is one line (#1119). Command
 palette results stay plain text: cmdk items are themselves the action.
 
 ## Artist filter and index (#709)

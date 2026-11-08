@@ -6,6 +6,8 @@ import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/componen
 import { ArtistFilterSection, type ArtistFilterControls } from "@/components/ArtistFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
+import { Radio, RadioGroup } from "@/components/ui/radio";
+import { ALBUM_SORT_OPTIONS, albumSortOption } from "@/components/AlbumSortMenu";
 import {
   ChipToggle,
   FiltersFooter,
@@ -65,10 +67,14 @@ export function AlbumFilterSections({
   artistFilter,
   missing,
   onToggleMissing,
-}: AlbumFilterControls) {
+  first = true,
+}: AlbumFilterControls & {
+  /** False when another section sits above (the phone modal's Sort by). */
+  first?: boolean;
+}) {
   return (
     <>
-      <Section label="Genre" first>
+      <Section label="Genre" first={first}>
         <Field.Root>
           <Field.Label srOnly>Genre</Field.Label>
           <GenreFilter selected={genres} onAdd={onAddGenre} inSheet />
@@ -99,22 +105,55 @@ export function AlbumFilterSections({
   );
 }
 
+/**
+ * The sort choice (#1119). It is the phone modal's alone: the desktop panel never
+ * renders it, because desktop keeps SORT in the search row. The page's one sort
+ * state feeds both.
+ */
+export type AlbumSortControl = { value: string; onChange: (sort: string) => void };
+
+/** "Sort by": a radio list of the seven options, every row 44px tall. */
+export function AlbumSortSection({ value, onChange }: AlbumSortControl) {
+  return (
+    <Section label="Sort by" first>
+      <RadioGroup
+        value={albumSortOption(value).value}
+        onValueChange={(details) => {
+          if (details.value) onChange(details.value);
+        }}
+        aria-label="Sort by"
+      >
+        <Box display="flex" flexDirection="column">
+          {ALBUM_SORT_OPTIONS.map((opt) => (
+            <Radio key={opt.value} value={opt.value} minH="44px" w="100%" alignItems="center">
+              {opt.label}
+            </Radio>
+          ))}
+        </Box>
+      </RadioGroup>
+    </Section>
+  );
+}
+
 type Props = AlbumFilterControls & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The page's sort; the section is left out when a caller has none. */
+  sort?: AlbumSortControl;
 };
 
 /**
- * The phone's "Filters" modal on Albums (#751): genre and the Missing checks
- * in one centred sheet. Changes apply as they're made, so the count on the
- * primary button follows them and "Show" just closes.
+ * The phone's "Sort & filter" modal on Albums (#751, #1119): the sort, genre and
+ * the Missing checks in one centred sheet. Changes apply as they're made, so
+ * the count on the primary button follows them and "Show" just closes. Reset
+ * clears filters only; the sort stays.
  */
-export default function AlbumFiltersModal({ open, onOpenChange, ...filters }: Props) {
+export default function AlbumFiltersModal({ open, onOpenChange, sort, ...filters }: Props) {
   return (
     <RetroDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Filters"
+      title="Sort & filter"
       footer={
         <FiltersFooter
           activeCount={filters.activeCount}
@@ -124,7 +163,8 @@ export default function AlbumFiltersModal({ open, onOpenChange, ...filters }: Pr
         />
       }
     >
-      <AlbumFilterSections {...filters} />
+      {sort && <AlbumSortSection {...sort} />}
+      <AlbumFilterSections {...filters} first={!sort} />
     </RetroDialog>
   );
 }

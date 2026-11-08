@@ -7,7 +7,7 @@ import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import AlbumResult, { ALBUM_MISSING_TAGS, type AlbumMissingKey } from "./AlbumResult";
 import AlbumTable from "./AlbumTable";
 import { useSearchParams } from "next/navigation";
-import AlbumSortMenu, { DEFAULT_ALBUM_SORT } from "./AlbumSortMenu";
+import { DEFAULT_ALBUM_SORT } from "./AlbumSortMenu";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
 import type { ArtistFilterRef } from "@/api-contract/schemas";
 
@@ -17,7 +17,6 @@ export default function AlbumSearchResults({
   onFilterArtistsChange,
   layout = "card",
   onTotalChange,
-  onSortChange,
 }: {
   friendId: number;
   /** Genres `include_similar` added (#485), reported up for the page to show as chips. */
@@ -29,8 +28,6 @@ export default function AlbumSearchResults({
   layout?: "row" | "card";
   /** Albums matching the search, once loaded; the filters modal shows it on its button. */
   onTotalChange?: (total: number) => void;
-  /** Shows the phone's `Recently Added ▾` sort label beside the count. */
-  onSortChange?: (sort: string) => void;
 }) {
   const searchParams = useSearchParams();
 
@@ -107,28 +104,9 @@ export default function AlbumSearchResults({
     );
   }
 
-  // Phones keep the sort control beside the results; the total is in PageHeader meta.
-  const countRow = (
-    <Flex
-      display={{ base: "flex", md: "none" }}
-      align="center"
-      justify="space-between"
-      gap={2}
-      mb={2}
-    >
-      <Box flex="1" />
-      {onSortChange && (
-        <Box display={{ base: "block", md: "none" }}>
-          <AlbumSortMenu value={sort} onChange={onSortChange} trigger="label" />
-        </Box>
-      )}
-    </Flex>
-  );
-
   if (albums.length === 0) {
     return (
       <Box>
-        {countRow}
         <Box p={4}>
           <Text color="fg.muted">No albums found.</Text>
           {query && (
@@ -143,8 +121,6 @@ export default function AlbumSearchResults({
 
   return (
     <Box>
-      {countRow}
-
       {/* Album results */}
       {(() => {
         const results = albums.map((album) => (

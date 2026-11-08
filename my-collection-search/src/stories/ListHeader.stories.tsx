@@ -82,7 +82,7 @@ function Header({ title, primary }: { title: string; primary?: boolean }) {
         controls={
           primary ? (
             <>
-              <AlbumSortMenu value={sort} onChange={setSort} trigger="button" />
+              <AlbumSortMenu value={sort} onChange={setSort} />
               <FiltersPanel
                 open={panelOpen}
                 onOpenChange={setPanelOpen}

@@ -7,7 +7,7 @@ import { FiMoreHorizontal, FiMoreVertical } from "react-icons/fi";
 import { LuImage, LuSlidersHorizontal } from "react-icons/lu";
 
 type Props = {
-  /** Filters on; rides the kebab's corner and the *Filters* entry. */
+  /** Filters on; rides the kebab's corner and the *Sort & filter* entry. */
   activeCount: number;
   onOpenFilters: () => void;
   onOpenArtwork: () => void;
@@ -42,7 +42,7 @@ export default function AlbumSearchMenu({ activeCount, onOpenFilters, onOpenArtw
         <Menu.Content minW="200px">
           <Menu.Item value="filters" minH="44px" onClick={onOpenFilters}>
             <LuSlidersHorizontal />
-            {activeCount > 0 ? `Filters (${activeCount})` : "Filters"}
+            {activeCount > 0 ? `Sort & filter (${activeCount})` : "Sort & filter"}
           </Menu.Item>
           <Menu.Item value="artwork" minH="44px" onClick={onOpenArtwork}>
             <LuImage />

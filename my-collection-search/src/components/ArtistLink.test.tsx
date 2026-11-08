@@ -152,6 +152,26 @@ describe("ArtistLink", () => {
     expect(screen.getByTestId("s").textContent).toBe("Los Mirlos!");
   });
 
+  it("keeps a multi-credit line inline so the caller's one wrapper can truncate it", () => {
+    const { container } = renderWithProviders(
+      <p data-testid="line">
+        <ArtistLink
+          artist="Stan Getz / Charlie Byrd"
+          credits={[credit(1, "Stan Getz", 0, { joiner: "/" }), credit(2, "Charlie Byrd", 1)]}
+        >
+          {(text) => <span>{text}</span>}
+        </ArtistLink>
+      </p>,
+    );
+    const line = screen.getByTestId("line");
+    expect(line.textContent).toBe("Stan Getz / Charlie Byrd");
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    // No block-level element anywhere inside: only links and spans.
+    const tags = new Set(Array.from(line.querySelectorAll("*")).map((e) => e.tagName));
+    expect([...tags].sort()).toEqual(["A", "SPAN"]);
+    expect(container.querySelector("p p, p div")).toBeNull();
+  });
+
   it("renders node children inside the link", () => {
     renderWithProviders(
       <ArtistLink artist="Los Mirlos">
