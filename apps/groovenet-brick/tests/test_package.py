@@ -34,6 +34,7 @@ class LauncherTests(unittest.TestCase):
                 '#!/bin/sh\n[ "$BRICK_PLAYER_KEY" = private-test-value ] || exit 8\n'
                 '[ "$BRICK_URL" = https://example.invalid ] || exit 9\n'
                 '[ "$XDG_CACHE_HOME" = "$XDG_CONFIG_HOME/cache" ] || exit 10\n'
+                '[ "$XDG_DATA_HOME" = "$XDG_CONFIG_HOME" ] || exit 11\n'
                 'printf "%s\\n" "$@"\nexit 17\n'
             )
             binary.chmod(0o755)
@@ -73,7 +74,12 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(read("groovenet-brick/LICENSE"), (ROOT.parents[1] / "LICENSE").read_bytes())
             self.assertIn(b"Permission", read("groovenet-brick/assets/FONT-LICENSE"))
             self.assertEqual(read("groovenet-brick/config.example"), (ROOT / "knulli/config.example").read_bytes())
-            for line in read("groovenet-brick/SHA256SUMS").decode().splitlines():
+            manifest = read("groovenet-brick/SHA256SUMS").decode().splitlines()
+            self.assertEqual(
+                {line.split()[1] for line in manifest},
+                set(files) - {"groovenet-brick/SHA256SUMS"},
+            )
+            for line in manifest:
                 digest, name = line.split()
                 self.assertEqual(hashlib.sha256(read(name)).hexdigest(), digest)
             self.assertIn(b"aarch64-linux-gnu", read("groovenet-brick/BUILD.txt"))

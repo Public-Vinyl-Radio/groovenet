@@ -12,7 +12,7 @@ fi
 set -a
 . "$state/config"
 set +a
-export XDG_CONFIG_HOME="$state" XDG_CACHE_HOME="$state/cache"
+export XDG_CONFIG_HOME="$state" XDG_DATA_HOME="$state" XDG_CACHE_HOME="$state/cache"
 # Replace rather than accumulate logs; never print configuration or credentials.
 cd "$here/groovenet-brick"
 exec ./groovenet-brick --platform knulli --mode live --font "$here/groovenet-brick/assets/DejaVuSans.ttf" > "$state/preview.log" 2>&1

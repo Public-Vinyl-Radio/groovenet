@@ -4,9 +4,9 @@ The native C++17/SDL2 application foundation for #1096. Desktop and future devic
 launchers share the application, data-adapter interface and SDL renderer. This
 preview has deterministic mock data and a live REST/SSE adapter; audio stays on the server.
 
-## Knulli device preview
+## Knulli device package
 
-`just brick-package` produces the experimental ARM64 Ports archive, independently
+`just brick-package` produces the versioned experimental ARM64 Ports archive, independently
 of npm and desktop builds. See [install/build/control instructions](knulli/README.md)
 and [application device evidence](evidence/knulli-preview-1107.md) for hashes,
 firmware/ABI limitations, physical observations and remaining acceptance checks.

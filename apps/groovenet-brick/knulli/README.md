@@ -1,33 +1,49 @@
-# Experimental Knulli application preview — #1107
+# Groovenet Brick for Knulli
 
-Target: TrimUI Brick, Knulli Scarab **2026/05/11**. This is the shared application
-and native REST/SSE client, not the static lifecycle probe. Audio remains on the
-server. Artwork, remembered player selection, playlists, queue editing and output
-routing remain in #1098–1101. Physical acceptance and ABI results are recorded in
-`../evidence/knulli-preview-1107.md`; pending steps are not desktop validation.
+Target: TrimUI Brick, Knulli Scarab **2026/05/11**. Audio stays on the server.
+The shared application implements remembered player selection, artwork, saved
+playlists, queue editing and output routing. Full physical release qualification
+is **pending**; see [release evidence](../evidence/release-1102.md).
 
-## Build and contents
+## Build, version and publication
 
-From the repository root run `just brick-package` with Docker running and
-`linux/arm64` execution available (native ARM64 or configured Docker emulation). It builds
-Linux ARM64 using the exact Debian image digest from the measured #1095 probe,
-a frozen Debian snapshot dated 2026-11-07, GCC 12/C++17 and Release CMake. No npm
-build is involved. Output: `apps/groovenet-brick/build-knulli/` containing
-`groovenet-brick-knulli-preview.tar.gz` and its SHA-256 sidecar. Copy/share these
-local files; no automatic release publishing is performed. `BUILD.txt` records
-the source commit/diff hash, compiler, all package versions, ELF loader and direct
-dependencies. `SHA256SUMS` records the binary and font/license hashes.
+Run `just brick-package` from the repository root with Docker running.
+The existing packaging path cross-compiles C++17 for AArch64 using GCC 12 on
+Linux AMD64 (Docker emulation is needed on ARM hosts). No npm build invokes it.
+The Debian base image digest and 2026-11-07 snapshot pin the toolchain and both
+host/target dependency packages. `toolchain.cmake` restricts pkg-config to target
+libraries. The build container runs without network access after image creation.
 
-The archive contains `Groovenet.sh`, `groovenet-brick/groovenet-brick`, the
-redistributable DejaVu Sans font and license, project MIT license, placeholder config and these
-instructions. It contains no credentials, CA, local config, cache or raw logs.
+The root `package.json` supplies the version. Output in `build-knulli/`:
+`groovenet-brick-VERSION-knulli-scarab-arm64.tar.gz` and `.tar.gz.sha256`.
+`BUILD.txt` records the commit, tracked source diff hash, compiler, package versions,
+ELF loader and dependencies. The sorted archive has fixed timestamps/ownership;
+`SHA256SUMS` covers every payload file except itself. Repeating a build of the
+same clean source and toolchain should yield identical archives; verify both
+sidecars before claiming reproduction. Untracked files are not source inputs.
 
-This is **not an official pinned firmware SDK**. It uses the experimentally
-validated older Debian ABI baseline, loader `/lib/ld-linux-aarch64.so.1`, firmware
-SDL2/SDL_ttf, json-c, curl, libstdc++ and transitive libraries. Nothing is installed
-into `/lib` or `/usr`. The prior probe's curl symbol-version warning remains a
-limitation; the actual application must also pass on-device loader checks. A
-proper Knulli SDK and full release qualification remain #1102.
+The archive allowlists the binary, launcher, DejaVu Sans plus its license,
+project license, placeholder config and instructions. Credentials, private CA,
+config, remembered selection and logs are never packaging inputs.
+
+`Brick Knulli package` CI builds scoped PR changes and manual previews. Download
+its workflow artifact for testing. Root `vX.Y.Z` releases created by release-please
+build the tagged source and attach the versioned archive and checksum **only after**
+`qualify.py` accepts the complete operator record and matching executable hash.
+Other package releases do not publish Brick assets. Publication has a separate
+job with write permission; PR builds have read permission. Ordinary JavaScript
+builds remain independent of CMake/SDL. A failed publication gate leaves the CI
+artifact available as an experimental preview, without attaching stable assets.
+After qualification is committed, rerun the failed release workflow on its tag;
+qualification must be present in that tagged source. Do not edit old release tags.
+Use a new release if evidence was not included in the previous tag.
+
+This remains an older Debian ABI baseline, **not a pinned Knulli firmware SDK**.
+The package uses firmware SDL2/SDL_ttf, curl, json-c, PNG/JPEG and C++ runtime
+libraries and `/lib/ld-linux-aarch64.so.1`; it never overwrites firmware libraries.
+The observed curl symbol-version warning is unresolved. Stable publication stays
+blocked until an exact-binary loader/ABI review and physical qualification are
+recorded; cross-compilation alone does not establish compatibility.
 
 ## Install, configure, update and remove
 
@@ -50,13 +66,18 @@ proper Knulli SDK and full release qualification remain #1102.
 4. Launch **Groovenet** from Ports. The device profile uses a fullscreen 1024×768
    logical canvas and the firmware display driver/orientation. Use Start to open
    Browse, then Players; deliberately select the desired player before issuing
-   any controls. The client initially observes the first returned player (Aswitch
-   on the test server); selection only observes the chosen player. Press B twice
+   any controls. With no remembered player, controls remain unavailable until explicit selection.
+   Selection only observes the chosen player; relaunch opens the remembered player. Press B twice
    to return from Players through Browse to Now Playing; verify its name and state.
 5. Update while the app is closed: replace the script and application directory
    from a new verified archive. Configuration survives outside Ports. Remove by
    deleting those two Ports entries. Optionally delete the config directory to
-   remove keys, CA and logs. No firmware files or power policy need restoring.
+   remove keys, CA and logs. For rollback, replace those same entries with a previously verified version;
+   configuration remains in place. Back up the private config directory separately
+   before updating. If remembered selection is unusable, choose Players again;
+   to reset it, move aside the `Groovenet/Brick` preference directory under that
+   config root while the app is closed. Preserve the credential `config` file.
+   No firmware files or power policy need restoring.
 
 On the measured card, `/userdata` is a `fuseblk` mount exposing synthetic 777
 modes: `chmod 600` does not enforce isolation there. The modes above express the
@@ -66,9 +87,8 @@ Use storage that enforces Unix permissions if account isolation is required.
 
 Persistent config/log path: `/userdata/system/configs/groovenet-brick/`. The
 launcher overwrites `preview.log` at each launch, with a restrictive umask (subject to the firmware filesystem behavior above). The
-application has no disk metadata/artwork cache and does not remember the player;
-`XDG_CACHE_HOME` reserves `cache/` under that same directory for future use. No
-player state is written to config. Never include real config or diagnostic logs
+application keeps artwork in memory and persists the selected player through SDL preferences;
+`XDG_CACHE_HOME` reserves `cache/` under that same directory for future use. Only player identity is remembered; server playback remains authoritative. Never include real config or diagnostic logs
 in a shared archive. Application network diagnostics omit headers/body/secrets.
 
 ## Controls and firmware lifecycle
@@ -132,9 +152,45 @@ publish keys or raw authenticated responses.
    no playback write occurred on sleep/wake. Do not infer suspend from darkness
    alone; record kernel suspend evidence separately when available.
 5. Press Select, confirm return to Ports and continued server playback. Relaunch
-   and verify configuration persists. Player selection is not yet remembered.
+   and verify configuration persists. Player selection must be remembered.
 
 Run `just brick-test`, `just brick-coverage` and `just lint-all` for changes.
 Package checks inspect archive membership, ELF architecture/dependencies, license,
 placeholder-only configuration and launcher behavior. Desktop/mock checks cannot
 certify physical inputs, framebuffer restoration, speaker playback or Wi-Fi.
+
+## Troubleshooting and platform boundary
+
+- No Ports entry: keep `Groovenet.sh` beside `groovenet-brick/`, set executable
+  mode, refresh the game list. Launch from Ports rather than a second power daemon.
+- Loader error or missing shared library: record firmware, binary hash and missing
+  dependency; return to the prior archive. Do not copy arbitrary host libraries
+  into firmware paths. The ABI gate remains pending until reviewed on target.
+- TLS failure: check device time, certificate hostname, `BRICK_CA_FILE` and its
+  public PEM. Keep verification enabled. Player and collection keys are separate.
+- Disconnected after wake: wait for firmware Wi-Fi association; the application
+  refreshes state without replaying writes. Normal AP loss must be qualified
+  separately from the probe's failed raw interface-reset experiment.
+- Missing battery: SDL reports unknown on some firmware. The UI shows unavailable
+  instead of estimating a percentage. This is not battery-life evidence.
+- Failed configuration: restore the private backup or provision `config.example`
+  again. Inspect `preview.log` locally; never attach raw config or authenticated
+  traffic to a public issue.
+
+| Device / firmware                       | Status                                                             |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| TrimUI Brick / Knulli Scarab 2026/05/11 | Experimental, measured preview; full release qualification pending |
+| Other Knulli versions or devices        | Untested                                                           |
+| NextUI                                  | Unported, untested                                                 |
+
+`Platform` owns input, configuration location and battery reporting. Knulli-specific
+mapping and lifecycle handling stay behind `--platform knulli`; REST/SSE, rendering
+and playback policy are shared. A second firmware needs its own measured adapter
+and launcher, without adding firmware conditionals to the network client.
+
+The launcher retains the inherited `schedutil` governor and firmware screen/idle/
+suspend settings. It changes no sysfs nodes, services, brightness or global SDL
+configuration, and has no background helper to leak. SIGINT/SIGTERM and Select
+release SDL resources and return to Ports without a server playback write.
+Keeping inherited policy avoids imposing a performance governor on an idle remote;
+CPU/battery suitability still needs the unplugged measurement in the evidence plan.
