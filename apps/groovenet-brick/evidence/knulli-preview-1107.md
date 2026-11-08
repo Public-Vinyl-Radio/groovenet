@@ -21,11 +21,24 @@ ARM64, frozen Debian + Debian-security snapshot `20261107T000000Z`; GCC
 `0.16-2`, DejaVu font `2.37-6`. Complete package versions are inside `BUILD.txt`.
 This is an experimental Debian ABI baseline, **not an official firmware SDK**.
 
-Initial installed binary SHA-256:
-`c54490510997fbb6dd14d67f7fa8bdec328385b934d0402b64cac1b33d6b211c`.
-Initial archive SHA-256:
-`cf1864dffd3c056ad1cdad6186dfe51abc722eefd3ad1188b57505fdf530c164`.
-Final artifact hashes will be recorded after final verification/build.
+Final archive source revision: `0bf8dc49e9f8cf9b009359461f755d2c5e2af663` (clean tree).
+Two independent container builds from that revision produced **byte-identical**
+archives (`cmp` passed); package/launcher checks passed against the final archive.
+No executable sources changed after the owner's successful physical retest.
+
+Final binary SHA-256:
+`a7703826366e05b7857b78e90f53827b51e48fcaea9feb3733bb0e65d02a608e`.
+Final archive SHA-256:
+`8b3a97bed5b2426a0812b3a94a22b468981a5633d6a6bdc86d3a937f41b7d871`.
+Font SHA-256:
+`abdc775b21b1bc470d50c97e790d276f2054b7504e56e5bd3e64f48d68582322`.
+
+The device disconnected from ADB after the owner's successful live retest. The
+final archive was produced locally afterward; it contains the tested executable
+sources and finalized documentation/manifests. Persistent private config remains
+on the owner-controlled device for continued preview use. The early diagnostic
+archive also left a `SHA256SUMS` in the Ports root (three Groovenet paths only);
+it may be removed. Final packages keep checksums inside `groovenet-brick/`.
 
 ## Device checks performed over USB ADB
 
