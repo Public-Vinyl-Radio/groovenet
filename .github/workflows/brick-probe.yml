@@ -21,10 +21,10 @@ jobs:
         run: |
           cmake -S apps/groovenet-brick/probe -B /tmp/brick-probe -DCMAKE_CXX_COMPILER=clang++ -DPROBE_COVERAGE=ON
           cmake --build /tmp/brick-probe
-          LLVM_PROFILE_FILE='/tmp/brick-probe/probe-%p.profraw' python3 apps/groovenet-brick/probe/test_probe.py /tmp/brick-probe/brick-probe
+          LLVM_PROFILE_FILE='/tmp/brick-probe/probe-%p.profraw' python3 apps/groovenet-brick/probe/test_probe.py /tmp/brick-probe/probe-input-test
           llvm-profdata merge -sparse /tmp/brick-probe/*.profraw -o /tmp/brick-probe/coverage.profdata
-          llvm-cov report /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
-          llvm-cov export -format=lcov /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
+          llvm-cov report /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
+          llvm-cov export -format=lcov /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

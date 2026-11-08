@@ -25,16 +25,17 @@ from Homebrew, Xcode command-line tools and the system libcurl.
 ```sh
 cmake -S apps/groovenet-brick/probe -B /tmp/brick-probe -DCMAKE_CXX_COMPILER=clang++ -DPROBE_COVERAGE=ON
 cmake --build /tmp/brick-probe
-LLVM_PROFILE_FILE='/tmp/brick-probe/probe-%p.profraw' python3 apps/groovenet-brick/probe/test_probe.py /tmp/brick-probe/brick-probe
+LLVM_PROFILE_FILE='/tmp/brick-probe/probe-%p.profraw' python3 apps/groovenet-brick/probe/test_probe.py /tmp/brick-probe/probe-input-test
 llvm-profdata merge -sparse /tmp/brick-probe/*.profraw -o /tmp/brick-probe/coverage.profdata
-llvm-cov report /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
-llvm-cov export -format=lcov /tmp/brick-probe/brick-probe -object=/tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
+llvm-cov report /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
+llvm-cov export -format=lcov /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
 ```
 
 On macOS use `xcrun llvm-profdata` and `xcrun llvm-cov` with AppleClang.
 Tests use SDL's dummy video driver and a temporary self-signed local HTTPS
 server. They check framing across writes, reconnect, persistence, authentication,
-CA failure, invalid arguments, artwork errors and signal shutdown. They never
+CA failure, invalid arguments, artwork errors and signal shutdown. The coverage harness compiles the same entry point and injects resource failures
+and virtual input; a separate smoke test runs the production binary. They never
 contact a Groovenet deployment. Coverage is also uploaded by the Brick probe CI.
 
 ## Interactive run
@@ -88,7 +89,7 @@ Do not use host pkg-config search paths while cross-compiling.
 With the chosen SDK's CMake toolchain file and target-only pkg-config wrapper:
 
 ```sh
-cmake -S apps/groovenet-brick/probe -B /tmp/brick-target -DCMAKE_TOOLCHAIN_FILE=/absolute/path/sdk-toolchain.cmake -DPKG_CONFIG_EXECUTABLE=/absolute/path/target-pkg-config -DPROBE_COVERAGE=OFF
+cmake -S apps/groovenet-brick/probe -B /tmp/brick-target -DCMAKE_TOOLCHAIN_FILE=/absolute/path/sdk-toolchain.cmake -DPKG_CONFIG_EXECUTABLE=/absolute/path/target-pkg-config -DPROBE_COVERAGE=OFF -DBUILD_TESTING=OFF
 cmake --build /tmp/brick-target
 file /tmp/brick-target/brick-probe
 readelf -h -l -d /tmp/brick-target/brick-probe

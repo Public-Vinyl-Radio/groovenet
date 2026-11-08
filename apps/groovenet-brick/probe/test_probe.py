@@ -157,7 +157,7 @@ class ProbeTest(unittest.TestCase):
         self.args[4] = str(self.state)
         # SDL versions differ in fallback behavior for an unknown driver name.
         result = subprocess.run(
-            [INPUT_BINARY, "--renderer-failure", *self.args], env=self.env, capture_output=True, text=True, timeout=10
+            [INPUT_BINARY, "--fail", "renderer", *self.args], env=self.env, capture_output=True, text=True, timeout=10
         )
         self.assertEqual(result.returncode, 1)
         self.env["SDL_VIDEODRIVER"] = "unavailable"
@@ -166,8 +166,9 @@ class ProbeTest(unittest.TestCase):
     def test_artwork_failures(self):
         self.art.unlink()
         self.assertEqual(self.run_probe().returncode, 1)
-        self.art.write_bytes(png(4097, 2))
-        self.assertIn("PNG too large", self.run_probe().stdout)
+        for dimensions in [(4097, 2), (2, 4097)]:
+            self.art.write_bytes(png(*dimensions))
+            self.assertIn("PNG too large", self.run_probe().stdout)
         broken = bytearray(png())
         broken[43] ^= 255
         self.art.write_bytes(broken)
@@ -200,6 +201,38 @@ class ProbeTest(unittest.TestCase):
         self.assertIn("joystick_button=1", result.stdout)
         self.assertIn("key=27", result.stdout)
         self.assertIn("clean_exit", result.stdout)
+
+    def test_production_binary(self):
+        result = subprocess.run(
+            [str(Path(BINARY).with_name("brick-probe")), *self.args],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("sse event= snapshot", result.stdout)
+        self.assertIn("clean_exit", result.stdout)
+
+    def test_resource_failures(self):
+        for failure in ["window", "texture", "curl-global", "curl-easy", "curl-multi"]:
+            with self.subTest(failure=failure):
+                result = subprocess.run(
+                    [INPUT_BINARY, "--fail", failure, *self.args],
+                    env=self.env,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        result = subprocess.run(
+            [INPUT_BINARY, "--fail", "joystick", "--input", *self.args],
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_signal_exit(self):
         self.args[-1] = "60"
