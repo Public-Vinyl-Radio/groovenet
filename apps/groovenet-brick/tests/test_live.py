@@ -19,6 +19,7 @@ binary = str(Path(sys.argv[1]).resolve())
 player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
 commands = []
 playlist_commands = []
+queue_commands = []
 collection_started = threading.Event()
 command_release = threading.Event()
 streams = []
@@ -237,6 +238,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 ],
             )
         assert self.path.endswith("/commands")
+        if "entry_id" in body or body["type"] == "queue.clear":
+            queue_commands.append(body)
+            assert body["expected_revision"] == 5
+            assert "takeover" not in body and "allow_unknown" not in body
+            if len(queue_commands) == 1:
+                assert body["type"] == "queue.move" and body["entry_id"] == "two" and body["to"] == 0
+                return self.reply(409, {"code": "REVISION_CONFLICT"})
+            if len(queue_commands) == 2:
+                assert body["type"] == "queue.remove" and body["entry_id"] == "one"
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            if len(queue_commands) == 3:
+                assert body["type"] == "play" and body["entry_id"] == "two"
+                return self.reply(409, {"code": "SPEAKER_OCCUPIED"})
+            if len(queue_commands) == 6:
+                time.sleep(9)  # Exceed the real libcurl total request deadline.
+                return
+            return self.reply(200, {"player": player("a")})
         assert body["expected_revision"] == 5
         assert body.get("takeover") is not True
         if body["type"].startswith("queue."):
@@ -336,6 +356,8 @@ with tempfile.TemporaryDirectory() as directory:
         )
         subprocess.run([binary, "playlists"], env=environment, check=True, timeout=40)
         subprocess.run([binary, "browse-ui"], env=environment, check=True, timeout=30)
+        subprocess.run([binary, "queue-edits"], env=environment, check=True, timeout=40)
+        assert len(queue_commands) == 6, "queue edits must never be replayed"
         assert len(playlist_commands) == 4, "no automatic queue retries"
         assert flaky_art_requests >= 2, "reconnect must retry failed artwork"
         assert not failures, failures

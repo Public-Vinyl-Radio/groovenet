@@ -73,6 +73,8 @@ Collection playlistList(const std::string &json);
 Collection playlistTracks(const std::string &json);
 std::string queueCommand(const std::vector<Track> &tracks, bool play,
                          std::optional<size_t> track);
+std::string queueEditCommand(const Snapshot &state, QueueEdit edit,
+                             const std::string &entry);
 std::string rememberedPlayer(const LiveConfig &config);
 void rememberPlayer(const LiveConfig &config, const std::string &id);
 std::shared_ptr<const Artwork> decodeArtwork(const std::string &bytes);

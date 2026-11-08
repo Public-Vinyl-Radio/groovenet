@@ -87,6 +87,8 @@ MockData::MockData(const std::string &scenario) {
     state_.acknowledgment = "Speaker busy: explicit takeover is required";
   if (scenario == "unknown-timing")
     state_.queue[0].duration.reset();
+  for (size_t i = 0; i < state_.queue.size(); ++i)
+    state_.queue[i].entryId = "entry-" + std::to_string(i);
   saved_ = state_.queue;
 }
 void MockData::command(Action action) {
@@ -104,13 +106,17 @@ void MockData::command(Action action) {
     state_.playbackState = state_.playing ? "playing" : "paused";
   }
   if (action == Action::Next) {
-    std::rotate(state_.queue.begin(), state_.queue.begin() + 1,
+    auto next = (state_.currentIndex + 1) % state_.queue.size();
+    std::rotate(state_.queue.begin(), state_.queue.begin() + next,
                 state_.queue.end());
+    state_.currentIndex = 0;
     state_.position = remainder_ = 0;
   }
   if (action == Action::Previous) {
-    std::rotate(state_.queue.rbegin(), state_.queue.rbegin() + 1,
-                state_.queue.rend());
+    auto previous = (state_.currentIndex + state_.queue.size() - 1) % state_.queue.size();
+    std::rotate(state_.queue.begin(), state_.queue.begin() + previous,
+                state_.queue.end());
+    state_.currentIndex = 0;
     state_.position = remainder_ = 0;
   }
 }
@@ -145,6 +151,8 @@ void MockData::queueTracks(bool play, std::optional<size_t> track,
     auto tracks = track
                       ? std::vector<Track>{state_.collection.tracks.at(*track)}
                       : state_.collection.tracks;
+    for (auto &t : tracks)
+      t.entryId = "added-" + std::to_string(nextEntry_++);
     if (play) {
       state_.queue = tracks;
       state_.currentIndex = state_.position = 0;
@@ -158,6 +166,44 @@ void MockData::queueTracks(bool play, std::optional<size_t> track,
     state_.acknowledgment = e.what();
   }
 }
+void MockData::editQueue(QueueEdit edit, const std::string &entry,
+                         const std::string &) {
+  if (!state_.connected || !state_.available || state_.loading ||
+      !state_.acknowledgment.empty())
+    return;
+  try {
+    queueEditCommand(state_, edit, entry);
+    auto current = state_.currentIndex < state_.queue.size()
+                       ? state_.queue[state_.currentIndex].entryId
+                       : "";
+    auto it = std::find_if(state_.queue.begin(), state_.queue.end(),
+                           [&](const Track &t) { return t.entryId == entry; });
+    if (edit == QueueEdit::Clear) {
+      state_.queue.clear();
+      current.clear();
+    } else if (edit == QueueEdit::Play) {
+      current = entry;
+      state_.position = remainder_ = 0;
+      state_.playing = true;
+      state_.playbackState = "playing";
+    } else if (edit == QueueEdit::Remove)
+      state_.queue.erase(it);
+    else
+      std::iter_swap(it, edit == QueueEdit::Up ? it - 1 : it + 1);
+    auto playing =
+        std::find_if(state_.queue.begin(), state_.queue.end(),
+                     [&](const Track &t) { return t.entryId == current; });
+    state_.currentIndex = playing - state_.queue.begin();
+    if (playing == state_.queue.end()) {
+      state_.playing = false;
+      state_.playbackState = "stopped";
+      state_.position = remainder_ = 0;
+    }
+    state_.status = "Queue updated";
+  } catch (const NetworkError &e) {
+    state_.acknowledgment = e.what();
+  }
+}
 void MockData::advance(int milliseconds) {
   if (milliseconds <= 0 || !state_.playing || !state_.connected ||
       !state_.available || state_.loading || state_.queue.empty())
@@ -165,8 +211,9 @@ void MockData::advance(int milliseconds) {
   remainder_ += milliseconds;
   state_.position += remainder_ / 1000;
   remainder_ %= 1000;
-  if (state_.queue.front().duration &&
-      state_.position >= *state_.queue.front().duration)
+  if (state_.currentIndex < state_.queue.size() &&
+      state_.queue[state_.currentIndex].duration &&
+      state_.position >= *state_.queue[state_.currentIndex].duration)
     command(Action::Next);
 }
 std::unique_ptr<DataAdapter> dataAdapter(const std::string &mode,
@@ -186,6 +233,8 @@ App::App(std::string mode, std::string scenario,
          const std::string &configDirectory)
     : mode_(std::move(mode)), scenario_(std::move(scenario)),
       data_(dataAdapter(mode_, scenario_, configDirectory)) {}
+App::App(std::unique_ptr<DataAdapter> data)
+    : mode_("live"), data_(std::move(data)) {}
 const std::string &App::scenario() const { return scenario_; }
 void App::open(Screen screen) {
   history_.push_back(screen_);
@@ -227,12 +276,24 @@ std::vector<std::string> App::rows() const {
             "Add to queue (keep playback)"};
   case Screen::Confirm:
     return {"Cancel", "Replace shared queue and start"};
+  case Screen::QueueActions:
+    return {"Play selected entry", "Remove selected entry", "Move up",
+            "Move down"};
+  case Screen::ClearConfirm:
+    return {"Cancel", "Clear shared queue and stop"};
   case Screen::Outputs:
     return state.outputs;
   case Screen::Queue: {
-    std::vector<std::string> rows;
-    for (const auto &track : state.queue)
-      rows.push_back(track.title + " · " + track.artist);
+    std::vector<std::string> rows{
+        state.queue.empty() ? "Queue empty · Clear queue…" : "Clear queue…"};
+    for (size_t i = 0; i < state.queue.size(); ++i) {
+      const auto &track = state.queue[i];
+      rows.push_back(std::to_string(i + 1) + ". " +
+                     (i == state.currentIndex ? "[current] " : "") +
+                     (track.title.empty() ? "Unknown title" : track.title) +
+                     " · " + track.artist +
+                     (track.playable == false ? " · Unavailable" : ""));
+    }
     return rows;
   }
   case Screen::NowPlaying:
@@ -282,7 +343,8 @@ void App::handle(Action action) {
     return;
   }
   if (action == Action::Menu) {
-    if (screen_ == Screen::TrackActions || screen_ == Screen::Confirm) {
+    if (screen_ == Screen::TrackActions || screen_ == Screen::Confirm ||
+        screen_ == Screen::QueueActions || screen_ == Screen::ClearConfirm) {
       history_.clear();
       screen_ = Screen::NowPlaying;
     }
@@ -297,6 +359,10 @@ void App::handle(Action action) {
       focus = (focus + items.size() - 1) % items.size();
     if (action == Action::Down)
       focus = (focus + 1) % items.size();
+    if (screen_ == Screen::Queue && action == Action::Left)
+      focus = focus > 5 ? focus - 5 : 0;
+    if (screen_ == Screen::Queue && action == Action::Right)
+      focus = std::min(focus + 5, items.size() - 1);
     if (action == Action::Select) {
       if (screen_ == Screen::Menu) {
         open(static_cast<Screen>(focus));
@@ -319,6 +385,28 @@ void App::handle(Action action) {
         selectedTrack_ =
             focus ? std::optional<size_t>(focus - 1) : std::nullopt;
         open(Screen::TrackActions);
+      } else if (screen_ == Screen::Queue) {
+        queueToken_ = snapshot().commandToken;
+        if (focus == 0) {
+          open(Screen::ClearConfirm);
+          focus_[static_cast<size_t>(Screen::ClearConfirm)] = 0;
+        } else {
+          selectedEntry_ = snapshot().queue.at(focus - 1).entryId;
+          open(Screen::QueueActions);
+          focus_[static_cast<size_t>(Screen::QueueActions)] = 0;
+        }
+      } else if (screen_ == Screen::QueueActions ||
+                 screen_ == Screen::ClearConfirm) {
+        if (screen_ == Screen::QueueActions || focus == 1) {
+          auto edit = screen_ == Screen::ClearConfirm ? QueueEdit::Clear
+                      : focus == 0                    ? QueueEdit::Play
+                      : focus == 1                    ? QueueEdit::Remove
+                      : focus == 2                    ? QueueEdit::Up
+                                                      : QueueEdit::Down;
+          data_->editQueue(edit, selectedEntry_, queueToken_);
+        }
+        screen_ = history_.back();
+        history_.pop_back();
       } else if (screen_ == Screen::TrackActions) {
         queueToken_ = snapshot().commandToken;
         if (focus == 0) {
@@ -332,10 +420,16 @@ void App::handle(Action action) {
         screen_ = history_.back();
         history_.pop_back();
       } else
-        notice_ = "Navigation preview · server controls follow in #1100–1101";
+        notice_ = "Navigation preview · output controls follow in #1101";
     }
   }
-  if (screen_ == Screen::Confirm || screen_ == Screen::TrackActions)
+  if (screen_ == Screen::Queue &&
+      (action == Action::Up || action == Action::Down ||
+       action == Action::Left || action == Action::Right))
+    rememberQueueFocus();
+  if (screen_ == Screen::Confirm || screen_ == Screen::TrackActions ||
+      screen_ == Screen::Queue || screen_ == Screen::QueueActions ||
+      screen_ == Screen::ClearConfirm)
     return;
   if (screen_ == Screen::NowPlaying) {
     if (action == Action::Up)
@@ -352,11 +446,32 @@ void App::handle(Action action) {
 void App::advance(int milliseconds) {
   if (!suspended_) {
     data_->advance(milliseconds);
+    auto &queueFocus = focus_[static_cast<size_t>(Screen::Queue)];
+    const auto &state = snapshot();
+    if (focusedPlayer_ != state.playerId) {
+      queueFocus = 0;
+      focusedEntry_.clear();
+    } else if (!focusedEntry_.empty()) {
+      auto it = std::find_if(
+          state.queue.begin(), state.queue.end(),
+          [&](const Track &t) { return t.entryId == focusedEntry_; });
+      queueFocus = it == state.queue.end()
+                       ? std::min(queueFocus, state.queue.size())
+                       : static_cast<size_t>(it - state.queue.begin()) + 1;
+    }
+    rememberQueueFocus();
     auto count = rows().size();
     auto &focus = focus_[static_cast<size_t>(screen_)];
     if (count == 0 || focus >= count)
       focus = 0;
   }
+}
+void App::rememberQueueFocus() {
+  auto index = focus_[static_cast<size_t>(Screen::Queue)];
+  focusedPlayer_ = snapshot().playerId;
+  focusedEntry_ = index && index <= snapshot().queue.size()
+                      ? snapshot().queue[index - 1].entryId
+                      : "";
 }
 std::string timing(const Snapshot &snapshot) {
   if (snapshot.currentIndex >= snapshot.queue.size() ||

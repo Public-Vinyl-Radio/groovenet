@@ -39,8 +39,10 @@ std::string replace(std::string s, const std::string &from,
   return s;
 }
 void wait(DataAdapter &data,
-          const std::function<bool(const Snapshot &)> &predicate) {
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+          const std::function<bool(const Snapshot &)> &predicate,
+          int timeout = 8) {
+  auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(timeout);
   do {
     data.advance(10);
     if (predicate(data.snapshot()))
@@ -52,6 +54,19 @@ void wait(DataAdapter &data,
 }
 } // namespace
 void liveTests() {
+  PlayerState queueState;
+  queueState.detail(player);
+  check(queueState.view.queue[0].entryId == "one");
+  rejects([&] {
+    queueState.detail(replace(player, "\"id\":\"two\"", "\"id\":\"one\""));
+  });
+  rejects([&] {
+    queueState.detail(replace(player, "\"id\":\"one\"", "\"id\":\"\""));
+  });
+  rejects([&] { queueEditCommand(queueState.view, QueueEdit::Up, "one"); });
+  rejects([&] { queueEditCommand(queueState.view, QueueEdit::Down, "two"); });
+  rejects([&] { queueEditCommand(queueState.view, QueueEdit::Play, ""); });
+
   check(playlistList("[]").names.empty());
   check(playlistList(R"([{"id":1,"name":"Saved"}])").ids[0] == 1);
   for (const auto &bad : {"{}", R"([{"id":0,"name":"bad"}])",
@@ -394,7 +409,69 @@ void liveTests() {
 }
 int networkTests(const std::string &mode) {
   auto config = LiveConfig::environment();
-  if (mode == "development") {
+  if (mode == "queue-edits") {
+    auto data = liveAdapter(config);
+    wait(*data, [](const Snapshot &s) { return !s.playerIds.empty(); });
+    data->selectPlayer(0);
+    wait(*data, [](const Snapshot &s) { return s.connected; });
+    data->editQueue(QueueEdit::Clear, "", "");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    auto token = data->snapshot().commandToken;
+    data->refresh();
+    data->editQueue(QueueEdit::Clear, "", token);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.acknowledgment.empty();
+    });
+    data->acknowledge();
+    token = data->snapshot().commandToken;
+    data->editQueue(QueueEdit::Clear, "", "stale");
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->editQueue(QueueEdit::Remove, "missing", token);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->editQueue(QueueEdit::Up, "two", token);
+    data->advance(0);
+    check(!data->snapshot().connected && data->snapshot().refreshing);
+    data->editQueue(QueueEdit::Clear, "",
+                    token); // Pending edit cannot be overwritten.
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.acknowledgment.empty();
+    });
+    check(data->snapshot().acknowledgment.find("changed") != std::string::npos);
+    data->editQueue(QueueEdit::Clear, "", data->snapshot().commandToken);
+    data->acknowledge();
+    token = data->snapshot().commandToken;
+    data->editQueue(QueueEdit::Remove, "one",
+                    token); // Lost response, never replay.
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.status.find("not repeated") != std::string::npos;
+    });
+    data->editQueue(QueueEdit::Play, "two", data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && !s.acknowledgment.empty();
+    });
+    data->acknowledge();
+    data->editQueue(QueueEdit::Down, "one", data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) { return s.connected; });
+    token = data->snapshot().commandToken;
+    data->refresh();
+    wait(*data, [](const Snapshot &s) { return s.connected; });
+    data->editQueue(QueueEdit::Clear, "", token);
+    wait(*data, [](const Snapshot &s) { return !s.acknowledgment.empty(); });
+    data->acknowledge();
+    data->editQueue(QueueEdit::Clear, "", data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) { return s.connected; });
+    data->editQueue(QueueEdit::Remove, "two", data->snapshot().commandToken);
+    wait(
+        *data,
+        [](const Snapshot &s) {
+          return s.connected && s.status.find("unknown") != std::string::npos;
+        },
+        12);
+    check(data->snapshot().status.find("not repeated") != std::string::npos);
+  } else if (mode == "development") {
     config.selectionPath =
         std::string(std::getenv("BRICK_TEST_DIRECTORY")) + "/live-selected";
     auto data = liveAdapter(config);
@@ -467,6 +544,42 @@ int networkTests(const std::string &mode) {
     observer.detail(second.request("/api/players/brick-smoke", "", true, no));
     check(observer.view.queue.size() == 3 &&
           observer.view.queue[2].trackId == "one" && observer.view.playing);
+    const auto duplicate = data->snapshot().queue[2].entryId;
+    const auto original = data->snapshot().queue[1].entryId;
+    check(duplicate != original);
+    data->editQueue(QueueEdit::Up, duplicate, data->snapshot().commandToken);
+    wait(*data, [&](const Snapshot &s) {
+      return s.connected && s.queue[1].entryId == duplicate;
+    });
+    data->editQueue(QueueEdit::Play, duplicate, data->snapshot().commandToken);
+    wait(*data, [&](const Snapshot &s) {
+      return s.connected && s.queue[s.currentIndex].entryId == duplicate;
+    });
+    data->editQueue(QueueEdit::Remove, original, data->snapshot().commandToken);
+    wait(*data,
+         [](const Snapshot &s) { return s.connected && s.queue.size() == 2; });
+    control("{\"type\":\"queue.move\",\"entry_id\":\"" + duplicate +
+            "\",\"to\":0}");
+    wait(*data, [&](const Snapshot &s) {
+      return s.connected && s.queue[0].entryId == duplicate &&
+             s.currentIndex == 0;
+    });
+    observer.detail(second.request("/api/players/brick-smoke", "", true, no));
+    check(observer.view.queue[0].entryId == duplicate &&
+          observer.view.queue.size() == 2);
+    data->editQueue(QueueEdit::Clear, "", data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.queue.empty() && !s.playing;
+    });
+    observer.detail(second.request("/api/players/brick-smoke", "", true, no));
+    check(observer.view.queue.empty() && !observer.view.playing);
+    data->queueTracks(true, {}, data->snapshot().commandToken);
+    wait(*data, [](const Snapshot &s) {
+      return s.connected && s.playing && s.queue.size() == 2;
+    });
+    data->queueTracks(false, 1, data->snapshot().commandToken);
+    wait(*data,
+         [](const Snapshot &s) { return s.connected && s.queue.size() == 3; });
     data.reset();
     data = liveAdapter(config);
     wait(*data, [](const Snapshot &s) {
