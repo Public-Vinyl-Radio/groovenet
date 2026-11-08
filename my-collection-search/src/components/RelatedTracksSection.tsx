@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import SuggestionRow, { SuggestionFoldRow } from "@/components/SuggestionRow";
-import SuggestionPlaylistMenu from "@/components/SuggestionPlaylistMenu";
+import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import { analytics } from "@/lib/analytics/client";
-import { rankSuggestions } from "@/lib/rankSuggestions";
+import { layoutSuggestions, rankSuggestions } from "@/lib/rankSuggestions";
 import type { Track } from "@/types/track";
 
 const keyOf = (track: Pick<Track, "track_id" | "friend_id">) =>
@@ -37,12 +36,11 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
     seed: track,
     filters: { compatibleKey, bpmWithinSixPercent },
   });
-  const rows = [
-    ...ranked.tracks,
-    ...ranked.folds.filter((group) => expanded.includes(group.release)).flatMap((g) => g.tracks),
-  ];
-  const shown = rows.slice(0, (isMobile ? 5 : PAGE_SIZE) + extra);
-  const remaining = rows.length - shown.length;
+  const layout = layoutSuggestions(ranked, {
+    expanded,
+    limit: (isMobile ? 5 : PAGE_SIZE) + extra,
+  });
+  const { remaining } = layout;
 
   return (
     <Box as="section" aria-labelledby="suggestions-heading" mt={6}>
@@ -83,50 +81,47 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
       ) : (
         <>
           <Text color="fg.muted" fontSize="12px" role="status" mb={2}>
-            {shown.length} of {rows.length}
+            {layout.shown} of {layout.total}
             {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
           </Text>
-          {shown.length === 0 && (
+          {layout.shown === 0 && (
             <Text color="fg.muted" fontSize="sm">
               {scope === "library"
                 ? "No suggestions in this library. Try All libraries."
                 : "No suggestions found."}
             </Text>
           )}
-          <Flex as="ul" direction="column" gap={2} m={0} p={0}>
-            {shown.map((item, index) => (
-              <SuggestionRow
-                key={keyOf(item)}
-                seed={track}
-                track={item}
-                added={added.includes(keyOf(item))}
-                addAction={
-                  <SuggestionPlaylistMenu
-                    track={item}
-                    onAdded={() => {
-                      setAdded((keys) => [...keys, keyOf(item)]);
+          {layout.items.length > 0 && (
+            <SuggestionList>
+              {layout.items.map((item) =>
+                item.kind === "fold" ? (
+                  <SuggestionFoldRow
+                    key={`fold:${item.fold.key}`}
+                    count={item.fold.tracks.length}
+                    source={item.fold.release}
+                    onExpand={() => setExpanded((keys) => [...keys, item.fold.key])}
+                  />
+                ) : (
+                  <SuggestionRow
+                    key={keyOf(item.track)}
+                    seed={track}
+                    track={item.track}
+                    added={added.includes(keyOf(item.track))}
+                    menu
+                    onAddedToPlaylist={() => {
+                      setAdded((keys) => [...keys, keyOf(item.track)]);
                       analytics.track("recommendation_acted_on", {
-                        track_id: item.track_id,
+                        track_id: item.track.track_id,
                         action: "added_to_playlist",
-                        rank: index + 1,
+                        rank: item.rank,
                         sources: ["ai"],
                       });
                     }}
                   />
-                }
-              />
-            ))}
-            {ranked.folds
-              .filter((group) => !expanded.includes(group.release))
-              .map((group) => (
-                <SuggestionFoldRow
-                  key={group.release}
-                  count={group.tracks.length}
-                  source={group.release}
-                  onExpand={() => setExpanded((groups) => [...groups, group.release])}
-                />
-              ))}
-          </Flex>
+                ),
+              )}
+            </SuggestionList>
+          )}
           {remaining > 0 && (
             <Button
               mt={4}

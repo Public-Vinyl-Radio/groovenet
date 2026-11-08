@@ -40,15 +40,15 @@ describe("useAddToPlaylistDialog onAdded", () => {
     api.updatePlaylist.mockResolvedValue(undefined);
     const { onAdded, choose } = setup();
     choose(playlist());
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(track));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(track, 7));
   });
 
   it("runs after creating a new playlist with the track", async () => {
-    api.importPlaylist.mockResolvedValue(undefined);
+    api.importPlaylist.mockResolvedValue({ id: 8 });
     const { onAdded, result } = setup();
     act(() => result.current.openForTrack(track));
     act(() => result.current.playlistDialog.props.onCreateNew("Monday"));
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(track));
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith(track, 8));
   });
 
   it("does not run when opening the dialog alone", () => {
@@ -94,7 +94,7 @@ describe("useAddToPlaylistDialog with several tracks", () => {
       ),
     );
     await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
-    expect(onAdded).toHaveBeenCalledWith(second);
+    expect(onAdded).toHaveBeenCalledWith(second, 7);
     expect(api.updatePlaylist).toHaveBeenCalledWith(7, {
       tracks: [
         { track_id: "t1", friend_id: 1, position: 0 },
@@ -127,7 +127,7 @@ describe("useAddToPlaylistDialog with several tracks", () => {
   });
 
   it("creates a playlist from all of them, and ignores an empty list", async () => {
-    api.importPlaylist.mockResolvedValue(undefined);
+    api.importPlaylist.mockResolvedValue({ id: 8 });
     const { onAdded, result } = setup();
     act(() => result.current.openForTracks([]));
     expect(result.current.playlistDialog.props.open).toBe(false);

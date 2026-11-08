@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
-import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
+import { screen, waitFor, within } from "@testing-library/react";
+import { chooseMenuItem, renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 import { setAnalyticsProvider } from "@/lib/analytics/client";
 import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
@@ -19,6 +19,17 @@ const mocks = vi.hoisted(() => ({
   },
   recommendations: vi.fn(),
   unknownBreakpoint: false,
+  fetchPlaylists: vi.fn(),
+  updatePlaylist: vi.fn(),
+}));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/services/internalApi/playlists", () => ({
+  fetchPlaylists: mocks.fetchPlaylists,
+  updatePlaylist: mocks.updatePlaylist,
+  importPlaylist: vi.fn(),
 }));
 vi.mock("@chakra-ui/react", async (importOriginal) => {
   const chakra = await importOriginal<typeof import("@chakra-ui/react")>();
@@ -32,11 +43,6 @@ vi.mock("@chakra-ui/react", async (importOriginal) => {
 });
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
-vi.mock("@/components/SuggestionPlaylistMenu", () => ({
-  default: ({ onAdded }: { onAdded: () => void }) => (
-    <button onClick={onAdded}>Pick playlist</button>
-  ),
-}));
 import RelatedTracksSection from "./RelatedTracksSection";
 
 const seed = {
@@ -71,7 +77,15 @@ beforeEach(() => {
   setViewportWidth(1280);
   mocks.scope = { scope: "library", libraryFriendId: 4, ready: true, setScope: vi.fn() };
   candidates(tracks(2));
+  mocks.fetchPlaylists.mockResolvedValue([{ id: 3, name: "Sunday", tracks: [] }]);
+  mocks.updatePlaylist.mockResolvedValue(undefined);
 });
+
+/** A row's desktop kebab (the phone one is the first, hidden at this width). */
+const kebab = (row: HTMLElement) =>
+  within(row).getAllByRole("button", { name: "Track actions", hidden: true })[1];
+const suggestionRows = () =>
+  screen.getAllByRole("listitem").filter((li) => li.textContent?.startsWith("Suggestion"));
 
 describe("Track page suggestions", () => {
   it("uses the page track as seed and the panel's candidate request and filters", () => {
@@ -147,26 +161,78 @@ describe("Track page suggestions", () => {
     expect(screen.getByText("Clash")).toBeTruthy();
     expect(screen.getByText("Key clash")).toBeTruthy();
   });
-  it("unfolds release siblings into actionable shared rows", async () => {
-    candidates(tracks(3).map((track) => ({ ...track, album: "One release" })));
+  it("puts each fold under its release and expands it in place", async () => {
+    candidates([
+      {
+        ...tracks(1)[0],
+        track_id: "a1",
+        title: "Suggestion a1",
+        album: "One",
+        _score: 0.9,
+      } as Track,
+      {
+        ...tracks(1)[0],
+        track_id: "b1",
+        title: "Suggestion b1",
+        album: "Two",
+        _score: 0.8,
+      } as Track,
+      {
+        ...tracks(1)[0],
+        track_id: "a2",
+        title: "Suggestion a2",
+        album: "One",
+        _score: 0.7,
+      } as Track,
+      {
+        ...tracks(1)[0],
+        track_id: "a3",
+        title: "Suggestion a3",
+        album: "One",
+        _score: 0.6,
+      } as Track,
+    ]);
     const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
-    expect(screen.getAllByText("Pick playlist")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "+2 more from One release" }));
-    expect(screen.getAllByText("Pick playlist")).toHaveLength(3);
+    const labels = () =>
+      screen
+        .getAllByRole("listitem")
+        .map((li) => li.textContent?.match(/^(Suggestion [ab]\d|\+.*)/)?.[0]);
+    expect(labels()).toEqual(["Suggestion a1", "+2 more from One", "Suggestion b1"]);
+    expect(screen.getByText("2 of 2")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "+2 more from One" }));
+    expect(labels()).toEqual(["Suggestion a1", "Suggestion a2", "Suggestion a3", "Suggestion b1"]);
+    expect(screen.getByText("4 of 4")).toBeTruthy();
+    // Each row carries the kebab, not "+".
+    expect(screen.queryByRole("button", { name: /^Add / })).toBeNull();
   });
-  it("keeps an added row in place and replaces its picker with ADDED", async () => {
+  it("adds from the kebab, marks the row ADDED and reports it with its rank", async () => {
     const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
-    const rows = screen.getAllByRole("listitem");
-    await user.click(within(rows[1]).getByRole("button", { name: "Pick playlist" }));
-    expect(within(rows[1]).getByRole("status").textContent).toContain("ADDED");
+    const rows = suggestionRows();
+    await chooseMenuItem(user, kebab(rows[1]), /Add to Playlist/);
+    await user.click(await screen.findByRole("button", { name: /Sunday/ }));
+    await waitFor(() =>
+      expect(within(suggestionRows()[1]).getByRole("status").textContent).toContain("ADDED"),
+    );
+    expect(mocks.updatePlaylist).toHaveBeenCalledWith(3, {
+      tracks: [{ track_id: "s1", friend_id: 4 }],
+    });
     expect(analytics.events).toContainEqual(
       expect.objectContaining({
         event: "recommendation_acted_on",
         properties: { track_id: "s1", action: "added_to_playlist", rank: 2, sources: ["ai"] },
       }),
     );
-    expect(within(rows[1]).queryByRole("button")).toBeNull();
-    expect(within(rows[0]).getByRole("button", { name: "Pick playlist" })).toBeTruthy();
+    expect(within(suggestionRows()[0]).queryByRole("status")).toBeNull();
+  });
+  it("reports nothing when the playlist picker is cancelled", async () => {
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    await chooseMenuItem(user, kebab(suggestionRows()[0]), /Add to Playlist/);
+    await screen.findByRole("button", { name: /Sunday/ });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Sunday/ })).toBeNull());
+    expect(mocks.updatePlaylist).not.toHaveBeenCalled();
+    expect(analytics.events.filter((e) => e.event === "recommendation_acted_on")).toEqual([]);
+    expect(within(suggestionRows()[0]).queryByRole("status")).toBeNull();
   });
   it.each([
     [1280, 20],

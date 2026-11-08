@@ -12,14 +12,13 @@ import {
   useBreakpointValue,
 } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
-import SuggestionRow, { SuggestionFoldRow } from "@/components/SuggestionRow";
+import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { useRecommendationsQuery, type RecommendedTrack } from "@/hooks/useRecommendations";
-import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
+import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import { camelotOf } from "@/lib/mixCompat";
-import { rankSuggestions } from "@/lib/rankSuggestions";
+import { layoutSuggestions, rankSuggestions } from "@/lib/rankSuggestions";
 import type { Track } from "@/types/track";
 
 export type SuggestionSeedRef = { track_id: string; friend_id: number };
@@ -53,7 +52,6 @@ export default function SuggestionsPanel({
 }: SuggestionsPanelProps) {
   // Below the docked panel's breakpoint, Suggestions is a bottom sheet over the playlist.
   const isSheet = useBreakpointValue({ base: true, xl: false }) ?? false;
-  const { replacePlaylist } = usePlaybackPlayer();
   const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
   const [compatibleKey, setCompatibleKey] = useState(true);
   const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
@@ -89,15 +87,11 @@ export default function SuggestionsPanel({
       })
     : null;
 
-  const foldRows = (ranked?.folds ?? []).filter((g) => expanded.includes(g.release));
-  const rows: RecommendedTrack[] = [
-    ...(ranked?.tracks ?? []),
-    ...foldRows.flatMap((g) => g.tracks),
-  ];
-  const shown = rows.slice(0, visible);
+  const layout = ranked ? layoutSuggestions(ranked, { expanded, limit: visible }) : null;
 
   const sentinel = useRef<HTMLDivElement>(null);
-  const more = shown.length < rows.length;
+  const more = (layout?.remaining ?? 0) > 0;
+  const shownCount = layout?.shown ?? 0;
   useEffect(() => {
     const node = sentinel.current;
     if (!more || !node || typeof IntersectionObserver === "undefined") return;
@@ -106,7 +100,7 @@ export default function SuggestionsPanel({
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [more, shown.length]);
+  }, [more, shownCount]);
 
   const handleAdd = (track: Track) => {
     const index = seedTrack
@@ -115,9 +109,6 @@ export default function SuggestionsPanel({
     setAddedState({ key: seedKey, tracks: [...added, track] });
     onAdd(track, index);
   };
-
-  // Hear it before adding it: plays the track alone, the same as Play elsewhere.
-  const preview = (track: Track) => replacePlaylist([track], { autoplay: true, startIndex: 0 });
 
   const setMode = (mode: string) => {
     if (mode === "playlist") onSeedChange(null);
@@ -139,7 +130,7 @@ export default function SuggestionsPanel({
       {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
     </Text>
   );
-  const empty = ready && !isLoading && rankSeed && shown.length === 0 && (
+  const empty = ready && !isLoading && rankSeed && shownCount === 0 && (
     <Text color="fg.muted" fontSize="sm">
       {scope === "library"
         ? "No suggestions in this library. Try All libraries."
@@ -148,29 +139,31 @@ export default function SuggestionsPanel({
   );
   const list = (
     <>
-      <Flex as="ul" direction="column" gap={2} m={0} p={0}>
-        {shown.map((rec) => (
-          <SuggestionRow
-            key={keyOf(rec)}
-            seed={rankSeed as Track}
-            track={rec}
-            added={addedKeys.has(keyOf(rec))}
-            compact={isSheet}
-            onPreview={rec.local_audio_url ? preview : undefined}
-            onAdd={handleAdd}
-          />
-        ))}
-        {(ranked?.folds ?? [])
-          .filter((g) => !expanded.includes(g.release))
-          .map((g) => (
-            <SuggestionFoldRow
-              key={g.release}
-              count={g.tracks.length}
-              source={g.release}
-              onExpand={() => setExpanded((list) => [...list, g.release])}
-            />
-          ))}
-      </Flex>
+      {layout && layout.items.length > 0 && (
+        <SuggestionList>
+          {layout.items.map((item) =>
+            item.kind === "fold" ? (
+              <SuggestionFoldRow
+                key={`fold:${item.fold.key}`}
+                count={item.fold.tracks.length}
+                source={item.fold.release}
+                compact={isSheet}
+                onExpand={() => setExpanded((keys) => [...keys, item.fold.key])}
+              />
+            ) : (
+              <SuggestionRow
+                key={keyOf(item.track)}
+                seed={rankSeed as Track}
+                track={item.track}
+                added={addedKeys.has(keyOf(item.track))}
+                compact={isSheet}
+                onAdd={handleAdd}
+                menu
+              />
+            ),
+          )}
+        </SuggestionList>
+      )}
       {more && <div ref={sentinel} data-testid="suggestions-sentinel" />}
     </>
   );

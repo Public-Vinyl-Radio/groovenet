@@ -3,7 +3,7 @@ import React from "react";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   saveTrack: vi.fn().mockResolvedValue({}),
   softDeleteTrack: vi.fn().mockResolvedValue({}),
   toast: vi.fn(),
+  dialogOptions: undefined as { onAdded?: (track: Track, playlistId: number) => void } | undefined,
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
@@ -27,11 +28,10 @@ vi.mock("@/providers/PlaybackTargetProvider", () => ({
   }),
 }));
 vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
-  useAddToPlaylistDialog: () => ({
-    openForTrack: mocks.openForTrack,
-    playlistDialog: null,
-    nameDialog: null,
-  }),
+  useAddToPlaylistDialog: (options: typeof mocks.dialogOptions) => {
+    mocks.dialogOptions = options;
+    return { openForTrack: mocks.openForTrack, playlistDialog: null, nameDialog: null };
+  },
 }));
 vi.mock("@/hooks/useUploadTrackAudioMutation", () => ({
   useUploadTrackAudioMutation: () => ({ mutateAsync: mocks.mutateAsync, isPending: false }),
@@ -574,5 +574,25 @@ describe("track page palette actions", () => {
       </CommandPaletteProvider>,
     );
     expect(screen.getByTestId("palette-scope").textContent).toBe("");
+  });
+});
+
+describe("TrackActionsMenu add to playlist", () => {
+  it("reports a completed add with the playlist, and only a completed one", async () => {
+    const onAddedToPlaylist = vi.fn();
+    const onAction = vi.fn();
+    const { user, menuButton } = setup(trackMinimal, { onAddedToPlaylist, onAction });
+    await chooseMenuItem(user, menuButton, /Add to Playlist/);
+    expect(mocks.openForTrack).toHaveBeenCalledWith(trackMinimal);
+    // Opening (or cancelling) the picker reports nothing.
+    expect(onAddedToPlaylist).not.toHaveBeenCalled();
+    act(() => mocks.dialogOptions?.onAdded?.(trackMinimal, 12));
+    expect(onAddedToPlaylist).toHaveBeenCalledWith(12);
+    expect(onAction).toHaveBeenCalledWith("added_to_playlist");
+  });
+
+  it("is optional", () => {
+    setup(trackMinimal);
+    expect(() => act(() => mocks.dialogOptions?.onAdded?.(trackMinimal, 12))).not.toThrow();
   });
 });
