@@ -1,6 +1,7 @@
 #include "app.hpp"
 #include "platform.hpp"
 #include "renderer.hpp"
+#include <algorithm>
 #include <SDL_ttf.h>
 #include <filesystem>
 #include <iostream>
