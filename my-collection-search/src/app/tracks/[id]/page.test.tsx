@@ -5,6 +5,9 @@ import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 const modalProps = vi.hoisted(() => vi.fn());
+const replacePlaylist = vi.hoisted(() => vi.fn());
+const reprobe = vi.hoisted(() => vi.fn());
+const setTrack = vi.hoisted(() => vi.fn());
 const currentLibraryFriend = vi.hoisted(() => ({ id: 6, username: "dj" }));
 const queries = vi.hoisted(() => ({
   trackQuery: {
@@ -25,6 +28,11 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "t1" }),
   useSearchParams: () => new URLSearchParams("friend_id=6"),
 }));
+vi.mock("@/providers/PlaybackTargetProvider", () => ({
+  usePlaybackPlayer: () => ({ replacePlaylist }),
+}));
+vi.mock("@/services/internalApi/tracks", () => ({ reprobeTrackAudio: reprobe }));
+vi.mock("@/stores/trackStore", () => ({ useTrackStore: { getState: () => ({ setTrack }) } }));
 vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: currentLibraryFriend }),
 }));
@@ -49,10 +57,12 @@ vi.mock("@/components/TrackActionsMenu", () => ({
     prominent?: boolean;
     onChangeArtwork?: () => void;
     onOpenTrackDebug?: () => void;
+    onOpenFileInfo?: () => void;
   }) => (
     <div data-testid="header-menu" data-prominent={String(props.prominent)}>
       {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Header cover art</button>}
       <button onClick={props.onOpenTrackDebug}>Header debug</button>
+      <button onClick={props.onOpenFileInfo}>Header file info</button>
     </div>
   ),
 }));
@@ -63,6 +73,8 @@ vi.mock("@/components/track-detail", () => ({
     showUsername?: boolean;
     onChangeArtwork?: () => void;
     menuInPageHeader?: boolean;
+    fileInfoOpen?: boolean;
+    onReprobe?: () => Promise<void>;
   }) => (
     <div
       data-testid="track-result"
@@ -70,6 +82,7 @@ vi.mock("@/components/track-detail", () => ({
       data-menu-in-page-header={String(props.menuInPageHeader)}
     >
       {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Cover Art...</button>}
+      {props.fileInfoOpen && <button onClick={() => void props.onReprobe?.()}>Probe</button>}
     </div>
   ),
   TrackDebugModal: (props: unknown) => {
@@ -95,6 +108,48 @@ describe("TrackPage", () => {
         audioVibeEmbeddingPreviewQuery: { id: "vibe" },
       }),
     );
+  });
+});
+
+describe("TrackPage play action", () => {
+  it("plays audio from the header and disables the action without it", async () => {
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      local_audio_url: "/audio/song.m4a",
+    };
+    const { user, unmount } = renderWithProviders(<TrackPage />);
+    await user.click(screen.getByRole("button", { name: "Play" }));
+    expect(replacePlaylist).toHaveBeenCalledWith([queries.trackQuery.data], {
+      autoplay: true,
+      startIndex: 0,
+    });
+    expect(screen.queryByRole("heading", { name: "File" })).toBeNull();
+    unmount();
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
+    renderWithProviders(<TrackPage />);
+    const play = screen.getByRole("button", { name: "Play" }) as HTMLButtonElement;
+    expect(play.disabled).toBe(true);
+    expect(play.title).toBe("No audio file for this track");
+  });
+});
+
+describe("TrackPage file info", () => {
+  it("opens the shared details and writes a re-probe result to the store", async () => {
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      local_audio_url: "/audio/song.m4a",
+    };
+    const updated = { ...queries.trackQuery.data, audio_codec: "aac" };
+    reprobe.mockResolvedValueOnce(updated);
+    const { user } = renderWithProviders(<TrackPage />);
+    await user.click(screen.getByRole("button", { name: "Header file info", hidden: true }));
+    await user.click(screen.getByRole("button", { name: "Probe" }));
+    await waitFor(() => expect(setTrack).toHaveBeenCalledWith(updated));
+    expect(reprobe).toHaveBeenCalledWith(queries.trackQuery.data);
   });
 });
 
@@ -140,7 +195,7 @@ describe("TrackPage cover art (#494)", () => {
     };
     const { user } = renderWithProviders(<TrackPage />);
 
-    await user.click(screen.getByRole("button", { name: "Cover Art..." }));
+    await user.click(screen.getByRole("button", { name: "Header cover art", hidden: true }));
     expect(screen.getByRole("dialog", { name: "Cover art" }).textContent).toContain(
       "r9:Blue Lines",
     );
@@ -192,7 +247,6 @@ describe("TrackPage actions menu placement", () => {
     queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
     renderWithProviders(<TrackPage />);
     expect(screen.getByTestId("header-menu").dataset.prominent).toBe("false");
-    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("true");
   });
 
   it("moves the menu into the page header on a phone", async () => {
@@ -206,7 +260,6 @@ describe("TrackPage actions menu placement", () => {
     };
     const { user } = renderWithProviders(<TrackPage />);
     expect(screen.getByTestId("header-menu").dataset.prominent).toBe("true");
-    expect(screen.getByTestId("track-result").dataset.menuInPageHeader).toBe("true");
 
     await user.click(screen.getByRole("button", { name: "Header cover art" }));
     expect(screen.getByRole("dialog", { name: "Cover art" })).toBeTruthy();

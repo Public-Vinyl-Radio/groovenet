@@ -14,12 +14,15 @@ const mocks = vi.hoisted(() => ({
   friend: { id: 6, username: "ana" } as { id: number; username: string } | null,
   setFriend: vi.fn(),
   replace: vi.fn(),
+  push: vi.fn(),
+  search: "",
   replacePlaylist: vi.fn(),
   playable: true,
 }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ slug: mocks.slug }),
-  useRouter: () => ({ replace: mocks.replace }),
+  useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
+  useSearchParams: () => new URLSearchParams(mocks.search),
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: mocks.friend, setFriend: mocks.setFriend }),
@@ -106,6 +109,7 @@ describe("ArtistPage", () => {
     mocks.query = { data: undefined, error: null, refetch: vi.fn() };
     mocks.friend = { id: 6, username: "ana" };
     mocks.playable = true;
+    mocks.search = "";
   });
 
   it("shows a skeleton while loading", () => {
@@ -161,7 +165,7 @@ describe("ArtistPage", () => {
     expect(screen.getByText(/from the albums/)).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Albums" })).toBeNull();
     expect(screen.getByText("Appears on · 1 track")).toBeTruthy();
-    expect(screen.getByText("No genres yet.")).toBeTruthy();
+    expect(screen.queryByText("No genres yet.")).toBeNull();
     expect(screen.getByText("No collaborators credited.")).toBeTruthy();
     expect(screen.queryByText(/Also credited/)).toBeNull();
     expect(screen.queryByRole("button", { name: "More actions", hidden: true })).toBeNull();
@@ -196,21 +200,45 @@ describe("ArtistPage", () => {
     expect(screen.getAllByTestId("track")).toHaveLength(25);
   });
 
-  it("re-sorts albums by title and recently added", async () => {
-    mocks.query.data = page({
-      albums: [
-        album("b", { title: "B", year: "1970", date_added: "2026-01-01" }),
-        album("a", { title: "A", year: "1990", date_added: "2025-01-01" }),
-        album("n", { title: "N", year: null, date_added: null }),
-      ],
+  it("switches views through the URL and keeps albums newest first", async () => {
+    mocks.query.data = page();
+    const { user, rerender } = renderWithProviders(<ArtistPage />);
+    expect(screen.queryByLabelText("Sort albums")).toBeNull();
+    expect(within(screen.getByLabelText("Artist stats")).getByText("Cumbia · 3")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "TRACKS" }));
+    expect(mocks.push).toHaveBeenCalledWith(expect.stringContaining("?view=tracks"), {
+      scroll: false,
     });
-    const { user } = renderWithProviders(<ArtistPage />);
-    const order = () => screen.getAllByTestId("album").map((n) => n.textContent);
-    expect(order()).toEqual(["a", "b", "n"]);
-    await user.selectOptions(screen.getByLabelText("Sort albums"), "title");
-    expect(order()).toEqual(["a", "b", "n"]);
-    await user.selectOptions(screen.getByLabelText("Sort albums"), "added");
-    expect(order()).toEqual(["b", "a", "n"]);
+    mocks.search = "view=tracks";
+    rerender(<ArtistPage />);
+    expect(screen.getByRole("region", { name: "Top tracks" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Albums" })).toBeNull();
+    mocks.search = "view=albums";
+    rerender(<ArtistPage />);
+    expect(screen.queryByRole("region", { name: "Top tracks" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Albums" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "ALL" }));
+    expect(mocks.push).toHaveBeenLastCalledWith(expect.not.stringContaining("view="), {
+      scroll: false,
+    });
+  });
+
+  it.each(["tracks", "albums"])("shows the full catalogue in the %s view", (view) => {
+    mocks.search = `view=${view}`;
+    mocks.query.data = page({
+      albums: Array.from({ length: 15 }, (_, i) => album(`a${i}`)),
+      top_tracks: Array.from({ length: 15 }, (_, i) => ({ track_id: `t${i}`, friend_id: 6 })),
+    });
+    renderWithProviders(<ArtistPage />);
+    expect(screen.getAllByTestId(view === "tracks" ? "track" : "album")).toHaveLength(15);
+    expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
+  });
+
+  it("hides the switch without both kinds and omits an empty genre row", () => {
+    mocks.query.data = page({ albums: [], genres: [] });
+    renderWithProviders(<ArtistPage />);
+    expect(screen.queryByRole("group", { name: "Artist content" })).toBeNull();
+    expect(within(screen.getByLabelText("Artist stats")).queryByText("Genres")).toBeNull();
   });
 
   it("plays the playable top tracks, or says there are none", async () => {

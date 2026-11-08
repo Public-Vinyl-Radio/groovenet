@@ -117,6 +117,16 @@ describe("QueueDrawer — phone", () => {
     expect(meta.parentElement?.contains(tag)).toBe(true);
   });
 
+  it("keeps the title link inline in the clamped heading", async () => {
+    renderWithProviders(
+      <QueueDrawer isOpen onClose={vi.fn()} onQueueToggle={vi.fn()} isQueueOpen />,
+    );
+    const link = await screen.findByRole("link", { name: "Title 0" });
+    expect(link.getAttribute("title")).toBe("Title 0");
+    expect(getComputedStyle(link).display).toBe("inline");
+    expect(getComputedStyle(link.closest("h2")!).webkitLineClamp).toBe("2");
+  });
+
   it("sets the volume from the keyboard and closes on Escape", async () => {
     const onClose = vi.fn();
     const { user } = renderWithProviders(

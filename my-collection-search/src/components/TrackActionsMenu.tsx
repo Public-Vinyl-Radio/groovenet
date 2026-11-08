@@ -45,6 +45,7 @@ export type { TrackAudioActions };
 type Props = {
   track: Track;
   onOpenTrackDebug?: () => void;
+  onOpenFileInfo?: () => void;
   /** Preview, restore or upload the cover art of the track's album (#494). */
   onChangeArtwork?: () => void;
   /** Hide the "Edit Track" item (e.g. when already on the edit page). */
@@ -66,6 +67,7 @@ type Props = {
 export default function TrackActionsMenu({
   track,
   onOpenTrackDebug,
+  onOpenFileInfo,
   onChangeArtwork,
   hideEdit,
   audioActions,
@@ -330,6 +332,9 @@ export default function TrackActionsMenu({
           library={[
             ...(hideEdit ? [] : [{ label: "Edit track", href: editHref }]),
             { label: "Enrich track", onClick: handleEnrich },
+            ...(onOpenFileInfo && hasAudio
+              ? [{ label: "File info", onClick: onOpenFileInfo }]
+              : []),
             ...(onChangeArtwork ? [{ label: "Cover art...", onClick: onChangeArtwork }] : []),
             ...(onOpenTrackDebug ? [{ label: "Track debug", onClick: onOpenTrackDebug }] : []),
           ]}
@@ -405,6 +410,11 @@ export default function TrackActionsMenu({
                 <Menu.Item onSelect={handleEnrich} value="enrich">
                   <FiZap /> Enrich Track
                 </Menu.Item>
+                {onOpenFileInfo && hasAudio && (
+                  <Menu.Item onSelect={onOpenFileInfo} value="file-info">
+                    File info
+                  </Menu.Item>
+                )}
                 {onChangeArtwork && (
                   <Menu.Item onSelect={onChangeArtwork} value="cover-art">
                     <FiImage /> Cover Art...

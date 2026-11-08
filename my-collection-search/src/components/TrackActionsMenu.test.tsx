@@ -201,6 +201,18 @@ describe("TrackActionsMenu desktop dropdown — conditional items", () => {
     expect(screen.queryByRole("menuitem", { name: /Track Debug/, hidden: true })).toBeNull();
   });
 
+  it("offers file info only for local audio", async () => {
+    const onOpenFileInfo = vi.fn();
+    const { user, menuButton, unmount } = setup(trackWithEverything, { onOpenFileInfo });
+    await chooseMenuItem(user, menuButton, /^File info$/);
+    expect(onOpenFileInfo).toHaveBeenCalled();
+    unmount();
+    const second = setup(trackMinimal, { onOpenFileInfo });
+    await second.user.click(second.menuButton);
+    await screen.findByRole("menuitem", { name: /Add to Playlist/, hidden: true });
+    expect(screen.queryByRole("menuitem", { name: "File info", hidden: true })).toBeNull();
+  });
+
   it("offers Track Debug when a handler is given", async () => {
     const { user, menuButton } = setup(trackWithEverything, { onOpenTrackDebug: vi.fn() });
     await user.click(menuButton);
@@ -322,6 +334,16 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     await screen.findByText("Playlist");
     return { ...rendered, trigger };
   }
+
+  it("opens file info from the phone menu only with audio", async () => {
+    const onOpenFileInfo = vi.fn();
+    const { user, unmount } = await openModal(trackWithEverything, { onOpenFileInfo });
+    await user.click(screen.getByText("File info"));
+    expect(onOpenFileInfo).toHaveBeenCalled();
+    unmount();
+    await openModal(trackMinimal, { onOpenFileInfo });
+    expect(screen.queryByText("File info")).toBeNull();
+  });
 
   it("is a labelled dialog headed by the track and its catalogue line", async () => {
     await openModal({

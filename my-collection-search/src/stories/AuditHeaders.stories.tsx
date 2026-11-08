@@ -296,7 +296,6 @@ function PageVariants() {
           friendId={track.friend_id}
           fallbackTrack={track}
           showUsername={false}
-          menuInPageHeader={isMobile}
         />
       </Specimen>
     </Stack>
