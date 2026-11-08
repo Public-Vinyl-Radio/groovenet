@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act as reactAct, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PageHeader, { type HeaderAction } from ".";
 import { pageHeader } from "@/app/houseStyle";
+import { InAppNavigationProvider } from "@/providers/InAppNavigationProvider";
+
+const nav = vi.hoisted(() => ({ pathname: "/albums", back: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ back: nav.back }),
+}));
 
 const act = (label: string, extra: Partial<HeaderAction> = {}): HeaderAction => ({
   label,
@@ -82,6 +90,27 @@ describe("PageHeader parts", () => {
       expect(
         screen.getByRole("link", { name: "Back to Albums", hidden: true }).getAttribute("href"),
       ).toBe("/albums");
+    });
+
+    it("goes back in history instead of linking once an in-app page precedes it", () => {
+      nav.pathname = "/albums";
+      nav.back.mockReset();
+      const ui = () => (
+        <InAppNavigationProvider>
+          <PageHeader>
+            <PageHeader.Context
+              crumbs={[{ label: "Albums", href: "/albums" }, { label: "Mezzanine" }]}
+            />
+          </PageHeader>
+        </InAppNavigationProvider>
+      );
+      const { rerender } = renderWithProviders(ui());
+      expect(screen.getByRole("link", { name: "Back to Albums", hidden: true })).toBeTruthy();
+      nav.pathname = "/albums/r1";
+      reactAct(() => rerender(ui()));
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Back", hidden: true }));
+      expect(nav.back).toHaveBeenCalledTimes(1);
     });
 
     it("renders nothing without crumbs or a leading control", () => {
