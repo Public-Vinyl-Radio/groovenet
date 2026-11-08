@@ -7,6 +7,8 @@
 #include <stdexcept>
 
 void failureTests();
+void liveTests();
+int networkTests(const std::string &mode);
 
 namespace {
 int checks = 0;
@@ -353,8 +355,11 @@ void renderTests() {
   SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
 }
 } // namespace
-int main() {
+int main(int argc, char **argv) {
   try {
+    if (argc == 2)
+      return networkTests(argv[1]);
+    liveTests();
     stateTests();
     inputTests();
     optionTests();

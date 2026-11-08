@@ -1,9 +1,11 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace brick {
@@ -33,18 +35,26 @@ const std::vector<std::string> &scenarios();
 const std::vector<std::string> &screenNames();
 Action namedAction(const std::string &name);
 struct Track {
+  Track(std::string title, std::string artist, std::string album,
+        std::optional<int> duration, bool artwork)
+      : title(std::move(title)), artist(std::move(artist)),
+        album(std::move(album)), duration(duration), artwork(artwork) {}
   std::string title, artist, album;
   std::optional<int> duration;
   bool artwork = true;
+  std::string trackId, artworkUrl;
+  int64_t friendId = 0;
+  std::optional<bool> playable;
 };
 struct Snapshot {
   std::string status, player;
   bool connected = true, available = true, loading = false, playing = true;
   int volume = 55, position = 42;
   std::vector<Track> queue;
+  size_t currentIndex = 0;
   std::vector<std::string> players, playlists, outputs;
 };
-// REST/SSE implementation will replace this seam in #1097. No SDL or firmware.
+// Shared by the deterministic mock and asynchronous REST/SSE adapter.
 class DataAdapter {
 public:
   virtual ~DataAdapter() = default;
