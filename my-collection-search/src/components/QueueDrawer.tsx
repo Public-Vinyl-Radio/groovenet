@@ -315,9 +315,19 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       fontWeight="semibold"
                       lineClamp={2}
                     >
-                      {track ? <TrackTitleLink track={track} /> : "No track playing"}
+                      {track ? (
+                        <TrackTitleLink track={track} display="inline" title={track.title} />
+                      ) : (
+                        "No track playing"
+                      )}
                     </Text>
-                    <Text fontSize="16px" lineHeight="22px" color="fg.muted" lineClamp={1}>
+                    <Text
+                      fontSize="16px"
+                      lineHeight="22px"
+                      color="fg.muted"
+                      lineClamp={1}
+                      css={{ "& a": { display: "inline" } }}
+                    >
                       {track ? (
                         <ArtistLink
                           artist={track.artist}

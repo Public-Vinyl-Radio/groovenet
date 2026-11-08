@@ -8,31 +8,8 @@ import { sampleTrack } from "@/stories/fixtures/track";
 import type { Track } from "@/types/track";
 
 const player = vi.hoisted(() => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }));
-const openForTrack = vi.hoisted(() => vi.fn());
 
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({ usePlaylistPlayer: () => player }));
-vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
-  useAddToPlaylistDialog: () => ({
-    openForTrack,
-    playlistDialog: <div data-testid="playlist-dialog" />,
-    nameDialog: null,
-  }),
-}));
-vi.mock("@/components/TrackActionsMenu", () => ({
-  default: (props: {
-    prominent?: boolean;
-    onOpenTrackDebug?: () => void;
-    onChangeArtwork?: () => void;
-  }) => (
-    <button
-      aria-label="Track actions"
-      data-prominent={String(Boolean(props.prominent))}
-      onClick={props.onOpenTrackDebug}
-    >
-      menu
-    </button>
-  ),
-}));
 
 import TrackHeader from "./TrackHeader";
 
@@ -131,70 +108,15 @@ describe("TrackHeader", () => {
     expect(facts().queryByText("mystery")).toBeNull();
   });
 
-  // jsdom evaluates no container queries, so the card's actions (hidden below the
-  // wide breakpoint) and the ones under it are both in the DOM; query by placement.
-  it("plays the track and opens add-to-playlist", async () => {
-    const t = track({ local_audio_url: "x.m4a" });
-    const { user } = renderWithProviders(
-      <TrackHeader trackId="h1" friendId={6} fallbackTrack={t} />,
-    );
-
-    // The actions render in the card and below it; a container query shows one.
-    await user.click(
-      within(screen.getByTestId("track-actions-card")).getByRole("button", {
-        name: /Play/,
-        hidden: true,
-      }),
-    );
-    expect(player.replacePlaylist).toHaveBeenCalledWith([t], { autoplay: true, startIndex: 0 });
-
-    await user.click(
-      within(screen.getByTestId("track-actions-below")).getByRole("button", {
-        name: /Add to playlist/,
-        hidden: true,
-      }),
-    );
-    expect(openForTrack).toHaveBeenCalledWith(t);
-    expect(screen.getByTestId("playlist-dialog")).toBeTruthy();
-  });
-
-  it("disables Play for a track without audio", () => {
+  it("shows file information for audio and leaves hero actions out", async () => {
+    const { user, unmount } = renderHeader({ local_audio_url: "x.m4a" });
+    expect(screen.queryByTestId("track-actions-card")).toBeNull();
+    expect(screen.queryByText("Add to playlist")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^File info:/ }));
+    expect(await screen.findByText("Full path")).toBeTruthy();
+    unmount();
     renderHeader({ local_audio_url: undefined });
-    for (const placement of ["card", "below"]) {
-      const play = within(screen.getByTestId(`track-actions-${placement}`)).getByRole("button", {
-        name: /Play/,
-        hidden: true,
-      });
-      expect((play as HTMLButtonElement).disabled).toBe(true);
-    }
-  });
-
-  it("puts the actions below the card for phones with a full-size menu trigger", () => {
-    renderHeader();
-    const below = within(screen.getByTestId("track-actions-below"));
-    const card = within(screen.getByTestId("track-actions-card"));
-    expect(below.getByLabelText("Track actions", { selector: "button" }).dataset.prominent).toBe(
-      "true",
-    );
-    expect(card.getByLabelText("Track actions", { selector: "button" }).dataset.prominent).toBe(
-      "false",
-    );
-    expect(
-      screen
-        .getByRole("region", { name: "Track" })
-        .contains(screen.getByTestId("track-actions-below")),
-    ).toBe(false);
-  });
-
-  it("hands the menu its callbacks", async () => {
-    const onOpenTrackDebug = vi.fn();
-    const { user } = renderHeader({}, { onOpenTrackDebug });
-    await user.click(
-      within(screen.getByTestId("track-actions-card")).getByLabelText("Track actions", {
-        selector: "button",
-      }),
-    );
-    expect(onOpenTrackDebug).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /^File info:/ })).toBeNull();
   });
 
   it("holds the genres in the header, once", () => {

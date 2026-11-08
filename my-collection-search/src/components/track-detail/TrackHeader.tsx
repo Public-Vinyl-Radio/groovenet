@@ -1,20 +1,16 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, useBreakpointValue } from "@chakra-ui/react";
 import { MetaTag } from "@/components/ui/RoleTags";
-import { FaPlay } from "react-icons/fa";
-import { FiPlus } from "react-icons/fi";
 import AlbumLink from "@/components/AlbumLink";
 import ArtistLink from "@/components/ArtistLink";
-import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { ArtworkPlay, NotesIndicator } from "@/components/TrackResult";
 import TrackGenresSection from "@/components/track-detail/TrackGenresSection";
-import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
 import { useTrack } from "@/hooks/useTrack";
 import { camelotDotColor, camelotOf, parseBpm } from "@/lib/mixCompat";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
-import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
+import FileInfo from "@/components/player/FileInfo";
 import type { Track } from "@/types/track";
 
 type Props = {
@@ -23,10 +19,9 @@ type Props = {
   fallbackTrack: Track;
   /** Attribution is only useful when the track isn't in the library already being browsed. */
   showUsername?: boolean;
-  onOpenTrackDebug?: () => void;
-  onChangeArtwork?: () => void;
-  /** The page header carries the actions menu, so the card omits it. */
-  menuInPageHeader?: boolean;
+  fileInfoOpen?: boolean;
+  onFileInfoOpenChange?: (open: boolean) => void;
+  onReprobe?: () => Promise<void>;
 };
 
 // The header sizes itself from its own width, not the viewport's: the sidebar
@@ -197,75 +192,22 @@ function Facts({ track }: { track: Track }) {
 /**
  * The track identity card: one outlined card with the artwork, artist and genres on
  * the left and the facts (BPM, key, duration, side) beside them or, narrow,
- * as a strip. Actions sit inside the card when wide and below it when narrow.
+ * as a strip.
  */
 export default function TrackHeader({
   trackId,
   friendId,
   fallbackTrack,
   showUsername = true,
-  onOpenTrackDebug,
-  onChangeArtwork,
-  menuInPageHeader = false,
+  fileInfoOpen,
+  onFileInfoOpenChange,
+  onReprobe,
 }: Props) {
   const track = useTrack(trackId, friendId) ?? fallbackTrack;
-  const { replacePlaylist } = usePlaybackPlayer();
-  const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog();
+  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
   const hasNotes = Boolean(track.notes?.trim());
   // Some imports store a missing year as "0".
   const year = track.year && track.year !== "0" ? track.year : null;
-
-  const actions = (placement: "card" | "below") => (
-    <Flex
-      data-testid={`track-actions-${placement}`}
-      gap={placement === "below" ? "10px" : "10px"}
-      alignItems="center"
-      flexWrap={placement === "card" ? "wrap" : undefined}
-      css={
-        placement === "card"
-          ? {
-              gridArea: "actions",
-              alignSelf: "end",
-              display: "none",
-              [wide]: { display: "flex", padding: "16px 20px 20px" },
-            }
-          : { marginTop: "16px", paddingRight: "6px", [wide]: { display: "none" } }
-      }
-    >
-      <Button
-        colorPalette="accent"
-        variant="solid"
-        size={placement === "below" ? "sm" : undefined}
-        flex={placement === "below" ? 1 : undefined}
-        minH={placement === "below" ? "44px" : undefined}
-        minW={0}
-        disabled={!track.local_audio_url}
-        title={track.local_audio_url ? undefined : "No audio file for this track"}
-        onClick={() => replacePlaylist([track], { autoplay: true, startIndex: 0 })}
-      >
-        <FaPlay /> Play
-      </Button>
-      <Button
-        variant="outline"
-        size={placement === "below" ? "sm" : undefined}
-        flex={placement === "below" ? 1 : undefined}
-        minH={placement === "below" ? "44px" : undefined}
-        minW={0}
-        px={placement === "below" ? 2 : undefined}
-        onClick={() => openForTrack(track)}
-      >
-        <FiPlus /> Add to playlist
-      </Button>
-      {!menuInPageHeader && (
-        <TrackActionsMenu
-          track={track}
-          prominent={placement === "below"}
-          onOpenTrackDebug={onOpenTrackDebug}
-          onChangeArtwork={onChangeArtwork}
-        />
-      )}
-    </Flex>
-  );
 
   return (
     <Box data-testid="track-header" css={{ containerType: "inline-size" }}>
@@ -284,8 +226,8 @@ export default function TrackHeader({
           gridTemplateAreas: '"art info" "facts facts" "genres genres"',
           [wide]: {
             gridTemplateColumns: "188px minmax(0, 1fr) minmax(280px, 400px)",
-            gridTemplateRows: "auto auto 1fr",
-            gridTemplateAreas: '"art info facts" "art genres facts" "art actions facts"',
+            gridTemplateRows: "auto 1fr",
+            gridTemplateAreas: '"art info facts" "art genres facts"',
           },
         }}
       >
@@ -361,11 +303,23 @@ export default function TrackHeader({
               {track.username}
             </Text>
           )}
-          {track.library_identifier && (
-            <MetaTag variant="id" size="sm" alignSelf="flex-start" mt={1}>
-              {track.library_identifier}
-            </MetaTag>
-          )}
+          <Flex align="center" gap={3} wrap="wrap" mt={1}>
+            {track.library_identifier && (
+              <MetaTag variant="id" size="sm" alignSelf="flex-start">
+                {track.library_identifier}
+              </MetaTag>
+            )}
+            {track.local_audio_url && (
+              <FileInfo
+                track={track}
+                mobile={isMobile}
+                fullPath
+                onReprobe={onReprobe}
+                open={fileInfoOpen}
+                onOpenChange={onFileInfoOpenChange}
+              />
+            )}
+          </Flex>
         </Flex>
 
         <Box
@@ -381,12 +335,8 @@ export default function TrackHeader({
           <TrackGenresSection trackId={trackId} friendId={friendId} fallbackTrack={fallbackTrack} />
         </Box>
 
-        {actions("card")}
         <Facts track={track} />
       </Box>
-      {actions("below")}
-      {playlistDialog}
-      {nameDialog}
     </Box>
   );
 }
