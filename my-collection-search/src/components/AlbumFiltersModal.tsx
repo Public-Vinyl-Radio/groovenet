@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import { Box, Field } from "@chakra-ui/react";
+import { Box, Field, NativeSelect } from "@chakra-ui/react";
 import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
 import { ArtistFilterSection, type ArtistFilterControls } from "@/components/ArtistFilter";
 import { optionStates } from "@/components/MissingFilter";
 import RetroDialog from "@/components/ui/RetroDialog";
-import { Radio, RadioGroup } from "@/components/ui/radio";
 import { ALBUM_SORT_OPTIONS, albumSortOption } from "@/components/AlbumSortMenu";
 import {
   ChipToggle,
@@ -112,25 +111,29 @@ export function AlbumFilterSections({
  */
 export type AlbumSortControl = { value: string; onChange: (sort: string) => void };
 
-/** "Sort by": a radio list of the seven options, every row 44px tall. */
+/** "Sort by": one 44px dropdown (the phone's native picker) in place of seven rows. */
 export function AlbumSortSection({ value, onChange }: AlbumSortControl) {
   return (
     <Section label="Sort by" first>
-      <RadioGroup
-        value={albumSortOption(value).value}
-        onValueChange={(details) => {
-          if (details.value) onChange(details.value);
-        }}
-        aria-label="Sort by"
-      >
-        <Box display="flex" flexDirection="column">
+      <NativeSelect.Root size="md">
+        <NativeSelect.Field
+          aria-label="Sort by"
+          value={albumSortOption(value).value}
+          onChange={(e) => onChange(e.target.value)}
+          minH="44px"
+          fontSize="16px"
+          borderWidth="outline"
+          borderColor="border.ink"
+          bg="bg.panel"
+        >
           {ALBUM_SORT_OPTIONS.map((opt) => (
-            <Radio key={opt.value} value={opt.value} minH="44px" w="100%" alignItems="center">
+            <option key={opt.value} value={opt.value}>
               {opt.label}
-            </Radio>
+            </option>
           ))}
-        </Box>
-      </RadioGroup>
+        </NativeSelect.Field>
+        <NativeSelect.Indicator />
+      </NativeSelect.Root>
     </Section>
   );
 }

@@ -348,7 +348,7 @@ describe("albums page simplified search (#751)", () => {
     const { user } = renderWithProviders(<AlbumsPage />);
     const modal = await openFilters(user);
     expect(within(modal).getByText("Sort by")).toBeTruthy();
-    await user.click(within(modal).getByText("Title A–Z"));
+    await user.selectOptions(within(modal).getByRole("combobox", { name: "Sort by" }), "Title A–Z");
     expect(mocks.push).toHaveBeenCalledWith("/albums?q=dub&sort=title%3Aasc");
   });
 

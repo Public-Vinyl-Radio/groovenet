@@ -39,26 +39,16 @@ describe("AlbumFiltersModal sort (#1119)", () => {
     expect(await screen.findByText("Sort & filter")).toBeTruthy();
   });
 
-  it("lists the seven sorts as 44px radios, the current one selected, and applies a choice", async () => {
+  it("is one 44px dropdown of the seven sorts, the current one selected, applied on change", async () => {
     const onChange = vi.fn();
     const { user } = setup({ sort: { value: "year:asc", onChange } });
-    const group = await screen.findByRole("radiogroup", { name: "Sort by" });
-    const radios = within(group).getAllByRole("radio", { hidden: true });
-    expect(radios).toHaveLength(7);
-    expect(
-      (
-        within(group).getByRole("radio", {
-          name: "Oldest releases",
-          hidden: true,
-        }) as HTMLInputElement
-      ).checked,
-    ).toBe(true);
-    radios.forEach((radio) => {
-      const row = radio.closest("label") as HTMLElement;
-      expect(getComputedStyle(row).minHeight).toBe("44px");
-    });
+    const select = (await screen.findByRole("combobox", { name: "Sort by" })) as HTMLSelectElement;
+    expect(select.value).toBe("year:asc");
+    expect(within(select).getAllByRole("option")).toHaveLength(7);
+    expect(getComputedStyle(select).minHeight).toBe("44px");
+    expect(screen.queryByRole("radiogroup")).toBeNull();
 
-    await user.click(screen.getByText("Title A–Z"));
+    await user.selectOptions(select, "Title A–Z");
     expect(onChange).toHaveBeenCalledWith("title:asc");
   });
 
@@ -91,7 +81,7 @@ describe("AlbumFiltersModal sort (#1119)", () => {
       />,
     );
     expect(screen.queryByText("Sort by")).toBeNull();
-    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Sort by" })).toBeNull();
   });
 });
 

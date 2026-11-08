@@ -344,7 +344,7 @@ an invalid value the browser drops, so it fails silently.
   `AlbumFiltersModal`, titled "Sort & filter" on Albums) and the desktop `FiltersPanel` (a 460px popover under FILTERS,
   the modal's shell: ink label strip, `*FilterSections`, fixed `FiltersFooter`). Never
   give the panel its own state. Changes apply as they're made; "Show N" only closes. Albums' sort
-  is the exception to "same sections in both": phones get a "Sort by" radio section at the top of the
+  is the exception to "same sections in both": phones get a "Sort by" dropdown section at the top of the
   modal (`AlbumSortSection`, from the page's one sort state; Reset leaves it alone) and desktop keeps
   SORT in the search row, so the panel never renders sort.
 - **Filter chips** (`FilterChips`): square, outlined, surface fill, an x, named
