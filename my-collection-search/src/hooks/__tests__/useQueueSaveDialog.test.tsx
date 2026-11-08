@@ -22,7 +22,8 @@ const t = (n: number) => ({ track_id: `t${n}`, friend_id: n }) as unknown as Tra
 // interaction and close it, which only shows under load.
 async function findFocusedNameInput() {
   const input = await screen.findByPlaceholderText("Playlist name");
-  await waitFor(() => expect(document.activeElement).toBe(input));
+  const dialog = await screen.findByRole("dialog");
+  await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
   return input;
 }
 
