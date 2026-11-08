@@ -1,0 +1,7 @@
+# Copy separately to /userdata/system/configs/groovenet-brick/config, chmod 600.
+# Shell syntax: quote values, no spaces around '='. Never commit a real copy.
+BRICK_URL='https://groovenet.example.invalid'
+BRICK_PLAYER_KEY='REPLACE_WITH_SEPARATELY_PROVISIONED_PLAYER_KEY'
+BRICK_COLLECTION_KEY='REPLACE_WITH_SEPARATELY_PROVISIONED_COLLECTION_KEY'
+BRICK_CA_FILE='/userdata/system/configs/groovenet-brick/ca.pem'
+# Omit BRICK_CA_FILE for a publicly trusted certificate. TLS stays verified.

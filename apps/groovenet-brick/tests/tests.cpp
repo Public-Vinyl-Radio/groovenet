@@ -222,6 +222,40 @@ void inputTests() {
   check(desktop.input(event) == Action::Wake);
   event.type = SDL_QUIT;
   check(desktop.input(event) == Action::Quit);
+  Desktop device(true);
+  event.type = SDL_KEYDOWN;
+  event.key.keysym.sym = SDLK_POWER;
+  event.key.repeat = 0;
+  check(device.input(event) == Action::Wake);
+  event.key.repeat = 1;
+  check(device.input(event) == Action::None);
+  event.key.repeat = 0;
+  event.key.keysym.sym = SDLK_VOLUMEDOWN;
+  check(device.input(event) == Action::None);
+  event.type = SDL_CONTROLLERBUTTONDOWN;
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
+  check(device.input(event) == Action::None);
+  for (const auto &[button, action] :
+       std::vector<std::pair<Uint8, Action>>{
+           {SDL_CONTROLLER_BUTTON_LEFTSHOULDER, Action::RemoteDown},
+           {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, Action::RemoteUp},
+           {SDL_CONTROLLER_BUTTON_A, Action::Select}}) {
+    event.cbutton.button = button;
+    check(device.input(event) == action);
+  }
+  event.type = SDL_CONTROLLERBUTTONUP;
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
+  check(device.input(event) == Action::None);
+  event.type = SDL_CONTROLLERBUTTONDOWN;
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
+  check(device.input(event) == Action::Previous);
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_X;
+  device.input(event);
+  event.type = SDL_APP_WILLENTERBACKGROUND;
+  check(device.input(event) == Action::Suspend);
+  event.type = SDL_CONTROLLERBUTTONDOWN;
+  event.cbutton.button = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
+  check(device.input(event) == Action::Next);
 }
 void optionTests() {
   auto options =
@@ -234,8 +268,10 @@ void optionTests() {
         options.frames == 2);
   check(options.actions.size() == 3);
   check(!parseOptions({}).font.empty());
+  check(parseOptions({"--platform", "knulli"}).knulli);
+  check(!parseOptions({"--platform", "desktop"}).knulli);
   for (const auto &args :
-       std::vector<std::vector<std::string>>{{"--bad"},
+       std::vector<std::vector<std::string>>{{"--bad"}, {"--platform", "unknown"},
                                              {"--bad", "value"},
                                              {"--scale", "NaN"},
                                              {"--scale", "inf"},
@@ -307,6 +343,9 @@ void renderTests() {
                                "menu,down,select,down,select,back",
                                "--screenshot", capture});
   check(runDesktop(options) == 0);
+  auto deviceOptions = options;
+  deviceOptions.knulli = true;
+  check(runDesktop(deviceOptions) == 0);
   auto *image = SDL_LoadBMP(capture.c_str());
   check(image && image->w == width && image->h == height);
   SDL_FreeSurface(image);

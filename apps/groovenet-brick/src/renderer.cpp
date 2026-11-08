@@ -127,7 +127,7 @@ void Renderer::draw(const App &app, const Platform &platform) {
        944, ink);
   text("Start/Tab: menu   Y/Space: play   L/R or Z/X: prev/next", 40, 704, 944,
        muted);
-  text("L3/R3 or +/-: remote volume   F1: scenario   Back/Q: quit", 40, 736,
+  text("X+L/R: remote volume (Brick)   +/-: desktop   Select/Q: quit", 40, 736,
        944, muted);
   if (app.suspended()) {
     box(40, 224, 944, 350, panel);

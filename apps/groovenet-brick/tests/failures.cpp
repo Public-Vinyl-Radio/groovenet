@@ -10,6 +10,8 @@
 namespace {
 enum class Fault {
   None,
+  Resume,
+  Mapping,
   Init,
   Ttf,
   Window,
@@ -84,6 +86,18 @@ char *faultPrefPath(const char *org, const char *app) {
 }
 } // namespace
 
+int faultMapping(const char *mapping) {
+  return fail(Fault::Mapping) ? -1 : SDL_GameControllerAddMapping(mapping);
+}
+#define SDL_GameControllerAddMapping faultMapping
+void faultDelay(Uint32 ms) {
+  if (fault == Fault::Resume) {
+    fault = Fault::None;
+    SDL_Delay(2100);
+  } else
+    SDL_Delay(ms);
+}
+#define SDL_Delay faultDelay
 #define SDL_Init faultInit
 #define TTF_Init faultTtf
 #define SDL_CreateWindow faultWindow
@@ -106,10 +120,11 @@ void failureTests() {
        (std::filesystem::temp_directory_path() / "brick-failure-test.bmp")
            .string()});
   for (auto stage :
-       {Fault::Init, Fault::Ttf, Fault::Window, Fault::RenderDevice,
+       {Fault::Init, Fault::Mapping, Fault::Ttf, Fault::Window, Fault::RenderDevice,
         Fault::Canvas, Fault::Texture, Fault::FirstFont, Fault::SecondFont,
         Fault::Text, Fault::Surface, Fault::Pixels}) {
     fault = stage;
+    options.knulli = stage == Fault::Mapping;
     fontCalls = 0;
     bool rejected = false;
     try {
@@ -140,5 +155,11 @@ void failureTests() {
   if (brick::runDesktop(options) != 0)
     throw std::runtime_error("Controller failure prevented keyboard preview");
   std::filesystem::remove(options.screenshot);
+  fault = Fault::Resume;
+  options.knulli = true;
+  options.frames = 2;
+  options.screenshot.clear();
+  if (brick::runDesktop(options) != 0)
+    throw std::runtime_error("Resume gap prevented rendering");
   fault = Fault::None;
 }

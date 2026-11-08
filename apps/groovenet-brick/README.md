@@ -1,8 +1,18 @@
-# Groovenet Brick desktop preview
+# Groovenet Brick preview
 
 The native C++17/SDL2 application foundation for #1096. Desktop and future device
 launchers share the application, data-adapter interface and SDL renderer. This
 preview has deterministic mock data and a live REST/SSE adapter; audio stays on the server.
+
+## Knulli device preview
+
+`just brick-package` produces the experimental ARM64 Ports archive, independently
+of npm and desktop builds. See [install/build/control instructions](knulli/README.md)
+and [application device evidence](evidence/knulli-preview-1107.md) for hashes,
+firmware/ABI limitations, physical observations and remaining acceptance checks.
+The device profile uses the same renderer and REST/SSE adapter. It supplies a
+licensed DejaVu font and maps remote volume to X+L/R on the real Brick buttons.
+Desktop mode retains its existing mappings below.
 
 ## Host setup and commands
 
@@ -26,8 +36,7 @@ ignored `build/` and `build-coverage/` directories.
 The default font is system Arial on macOS and DejaVu Sans on Linux. Override with
 `--font /absolute/path/font.ttf` for another host or script. Supply a font with
 appropriate glyph coverage for the metadata languages you need; SDL_ttf renders
-UTF-8, but a font cannot render glyphs it does not contain. No system font is
-copied into the repository or distributed as an application asset.
+UTF-8, but a font cannot render glyphs it does not contain. The Knulli package separately includes redistributable DejaVu Sans and its license; no macOS font is distributed.
 
 ## Display and input
 
@@ -35,8 +44,8 @@ The logical canvas is **1024×768**, matching the Brick panel documented in the
 [TRIMUI Brick TG3040 manual](https://ae-pic-a1.aliexpress-media.com/kf/S708858c6482e484a8670e62d58ae775dM.pdf).
 `--scale 0.5` through `--scale 3` changes the initial window size; resizing
 letterboxes the same logical canvas, including on Retina displays. The #1095
-probe used a 640×480 test canvas, not the panel's native dimensions. On-device
-qualification of this application remains part of #1102.
+probe used a 640×480 test canvas, not the panel's native dimensions. The experimental device preview is tracked in #1107; full supported-release
+qualification remains in #1102.
 
 | Named action                 | Keyboard                | SDL game controller               |
 | ---------------------------- | ----------------------- | --------------------------------- |
@@ -246,7 +255,7 @@ controller-open failure without production test hooks. CI uploads this report un
 independent of the experimental lifecycle probe's `brick-probe` report.
 
 This is the real application code built for a desktop, **not hardware emulation**.
-It does not validate Knulli ABI/toolchain, raw button mappings, battery readings,
+Desktop tests do not validate Knulli ABI/toolchain, raw button mappings, battery readings,
 suspend/power ownership, Wi-Fi recovery, device font distribution or launcher
 packaging. See [the hardware spike](PLATFORM-SPIKE.md) for the Knulli Scarab v1
 selection and outstanding hardware checks, and #1102 for device release work.

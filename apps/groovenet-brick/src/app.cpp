@@ -155,6 +155,7 @@ void App::handle(Action action) {
   }
   if (action == Action::Suspend) {
     suspended_ = true;
+    data_->refresh(); // Discard unsent commands; waking obtains another snapshot.
     return;
   }
   if (action == Action::Wake) {
