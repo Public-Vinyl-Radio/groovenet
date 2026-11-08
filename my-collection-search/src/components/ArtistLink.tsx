@@ -4,7 +4,13 @@ import NextLink from "next/link";
 import { Link } from "@chakra-ui/react";
 import type { ArtistCreditRef } from "@/api-contract/schemas";
 
-/** Renders one piece of the artist string; a function lets a caller style each link. */
+/**
+ * Renders one piece of the artist string; a function lets a caller style each link.
+ * It runs once per credited artist, with plain-text joiners between the results, so
+ * it must return INLINE content (a string or an `as="span"` element), never a block
+ * (`<p>`, `<div>`): a block would put every artist on its own line. Truncation
+ * belongs to the caller, as one wrapper around the whole `ArtistLink`.
+ */
 export type ArtistLabel = (text: string) => React.ReactNode;
 
 export type ArtistLinkProps = {
@@ -135,6 +141,7 @@ export default function ArtistLink({
               key={`${segment.credit.id}-${i}`}
               as={NextLink}
               href={artistPageHref(segment.credit.slug)}
+              display="inline"
               _hover={{ textDecoration: "underline" }}
               onClick={onClick}
               className={className}

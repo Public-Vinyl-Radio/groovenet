@@ -24,6 +24,7 @@ import {
   WEEKDAYS,
 } from "./recapCharts";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { genreHref } from "@/lib/genres/links";
 import { SpinArt } from "./listeningLogParts";
 import { Bar, DIGITAL_HATCH, inkTint, SplitSegments, Swatch } from "./recapParts";
@@ -476,28 +477,7 @@ export function RecapTopLists({
         TOP OF THE MONTH
       </SectionLabel>
       <Tabs.Root defaultValue="records" activationMode="automatic">
-        <Tabs.List
-          aria-label="Top lists"
-          gap={0}
-          display="grid"
-          gridTemplateColumns="repeat(3, minmax(0, 1fr))"
-          borderBottomWidth="outline"
-          borderColor="border.ink"
-        >
-          {TOP_LISTS.map((list, index) => (
-            <Tabs.Trigger
-              key={list.value}
-              value={list.value}
-              justifyContent="center"
-              h="44px"
-              ml={index ? "-2px" : 0}
-              fontSize="xs"
-              letterSpacing="0.06em"
-            >
-              {list.label}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
+        <SegmentedControl tabs aria-label="Top lists" items={TOP_LISTS} />
         {TOP_LISTS.map((list) => (
           <Tabs.Content key={list.value} value={list.value} p={0}>
             <TopList rows={rows[list.value]} label={`Top ${list.label.toLowerCase()}`} />

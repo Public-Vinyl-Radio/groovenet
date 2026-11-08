@@ -1,7 +1,6 @@
 "use client";
 
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { innerRadius } from "@/app/corners";
 import React from "react";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
@@ -15,7 +14,13 @@ import {
   Text,
   useBreakpointValue,
 } from "@chakra-ui/react";
+import GenreBadge from "@/components/GenreBadge";
 import { MetaTag } from "@/components/ui/RoleTags";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { ViewModeSwitch } from "@/components/layout/ListHeader";
+import { TrackListHeader } from "@/components/TrackResult";
+import { useTrackViewMode, type TrackViewMode } from "@/hooks/useTrackViewMode";
+import { FiPlay, FiShuffle } from "react-icons/fi";
 import AlbumResult from "@/components/AlbumResult";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
@@ -23,14 +28,14 @@ import { useTrack } from "@/hooks/useTrack";
 import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import GenreBpmSpread from "@/components/genres/GenreBpmSpread";
 import { GenreCrate } from "@/components/genres/GenreCrate";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHeader, { type HeaderAction } from "@/components/layout/PageHeader";
 import PageContainer from "@/components/layout/PageContainer";
 import { useGenrePageQuery } from "@/hooks/useGenrePageQuery";
 import { useGenreResults, type GenreView } from "@/hooks/useGenreResults";
 import { useGenrePlayback } from "@/hooks/useGenrePlayback";
 import { genreHref } from "@/lib/genres/links";
 import { useUsername } from "@/providers/UsernameProvider";
-import type { GenrePageResponse } from "@/api-contract/schemas";
+import type { GenrePageRef, GenrePageResponse } from "@/api-contract/schemas";
 
 // Fewer than one widest (four-cover) row, using full friend-scoped totals.
 const THIN_GENRE_ALBUM_THRESHOLD = 4;
@@ -40,16 +45,55 @@ const DESKTOP_ALBUM_PAGE_SIZE = 24;
 // Rows shown before "Show all": a parent like Latin has ~50 children.
 const GENRE_LIST_CAP = 10;
 
+/**
+ * Below `xl` the insights aside stacks under the list, so an endless list would
+ * keep it out of reach: related genres move above the tabs as a scrolling row
+ * and the list ends in a "Show more" button instead of loading on scroll.
+ */
+function RelatedChips({ title, genres }: { title: string; genres: GenrePageRef[] }) {
+  return (
+    <Box as="section" aria-label={title}>
+      <Flex
+        as="ul"
+        listStyleType="none"
+        gap={2}
+        overflowX="auto"
+        // Room for the chips' hard shadow and the scrollbar.
+        pb={2}
+        pe={1.5}
+      >
+        {genres.map((genre) => (
+          <Box as="li" key={genre.id} flexShrink={0}>
+            <GenreBadge
+              kind="track"
+              item={{ label: genre.name, slug: genre.slug }}
+              count={genre.track_count}
+            />
+          </Box>
+        ))}
+      </Flex>
+    </Box>
+  );
+}
+
 const GENRES_CRUMB = { label: "Genres", href: "/genres" };
 
 /** A track row with the same ⋯ menu as track search. */
-function GenreTrackRow({ trackId, friendId }: { trackId: string; friendId: number }) {
+function GenreTrackRow({
+  trackId,
+  friendId,
+  layout,
+}: {
+  trackId: string;
+  friendId: number;
+  layout: TrackViewMode;
+}) {
   const track = useTrack(trackId, friendId);
   return (
     <TrackResultStore
       trackId={trackId}
       friendId={friendId}
-      layout="row"
+      layout={layout}
       showUsername={false}
       buttons={track ? [<TrackActionsMenu key="menu" track={track} />] : undefined}
     />
@@ -73,42 +117,43 @@ function GenreContent({
   // from the "base" fallback to desktop, which would fetch twice.
   const isDesktop = useBreakpointValue({ base: false, md: true }, { ssr: false }) === true;
   const albumPageSize = isDesktop ? DESKTOP_ALBUM_PAGE_SIZE : PHONE_ALBUM_PAGE_SIZE;
+  // Below xl the aside sits under the list, so the list must not scroll forever.
+  const isXl = useBreakpointValue({ base: false, xl: true }, { ssr: false }) === true;
+  const { layout, viewMode, setViewMode } = useTrackViewMode();
   const results = useGenreResults(genre.slug, friendId, view, albumPageSize);
   const playback = useGenrePlayback(genre.slug, friendId);
   const { fetchNextPage } = results;
   const loadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
   const sentinelRef = useInfiniteScrollSentinel({
-    hasMore: results.hasNextPage,
+    hasMore: results.hasNextPage && isXl,
     loading: results.isFetchingNextPage,
     onLoadMore: loadMore,
   });
+  const total = view === "albums" ? counts.albums_total : counts.tracks_total;
   const refs = results.data?.pages.flatMap((page) => page.refs) ?? [];
   const emptySlots = (columns: number) =>
     refs.length === 0 ? columns : (columns - (refs.length % columns)) % columns;
-  const actions = (
-    <Flex gap={3} w={{ base: "full", md: "auto" }}>
-      <Button
-        flex={{ base: 1, md: "initial" }}
-        minH="44px"
-        variant="solid"
-        colorPalette="accent"
-        disabled={playback.busy || !stats.playable_tracks}
-        loading={playback.busy}
-        onClick={() => void playback.play(false)}
-      >
-        Play all
-      </Button>
-      <Button
-        flex={{ base: 1, md: "initial" }}
-        minH="44px"
-        variant="outline"
-        disabled={playback.busy || !stats.playable_tracks}
-        onClick={() => void playback.play(true)}
-      >
-        Shuffle
-      </Button>
-    </Flex>
-  );
+  // Play all is the header's one solid button (a play key on phones). Shuffle
+  // is a labelled button on desktop and a kebab item on phones.
+  const unplayable = playback.busy || !stats.playable_tracks;
+  const headerActions: HeaderAction[] = [
+    {
+      label: "Play all",
+      icon: <FiPlay />,
+      onClick: () => void playback.play(false),
+      primary: true,
+      disabled: unplayable,
+      loading: playback.busy,
+      phone: "icon",
+    },
+    {
+      label: "Shuffle",
+      icon: <FiShuffle />,
+      onClick: () => void playback.play(true),
+      disabled: unplayable,
+      phone: "menu",
+    },
+  ];
   const statItems = [
     {
       label: "BPM range",
@@ -142,7 +187,12 @@ function GenreContent({
         >
           {genre.name}
         </PageHeader.Title>
-        <PageHeader.Actions desktop={actions} />
+        <PageHeader.Actions
+          actions={headerActions}
+          desktop={
+            view === "tracks" ? <ViewModeSwitch value={viewMode} onChange={setViewMode} /> : null
+          }
+        />
       </PageHeader>
       <Stack gap={5}>
         {genre.source === "custom" && (
@@ -189,7 +239,6 @@ function GenreContent({
             </Box>
           ))}
         </Grid>
-        <Box display={{ base: "block", md: "none" }}>{actions}</Box>
         {!stats.playable_tracks && (
           <Text color="fg.muted" fontSize="sm">
             No playable tracks in this genre yet.
@@ -200,42 +249,26 @@ function GenreContent({
             {playback.problem}
           </Text>
         )}
+        {!isXl && page.related.length > 0 && (
+          <RelatedChips title={relatedTitle} genres={page.related} />
+        )}
         <Grid
           templateColumns={{ base: "minmax(0, 1fr)", xl: "minmax(0, 1fr) 300px" }}
           gap={{ base: 7, xl: 8 }}
           alignItems="start"
         >
           <Stack gap={4} minW={0}>
-            <Flex
-              role="group"
+            <SegmentedControl
+              framed
               aria-label="Collection view"
               alignSelf={{ base: "stretch", md: "start" }}
-              borderWidth="outline"
-              borderRadius="md"
-              borderColor="border.ink"
-            >
-              {(["albums", "tracks"] as const).map((item, index) => (
-                <Button
-                  key={item}
-                  // One joined strip: only its outer corners are rounded.
-                  borderRadius="0"
-                  borderStartRadius={index === 0 ? innerRadius : undefined}
-                  borderEndRadius={index === 1 ? innerRadius : undefined}
-                  flex={1}
-                  minH="44px"
-                  variant={view === item ? "solid" : "ghost"}
-                  colorPalette="neutral"
-                  boxShadow="none"
-                  borderWidth={0}
-                  aria-pressed={view === item}
-                  onClick={() => setView(item)}
-                >
-                  {item === "albums" ? "Albums" : "Tracks"} [
-                  {(item === "albums" ? counts.albums_total : counts.tracks_total).toLocaleString()}
-                  ]
-                </Button>
-              ))}
-            </Flex>
+              items={[
+                { value: "albums", label: `Albums [${counts.albums_total.toLocaleString()}]` },
+                { value: "tracks", label: `Tracks [${counts.tracks_total.toLocaleString()}]` },
+              ]}
+              value={view}
+              onValueChange={(next) => setView(next as GenreView)}
+            />
             {view === "albums" && page.children.length > 0 && (
               <Box as="section" aria-label="Subgenres" pb={2} pe={1.5}>
                 <GenreCrate title="Subgenres" genres={page.children} maxRows={GENRE_LIST_CAP} />
@@ -304,7 +337,8 @@ function GenreContent({
                       ))}
                   </Grid>
                 ) : (
-                  refs.length > 0 && (
+                  refs.length > 0 &&
+                  (layout === "row" ? (
                     <Box
                       aria-label="Tracks"
                       borderWidth="outline"
@@ -313,15 +347,39 @@ function GenreContent({
                       boxShadow="md"
                       css={{ containerType: "inline-size" }}
                     >
+                      <TrackListHeader />
                       {refs.map((ref) => (
                         <GenreTrackRow
                           key={`${ref.id}:${ref.friend_id}`}
                           trackId={ref.id}
                           friendId={ref.friend_id}
+                          layout="row"
                         />
                       ))}
                     </Box>
-                  )
+                  ) : (
+                    // Cards carry a 14px mb; the 6px rowGap tops it up to the 20px
+                    // column gap. The padding leaves room for their hard shadow.
+                    <Grid
+                      aria-label="Tracks"
+                      templateColumns={{
+                        base: "minmax(0, 1fr)",
+                        md: "repeat(2, minmax(0, 1fr))",
+                      }}
+                      columnGap={5}
+                      rowGap={{ base: 0, md: "6px" }}
+                      p="0 6px 6px 0"
+                    >
+                      {refs.map((ref) => (
+                        <GenreTrackRow
+                          key={`${ref.id}:${ref.friend_id}`}
+                          trackId={ref.id}
+                          friendId={ref.friend_id}
+                          layout="card"
+                        />
+                      ))}
+                    </Grid>
+                  ))
                 )}
               </>
             )}
@@ -342,14 +400,27 @@ function GenreContent({
                 </Button>
               </Box>
             )}
-            {results.hasNextPage && !results.error && (
-              <Box ref={sentinelRef} h="1px" data-testid="genre-results-sentinel" />
-            )}
+            {results.hasNextPage &&
+              !results.error &&
+              (isXl ? (
+                <Box ref={sentinelRef} h="1px" data-testid="genre-results-sentinel" />
+              ) : (
+                <Stack align="start" gap={2}>
+                  <Text color="fg.muted" fontFamily="label" fontSize="xs">
+                    Showing {refs.length.toLocaleString()} of {total.toLocaleString()}
+                  </Text>
+                  <Button minH="44px" loading={results.isFetchingNextPage} onClick={loadMore}>
+                    Show more
+                  </Button>
+                </Stack>
+              ))}
           </Stack>
           <Stack as="aside" aria-label="Genre insights" gap={7} minW={0} pe={1.5}>
-            <Box as="section" aria-label={relatedTitle}>
-              <GenreCrate title={relatedTitle} genres={page.related} maxRows={GENRE_LIST_CAP} />
-            </Box>
+            {isXl && (
+              <Box as="section" aria-label={relatedTitle}>
+                <GenreCrate title={relatedTitle} genres={page.related} maxRows={GENRE_LIST_CAP} />
+              </Box>
+            )}
             {isThin && (
               <Box
                 as="section"

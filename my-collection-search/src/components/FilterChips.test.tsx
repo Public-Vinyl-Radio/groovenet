@@ -49,7 +49,7 @@ describe("FilterChips", () => {
     );
 
     expect(screen.getByRole("button", { name: "Missing audio · 1,041" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "No BPM" })).toBeTruthy();
+    expect(screen.getByTestId("filter-chips").textContent).toContain("No BPM");
   });
 
   it("names an active chip for what its x does, and leaves an inactive one unpressed (#794)", () => {
@@ -90,6 +90,37 @@ describe("FilterChips", () => {
     );
     expect(getComputedStyle(screen.getByTestId("filter-summary")).display).toBe("none");
     expect(getComputedStyle(container.firstElementChild as Element).display).toBe("none");
+  });
+
+  it("renders no desktop row, and keeps none in reserve, with no chips and no count", () => {
+    const { container, rerender } = renderWithProviders(
+      <FilterChips chips={[]} onToggle={vi.fn()} />,
+    );
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.dataset.empty).toBe("true");
+    expect(getComputedStyle(screen.getByTestId("filter-row")).minHeight).not.toBe("32px");
+
+    rerender(<FilterChips chips={chips} onToggle={vi.fn()} />);
+    expect((container.firstElementChild as HTMLElement).dataset.empty).toBeUndefined();
+    expect(screen.getByTestId("filter-chips").textContent).toContain("No BPM");
+
+    rerender(
+      <FilterChips chips={[]} onToggle={vi.fn()} summary="81 albums" summaryOnPhones={false} />,
+    );
+    expect((container.firstElementChild as HTMLElement).dataset.empty).toBeUndefined();
+  });
+
+  it("can show its count on phones only", () => {
+    const { container } = renderWithProviders(
+      <FilterChips
+        chips={[]}
+        onToggle={vi.fn()}
+        summary="81 albums · Oldest"
+        summaryOnDesktop={false}
+      />,
+    );
+    expect(getComputedStyle(container.firstElementChild as Element).display).toBe("block");
+    expect((container.firstElementChild as HTMLElement).dataset.empty).toBe("true");
   });
 
   it("formats a zero count rather than dropping it", () => {

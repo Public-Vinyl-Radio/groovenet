@@ -325,17 +325,19 @@ export default function AlbumResult({
               >
                 {resolvedAlbum.title}
               </Link>
-              <ArtistLink
-                artist={resolvedAlbum.artist}
-                credits={resolvedAlbum.artists}
-                friendId={resolvedAlbum.friend_id}
+              <Text
+                fontSize="14px"
+                lineHeight="20px"
+                fontWeight="500"
+                title={resolvedAlbum.artist}
+                {...ellipsis}
               >
-                {(text) => (
-                  <Text fontSize="14px" lineHeight="20px" fontWeight="500" {...ellipsis}>
-                    {text}
-                  </Text>
-                )}
-              </ArtistLink>
+                <ArtistLink
+                  artist={resolvedAlbum.artist}
+                  credits={resolvedAlbum.artists}
+                  friendId={resolvedAlbum.friend_id}
+                />
+              </Text>
               <Text fontSize="13px" lineHeight="18px" color="fg.muted" {...ellipsis}>
                 {[resolvedAlbum.label, displayYear].filter(Boolean).join(" · ")}
               </Text>
@@ -411,22 +413,19 @@ export default function AlbumResult({
         >
           {resolvedAlbum.title}
         </Link>
-        <ArtistLink
-          artist={resolvedAlbum.artist}
-          credits={resolvedAlbum.artists}
-          friendId={resolvedAlbum.friend_id}
+        <Text
+          fontSize={{ base: "14px", md: "16px" }}
+          lineHeight={{ base: "20px", md: "24px" }}
+          fontWeight="500"
+          title={resolvedAlbum.artist}
+          {...ellipsis}
         >
-          {(text) => (
-            <Text
-              fontSize={{ base: "14px", md: "16px" }}
-              lineHeight={{ base: "20px", md: "24px" }}
-              fontWeight="500"
-              {...ellipsis}
-            >
-              {text}
-            </Text>
-          )}
-        </ArtistLink>
+          <ArtistLink
+            artist={resolvedAlbum.artist}
+            credits={resolvedAlbum.artists}
+            friendId={resolvedAlbum.friend_id}
+          />
+        </Text>
         <Text
           fontSize={{ base: "13px", md: "14px" }}
           lineHeight={{ base: "18px", md: "20px" }}

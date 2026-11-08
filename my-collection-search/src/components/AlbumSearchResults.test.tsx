@@ -166,22 +166,13 @@ describe("AlbumSearchResults layouts (#730)", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
-  it("keeps the sort label with the results after moving the total into the header", async () => {
+  it("has no sort row above the results: sorting lives in the filters modal", () => {
     mocks.searchParams = new URLSearchParams("sort=year:desc");
-    const onSortChange = vi.fn();
-    const { user } = renderWithProviders(
-      <AlbumSearchResults friendId={6} onSortChange={onSortChange} />,
-    );
-    expect(screen.queryByText("1 album")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Sort: Newest Releases" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Title (A-Z)" }));
-    expect(onSortChange).toHaveBeenCalledWith("title:asc");
-  });
-
-  it("has no sort label unless asked for one", () => {
-    mocks.searchParams = new URLSearchParams();
     renderWithProviders(<AlbumSearchResults friendId={6} />);
     expect(screen.queryByRole("button", { name: /Sort/ })).toBeNull();
+    expect(mocks.useAlbumsInfiniteQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "year:desc" }),
+    );
   });
 
   it("reports the total once loaded, and not while loading or failed", async () => {
@@ -217,7 +208,7 @@ describe("AlbumSearchResults layouts (#730)", () => {
     expect(screen.getByText(/boom/)).toBeTruthy();
   });
 
-  it("keeps the sort above an empty result while the total lives in the header", async () => {
+  it("shows no sort row above an empty result either", async () => {
     albumsInStore.list = [];
     mocks.useAlbumsInfiniteQuery.mockReturnValue({
       data: { pages: [{ hits: [], estimatedTotalHits: 0 }] },
@@ -229,9 +220,9 @@ describe("AlbumSearchResults layouts (#730)", () => {
       error: null,
     });
     mocks.searchParams = new URLSearchParams("q=zzz");
-    renderWithProviders(<AlbumSearchResults friendId={6} onSortChange={vi.fn()} />);
+    renderWithProviders(<AlbumSearchResults friendId={6} />);
     expect(screen.queryByText("0 albums")).toBeNull();
-    expect(screen.getByRole("button", { name: /Sort:/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Sort/ })).toBeNull();
     expect(screen.getByText("No albums found.")).toBeTruthy();
   });
 
