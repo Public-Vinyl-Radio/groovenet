@@ -1,9 +1,28 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PageHeader from ".";
+import { InAppNavigationProvider } from "@/providers/InAppNavigationProvider";
+
+const nav = vi.hoisted(() => ({ pathname: "/albums", back: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ back: nav.back }),
+}));
+
+/** Render inside the provider; `navigate` is an in-app route change. */
+function renderWithHistory(header: React.ReactElement) {
+  const ui = () => <InAppNavigationProvider>{header}</InAppNavigationProvider>;
+  const result = renderWithProviders(ui());
+  const navigate = (pathname: string) => {
+    nav.pathname = pathname;
+    act(() => result.rerender(ui()));
+  };
+  return { ...result, navigate };
+}
 
 const action = (label: string, onClick = vi.fn()) => ({ label, icon: <span>i</span>, onClick });
 
@@ -134,6 +153,42 @@ describe("PageHeader", () => {
     it("renders no trail for an empty list", () => {
       renderWithProviders(<PageHeader title="Song" breadcrumbs={[]} />);
       expect(screen.queryByTestId("page-header-breadcrumbs")).toBeNull();
+    });
+
+    it("goes back in history, labelled plain Back, when the previous entry is in-app", async () => {
+      nav.pathname = "/albums";
+      nav.back.mockReset();
+      const { user, navigate } = renderWithHistory(
+        <PageHeader title="Unfinished Sympathy" breadcrumbs={trail} />,
+      );
+      expect(screen.queryByRole("button", { name: "Back", hidden: true })).toBeNull();
+      expect(screen.getByRole("link", { name: "Back to Blue Lines", hidden: true })).toBeTruthy();
+      navigate("/albums/r1");
+      const button = screen.getByRole("button", { name: "Back", hidden: true });
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
+      await user.click(button);
+      expect(nav.back).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("page-header-breadcrumbs")).toBeTruthy();
+    });
+
+    it("keeps the leading override when there is history", () => {
+      nav.pathname = "/albums";
+      const { navigate } = renderWithHistory(
+        <PageHeader title="Song" breadcrumbs={trail} leading={<button>Custom back</button>} />,
+      );
+      navigate("/albums/r1");
+      expect(screen.getByRole("button", { name: "Custom back" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Back", hidden: true })).toBeNull();
+    });
+
+    it("renders no back button without a parent, even with history", () => {
+      nav.pathname = "/albums";
+      const { navigate } = renderWithHistory(
+        <PageHeader title="Albums" breadcrumbs={[{ label: "Albums" }]} />,
+      );
+      navigate("/tracks");
+      expect(screen.queryByRole("button", { name: "Back", hidden: true })).toBeNull();
+      expect(screen.queryByRole("link", { name: /Back to/, hidden: true })).toBeNull();
     });
 
     it("lets an explicit leading replace the generated back button", () => {
