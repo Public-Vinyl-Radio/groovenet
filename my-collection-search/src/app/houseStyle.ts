@@ -110,7 +110,7 @@ const buttonShift = "2px";
 // Every button variant is labelled in the mono face: the line is action versus
 // content, not variant (#687). A button whose text is data (a playlist's name)
 // opts out at the call site with `fontFamily="body"`.
-const buttonLabel: SystemStyleObject = {
+export const buttonLabel: SystemStyleObject = {
   fontFamily: "label",
   fontWeight: "semibold",
   letterSpacing: "0.02em",

@@ -5,6 +5,7 @@ import { Box, Field, NativeSelect } from "@chakra-ui/react";
 import GenreFilter, { IncludeSimilarToggle, SelectedGenreTags } from "@/components/GenreFilter";
 import { ArtistFilterSection, type ArtistFilterControls } from "@/components/ArtistFilter";
 import { optionStates } from "@/components/MissingFilter";
+import { buttonLabel } from "@/app/houseStyle";
 import RetroDialog from "@/components/ui/RetroDialog";
 import { ALBUM_SORT_OPTIONS, albumSortOption } from "@/components/AlbumSortMenu";
 import {
@@ -121,10 +122,9 @@ export function AlbumSortSection({ value, onChange }: AlbumSortControl) {
           value={albumSortOption(value).value}
           onChange={(e) => onChange(e.target.value)}
           minH="44px"
+          // The same label face as the Genre field beside it.
+          {...buttonLabel}
           fontSize="16px"
-          borderWidth="outline"
-          borderColor="border.ink"
-          bg="bg.panel"
         >
           {ALBUM_SORT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
