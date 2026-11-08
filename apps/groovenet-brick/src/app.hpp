@@ -41,7 +41,8 @@ enum class Screen {
   TrackActions,
   Confirm,
   QueueActions,
-  ClearConfirm
+  ClearConfirm,
+  OutputConfirm
 };
 const std::vector<std::string> &scenarios();
 const std::vector<std::string> &screenNames();
@@ -73,7 +74,20 @@ struct Collection {
   size_t loaded = 0;
   bool loading = false;
 };
+struct Output {
+  std::string id, name, assigned, availability;
+  std::vector<std::string> desiredBy;
+  int64_t sourceRevision = -1;
+};
+struct Outputs {
+  std::vector<Output> devices;
+  std::string status = "Open Outputs to discover speakers", token, desired,
+              assigned;
+};
 struct Snapshot {
+  Outputs routing;
+  std::string outputApproval;
+  bool outputUnknown = false, outputTakeover = false;
   Collection collection;
   std::string commandToken;
   std::string status, player, playerId, acknowledgment,
@@ -84,7 +98,7 @@ struct Snapshot {
   int volume = 55, position = 42;
   std::vector<Track> queue;
   size_t currentIndex = 0;
-  std::vector<std::string> players, playlists, outputs;
+  std::vector<std::string> players, playlists;
   std::vector<std::string> playerIds;
 };
 // Shared by the deterministic mock and asynchronous REST/SSE adapter.
@@ -98,6 +112,9 @@ public:
   virtual void advance(int milliseconds) = 0;
   virtual void refresh() = 0;
   virtual void acknowledge() {}
+  virtual void browseOutputs() = 0;
+  virtual void output(const std::string &body, const std::string &token,
+                      bool allowUnknown = false, bool takeover = false) = 0;
   virtual void editQueue(QueueEdit edit, const std::string &entry,
                          const std::string &token) = 0;
   virtual void browse(int64_t id = 0, bool more = false) = 0;
@@ -117,6 +134,8 @@ public:
                    const std::string &token) override;
   void editQueue(QueueEdit edit, const std::string &entry,
                  const std::string &token) override;
+  void browseOutputs() override {}
+  void output(const std::string &, const std::string &, bool, bool) override;
   void refresh() override {} // Mock state is already authoritative.
 private:
   Snapshot state_;
@@ -149,10 +168,14 @@ private:
   std::unique_ptr<DataAdapter> data_;
   Screen screen_ = Screen::NowPlaying;
   std::vector<Screen> history_;
-  std::array<size_t, 11> focus_{};
+  std::array<size_t, 12> focus_{};
   std::optional<size_t> selectedTrack_;
+  bool outputUnknown_ = false, outputTakeover_ = false;
+  std::string outputBody_, outputToken_, outputLabel_;
   std::string queueToken_, selectedEntry_, focusedEntry_, focusedPlayer_;
   void rememberQueueFocus();
+  void rememberOutputFocus();
+  std::string focusedOutput_, outputPlayer_;
   bool running_ = true, suspended_ = false;
 };
 std::string timing(const Snapshot &snapshot);

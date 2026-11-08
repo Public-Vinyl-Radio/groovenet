@@ -268,6 +268,7 @@ RestClient::request(const std::string &path, const std::string &body,
             NetworkError("Speaker availability unknown: approval is required");
       else if (code == "DEVICE_BUSY")
         error = NetworkError("Engine takeover requires explicit approval");
+      error.code = code;
       error.acknowledgment = status == 409 || code == "DEVICE_BUSY" ||
                              code == "SPEAKER_OCCUPIED" ||
                              code == "AVAILABILITY_UNKNOWN";
@@ -652,6 +653,117 @@ std::string queueEditCommand(const Snapshot &state, QueueEdit edit,
   }
   return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
 }
+Outputs outputList(const std::string &devices, const std::string &players,
+                   const std::string &selected) {
+  auto root = parse(devices), list = parse(players);
+  auto *rows = field(root.get(), "devices", json_type_array);
+  auto *people = field(list.get(), "players", json_type_array);
+  if (json_object_array_length(rows) > 1000 ||
+      json_object_array_length(people) > 1000)
+    throw NetworkError("Output discovery exceeds size limit");
+  Outputs result;
+  auto token = [&](const std::string &value) {
+    result.token += std::to_string(value.size()) + ":" + value;
+  };
+  for (size_t i = 0; i < json_object_array_length(people); ++i) {
+    auto *p = json_object_array_get_idx(people, i);
+    if (str(p, "id") == selected) {
+      result.assigned = nullable(p, "assigned_output");
+      result.desired =
+          nullable(field(p, "state", json_type_object), "desired_output");
+    }
+  }
+  token(result.desired);
+  token(result.assigned);
+  std::unordered_set<std::string> ids;
+  for (size_t i = 0; i < json_object_array_length(rows); ++i) {
+    auto *row = json_object_array_get_idx(rows, i);
+    Output d;
+    d.id = str(row, "id");
+    if (d.id.empty() || d.id.size() > 255 || !ids.insert(d.id).second)
+      throw NetworkError("Malformed output identity");
+    d.name = str(row, "name");
+    d.assigned = nullable(row, "assigned_player_id");
+    d.availability =
+        str(field(row, "observed", json_type_object), "availability");
+    if (d.availability != "idle" && d.availability != "occupied" &&
+        d.availability != "unknown")
+      throw NetworkError("Malformed speaker observation");
+    auto *desired = field(row, "desired_by", json_type_array);
+    if (json_object_array_length(desired) > 1000)
+      throw NetworkError("Output discovery exceeds size limit");
+    for (size_t j = 0; j < json_object_array_length(desired); ++j) {
+      auto *v = json_object_array_get_idx(desired, j);
+      if (!v || json_object_get_type(v) != json_type_string)
+        throw NetworkError("Malformed desired assignment");
+      d.desiredBy.push_back(json_object_get_string(v));
+    }
+    for (size_t j = 0; j < json_object_array_length(people); ++j) {
+      auto *p = json_object_array_get_idx(people, j);
+      if (str(p, "id") == d.assigned)
+        d.sourceRevision = number(p, "revision");
+    }
+    token(d.id);
+    token(d.name);
+    token(d.assigned);
+    token(d.availability);
+    token(std::to_string(d.sourceRevision));
+    token(std::to_string(d.desiredBy.size()));
+    for (const auto &id : d.desiredBy)
+      token(id);
+    result.devices.push_back(std::move(d));
+  }
+  result.status =
+      "Desired: " + (result.desired.empty() ? "none" : result.desired) +
+      " · Assigned: " + (result.assigned.empty() ? "none" : result.assigned);
+  if (!result.desired.empty() && !ids.count(result.desired))
+    result.status += " · Desired output lost";
+  return result;
+}
+std::string outputCommand(const Output &d, const std::string &player) {
+  Json root(json_object_new_object(), json_object_put);
+  bool transfer = !d.assigned.empty() && d.assigned != player;
+  json_object_object_add(
+      root.get(), "type",
+      json_object_new_string(transfer ? "output.transfer" : "output.select"));
+  json_object_object_add(root.get(), "output_id",
+                         json_object_new_string(d.id.c_str()));
+  if (transfer) {
+    if (!identifier(d.assigned) || d.sourceRevision < 0)
+      throw NetworkError("Source assignment changed; refresh Outputs");
+    json_object_object_add(root.get(), "from_player_id",
+                           json_object_new_string(d.assigned.c_str()));
+    json_object_object_add(root.get(), "from_revision",
+                           json_object_new_int64(d.sourceRevision));
+    json_object_object_add(root.get(), "play", json_object_new_boolean(false));
+  }
+  return json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN);
+}
+std::string outputResult(const std::string &json) {
+  auto root = parse(json);
+  json_object *transfer = nullptr;
+  if (!json_object_object_get_ex(root.get(), "transfer", &transfer))
+    return "Output request accepted; checking actual assignments";
+  bool detached =
+      json_object_get_boolean(field(transfer, "detached", json_type_boolean));
+  bool attached =
+      json_object_get_boolean(field(transfer, "attached", json_type_boolean));
+  json_object *error = nullptr;
+  if (!json_object_object_get_ex(transfer, "error", &error))
+    throw NetworkError("Malformed transfer result");
+  std::string reason;
+  if (error) {
+    auto code = str(error, "code");
+    reason = code == "DEVICE_BUSY"        ? " · Engine conflict"
+             : code == "SPEAKER_OCCUPIED" ? " · Speaker occupied"
+             : code == "AVAILABILITY_UNKNOWN"
+                 ? " · Availability unknown"
+                 : " · Server could not complete transfer";
+  }
+  return std::string(error ? "Partial transfer failed" : "Transfer confirmed") +
+         " · Source " + (detached ? "detached" : "retains assignment") +
+         " · Target " + (attached ? "attached" : "not attached") + reason;
+}
 namespace {
 class LiveData final : public DataAdapter {
 public:
@@ -667,6 +779,7 @@ public:
     published_.view = state_;
     metadataThread_ = std::thread([this] { metadataLoop(); });
     thread_ = std::thread([this] { run(); });
+    outputThread_ = std::thread([this] { outputLoop(); });
     collectionThread_ = std::thread([this] { collectionLoop(); });
   }
   ~LiveData() override {
@@ -675,6 +788,8 @@ public:
     wake_.notify_all();
     metadataWake_.notify_all();
     collectionWake_.notify_all();
+    outputWake_.notify_all();
+    outputThread_.join();
     thread_.join();
     collectionThread_.join();
     metadataThread_.join();
@@ -699,6 +814,10 @@ public:
   void refresh() override {
     std::lock_guard<std::mutex> lock(mutex_);
     pending_.clear();
+    outputWrite_ = false;
+    published_.view.outputApproval.clear();
+    published_.view.outputUnknown = published_.view.outputTakeover = false;
+    published_.view.routing.token.clear();
     published_.view.refreshing =
         published_.view.connected || published_.view.refreshing;
     published_.view.connected = false;
@@ -712,6 +831,9 @@ public:
     if (index >= state_.playerIds.size())
       return;
     selected_ = state_.playerIds[index];
+    published_.view.routing = Outputs{};
+    published_.view.outputApproval.clear();
+    published_.view.outputUnknown = published_.view.outputTakeover = false;
     published_.view.player = state_.players[index];
     published_.view.playerId = selected_;
     published_.view.status = "Connecting to selected player";
@@ -723,6 +845,10 @@ public:
       persistenceWarning_ = e.what();
     }
     pending_.clear();
+    outputWrite_ = false;
+    published_.view.outputApproval.clear();
+    published_.view.outputUnknown = published_.view.outputTakeover = false;
+    published_.view.routing.token.clear();
     published_.view.connected = false;
     published_.view.queue.clear();
     published_.view.refreshing = false;
@@ -796,6 +922,53 @@ public:
     }
     ++serial_;
   }
+  void browseOutputs() override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    outputsOpen_ = true;
+    ++outputVersion_;
+    published_.view.routing.token.clear();
+    published_.view.routing.status = "Discovering outputs…";
+    ++serial_;
+    outputWake_.notify_all();
+  }
+  void output(const std::string &body, const std::string &token,
+              bool allowUnknown, bool takeover) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!pending_.empty() || !published_.view.acknowledgment.empty())
+      return;
+    try {
+      if (!published_.view.connected || token.empty() ||
+          token != published_.view.commandToken + "|" +
+                       published_.view.routing.token)
+        throw NetworkError(
+            "Outputs or player changed; review and choose again");
+      auto root = parse(body);
+      if (allowUnknown)
+        json_object_object_add(root.get(), "allow_unknown",
+                               json_object_new_boolean(true));
+      if (takeover)
+        json_object_object_add(root.get(), "takeover",
+                               json_object_new_boolean(true));
+      pending_ = published_.command(
+          json_object_to_json_string_ext(root.get(), JSON_C_TO_STRING_PLAIN));
+      outputWrite_ = true;
+      requestedRouting_ = published_.view.routing.token;
+      requestedUnknown_ = allowUnknown;
+      requestedTakeover_ = takeover;
+      published_.view.outputApproval.clear();
+      published_.view.outputUnknown = published_.view.outputTakeover = false;
+      published_.view.connected = false;
+      published_.view.refreshing = true;
+      published_.view.routing.token.clear();
+      published_.view.routing.status =
+          "Output request pending; awaiting server confirmation";
+      ++generation_;
+      wake_.notify_all();
+    } catch (const NetworkError &e) {
+      published_.view.acknowledgment = e.what();
+    }
+    ++serial_;
+  }
   void command(Action action) override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!published_.view.connected || !published_.view.acknowledgment.empty() ||
@@ -836,6 +1009,54 @@ public:
   }
 
 private:
+  std::thread outputThread_;
+  std::condition_variable outputWake_;
+  bool outputsOpen_ = false, outputWrite_ = false;
+  unsigned outputVersion_ = 0;
+  void outputLoop() {
+    try {
+      RestClient api(config_);
+      while (!stop_) {
+        std::string id;
+        unsigned generation, version;
+        {
+          std::unique_lock<std::mutex> lock(mutex_);
+          outputWake_.wait_for(lock, std::chrono::seconds(2));
+          if (stop_)
+            return;
+          if (!outputsOpen_ || selected_.empty())
+            continue;
+          id = selected_;
+          generation = generation_;
+          version = outputVersion_;
+        }
+        auto cancel = [this, generation] {
+          return stop_ || generation != generation_;
+        };
+        Outputs routing;
+        try {
+          auto devices =
+              api.request("/api/players/" + id + "/devices", "", true, cancel);
+          auto players = api.request("/api/players", "", true, cancel);
+          routing = outputList(devices, players, id);
+        } catch (const NetworkError &e) {
+          routing.status = e.what();
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (cancel() || version != outputVersion_)
+          continue;
+        if (!published_.view.outputApproval.empty() &&
+            routing.token != approvalRouting_) {
+          published_.view.outputApproval.clear();
+          published_.view.outputUnknown = published_.view.outputTakeover =
+              false;
+        }
+        published_.view.routing = std::move(routing);
+        ++serial_;
+      }
+    } catch (const NetworkError &) {
+    }
+  }
   LiveConfig config_;
   Snapshot state_;
   PlayerState published_, display_;
@@ -920,12 +1141,28 @@ private:
   std::atomic<bool> stop_{false};
   std::atomic<unsigned> generation_{0};
   std::string selected_, pending_, persistenceWarning_;
+  int64_t approvalRevision_ = -1;
+  uint64_t approvalConnection_ = 0;
+  std::string approvalPlayer_, approvalWorker_, requestedRouting_,
+      approvalRouting_;
+  bool requestedUnknown_ = false, requestedTakeover_ = false;
   void publish(const PlayerState &session, unsigned generation,
                const std::string &collectionStatus = "") {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!stop_ && generation == generation_) {
       auto next = session;
       next.view.collection = published_.view.collection;
+      next.view.routing = published_.view.routing;
+      if (next.id == approvalPlayer_ && next.revision == approvalRevision_ &&
+          next.worker == approvalWorker_ &&
+          connection_ == approvalConnection_) {
+        next.view.outputApproval = published_.view.outputApproval;
+        next.view.outputUnknown = published_.view.outputUnknown;
+        next.view.outputTakeover = published_.view.outputTakeover;
+      } else {
+        next.view.outputApproval.clear();
+        next.view.outputUnknown = next.view.outputTakeover = false;
+      }
       if (!collectionStatus.empty())
         next.view.collection.status = collectionStatus;
       next.view.commandToken = next.id + "/" + next.worker + "/" +
@@ -1026,6 +1263,7 @@ private:
         unsigned generation;
         PlayerState session;
         std::string write;
+        bool outputWrite;
         {
           std::lock_guard<std::mutex> lock(mutex_);
           generation = generation_.load();
@@ -1037,6 +1275,8 @@ private:
           ++metadataVersion_;
           session = published_;
           session.id = selected_;
+          outputWrite = outputWrite_;
+          outputWrite_ = false;
           write = std::move(pending_);
           pending_.clear();
         }
@@ -1049,14 +1289,38 @@ private:
           // any failure.
           if (!write.empty() && !session.id.empty()) {
             try {
-              api.request("/api/players/" + session.id + "/commands", write,
-                          true, cancel);
-              problem = "Player updated; review shared queue";
+              auto response =
+                  api.request("/api/players/" + session.id + "/commands", write,
+                              true, cancel);
+              problem = outputWrite ? outputResult(response)
+                                    : "Player updated; review shared queue";
+              if (outputWrite) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (!cancel())
+                  published_.view.acknowledgment = problem;
+              }
             } catch (const NetworkError &e) {
               if (e.acknowledgment) {
                 std::lock_guard<std::mutex> lock(mutex_);
                 if (!cancel()) {
                   published_.view.acknowledgment = e.what();
+                  if (outputWrite &&
+                      write.find("\"type\":\"play\"") != std::string::npos &&
+                      (e.code == "AVAILABILITY_UNKNOWN" ||
+                       e.code == "SPEAKER_OCCUPIED" ||
+                       e.code == "DEVICE_BUSY")) {
+                    approvalRevision_ = session.revision;
+                    approvalPlayer_ = session.id;
+                    approvalWorker_ = session.worker;
+                    approvalConnection_ = connection_;
+                    approvalRouting_ = requestedRouting_;
+                    published_.view.outputApproval = e.code;
+                    published_.view.outputUnknown =
+                        requestedUnknown_ || e.code == "AVAILABILITY_UNKNOWN";
+                    published_.view.outputTakeover =
+                        requestedTakeover_ || e.code == "SPEAKER_OCCUPIED" ||
+                        e.code == "DEVICE_BUSY";
+                  }
                   ++serial_;
                 }
               }

@@ -17,6 +17,7 @@ struct LiveConfig {
 struct NetworkError : std::runtime_error {
   using std::runtime_error::runtime_error;
   bool acknowledgment = false;
+  std::string code;
 };
 // Incremental bounded SSE framing. No replay IDs are retained or sent.
 class EventDecoder {
@@ -69,6 +70,10 @@ private:
   std::chrono::steady_clock::time_point observed_ =
       std::chrono::steady_clock::now();
 };
+Outputs outputList(const std::string &devices, const std::string &players,
+                   const std::string &selected);
+std::string outputCommand(const Output &output, const std::string &player);
+std::string outputResult(const std::string &json);
 Collection playlistList(const std::string &json);
 Collection playlistTracks(const std::string &json);
 std::string queueCommand(const std::vector<Track> &tracks, bool play,

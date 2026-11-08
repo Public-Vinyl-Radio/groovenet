@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <json-c/json.h>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -53,8 +54,18 @@ MockData::MockData(const std::string &scenario) {
   state_.playerIds = {"lounge", "studio", "kitchen"};
   state_.players = {"Lounge", "Studio", "Kitchen"};
   state_.playlists = {"After hours", "Warm-up selections", "Sunday records"};
-  state_.outputs = {"Lounge speakers (selected)", "Studio speakers (available)",
-                    "Kitchen speaker (offline)"};
+  state_.routing.devices = {
+      {"lounge-speaker", "Lounge speakers", "lounge", "idle", {"lounge"}, 1},
+      {"studio-speaker",
+       "Studio speakers",
+       "studio",
+       "occupied",
+       {"studio"},
+       1},
+      {"kitchen-speaker", "Kitchen speaker", "", "unknown", {}, -1}};
+  state_.routing.desired = state_.routing.assigned = "lounge-speaker";
+  state_.routing.token = "mock";
+  state_.routing.status = "Desired: lounge-speaker · Assigned: lounge-speaker";
   state_.queue = {{"Days To Come", "Bonobo", "Days To Come", 300, true},
                   {"Les Nuits", "Nightmares on Wax", "Carboot Soul", 380, true},
                   {"So Flute", "St Germain", "Tourist", 490, true}};
@@ -204,6 +215,65 @@ void MockData::editQueue(QueueEdit edit, const std::string &entry,
     state_.acknowledgment = e.what();
   }
 }
+void MockData::output(const std::string &body, const std::string &,
+                      bool unknown, bool takeover) {
+  if (!state_.connected || !state_.available || state_.loading ||
+      !state_.acknowledgment.empty())
+    return;
+  auto *root = json_tokener_parse(body.c_str());
+  if (!root)
+    return;
+  auto *value = json_object_object_get(root, "output_id");
+  std::string id =
+      value ? json_object_get_string(value) : state_.routing.desired;
+  bool play = !value;
+  json_object_put(root);
+  auto it =
+      std::find_if(state_.routing.devices.begin(), state_.routing.devices.end(),
+                   [&](const Output &d) { return d.id == id; });
+  if (it == state_.routing.devices.end())
+    return;
+  state_.outputApproval.clear();
+  if (play && !it->assigned.empty() && it->assigned != state_.playerId) {
+    state_.acknowledgment =
+        "Speaker belongs to another player; choose explicit transfer";
+    return;
+  }
+  if (play && ((it->availability == "unknown" && !unknown) ||
+               (it->availability == "occupied" && !takeover))) {
+    state_.outputApproval = it->availability == "unknown"
+                                ? "AVAILABILITY_UNKNOWN"
+                                : "SPEAKER_OCCUPIED";
+    state_.outputUnknown = unknown || it->availability == "unknown";
+    state_.outputTakeover = takeover || it->availability == "occupied";
+    state_.acknowledgment =
+        it->availability == "unknown"
+            ? "Speaker availability unknown: approval is required"
+            : "Speaker busy: explicit takeover is required";
+    return;
+  }
+  state_.outputUnknown = state_.outputTakeover = false;
+  for (auto &d : state_.routing.devices) {
+    if (d.assigned == state_.playerId || d.id == id)
+      d.assigned.clear();
+    d.desiredBy.erase(
+        std::remove(d.desiredBy.begin(), d.desiredBy.end(), state_.playerId),
+        d.desiredBy.end());
+  }
+  state_.routing.desired = id;
+  state_.routing.assigned = play ? id : "";
+  it->desiredBy.push_back(state_.playerId);
+  if (play)
+    it->assigned = state_.playerId;
+  state_.playing = play;
+  state_.playbackState = play ? "playing" : "stopped";
+  state_.routing.status =
+      "Desired: " + id + " · Assigned: " + (play ? id : "none");
+  state_.routing.token += "+";
+  state_.acknowledgment =
+      play ? "Mock playback confirmed"
+           : "Mock selection confirmed; affected players stopped";
+}
 void MockData::advance(int milliseconds) {
   if (milliseconds <= 0 || !state_.playing || !state_.connected ||
       !state_.available || state_.loading || state_.queue.empty())
@@ -280,8 +350,20 @@ std::vector<std::string> App::rows() const {
             "Move down"};
   case Screen::ClearConfirm:
     return {"Cancel", "Clear shared queue and stop"};
-  case Screen::Outputs:
-    return state.outputs;
+  case Screen::OutputConfirm:
+    return {"Cancel", outputLabel_};
+  case Screen::Outputs: {
+    std::vector<std::string> rows{"Play desired output…"};
+    for (const auto &d : state.routing.devices) {
+      std::string row = d.name + " [" + d.id + "] · observed " + d.availability;
+      row += " · assigned " + (d.assigned.empty() ? "none" : d.assigned);
+      row += " · desired by";
+      for (const auto &id : d.desiredBy)
+        row += " " + id;
+      rows.push_back(row);
+    }
+    return rows;
+  }
   case Screen::Queue: {
     std::vector<std::string> rows{
         state.queue.empty() ? "Queue empty · Clear queue…" : "Clear queue…"};
@@ -343,7 +425,8 @@ void App::handle(Action action) {
   }
   if (action == Action::Menu) {
     if (screen_ == Screen::TrackActions || screen_ == Screen::Confirm ||
-        screen_ == Screen::QueueActions || screen_ == Screen::ClearConfirm) {
+        screen_ == Screen::QueueActions || screen_ == Screen::ClearConfirm ||
+        screen_ == Screen::OutputConfirm) {
       history_.clear();
       screen_ = Screen::NowPlaying;
     }
@@ -367,6 +450,61 @@ void App::handle(Action action) {
         open(static_cast<Screen>(focus));
         if (screen_ == Screen::Playlists)
           data_->browse();
+        if (screen_ == Screen::Outputs)
+          data_->browseOutputs();
+      } else if (screen_ == Screen::Outputs) {
+        try {
+          if (snapshot().routing.token.empty())
+            throw NetworkError("Wait for fresh output discovery");
+          if (!focus && (snapshot().routing.desired.empty() ||
+                         std::none_of(snapshot().routing.devices.begin(),
+                                      snapshot().routing.devices.end(),
+                                      [&](const Output &d) {
+                                        return d.id ==
+                                               snapshot().routing.desired;
+                                      })))
+            throw NetworkError(
+                "Desired output missing; choose a discovered output first");
+          outputBody_ =
+              focus ? outputCommand(snapshot().routing.devices.at(focus - 1),
+                                    snapshot().playerId)
+                    : "{\"type\":\"play\"}";
+          outputLabel_ = focus ? "Select output; stop affected players"
+                         : snapshot().outputApproval == "AVAILABILITY_UNKNOWN"
+                             ? "Allow unknown status and play"
+                         : snapshot().outputApproval == "SPEAKER_OCCUPIED"
+                             ? "Take over occupied speaker and play"
+                         : snapshot().outputApproval == "DEVICE_BUSY"
+                             ? "Take over engine playback and play"
+                             : "Play desired output using server policy";
+          outputUnknown_ = !focus && snapshot().outputUnknown;
+          outputTakeover_ = !focus && snapshot().outputTakeover;
+          outputToken_ =
+              snapshot().commandToken + "|" + snapshot().routing.token;
+          open(Screen::OutputConfirm);
+          focus_[static_cast<size_t>(Screen::OutputConfirm)] = 0;
+          if (focus) {
+            const auto &d = snapshot().routing.devices.at(focus - 1);
+            notice_ = "Stop target " + snapshot().playerId;
+            if (!d.assigned.empty() && d.assigned != snapshot().playerId)
+              notice_ += " and detach source " + d.assigned;
+            notice_ += "; remember " + d.id + "; no playback starts";
+          } else {
+            notice_ = "Play desired output: " + snapshot().routing.desired;
+            if (outputTakeover_)
+              notice_ += "; may interrupt existing speaker or engine playback";
+            if (outputUnknown_)
+              notice_ += "; speaker use cannot be verified";
+          }
+        } catch (const NetworkError &e) {
+          notice_ = e.what();
+        }
+      } else if (screen_ == Screen::OutputConfirm) {
+        if (focus == 1)
+          data_->output(outputBody_, outputToken_, outputUnknown_,
+                        outputTakeover_);
+        screen_ = history_.back();
+        history_.pop_back();
       } else if (screen_ == Screen::Players) {
         data_->selectPlayer(focus);
         notice_ = "Following " + items[focus] + " · playback unchanged";
@@ -418,16 +556,19 @@ void App::handle(Action action) {
           data_->queueTracks(true, selectedTrack_, queueToken_);
         screen_ = history_.back();
         history_.pop_back();
-      } else
-        notice_ = "Navigation preview · output controls follow in #1101";
+      }
     }
   }
+  if (screen_ == Screen::Outputs &&
+      (action == Action::Up || action == Action::Down))
+    rememberOutputFocus();
   if (screen_ == Screen::Queue &&
       (action == Action::Up || action == Action::Down ||
        action == Action::Left || action == Action::Right))
     rememberQueueFocus();
   if (screen_ == Screen::Confirm || screen_ == Screen::TrackActions ||
       screen_ == Screen::QueueActions || screen_ == Screen::ClearConfirm ||
+      screen_ == Screen::OutputConfirm || screen_ == Screen::Outputs ||
       (screen_ == Screen::Queue &&
        (action == Action::Left || action == Action::Right)))
     return;
@@ -460,11 +601,30 @@ void App::advance(int milliseconds) {
                        : static_cast<size_t>(it - state.queue.begin()) + 1;
     }
     rememberQueueFocus();
+    auto &outputFocus = focus_[static_cast<size_t>(Screen::Outputs)];
+    if (outputPlayer_ != state.playerId)
+      outputFocus = 0;
+    else if (!focusedOutput_.empty()) {
+      auto it = std::find_if(
+          state.routing.devices.begin(), state.routing.devices.end(),
+          [&](const Output &d) { return d.id == focusedOutput_; });
+      outputFocus =
+          it == state.routing.devices.end()
+              ? 0
+              : static_cast<size_t>(it - state.routing.devices.begin()) + 1;
+    }
+    rememberOutputFocus();
     auto count = rows().size();
     auto &focus = focus_[static_cast<size_t>(screen_)];
     if (count == 0 || focus >= count)
       focus = 0;
   }
+}
+void App::rememberOutputFocus() {
+  auto index = focus_[static_cast<size_t>(Screen::Outputs)];
+  outputPlayer_ = snapshot().playerId;
+  // Both callers reconcile focus against the current discovery first.
+  focusedOutput_ = index ? snapshot().routing.devices.at(index - 1).id : "";
 }
 void App::rememberQueueFocus() {
   auto index = focus_[static_cast<size_t>(Screen::Queue)];

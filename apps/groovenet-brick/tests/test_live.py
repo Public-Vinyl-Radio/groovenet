@@ -20,6 +20,13 @@ player_key, collection_key = secrets.token_urlsafe(32), secrets.token_urlsafe(32
 commands = []
 playlist_commands = []
 queue_commands = []
+output_commands = []
+output_lost = False
+output_idle = False
+output_discovery_fail = False
+output_hold = False
+output_started = threading.Event()
+output_release = threading.Event()
 collection_started = threading.Event()
 command_release = threading.Event()
 streams = []
@@ -84,7 +91,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return True
 
     def do_GET(self):
-        global reordered, order_listed, flaky_art_requests
+        global reordered, order_listed, flaky_art_requests, output_lost, output_idle, output_discovery_fail, output_hold
+        output_mode = self.path.startswith("/outputs/")
+        if output_mode:
+            self.path = self.path.removeprefix("/outputs")
         racing = self.path.startswith("/race/")
         if racing:
             self.path = self.path.removeprefix("/race")
@@ -128,6 +138,51 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.reply(422 if code in ("DEVICE_BUSY", "NO_AUDIO") else 409, {"code": code})
             if self.path == "/bad-error":
                 return self.reply(409, {})
+            if output_mode:
+                if self.path == "/hold-discovery":
+                    output_hold = True
+                    output_started.clear()
+                    output_release.clear()
+                    return self.reply(200, {})
+                if self.path == "/discovery-started":
+                    return self.reply(200, {"ready": output_started.is_set()})
+                if self.path == "/release-discovery":
+                    output_hold = False
+                    output_release.set()
+                    return self.reply(200, {})
+                if self.path == "/discovery-fail":
+                    output_discovery_fail = True
+                    return self.reply(200, {})
+                if self.path == "/idle-output":
+                    output_idle = True
+                    return self.reply(200, {})
+                if self.path == "/lose-output":
+                    output_lost = True
+                    return self.reply(200, {})
+                def output_player(identity="a"):
+                    p = player(identity)
+                    p["assigned_output"] = "speaker" if identity == "b" and len(output_commands) < 4 else None
+                    p["state"]["desired_output"] = "speaker"
+                    return p
+                if self.path == "/api/players":
+                    return self.reply(200, {"players": [output_player(), output_player("b")]})
+                if self.path.endswith("/devices"):
+                    if output_hold:
+                        output_started.set()
+                        assert output_release.wait(5)
+                    if output_discovery_fail:
+                        return self.reply(503, {})
+                    return self.reply(200, {"devices": [] if output_lost else [{"id": "speaker", "name": "Room", "assigned_player_id": "b" if len(output_commands) < 4 else None, "desired_by": ["a", "b"], "observed": {"availability": "idle" if output_idle else "unknown"}}]})
+                if self.path.endswith("/events"):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+                    self.wfile.write(("data: " + json.dumps({"type": "snapshot", "player": output_player(), "worker_instance": "output-worker", "sequence": 1}) + "\n\n").encode())
+                    self.wfile.flush()
+                    time.sleep(10)
+                    return
+                if self.path == "/api/players/a":
+                    return self.reply(200, output_player())
             if self.path == "/api/players":
                 rows = [player(), player("b")]
                 if reordered:
@@ -203,6 +258,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
+        output_mode = self.path.startswith("/outputs/")
+        if output_mode:
+            self.path = self.path.removeprefix("/outputs")
         racing = self.path.startswith("/race/")
         if racing:
             self.path = self.path.removeprefix("/race")
@@ -237,6 +295,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     }
                 ],
             )
+        if output_mode:
+            output_commands.append(body)
+            n = len(output_commands)
+            assert body["expected_revision"] == 5
+            if n <= 3:
+                assert body["type"] == "play"
+                assert bool(body.get("allow_unknown")) == (n >= 2)
+                assert bool(body.get("takeover")) == (n >= 3)
+                return self.reply(409, {"code": ["AVAILABILITY_UNKNOWN", "SPEAKER_OCCUPIED", "DEVICE_BUSY"][n - 1]})
+            if n == 4:
+                assert body["type"] == "output.transfer" and body["from_revision"] == 5
+                assert not body.get("play") and not body.get("takeover") and not body.get("allow_unknown")
+                return self.reply(200, {"transfer": {"detached": True, "attached": False, "error": {"code": "DEVICE_BUSY"}}})
+            if n == 5:
+                return self.reply(409, {"code": "REVISION_CONFLICT"})
+            if n in (8, 9, 10):
+                assert body["type"] == "play" and not body.get("allow_unknown") and not body.get("takeover")
+                return self.reply(409, {"code": {8: "REVISION_CONFLICT", 9: "SPEAKER_OCCUPIED", 10: "DEVICE_BUSY"}[n]})
+            if n == 6:
+                self.connection.shutdown(socket.SHUT_RDWR)
+                self.connection.close()
+                return
+            return self.reply(200, {})
         assert self.path.endswith("/commands")
         if "entry_id" in body or body["type"] == "queue.clear":
             queue_commands.append(body)
@@ -356,6 +437,8 @@ with tempfile.TemporaryDirectory() as directory:
         )
         subprocess.run([binary, "playlists"], env=environment, check=True, timeout=40)
         subprocess.run([binary, "browse-ui"], env=environment, check=True, timeout=30)
+        subprocess.run([binary, "outputs"], env=environment, check=True, timeout=60)
+        assert len(output_commands) == 10, "output writes must never replay"
         subprocess.run([binary, "queue-edits"], env=environment, check=True, timeout=40)
         assert len(queue_commands) == 6, "queue edits must never be replayed"
         assert len(playlist_commands) == 4, "no automatic queue retries"
