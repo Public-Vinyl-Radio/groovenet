@@ -76,6 +76,14 @@ void queueTests() {
   app.advance(0);
   check(app.snapshot().queue.empty() && !app.snapshot().playing &&
         app.focus() == 0);
+  App cancelClear("mock", "playing");
+  for (auto action : {Action::Menu, Action::Down, Action::Down, Action::Down,
+                      Action::Select, Action::Select})
+    cancelClear.handle(action);
+  check(cancelClear.screen() == Screen::ClearConfirm);
+  cancelClear.handle(Action::Menu);
+  check(cancelClear.screen() == Screen::Menu &&
+        cancelClear.snapshot().queue.size() == 3);
   App move("mock", "playing");
   for (auto action :
        {Action::Menu, Action::Down, Action::Down, Action::Down, Action::Select,

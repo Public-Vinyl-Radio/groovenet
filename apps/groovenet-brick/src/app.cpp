@@ -211,8 +211,7 @@ void MockData::advance(int milliseconds) {
   remainder_ += milliseconds;
   state_.position += remainder_ / 1000;
   remainder_ %= 1000;
-  if (state_.currentIndex < state_.queue.size() &&
-      state_.queue[state_.currentIndex].duration &&
+  if (state_.queue[state_.currentIndex].duration &&
       state_.position >= *state_.queue[state_.currentIndex].duration)
     command(Action::Next);
 }
@@ -470,9 +469,8 @@ void App::advance(int milliseconds) {
 void App::rememberQueueFocus() {
   auto index = focus_[static_cast<size_t>(Screen::Queue)];
   focusedPlayer_ = snapshot().playerId;
-  focusedEntry_ = index && index <= snapshot().queue.size()
-                      ? snapshot().queue[index - 1].entryId
-                      : "";
+  // Callers reconcile or clamp queue focus before recording its identity.
+  focusedEntry_ = index ? snapshot().queue.at(index - 1).entryId : "";
 }
 std::string timing(const Snapshot &snapshot) {
   if (snapshot.currentIndex >= snapshot.queue.size() ||
