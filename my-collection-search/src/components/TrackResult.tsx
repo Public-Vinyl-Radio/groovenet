@@ -94,6 +94,9 @@ export const trackRowGridCss = {
 };
 /** Three lines (title, artist, album) plus padding; also the virtualiser's `estimateSize`. */
 export const TRACK_ROW_HEIGHT = 80;
+/** Cover sizes of the track card and row; `AlbumResult` imports them so the two lists stay matched. */
+export const TRACK_CARD_COVER_SIZE = { base: "64px", md: "120px" };
+export const TRACK_ROW_COVER_SIZE = { base: "60px", md: "80px" };
 
 export type TrackResultProps = {
   track: Track | (Track & { camelot_key?: string });
@@ -784,7 +787,7 @@ export default function TrackResult({
             </Checkbox.Root>
           </Box>
         )}
-        <ArtworkPlay track={track} size={{ base: "60px", md: "80px" }} iconSize={6} />
+        <ArtworkPlay track={track} size={TRACK_ROW_COVER_SIZE} iconSize={6} />
         <Flex direction="column" flex={1} minW={0} gap={1}>
           <Flex alignItems="center" gap={1.5} minW={0}>
             <TrackTitleLink
@@ -1121,7 +1124,7 @@ export default function TrackResult({
         </Box>
       )}
 
-      <ArtworkPlay track={track} size={{ base: "64px", md: "120px" }} iconSize={7} />
+      <ArtworkPlay track={track} size={TRACK_CARD_COVER_SIZE} iconSize={7} />
 
       <Flex direction="column" flex={1} minW={0}>
         <Flex alignItems="flex-start" gap={2} minW={0}>

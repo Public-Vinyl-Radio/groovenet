@@ -34,6 +34,8 @@ import TrackResult, {
   TrackListHeader,
   TRACK_ROW_GRID_TEMPLATE,
   TRACK_ROW_HEIGHT,
+  TRACK_CARD_COVER_SIZE,
+  TRACK_ROW_COVER_SIZE,
 } from "./TrackResult";
 
 afterEach(() => {
@@ -821,6 +823,11 @@ describe("TrackResult row layout (#685)", () => {
 
   it("is tall enough for three lines", () => {
     expect(TRACK_ROW_HEIGHT).toBe(80);
+  });
+
+  it("exports the cover sizes the album lists share", () => {
+    expect(TRACK_CARD_COVER_SIZE).toEqual({ base: "64px", md: "120px" });
+    expect(TRACK_ROW_COVER_SIZE).toEqual({ base: "60px", md: "80px" });
   });
 
   it("shares one grid with the header so the columns cannot drift", () => {

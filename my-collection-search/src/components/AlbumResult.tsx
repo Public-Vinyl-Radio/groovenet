@@ -14,7 +14,7 @@ import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
 import ArtistLink from "@/components/ArtistLink";
-import { RatingStars } from "@/components/TrackResult";
+import { RatingStars, TRACK_CARD_COVER_SIZE, TRACK_ROW_COVER_SIZE } from "@/components/TrackResult";
 
 /**
  * The Missing checks that show as a tag on a result while their filter is on:
@@ -53,7 +53,7 @@ const ellipsis = {
 } as const;
 
 const cell = {
-  py: 3,
+  py: "2px",
   px: 4,
   borderColor: "border",
   borderBottomWidth: "rule",
@@ -311,7 +311,7 @@ export default function AlbumResult({
         {/* The table is fixed-layout, so a long title ellipsizes in its column. */}
         <Table.Cell {...cell} overflow="hidden">
           <Flex align="center" gap={4} minW={0}>
-            {cover("64px")}
+            {cover(TRACK_ROW_COVER_SIZE)}
             <Flex direction="column" gap="2px" minW={0}>
               <Link
                 as={NextLink}
@@ -397,7 +397,9 @@ export default function AlbumResult({
       _hover={{ bg: "bg.muted", ...revealRating }}
       _focusWithin={revealRating}
     >
-      {cover({ base: "88px", md: "120px" })}
+      <Box alignSelf="start" flexShrink={0}>
+        {cover(TRACK_CARD_COVER_SIZE)}
+      </Box>
 
       <Flex direction="column" flex={1} minW={0} gap="2px" pr={{ base: "36px", md: "40px" }}>
         <Link
