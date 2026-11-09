@@ -315,14 +315,10 @@ describe("SuggestionsPanel as a phone sheet", () => {
       <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
     );
     await screen.findByTestId("suggestions-sheet");
-    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
-      "0 added after Title p1",
-    );
+    expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after Title p1");
     await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
     await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p1" }));
-    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
-      "2 added after Title p1",
-    );
+    expect(screen.getByTestId("suggestions-count").textContent).toBe("2 added after Title p1");
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByTestId("suggestions-sheet")).toBeTruthy();
   });
@@ -349,9 +345,7 @@ describe("SuggestionsPanel as a phone sheet", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("suggestions-sheet-count").textContent).toBe(
-      "0 added after the playlist",
-    );
+    expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after the playlist");
     await user.click(screen.getByRole("button", { name: "Whole playlist" }));
     expect(onSeedChange).toHaveBeenLastCalledWith({ track_id: "p2", friend_id: 4 });
   });
@@ -417,6 +411,78 @@ describe("SuggestionsPanel as a phone sheet", () => {
     await user.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByTestId("suggestions-sheet")).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+});
+
+describe("SuggestionsPanel by width", () => {
+  afterEach(() => setViewportWidth(1280));
+  const seedP1 = { track_id: "p1", friend_id: 4 };
+
+  it.each([
+    [390, "suggestions-sheet"],
+    [1024, "suggestions-modal"],
+    [1440, "suggestions-panel"],
+  ])("at %ipx renders %s", async (width, testId) => {
+    setViewportWidth(width);
+    renderWithProviders(<Harness initialSeed={seedP1} />);
+    expect(await screen.findByTestId(testId)).toBeTruthy();
+    for (const other of ["suggestions-sheet", "suggestions-modal", "suggestions-panel"]) {
+      if (other !== testId) expect(screen.queryByTestId(other)).toBeNull();
+    }
+  });
+
+  it("scrolls the list inside the sheet and the modal, not the page", async () => {
+    for (const [width, testId] of [
+      [390, "suggestions-sheet"],
+      [1024, "suggestions-modal"],
+    ] as const) {
+      setViewportWidth(width);
+      const { unmount } = renderWithProviders(<Harness initialSeed={seedP1} />);
+      await screen.findByTestId(testId);
+      const scroller = screen.getByTestId("suggestions-scroll");
+      expect(getComputedStyle(scroller).overflowY).toBe("auto");
+      expect(scroller.querySelector("ul")).not.toBeNull();
+      unmount();
+    }
+  });
+
+  describe("as a modal", () => {
+    beforeEach(() => setViewportWidth(1024));
+
+    it("adds without closing, and counts the adds", async () => {
+      const onClose = vi.fn();
+      const { user } = renderWithProviders(
+        <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
+      );
+      await screen.findByTestId("suggestions-modal");
+      expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after Title p1");
+      await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
+      expect(screen.getByTestId("suggestions-count").textContent).toBe("1 added after Title p1");
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("closes with Done, the close button and Escape", async () => {
+      const onClose = vi.fn();
+      const { user } = renderWithProviders(
+        <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
+      );
+      await user.click(await screen.findByRole("button", { name: "Done" }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole("button", { name: "Close" }));
+      expect(onClose).toHaveBeenCalledTimes(2);
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
+    });
+
+    it("returns focus to the trigger on close", async () => {
+      const { user } = renderWithProviders(<Trigger />);
+      const trigger = screen.getByRole("button", { name: "Open suggestions" });
+      await user.click(trigger);
+      await screen.findByTestId("suggestions-modal");
+      await user.click(screen.getByRole("button", { name: "Done" }));
+      await waitFor(() => expect(screen.queryByTestId("suggestions-modal")).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(trigger));
+    });
   });
 });
 
