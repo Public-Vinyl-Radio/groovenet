@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.13.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.12.0...groovenet-cli-v3.13.0) (2026-11-09)
+
+
+### Features
+
+* **artists:** artists in the API, client, CLI and MCP ([#1071](https://github.com/Public-Vinyl-Radio/groovenet/issues/1071)) ([3464d5c](https://github.com/Public-Vinyl-Radio/groovenet/commit/3464d5cfc0f39b1f4128bc06f3c59d2a0ea754f5))
+* **artists:** reconcile and backfill existing albums and tracks ([#1067](https://github.com/Public-Vinyl-Radio/groovenet/issues/1067)) ([8290241](https://github.com/Public-Vinyl-Radio/groovenet/commit/8290241e27abb5833f8c97e083b6d0a51b52425f))
+* **artists:** review, merge and split artists from the CLI ([#1069](https://github.com/Public-Vinyl-Radio/groovenet/issues/1069)) ([08a30bc](https://github.com/Public-Vinyl-Radio/groovenet/commit/08a30bc63abba387b3ca37ddfad44aba56422b43))
+* **player:** Homebrew formula updates on player releases ([#1007](https://github.com/Public-Vinyl-Radio/groovenet/issues/1007)) ([57a5972](https://github.com/Public-Vinyl-Radio/groovenet/commit/57a597209e92a93b46968849c721f0f261ab7bae))
+* **system:** orphan scan for audio files without tracks and tracks with missing files ([#1055](https://github.com/Public-Vinyl-Radio/groovenet/issues/1055)) ([440321e](https://github.com/Public-Vinyl-Radio/groovenet/commit/440321e3a5586ac93661f34c14f4f58903ade6da))
+* **tracks:** backfill audio file metadata and source for existing files ([#1058](https://github.com/Public-Vinyl-Radio/groovenet/issues/1058)) ([f4f2ecf](https://github.com/Public-Vinyl-Radio/groovenet/commit/f4f2ecf88214174caec2436c6deaa2fb733ca63b))
+
+
+### Bug Fixes
+
+* **artists:** keep the inverted sort name for X, The artists ([#1085](https://github.com/Public-Vinyl-Radio/groovenet/issues/1085)) ([1dfcea1](https://github.com/Public-Vinyl-Radio/groovenet/commit/1dfcea1124454894972a773b1703a7aea60a8e17))
+* **cli:** show artist, album and track names in artists review ([#1087](https://github.com/Public-Vinyl-Radio/groovenet/issues/1087)) ([5fbb997](https://github.com/Public-Vinyl-Radio/groovenet/commit/5fbb9977fb9a04d1b66e084c8d8edd0270f7f10c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.11.0 to ^3.12.0
+    * @groovenet/contracts bumped from 1.7.0 to 1.8.0
+    * @groovenet/player bumped from 0.1.11 to 0.1.12
+
 ## [3.12.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.11.0...groovenet-cli-v3.12.0) (2026-11-05)
 
 
