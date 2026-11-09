@@ -9,6 +9,8 @@ import { useRootFlag } from "@/hooks/useRootFlag";
 import Breadcrumbs, { type Crumb } from "@/components/layout/Breadcrumbs";
 import { HeaderButton } from "@/components/layout/ListHeader";
 import { useCanGoBack, useGoBack } from "@/providers/InAppNavigationProvider";
+import { useOptionalCommandPalette } from "@/providers/CommandPaletteProvider";
+import PaletteSearchButton from "./PaletteSearchButton";
 import { placeActions, type HeaderAction } from "./placeActions";
 
 // The parts lay themselves out on the root's grid by area (back, title,
@@ -185,7 +187,10 @@ export type PageHeaderActionsProps = {
 
 export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderActionsProps) {
   const placed = placeActions(actions);
-  const hasPhone = placed.phoneIcons.length > 0 || placed.phoneMenu.length > 0 || Boolean(phone);
+  // Every phone header carries the palette's search button (#1145).
+  const hasSearch = Boolean(useOptionalCommandPalette());
+  const hasPhone =
+    hasSearch || placed.phoneIcons.length > 0 || placed.phoneMenu.length > 0 || Boolean(phone);
   const hasDesktop =
     placed.desktopButtons.length > 0 || placed.desktopMenu.length > 0 || Boolean(desktop);
   if (!hasPhone && !hasDesktop) return null;
@@ -194,6 +199,7 @@ export function PageHeaderActions({ actions = [], desktop, phone }: PageHeaderAc
     <Flex gridArea="actions" ms={pageHeader.actionsGap} align="center">
       {hasPhone && (
         <Flex data-testid="page-header-phone-actions" display={phoneOnly} align="center" gap={1}>
+          <PaletteSearchButton />
           {placed.phoneIcons.map((action) => (
             <IconButton
               key={action.label}

@@ -91,6 +91,12 @@
   registration with `paletteScope`; menus on cards never register. Backspace in
   an empty palette input clears the scope until the next opening. Palette usage
   analytics carry only command and scope enums, never search text.
+  **Phone (#1145):** below `md` the palette is a full-screen sheet sized to
+  `visualViewport` (published as `--palette-vh`/`--palette-top` on `<html>`), and
+  every `PageHeader` carries a search button (`PaletteSearchButton`). An empty
+  query shows now playing, recent opens/searches (`lib/paletteRecents`, per-device
+  `localStorage`, capped at 8) and page actions. Row play and ⋯ buttons are
+  siblings of the cmdk item; long-press or ⋯ opens a `RetroDialog` action sheet.
 
 - Display art goes through `artworkOf` (client) / `coverUrlSql` (server): `audio_file_album_art_url` first, then `album_thumbnail`, then the placeholder.
 - **Page headers (#995):** one `PageHeader` per page and one h1, supplied by

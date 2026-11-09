@@ -26,6 +26,17 @@ import {
   TrackRow,
   type PaletteSubject,
 } from "@/components/CommandPaletteParts";
+import { FiClock, FiMoreHorizontal, FiPlay, FiX } from "react-icons/fi";
+import { Button, Stack } from "@chakra-ui/react";
+import RetroDialog from "@/components/ui/RetroDialog";
+import { useIsPhone } from "@/hooks/useIsPhone";
+import {
+  readRecentOpens,
+  readRecentSearches,
+  recordRecentOpen,
+  recordRecentSearch,
+  type RecentOpen,
+} from "@/lib/paletteRecents";
 import { toaster } from "@/components/ui/toaster";
 import { analytics } from "@/lib/analytics/client";
 import type { AnalyticsEvents } from "@/lib/analytics/events";
@@ -80,10 +91,12 @@ export default function CommandPalette() {
     playNext,
     playPrev,
     clearQueue,
+    currentTrackIndex,
     replacePlaylist,
     appendToQueue,
     enqueueNext,
   } = usePlaybackPlayer();
+  const isPhone = useIsPhone();
   const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog();
 
   const { paletteOpen: open, setPaletteOpen: setOpen, scope: pageScope } = useCommandPalette();
@@ -98,6 +111,11 @@ export default function CommandPalette() {
   const [loadingTracks, setLoadingTracks] = React.useState(false);
   // The result whose actions are showing (Tab / →); null is the main list.
   const [sub, setSub] = React.useState<PaletteSubject | null>(null);
+  // Phones show a result's actions in a dialog instead of in the list (#1145).
+  const [sheet, setSheet] = React.useState<PaletteSubject | null>(null);
+  const [recentOpens, setRecentOpens] = React.useState<RecentOpen[]>([]);
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
+  const pressTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const close = React.useCallback(() => {
     setOpen(false);
@@ -151,7 +169,31 @@ export default function CommandPalette() {
     setQuery("");
     setScopeRemoved(false);
     setSub(null);
+    setSheet(null);
+    setRecentOpens(readRecentOpens());
+    setRecentSearches(readRecentSearches());
   }, [open]);
+
+  // The keyboard shrinks the visual viewport, not the layout one: publish what
+  // is visible so the sheet (and its list) ends above the keyboard.
+  React.useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!open || !isPhone || !vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      root.style.setProperty("--palette-vh", `${vv.height}px`);
+      root.style.setProperty("--palette-top", `${vv.offsetTop}px`);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      root.style.removeProperty("--palette-vh");
+      root.style.removeProperty("--palette-top");
+    };
+  }, [open, isPhone]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -271,14 +313,20 @@ export default function CommandPalette() {
     close();
   };
 
+  const rememberQuery = () => recordRecentSearch(query);
+
   const onOpenTrack = (track: TrackHit) => {
     used("open_track");
+    recordRecentOpen({ kind: "track", track });
+    rememberQuery();
     router.push(`/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}`);
     close();
   };
 
   const onPlayTrack = (track: TrackHit) => {
     used("play_track");
+    recordRecentOpen({ kind: "track", track });
+    rememberQuery();
     replacePlaylist([track], { autoplay: true, startIndex: 0 });
     close();
   };
@@ -291,6 +339,7 @@ export default function CommandPalette() {
 
   const onOpenArtist = (artist: ArtistListItem) => {
     used("open_artist");
+    rememberQuery();
     router.push(`/artists/${encodeURIComponent(artist.slug)}`);
     close();
   };
@@ -350,6 +399,8 @@ export default function CommandPalette() {
 
   const onOpenAlbum = (album: AlbumHit) => {
     used("open_album");
+    recordRecentOpen({ kind: "album", album });
+    rememberQuery();
     router.push(`/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`);
     close();
   };
@@ -396,30 +447,64 @@ export default function CommandPalette() {
     setHighlighted("");
   };
 
+  const openSheet = (subject: PaletteSubject) => {
+    used("open_action_sheet");
+    setSheet(subject);
+  };
+
+  const pressProps = (subject: PaletteSubject) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (!isPhone || e.pointerType === "mouse") return;
+      clearTimeout(pressTimer.current);
+      pressTimer.current = setTimeout(() => {
+        openSheet(subject);
+      }, 500);
+    },
+    onPointerUp: () => clearTimeout(pressTimer.current),
+    onPointerCancel: () => clearTimeout(pressTimer.current),
+    onPointerLeave: () => clearTimeout(pressTimer.current),
+    onContextMenu: (e: React.MouseEvent) => {
+      if (isPhone) e.preventDefault();
+    },
+  });
+
   type SubAction = { id: string; label: string; run: () => void };
-  const subActions: SubAction[] = !sub
+  const actionSubject = sheet ?? sub;
+  const subActions: SubAction[] = !actionSubject
     ? []
-    : sub.kind === "track"
+    : actionSubject.kind === "track"
       ? [
-          { id: "next", label: "Queue next", run: () => onQueueTrackNext(sub.track) },
-          { id: "queue", label: "Add to queue", run: () => onQueueTrack(sub.track) },
-          { id: "playlist", label: "Add to playlist…", run: () => onAddTrackToPlaylist(sub.track) },
-          { id: "vibe", label: "Find similar vibe", run: () => onFindSimilarVibe(sub.track) },
-          { id: "open", label: "Open", run: () => onOpenTrack(sub.track) },
+          { id: "next", label: "Queue next", run: () => onQueueTrackNext(actionSubject.track) },
+          { id: "queue", label: "Add to queue", run: () => onQueueTrack(actionSubject.track) },
+          {
+            id: "playlist",
+            label: "Add to playlist…",
+            run: () => onAddTrackToPlaylist(actionSubject.track),
+          },
+          {
+            id: "vibe",
+            label: "Find similar vibe",
+            run: () => onFindSimilarVibe(actionSubject.track),
+          },
+          { id: "open", label: "Open", run: () => onOpenTrack(actionSubject.track) },
         ]
-      : sub.kind === "album"
+      : actionSubject.kind === "album"
         ? [
-            { id: "queue", label: "Queue album", run: () => void onQueueAlbum(sub.album) },
-            { id: "play", label: "Play", run: () => void onPlayAlbum(sub.album) },
-            { id: "open", label: "Open", run: () => onOpenAlbum(sub.album) },
+            {
+              id: "queue",
+              label: "Queue album",
+              run: () => void onQueueAlbum(actionSubject.album),
+            },
+            { id: "play", label: "Play", run: () => void onPlayAlbum(actionSubject.album) },
+            { id: "open", label: "Open", run: () => onOpenAlbum(actionSubject.album) },
           ]
         : [
             {
               id: "tracks",
-              label: `Tracks by ${sub.artist.name}`,
-              run: () => onFilterTracksByArtist(sub.artist),
+              label: `Tracks by ${actionSubject.artist.name}`,
+              run: () => onFilterTracksByArtist(actionSubject.artist),
             },
-            { id: "open", label: "Open", run: () => onOpenArtist(sub.artist) },
+            { id: "open", label: "Open", run: () => onOpenArtist(actionSubject.artist) },
           ];
 
   // ⌘Enter / Ctrl+Enter plays whichever track or album row is highlighted.
@@ -453,6 +538,7 @@ export default function CommandPalette() {
   // Only reachable once the Search group has rendered, which requires a query.
   const onSearchTracksQuery = () => {
     used("search_tracks_query");
+    rememberQuery();
     const params = new URLSearchParams({ q: trimmedQuery });
     const urlMode = searchParams?.get("mode");
     params.set("mode", isTrackSearchMode(urlMode) ? urlMode : "hybrid");
@@ -462,6 +548,7 @@ export default function CommandPalette() {
 
   const onSearchAlbumsQuery = () => {
     used("search_albums_query");
+    rememberQuery();
     router.push(`/albums?q=${encodeURIComponent(trimmedQuery)}`);
     close();
   };
@@ -473,10 +560,74 @@ export default function CommandPalette() {
     close();
   };
 
+  const phoneEmpty = isPhone && trimmedQuery === "" && !sub;
+
+  // The play and ⋯ buttons are siblings of the cmdk item, never inside it (QueueList's overlay pattern).
+  const rowButtons = (subject: PaletteSubject, title: string, play?: () => void) =>
+    isPhone ? (
+      <>
+        {play && (
+          <button
+            type="button"
+            className={styles.rowPlay}
+            aria-label={`Play ${title}`}
+            onClick={play}
+          >
+            <FiPlay aria-hidden="true" />
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.rowMore}
+          aria-label={`More actions for ${title}`}
+          onClick={() => openSheet(subject)}
+        >
+          <FiMoreHorizontal aria-hidden="true" />
+        </button>
+      </>
+    ) : null;
+
+  const trackItem = (track: TrackHit, key: string, value: string) => (
+    <div key={key} className={styles.rowWrap}>
+      <Command.Item
+        value={value}
+        onSelect={() => onOpenTrack(track)}
+        className={styles.item}
+        {...pressProps({ kind: "track", track })}
+      >
+        <TrackRow track={track} />
+      </Command.Item>
+      {rowButtons(
+        { kind: "track", track },
+        track.title || track.track_id,
+        track.local_audio_url ? () => onPlayTrack(track) : undefined,
+      )}
+    </div>
+  );
+
+  const albumItem = (album: AlbumHit, key: string, value: string) => (
+    <div key={key} className={styles.rowWrap}>
+      <Command.Item
+        value={value}
+        onSelect={() => onOpenAlbum(album)}
+        className={styles.item}
+        {...pressProps({ kind: "album", album })}
+      >
+        <AlbumRow album={album} />
+      </Command.Item>
+      {rowButtons({ kind: "album", album }, album.title, () => void onPlayAlbum(album))}
+    </div>
+  );
+
+  const queued = (playlist ?? []).slice(
+    Math.max(0, currentTrackIndex ?? 0),
+    Math.max(0, currentTrackIndex ?? 0) + 4,
+  ) as TrackHit[];
+
   return (
     <>
       <Command.Dialog
-        open={open}
+        open={open && !sheet}
         onOpenChange={setOpen}
         overlayClassName={styles.overlay}
         className={styles.dialog}
@@ -491,7 +642,20 @@ export default function CommandPalette() {
           onKeyDown={onCommandKeyDown}
         >
           <div className={styles.inputRow}>
-            {scope && <span className={styles.scopeChip}>{scope.label} ›</span>}
+            {scope &&
+              (isPhone ? (
+                <button
+                  type="button"
+                  className={styles.scopePill}
+                  aria-label={`Remove ${scope.label} scope`}
+                  onClick={() => setScopeRemoved(true)}
+                >
+                  <span>{scope.label}</span>
+                  <FiX aria-hidden="true" />
+                </button>
+              ) : (
+                <span className={styles.scopeChip}>{scope.label} ›</span>
+              ))}
             <Command.Input
               autoFocus
               placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
@@ -514,6 +678,11 @@ export default function CommandPalette() {
               }}
               className={styles.input}
             />
+            {isPhone && (
+              <button type="button" className={styles.cancel} onClick={close}>
+                Cancel
+              </button>
+            )}
           </div>
           <div className={styles.body}>
             <Command.List className={styles.list}>
@@ -563,6 +732,49 @@ export default function CommandPalette() {
                       </Command.Item>
                     </Command.Group>
                   )}
+                  {phoneEmpty && queued.length > 0 && (
+                    <Command.Group heading="Now playing" className={styles.group}>
+                      {queued.map((track, i) =>
+                        trackItem(
+                          track,
+                          `np-${i}-${track.track_id}`,
+                          `now playing ${i} ${track.track_id}`,
+                        ),
+                      )}
+                    </Command.Group>
+                  )}
+                  {phoneEmpty && recentOpens.length > 0 && (
+                    <Command.Group heading="Recently opened" className={styles.group}>
+                      {recentOpens.map((recent) =>
+                        recent.kind === "track"
+                          ? trackItem(
+                              recent.track,
+                              `rt-${recent.track.track_id}-${recent.track.friend_id}`,
+                              `recent track ${recent.track.track_id} ${recent.track.friend_id}`,
+                            )
+                          : albumItem(
+                              recent.album,
+                              `ra-${recent.album.release_id}-${recent.album.friend_id}`,
+                              `recent album ${recent.album.release_id} ${recent.album.friend_id}`,
+                            ),
+                      )}
+                    </Command.Group>
+                  )}
+                  {phoneEmpty && recentSearches.length > 0 && (
+                    <Command.Group heading="Recent searches" className={styles.group}>
+                      {recentSearches.map((recent) => (
+                        <Command.Item
+                          key={`rs-${recent}`}
+                          value={`recent search ${recent}`}
+                          className={styles.item}
+                          onSelect={() => setQuery(recent)}
+                        >
+                          <FiClock aria-hidden="true" />
+                          <span className={styles.itemTitle}>{recent}</span>
+                        </Command.Item>
+                      ))}
+                    </Command.Group>
+                  )}
                   {scope?.actions && (
                     <Command.Group heading={`${scope.label} actions`} className={styles.group}>
                       {scope.actions.map((action) => (
@@ -608,112 +820,120 @@ export default function CommandPalette() {
                     </>
                   )}
 
-                  <Command.Group heading="Navigation" className={styles.group}>
-                    {NAV_ITEMS.map((item) => (
-                      <Command.Item
-                        key={item.href}
-                        value={item.label}
-                        onSelect={() => onNavigate(item.href)}
-                        className={styles.item}
-                      >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>{item.label}</span>
-                          <span className={styles.itemMeta}>{item.href}</span>
-                        </div>
-                      </Command.Item>
-                    ))}
-                  </Command.Group>
+                  {!phoneEmpty && (
+                    <>
+                      <Command.Group heading="Navigation" className={styles.group}>
+                        {NAV_ITEMS.map((item) => (
+                          <Command.Item
+                            key={item.href}
+                            value={item.label}
+                            onSelect={() => onNavigate(item.href)}
+                            className={styles.item}
+                          >
+                            <div className={styles.itemLabel}>
+                              <span className={styles.itemTitle}>{item.label}</span>
+                              <span className={styles.itemMeta}>{item.href}</span>
+                            </div>
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
 
-                  <Command.Separator className={styles.separator} />
+                      <Command.Separator className={styles.separator} />
 
-                  <Command.Group heading="Player" className={styles.group}>
-                    <Command.Item
-                      value="Play/Pause"
-                      onSelect={() => {
-                        used("play_pause");
-                        if (isPlaying) pause();
-                        else play();
-                        close();
-                      }}
-                      className={styles.item}
-                    >
-                      <span className={styles.itemTitle}>{isPlaying ? "Pause" : "Play"}</span>
-                      <span className={styles.shortcutGroup}>
-                        <kbd className={styles.kbd}>Space</kbd>
-                      </span>
-                    </Command.Item>
-                    <Command.Item
-                      value="Next track"
-                      onSelect={() => {
-                        used("next_track");
-                        playNext();
-                        close();
-                      }}
-                      className={styles.item}
-                    >
-                      <span className={styles.itemTitle}>Next Track</span>
-                      <span className={styles.shortcutGroup}>
-                        <kbd className={styles.kbd}>]</kbd>
-                      </span>
-                    </Command.Item>
-                    <Command.Item
-                      value="Previous track"
-                      onSelect={() => {
-                        used("previous_track");
-                        playPrev();
-                        close();
-                      }}
-                      className={styles.item}
-                    >
-                      <span className={styles.itemTitle}>Previous Track</span>
-                      <span className={styles.shortcutGroup}>
-                        <kbd className={styles.kbd}>[</kbd>
-                      </span>
-                    </Command.Item>
-                    <Command.Item
-                      value="Clear queue"
-                      onSelect={() => {
-                        used("clear_queue");
-                        clearQueue();
-                        close();
-                      }}
-                      className={styles.item}
-                    >
-                      <span className={styles.itemTitle}>Clear Queue</span>
-                    </Command.Item>
-                    <Command.Item
-                      value="Create playlist from queue"
-                      onSelect={() => {
-                        used("create_playlist_from_queue");
-                        handleCreatePlaylistFromQueue();
-                        close();
-                      }}
-                      className={styles.item}
-                    >
-                      <div className={styles.itemLabel}>
-                        <span className={styles.itemTitle}>Create Playlist From Queue</span>
-                        <span className={styles.itemMeta}>{playlistLength} tracks in queue</span>
-                      </div>
-                    </Command.Item>
-                  </Command.Group>
+                      <Command.Group heading="Player" className={styles.group}>
+                        <Command.Item
+                          value="Play/Pause"
+                          onSelect={() => {
+                            used("play_pause");
+                            if (isPlaying) pause();
+                            else play();
+                            close();
+                          }}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>{isPlaying ? "Pause" : "Play"}</span>
+                          <span className={styles.shortcutGroup}>
+                            <kbd className={styles.kbd}>Space</kbd>
+                          </span>
+                        </Command.Item>
+                        <Command.Item
+                          value="Next track"
+                          onSelect={() => {
+                            used("next_track");
+                            playNext();
+                            close();
+                          }}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>Next Track</span>
+                          <span className={styles.shortcutGroup}>
+                            <kbd className={styles.kbd}>]</kbd>
+                          </span>
+                        </Command.Item>
+                        <Command.Item
+                          value="Previous track"
+                          onSelect={() => {
+                            used("previous_track");
+                            playPrev();
+                            close();
+                          }}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>Previous Track</span>
+                          <span className={styles.shortcutGroup}>
+                            <kbd className={styles.kbd}>[</kbd>
+                          </span>
+                        </Command.Item>
+                        <Command.Item
+                          value="Clear queue"
+                          onSelect={() => {
+                            used("clear_queue");
+                            clearQueue();
+                            close();
+                          }}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>Clear Queue</span>
+                        </Command.Item>
+                        <Command.Item
+                          value="Create playlist from queue"
+                          onSelect={() => {
+                            used("create_playlist_from_queue");
+                            handleCreatePlaylistFromQueue();
+                            close();
+                          }}
+                          className={styles.item}
+                        >
+                          <div className={styles.itemLabel}>
+                            <span className={styles.itemTitle}>Create Playlist From Queue</span>
+                            <span className={styles.itemMeta}>
+                              {playlistLength} tracks in queue
+                            </span>
+                          </div>
+                        </Command.Item>
+                      </Command.Group>
 
-                  <Command.Separator className={styles.separator} />
+                      <Command.Separator className={styles.separator} />
 
-                  <Command.Group heading="Playlists" className={styles.group}>
-                    {filteredPlaylists.map((pl) => (
-                      <Command.Item
-                        key={`pl-${pl.id}`}
-                        value={pl.name}
-                        onSelect={() => onOpenPlaylist(pl.id)}
-                        className={styles.item}
-                      >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>{pl.name}</span>
-                          <span className={styles.itemMeta}>{pl.tracks?.length ?? 0} tracks</span>
-                        </div>
-                      </Command.Item>
-                    ))}
-                  </Command.Group>
+                      <Command.Group heading="Playlists" className={styles.group}>
+                        {filteredPlaylists.map((pl) => (
+                          <Command.Item
+                            key={`pl-${pl.id}`}
+                            value={pl.name}
+                            onSelect={() => onOpenPlaylist(pl.id)}
+                            className={styles.item}
+                          >
+                            <div className={styles.itemLabel}>
+                              <span className={styles.itemTitle}>{pl.name}</span>
+                              <span className={styles.itemMeta}>
+                                {pl.tracks?.length ?? 0} tracks
+                              </span>
+                            </div>
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    </>
+                  )}
 
                   {trimmedQuery.length > 0 && genreMatches.length > 0 && (
                     <>
@@ -748,14 +968,17 @@ export default function CommandPalette() {
                       <Command.Separator className={styles.separator} />
                       <Command.Group heading="Artists" className={styles.group}>
                         {artistHits.map((artist) => (
-                          <Command.Item
-                            key={`ar-${artist.id}`}
-                            value={artistValue(artist)}
-                            onSelect={() => onOpenArtist(artist)}
-                            className={styles.item}
-                          >
-                            <ArtistRow artist={artist} />
-                          </Command.Item>
+                          <div key={`ar-${artist.id}`} className={styles.rowWrap}>
+                            <Command.Item
+                              value={artistValue(artist)}
+                              onSelect={() => onOpenArtist(artist)}
+                              className={styles.item}
+                              {...pressProps({ kind: "artist", artist })}
+                            >
+                              <ArtistRow artist={artist} />
+                            </Command.Item>
+                            {rowButtons({ kind: "artist", artist }, artist.name)}
+                          </div>
                         ))}
                       </Command.Group>
                     </>
@@ -765,16 +988,13 @@ export default function CommandPalette() {
                     <>
                       <Command.Separator className={styles.separator} />
                       <Command.Group heading="Albums" className={styles.group}>
-                        {albumHits.map((album) => (
-                          <Command.Item
-                            key={`al-${album.release_id}-${album.friend_id}`}
-                            value={albumValue(album)}
-                            onSelect={() => onOpenAlbum(album)}
-                            className={styles.item}
-                          >
-                            <AlbumRow album={album} />
-                          </Command.Item>
-                        ))}
+                        {albumHits.map((album) =>
+                          albumItem(
+                            album,
+                            `al-${album.release_id}-${album.friend_id}`,
+                            albumValue(album),
+                          ),
+                        )}
                       </Command.Group>
                     </>
                   )}
@@ -782,16 +1002,13 @@ export default function CommandPalette() {
                   <Command.Separator className={styles.separator} />
 
                   <Command.Group heading="Tracks" className={styles.group}>
-                    {trackHits.map((track) => (
-                      <Command.Item
-                        key={`tr-${track.track_id}-${track.friend_id}`}
-                        value={trackValue(track)}
-                        onSelect={() => onOpenTrack(track)}
-                        className={styles.item}
-                      >
-                        <TrackRow track={track} />
-                      </Command.Item>
-                    ))}
+                    {trackHits.map((track) =>
+                      trackItem(
+                        track,
+                        `tr-${track.track_id}-${track.friend_id}`,
+                        trackValue(track),
+                      ),
+                    )}
                   </Command.Group>
                 </>
               )}
@@ -834,6 +1051,34 @@ export default function CommandPalette() {
           </div>
         </Command>
       </Command.Dialog>
+      <RetroDialog
+        open={Boolean(sheet)}
+        onOpenChange={(next) => !next && setSheet(null)}
+        title={
+          sheet?.kind === "track"
+            ? sheet.track.title
+            : sheet?.kind === "album"
+              ? sheet.album.title
+              : (sheet?.artist.name ?? "")
+        }
+      >
+        <Stack gap={0} p={2}>
+          {subActions.map((action) => (
+            <Button
+              key={action.id}
+              variant="ghost"
+              justifyContent="flex-start"
+              minH="48px"
+              onClick={() => {
+                setSheet(null);
+                action.run();
+              }}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Stack>
+      </RetroDialog>
       {playlistDialog}
       {nameDialog}
     </>

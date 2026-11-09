@@ -62,3 +62,8 @@ export function useCommandPalette() {
   if (!ctx) throw new Error("useCommandPalette must be used within CommandPaletteProvider");
   return ctx;
 }
+
+/** For chrome that also renders outside the provider (stories, isolated tests). */
+export function useOptionalCommandPalette() {
+  return React.useContext(CommandPaletteContext);
+}
