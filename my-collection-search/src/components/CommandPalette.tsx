@@ -13,12 +13,19 @@ import { importPlaylist } from "@/services/internalApi/playlists";
 import { searchTracks } from "@/services/internalApi/tracks";
 import { searchAlbums, getAlbumWithTracks } from "@/services/internalApi/albums";
 import { listArtists } from "@/services/internalApi/artists";
-import { artistCountsLabel } from "@/components/ArtistFilter";
 import type { ArtistListItem } from "@/api-contract/schemas";
 import { matchGenresForPalette, genreHref } from "@/lib/genres/links";
 import type { GenreOption } from "@/lib/genres/options";
 import { isTrackSearchMode } from "@/components/search/searchModes";
 import type { Album, Track } from "@/types/track";
+import { useAddToPlaylistDialog } from "@/hooks/useAddToPlaylistDialog";
+import {
+  AlbumRow,
+  ArtistRow,
+  PreviewPane,
+  TrackRow,
+  type PaletteSubject,
+} from "@/components/CommandPaletteParts";
 import { toaster } from "@/components/ui/toaster";
 import { analytics } from "@/lib/analytics/client";
 import type { AnalyticsEvents } from "@/lib/analytics/events";
@@ -74,7 +81,10 @@ export default function CommandPalette() {
     playPrev,
     clearQueue,
     replacePlaylist,
+    appendToQueue,
+    enqueueNext,
   } = usePlaybackPlayer();
+  const { openForTrack, playlistDialog, nameDialog } = useAddToPlaylistDialog();
 
   const { paletteOpen: open, setPaletteOpen: setOpen, scope: pageScope } = useCommandPalette();
 
@@ -86,6 +96,8 @@ export default function CommandPalette() {
   const [albumHits, setAlbumHits] = React.useState<AlbumHit[]>([]);
   const [artistHits, setArtistHits] = React.useState<ArtistListItem[]>([]);
   const [loadingTracks, setLoadingTracks] = React.useState(false);
+  // The result whose actions are showing (Tab / →); null is the main list.
+  const [sub, setSub] = React.useState<PaletteSubject | null>(null);
 
   const close = React.useCallback(() => {
     setOpen(false);
@@ -138,6 +150,7 @@ export default function CommandPalette() {
     if (!open) return;
     setQuery("");
     setScopeRemoved(false);
+    setSub(null);
   }, [open]);
 
   React.useEffect(() => {
@@ -288,6 +301,53 @@ export default function CommandPalette() {
     close();
   };
 
+  const onQueueTrackNext = (track: TrackHit) => {
+    used("queue_track_next");
+    enqueueNext(track);
+    toaster.create({ title: "Playing next", description: track.title, type: "success" });
+    close();
+  };
+
+  const onQueueTrack = (track: TrackHit) => {
+    used("queue_track");
+    appendToQueue(track);
+    toaster.create({ title: "Added to queue", description: track.title, type: "success" });
+    close();
+  };
+
+  const onAddTrackToPlaylist = (track: TrackHit) => {
+    used("add_track_to_playlist");
+    close();
+    openForTrack(track);
+  };
+
+  // The track page's Suggestions section is where similar-vibe tracks are ranked.
+  const onFindSimilarVibe = (track: TrackHit) => {
+    used("find_similar_vibe");
+    router.push(
+      `/tracks/${encodeURIComponent(track.track_id)}?friend_id=${track.friend_id}#suggestions-heading`,
+    );
+    close();
+  };
+
+  const onQueueAlbum = async (album: AlbumHit) => {
+    used("queue_album");
+    close();
+    try {
+      const { tracks } = await getAlbumWithTracks(album.release_id, album.friend_id);
+      const playable = tracks.filter((t) => !!t.local_audio_url);
+      if (playable.length === 0) {
+        toaster.create({ title: "Album has no playable tracks", type: "info" });
+        return;
+      }
+      appendToQueue(playable);
+      toaster.create({ title: `Added ${playable.length} tracks to the queue`, type: "success" });
+    } catch (err) {
+      console.error("Failed to queue album:", err);
+      toaster.create({ title: "Failed to queue album", type: "error" });
+    }
+  };
+
   const onOpenAlbum = (album: AlbumHit) => {
     used("open_album");
     router.push(`/albums/${encodeURIComponent(album.release_id)}?friend_id=${album.friend_id}`);
@@ -314,9 +374,72 @@ export default function CommandPalette() {
 
   const trackValue = (t: TrackHit) => `open ${t.title} ${t.artist} ${t.album}`;
   const albumValue = (al: AlbumHit) => `${trimmedQuery} open ${al.title} ${al.artist}`;
+  const artistValue = (ar: ArtistListItem) => `${trimmedQuery} open artist ${ar.name}`;
+
+  const highlightedSubject = React.useMemo<PaletteSubject | null>(() => {
+    const track = trackHits.find((hit) => trackValue(hit) === highlighted);
+    if (track) return { kind: "track", track };
+    const album = albumHits.find((hit) => albumValue(hit) === highlighted);
+    if (album) return { kind: "album", album };
+    const artist = artistHits.find((hit) => artistValue(hit) === highlighted);
+    if (artist) return { kind: "artist", artist };
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlighted, trackHits, albumHits, artistHits, trimmedQuery]);
+
+  const openActions = (subject: PaletteSubject) => {
+    setSub(subject);
+    setHighlighted(`${PINNED_PREFIX}action-0`);
+  };
+  const closeActions = () => {
+    setSub(null);
+    setHighlighted("");
+  };
+
+  type SubAction = { id: string; label: string; run: () => void };
+  const subActions: SubAction[] = !sub
+    ? []
+    : sub.kind === "track"
+      ? [
+          { id: "next", label: "Queue next", run: () => onQueueTrackNext(sub.track) },
+          { id: "queue", label: "Add to queue", run: () => onQueueTrack(sub.track) },
+          { id: "playlist", label: "Add to playlist…", run: () => onAddTrackToPlaylist(sub.track) },
+          { id: "vibe", label: "Find similar vibe", run: () => onFindSimilarVibe(sub.track) },
+          { id: "open", label: "Open", run: () => onOpenTrack(sub.track) },
+        ]
+      : sub.kind === "album"
+        ? [
+            { id: "queue", label: "Queue album", run: () => void onQueueAlbum(sub.album) },
+            { id: "play", label: "Play", run: () => void onPlayAlbum(sub.album) },
+            { id: "open", label: "Open", run: () => onOpenAlbum(sub.album) },
+          ]
+        : [
+            {
+              id: "tracks",
+              label: `Tracks by ${sub.artist.name}`,
+              run: () => onFilterTracksByArtist(sub.artist),
+            },
+            { id: "open", label: "Open", run: () => onOpenArtist(sub.artist) },
+          ];
 
   // ⌘Enter / Ctrl+Enter plays whichever track or album row is highlighted.
   const onCommandKeyDown = (e: React.KeyboardEvent) => {
+    if (sub) {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        closeActions();
+      }
+      return;
+    }
+    if (e.key === "Tab" || e.key === "ArrowRight") {
+      const input = e.target as HTMLInputElement;
+      const atEnd = input.selectionStart === input.value.length;
+      if (highlightedSubject && (e.key === "Tab" || atEnd)) {
+        e.preventDefault();
+        openActions(highlightedSubject);
+      }
+      return;
+    }
     if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey)) return;
     const t = trackHits.find((hit) => trackValue(hit) === highlighted);
     const al = t ? undefined : albumHits.find((hit) => albumValue(hit) === highlighted);
@@ -351,351 +474,368 @@ export default function CommandPalette() {
   };
 
   return (
-    <Command.Dialog
-      open={open}
-      onOpenChange={setOpen}
-      overlayClassName={styles.overlay}
-      className={styles.dialog}
-      label="Command Palette"
-    >
-      <RadixDialog.Title className={styles.srOnly}>Command Palette</RadixDialog.Title>
-      <Command
-        className={styles.command}
-        filter={pinnedFilter}
-        value={highlighted}
-        onValueChange={setHighlighted}
-        onKeyDown={onCommandKeyDown}
+    <>
+      <Command.Dialog
+        open={open}
+        onOpenChange={setOpen}
+        overlayClassName={styles.overlay}
+        className={styles.dialog}
+        label="Command Palette"
       >
-        <div className={styles.inputRow}>
-          {scope && <span className={styles.scopeChip}>{scope.label} ›</span>}
-          <Command.Input
-            autoFocus
-            placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
-            value={query}
-            onValueChange={(value) => {
-              setQuery(value);
-              if (scope?.onSearch && value.trim()) setHighlighted(`${PINNED_PREFIX}scope`);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Backspace" && query === "" && scope) {
-                event.preventDefault();
-                setScopeRemoved(true);
-              }
-            }}
-            className={styles.input}
-          />
-        </div>
-        <Command.List className={styles.list}>
-          <Command.Empty className={styles.empty}>
-            {loadingTracks ? "Searching…" : "No results."}
-          </Command.Empty>
-
-          {scope?.onSearch && trimmedQuery && (
-            <Command.Group heading={scope.label} className={styles.group}>
-              <Command.Item
-                value={`${PINNED_PREFIX}scope`}
-                className={styles.item}
-                onSelect={() => {
-                  used("scoped_search");
-                  scope.onSearch?.(trimmedQuery);
-                  close();
-                }}
-              >
-                <span className={styles.itemTitle}>
-                  Search {scope.label} for &quot;{trimmedQuery}&quot;
-                </span>
-              </Command.Item>
-            </Command.Group>
-          )}
-          {scope?.actions && (
-            <Command.Group heading={`${scope.label} actions`} className={styles.group}>
-              {scope.actions.map((action) => (
-                <Command.Item
-                  key={action.id}
-                  value={`page ${action.label}`}
-                  disabled={action.disabled}
-                  className={styles.item}
-                  onSelect={() => {
-                    used(action.id);
-                    close();
-                    action.onSelect();
-                  }}
+        <RadixDialog.Title className={styles.srOnly}>Command Palette</RadixDialog.Title>
+        <Command
+          className={styles.command}
+          filter={pinnedFilter}
+          value={highlighted}
+          onValueChange={setHighlighted}
+          onKeyDown={onCommandKeyDown}
+        >
+          <div className={styles.inputRow}>
+            {scope && <span className={styles.scopeChip}>{scope.label} ›</span>}
+            <Command.Input
+              autoFocus
+              placeholder="Search tracks, albums, genres, artists, playlists, or actions…"
+              value={query}
+              onValueChange={(value) => {
+                setQuery(value);
+                if (scope?.onSearch && value.trim()) setHighlighted(`${PINNED_PREFIX}scope`);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Backspace" && sub) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeActions();
+                  return;
+                }
+                if (event.key === "Backspace" && query === "" && scope) {
+                  event.preventDefault();
+                  setScopeRemoved(true);
+                }
+              }}
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.body}>
+            <Command.List className={styles.list}>
+              {sub && (
+                <Command.Group
+                  heading={
+                    sub.kind === "track"
+                      ? sub.track.title
+                      : sub.kind === "album"
+                        ? sub.album.title
+                        : sub.artist.name
+                  }
+                  className={styles.group}
                 >
-                  <span className={styles.itemTitle}>{action.label}</span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-          {trimmedQuery.length > 0 && (
-            <>
-              <Command.Group heading="Search" className={styles.group}>
-                <Command.Item
-                  value={`${PINNED_PREFIX}tracks`}
-                  onSelect={onSearchTracksQuery}
-                  className={styles.item}
-                >
-                  <span className={styles.itemTitle}>
-                    Search tracks for &quot;{trimmedQuery}&quot;
-                  </span>
-                </Command.Item>
-                <Command.Item
-                  value={`${PINNED_PREFIX}albums`}
-                  onSelect={onSearchAlbumsQuery}
-                  className={styles.item}
-                >
-                  <span className={styles.itemTitle}>
-                    Search albums for &quot;{trimmedQuery}&quot;
-                  </span>
-                </Command.Item>
-              </Command.Group>
-              <Command.Separator className={styles.separator} />
-            </>
-          )}
-
-          <Command.Group heading="Navigation" className={styles.group}>
-            {NAV_ITEMS.map((item) => (
-              <Command.Item
-                key={item.href}
-                value={item.label}
-                onSelect={() => onNavigate(item.href)}
-                className={styles.item}
-              >
-                <div className={styles.itemLabel}>
-                  <span className={styles.itemTitle}>{item.label}</span>
-                  <span className={styles.itemMeta}>{item.href}</span>
-                </div>
-              </Command.Item>
-            ))}
-          </Command.Group>
-
-          <Command.Separator className={styles.separator} />
-
-          <Command.Group heading="Player" className={styles.group}>
-            <Command.Item
-              value="Play/Pause"
-              onSelect={() => {
-                used("play_pause");
-                if (isPlaying) pause();
-                else play();
-                close();
-              }}
-              className={styles.item}
-            >
-              <span className={styles.itemTitle}>{isPlaying ? "Pause" : "Play"}</span>
-              <span className={styles.shortcutGroup}>
-                <kbd className={styles.kbd}>Space</kbd>
-              </span>
-            </Command.Item>
-            <Command.Item
-              value="Next track"
-              onSelect={() => {
-                used("next_track");
-                playNext();
-                close();
-              }}
-              className={styles.item}
-            >
-              <span className={styles.itemTitle}>Next Track</span>
-              <span className={styles.shortcutGroup}>
-                <kbd className={styles.kbd}>]</kbd>
-              </span>
-            </Command.Item>
-            <Command.Item
-              value="Previous track"
-              onSelect={() => {
-                used("previous_track");
-                playPrev();
-                close();
-              }}
-              className={styles.item}
-            >
-              <span className={styles.itemTitle}>Previous Track</span>
-              <span className={styles.shortcutGroup}>
-                <kbd className={styles.kbd}>[</kbd>
-              </span>
-            </Command.Item>
-            <Command.Item
-              value="Clear queue"
-              onSelect={() => {
-                used("clear_queue");
-                clearQueue();
-                close();
-              }}
-              className={styles.item}
-            >
-              <span className={styles.itemTitle}>Clear Queue</span>
-            </Command.Item>
-            <Command.Item
-              value="Create playlist from queue"
-              onSelect={() => {
-                used("create_playlist_from_queue");
-                handleCreatePlaylistFromQueue();
-                close();
-              }}
-              className={styles.item}
-            >
-              <div className={styles.itemLabel}>
-                <span className={styles.itemTitle}>Create Playlist From Queue</span>
-                <span className={styles.itemMeta}>{playlistLength} tracks in queue</span>
-              </div>
-            </Command.Item>
-          </Command.Group>
-
-          <Command.Separator className={styles.separator} />
-
-          <Command.Group heading="Playlists" className={styles.group}>
-            {filteredPlaylists.map((pl) => (
-              <Command.Item
-                key={`pl-${pl.id}`}
-                value={pl.name}
-                onSelect={() => onOpenPlaylist(pl.id)}
-                className={styles.item}
-              >
-                <div className={styles.itemLabel}>
-                  <span className={styles.itemTitle}>{pl.name}</span>
-                  <span className={styles.itemMeta}>{pl.tracks?.length ?? 0} tracks</span>
-                </div>
-              </Command.Item>
-            ))}
-          </Command.Group>
-
-          {trimmedQuery.length > 0 && genreMatches.length > 0 && (
-            <>
-              <Command.Separator className={styles.separator} />
-              <Command.Group heading="Genres" className={styles.group}>
-                {genreMatches.map((genre) => {
-                  const breadcrumb = genre.parent_name
-                    ? `${genre.parent_name} › ${genre.name}`
-                    : genre.name;
-                  return (
+                  {subActions.map((action, i) => (
                     <Command.Item
-                      key={`genre-${genre.id}`}
-                      value={`${trimmedQuery} open genre ${genre.name}`}
-                      onSelect={() => onOpenGenre(genre)}
+                      key={action.id}
+                      value={`${PINNED_PREFIX}action-${i}`}
+                      className={styles.item}
+                      onSelect={action.run}
+                    >
+                      <span className={styles.itemTitle}>{action.label}</span>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+              )}
+              {!sub && (
+                <>
+                  <Command.Empty className={styles.empty}>
+                    {loadingTracks ? "Searching…" : "No results."}
+                  </Command.Empty>
+
+                  {scope?.onSearch && trimmedQuery && (
+                    <Command.Group heading={scope.label} className={styles.group}>
+                      <Command.Item
+                        value={`${PINNED_PREFIX}scope`}
+                        className={styles.item}
+                        onSelect={() => {
+                          used("scoped_search");
+                          scope.onSearch?.(trimmedQuery);
+                          close();
+                        }}
+                      >
+                        <span className={styles.itemTitle}>
+                          Search {scope.label} for &quot;{trimmedQuery}&quot;
+                        </span>
+                      </Command.Item>
+                    </Command.Group>
+                  )}
+                  {scope?.actions && (
+                    <Command.Group heading={`${scope.label} actions`} className={styles.group}>
+                      {scope.actions.map((action) => (
+                        <Command.Item
+                          key={action.id}
+                          value={`page ${action.label}`}
+                          disabled={action.disabled}
+                          className={styles.item}
+                          onSelect={() => {
+                            used(action.id);
+                            close();
+                            action.onSelect();
+                          }}
+                        >
+                          <span className={styles.itemTitle}>{action.label}</span>
+                        </Command.Item>
+                      ))}
+                    </Command.Group>
+                  )}
+                  {trimmedQuery.length > 0 && (
+                    <>
+                      <Command.Group heading="Search" className={styles.group}>
+                        <Command.Item
+                          value={`${PINNED_PREFIX}tracks`}
+                          onSelect={onSearchTracksQuery}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>
+                            Search tracks for &quot;{trimmedQuery}&quot;
+                          </span>
+                        </Command.Item>
+                        <Command.Item
+                          value={`${PINNED_PREFIX}albums`}
+                          onSelect={onSearchAlbumsQuery}
+                          className={styles.item}
+                        >
+                          <span className={styles.itemTitle}>
+                            Search albums for &quot;{trimmedQuery}&quot;
+                          </span>
+                        </Command.Item>
+                      </Command.Group>
+                      <Command.Separator className={styles.separator} />
+                    </>
+                  )}
+
+                  <Command.Group heading="Navigation" className={styles.group}>
+                    {NAV_ITEMS.map((item) => (
+                      <Command.Item
+                        key={item.href}
+                        value={item.label}
+                        onSelect={() => onNavigate(item.href)}
+                        className={styles.item}
+                      >
+                        <div className={styles.itemLabel}>
+                          <span className={styles.itemTitle}>{item.label}</span>
+                          <span className={styles.itemMeta}>{item.href}</span>
+                        </div>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+
+                  <Command.Separator className={styles.separator} />
+
+                  <Command.Group heading="Player" className={styles.group}>
+                    <Command.Item
+                      value="Play/Pause"
+                      onSelect={() => {
+                        used("play_pause");
+                        if (isPlaying) pause();
+                        else play();
+                        close();
+                      }}
+                      className={styles.item}
+                    >
+                      <span className={styles.itemTitle}>{isPlaying ? "Pause" : "Play"}</span>
+                      <span className={styles.shortcutGroup}>
+                        <kbd className={styles.kbd}>Space</kbd>
+                      </span>
+                    </Command.Item>
+                    <Command.Item
+                      value="Next track"
+                      onSelect={() => {
+                        used("next_track");
+                        playNext();
+                        close();
+                      }}
+                      className={styles.item}
+                    >
+                      <span className={styles.itemTitle}>Next Track</span>
+                      <span className={styles.shortcutGroup}>
+                        <kbd className={styles.kbd}>]</kbd>
+                      </span>
+                    </Command.Item>
+                    <Command.Item
+                      value="Previous track"
+                      onSelect={() => {
+                        used("previous_track");
+                        playPrev();
+                        close();
+                      }}
+                      className={styles.item}
+                    >
+                      <span className={styles.itemTitle}>Previous Track</span>
+                      <span className={styles.shortcutGroup}>
+                        <kbd className={styles.kbd}>[</kbd>
+                      </span>
+                    </Command.Item>
+                    <Command.Item
+                      value="Clear queue"
+                      onSelect={() => {
+                        used("clear_queue");
+                        clearQueue();
+                        close();
+                      }}
+                      className={styles.item}
+                    >
+                      <span className={styles.itemTitle}>Clear Queue</span>
+                    </Command.Item>
+                    <Command.Item
+                      value="Create playlist from queue"
+                      onSelect={() => {
+                        used("create_playlist_from_queue");
+                        handleCreatePlaylistFromQueue();
+                        close();
+                      }}
                       className={styles.item}
                     >
                       <div className={styles.itemLabel}>
-                        <span className={styles.itemTitle}>{genre.name}</span>
-                        <span className={styles.itemMeta}>
-                          Open Genre · {breadcrumb} · {genre.track_count} tracks
-                        </span>
+                        <span className={styles.itemTitle}>Create Playlist From Queue</span>
+                        <span className={styles.itemMeta}>{playlistLength} tracks in queue</span>
                       </div>
                     </Command.Item>
-                  );
-                })}
-              </Command.Group>
-            </>
-          )}
+                  </Command.Group>
 
-          {trimmedQuery.length > 0 && artistHits.length > 0 && (
-            <>
-              <Command.Separator className={styles.separator} />
-              <Command.Group heading="Artists" className={styles.group}>
-                {artistHits.map((artist) => {
-                  const counts = artistCountsLabel(artist);
-                  return (
-                    <React.Fragment key={`ar-${artist.id}`}>
+                  <Command.Separator className={styles.separator} />
+
+                  <Command.Group heading="Playlists" className={styles.group}>
+                    {filteredPlaylists.map((pl) => (
                       <Command.Item
-                        value={`${trimmedQuery} open artist ${artist.name}`}
-                        onSelect={() => onOpenArtist(artist)}
+                        key={`pl-${pl.id}`}
+                        value={pl.name}
+                        onSelect={() => onOpenPlaylist(pl.id)}
                         className={styles.item}
                       >
                         <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>{artist.name}</span>
-                          <span className={styles.itemMeta}>
-                            Open Artist{counts ? ` · ${counts}` : ""}
-                          </span>
+                          <span className={styles.itemTitle}>{pl.name}</span>
+                          <span className={styles.itemMeta}>{pl.tracks?.length ?? 0} tracks</span>
                         </div>
                       </Command.Item>
+                    ))}
+                  </Command.Group>
+
+                  {trimmedQuery.length > 0 && genreMatches.length > 0 && (
+                    <>
+                      <Command.Separator className={styles.separator} />
+                      <Command.Group heading="Genres" className={styles.group}>
+                        {genreMatches.map((genre) => {
+                          const breadcrumb = genre.parent_name
+                            ? `${genre.parent_name} › ${genre.name}`
+                            : genre.name;
+                          return (
+                            <Command.Item
+                              key={`genre-${genre.id}`}
+                              value={`${trimmedQuery} open genre ${genre.name}`}
+                              onSelect={() => onOpenGenre(genre)}
+                              className={styles.item}
+                            >
+                              <div className={styles.itemLabel}>
+                                <span className={styles.itemTitle}>{genre.name}</span>
+                                <span className={styles.itemMeta}>
+                                  Open Genre · {breadcrumb} · {genre.track_count} tracks
+                                </span>
+                              </div>
+                            </Command.Item>
+                          );
+                        })}
+                      </Command.Group>
+                    </>
+                  )}
+
+                  {trimmedQuery.length > 0 && artistHits.length > 0 && (
+                    <>
+                      <Command.Separator className={styles.separator} />
+                      <Command.Group heading="Artists" className={styles.group}>
+                        {artistHits.map((artist) => (
+                          <Command.Item
+                            key={`ar-${artist.id}`}
+                            value={artistValue(artist)}
+                            onSelect={() => onOpenArtist(artist)}
+                            className={styles.item}
+                          >
+                            <ArtistRow artist={artist} />
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    </>
+                  )}
+
+                  {trimmedQuery.length > 0 && albumHits.length > 0 && (
+                    <>
+                      <Command.Separator className={styles.separator} />
+                      <Command.Group heading="Albums" className={styles.group}>
+                        {albumHits.map((album) => (
+                          <Command.Item
+                            key={`al-${album.release_id}-${album.friend_id}`}
+                            value={albumValue(album)}
+                            onSelect={() => onOpenAlbum(album)}
+                            className={styles.item}
+                          >
+                            <AlbumRow album={album} />
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+                    </>
+                  )}
+
+                  <Command.Separator className={styles.separator} />
+
+                  <Command.Group heading="Tracks" className={styles.group}>
+                    {trackHits.map((track) => (
                       <Command.Item
-                        value={`${trimmedQuery} tracks by ${artist.name}`}
-                        onSelect={() => onFilterTracksByArtist(artist)}
+                        key={`tr-${track.track_id}-${track.friend_id}`}
+                        value={trackValue(track)}
+                        onSelect={() => onOpenTrack(track)}
                         className={styles.item}
                       >
-                        <div className={styles.itemLabel}>
-                          <span className={styles.itemTitle}>Tracks by {artist.name}</span>
-                          <span className={styles.itemMeta}>Search Tracks · Artist filter</span>
-                        </div>
+                        <TrackRow track={track} />
                       </Command.Item>
-                    </React.Fragment>
-                  );
-                })}
-              </Command.Group>
-            </>
-          )}
+                    ))}
+                  </Command.Group>
+                </>
+              )}
+            </Command.List>
+            <PreviewPane subject={sub ?? highlightedSubject} />
+          </div>
 
-          {trimmedQuery.length > 0 && albumHits.length > 0 && (
-            <>
-              <Command.Separator className={styles.separator} />
-              <Command.Group heading="Albums" className={styles.group}>
-                {albumHits.map((album) => (
-                  <Command.Item
-                    key={`al-${album.release_id}-${album.friend_id}`}
-                    value={albumValue(album)}
-                    onSelect={() => onOpenAlbum(album)}
-                    className={styles.item}
-                  >
-                    <div className={styles.itemLabel}>
-                      <span className={styles.itemTitle}>{album.title}</span>
-                      <span className={styles.itemMeta}>Album · {album.artist}</span>
-                    </div>
-                  </Command.Item>
-                ))}
-              </Command.Group>
-            </>
-          )}
-
-          <Command.Separator className={styles.separator} />
-
-          <Command.Group heading="Tracks" className={styles.group}>
-            {trackHits.map((track) => (
-              <Command.Item
-                key={`tr-${track.track_id}-${track.friend_id}`}
-                value={trackValue(track)}
-                onSelect={() => onOpenTrack(track)}
-                className={styles.item}
-              >
-                <div className={styles.itemLabel}>
-                  <span className={styles.itemTitle}>{track.title || track.track_id}</span>
-                  <span className={styles.itemMeta}>
-                    Track · {track.artist} · {track.album}
-                  </span>
-                </div>
-              </Command.Item>
-            ))}
-          </Command.Group>
-        </Command.List>
-
-        <div className={styles.footer}>
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>↑</kbd>
-            <kbd className={styles.kbd}>↓</kbd>
-            navigate
-          </span>
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>↵</kbd>
-            select
-          </span>
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>⌘↵</kbd>
-            play
-          </span>
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>esc</kbd>
-            dismiss
-          </span>
-          <span className={styles.footerSpacer} />
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>Space</kbd>
-            play/pause
-          </span>
-          <span className={styles.footerHint}>
-            <kbd className={styles.kbd}>[</kbd>
-            <kbd className={styles.kbd}>]</kbd>
-            prev / next
-          </span>
-        </div>
-      </Command>
-    </Command.Dialog>
+          <div className={styles.footer}>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>↑</kbd>
+              <kbd className={styles.kbd}>↓</kbd>
+              navigate
+            </span>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>↵</kbd>
+              select
+            </span>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>{sub ? "←" : "tab"}</kbd>
+              {sub ? "back" : "actions"}
+            </span>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>⌘↵</kbd>
+              play
+            </span>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>esc</kbd>
+              dismiss
+            </span>
+            <span className={styles.footerSpacer} />
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>Space</kbd>
+              play/pause
+            </span>
+            <span className={styles.footerHint}>
+              <kbd className={styles.kbd}>[</kbd>
+              <kbd className={styles.kbd}>]</kbd>
+              prev / next
+            </span>
+          </div>
+        </Command>
+      </Command.Dialog>
+      {playlistDialog}
+      {nameDialog}
+    </>
   );
 }
