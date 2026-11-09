@@ -50,25 +50,26 @@ export function useQueueSaveDialog() {
 
   const onCancel = React.useCallback(() => setOpen(false), []);
 
-  const Dialog = React.useCallback(
-    () => (
-      <NamePlaylistDialog
-        open={open}
-        name={playlistName}
-        setName={setPlaylistName}
-        trackCount={playlist.length}
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-        confirmLabel="Save playlist"
-      />
-    ),
-    [open, playlistName, playlist.length, onConfirm, onCancel],
+  // An element, not a component created here: a component whose identity moves
+  // with `open` or the name is unmounted and remounted by React on every change,
+  // taking the portal and focus trap with it, and the remount can read as an
+  // outside interaction that closes the dialog.
+  const dialog = (
+    <NamePlaylistDialog
+      open={open}
+      name={playlistName}
+      setName={setPlaylistName}
+      trackCount={playlist.length}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      confirmLabel="Save playlist"
+    />
   );
 
   return {
     isOpen: open,
     open: () => setOpen(true),
     close: () => setOpen(false),
-    Dialog,
+    dialog,
   } as const;
 }

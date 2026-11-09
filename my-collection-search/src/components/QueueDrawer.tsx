@@ -111,7 +111,7 @@ function QueueTitle({ summary }: { summary: string }) {
 export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
   const model = useQueueModel();
-  const { Dialog: SaveDialog, open: openSaveDialog } = useQueueSaveDialog();
+  const { dialog: saveDialog, open: openSaveDialog } = useQueueSaveDialog();
   const [mobileView, setMobileView] = React.useState<MobileView>("player");
 
   // Wide viewports dock the panel beside the page; mid widths overlay it.
@@ -154,7 +154,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
   };
 
   if (!isMobile) {
-    if (!isOpen) return <SaveDialog />;
+    if (!isOpen) return saveDialog;
     return (
       <>
         {overlay && (
@@ -218,7 +218,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
             <QueueList {...model.list} links />
           </Box>
         </chakra.aside>
-        <SaveDialog />
+        {saveDialog}
       </>
     );
   }
@@ -450,7 +450,7 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
           </Drawer.Content>
         </Drawer.Positioner>
       </Drawer.Root>
-      <SaveDialog />
+      {saveDialog}
     </>
   );
 }

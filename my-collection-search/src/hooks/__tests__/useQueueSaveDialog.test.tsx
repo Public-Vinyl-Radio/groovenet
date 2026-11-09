@@ -28,13 +28,13 @@ async function findFocusedNameInput() {
 }
 
 function Harness() {
-  const { Dialog, open, close, isOpen } = useQueueSaveDialog();
+  const { dialog, open, close, isOpen } = useQueueSaveDialog();
   return (
     <>
       <button onClick={open}>open</button>
       <button onClick={close}>shut</button>
       <span>{isOpen ? "is-open" : "is-closed"}</span>
-      <Dialog />
+      {dialog}
     </>
   );
 }
@@ -70,6 +70,18 @@ describe("useQueueSaveDialog", () => {
     await user.click(await screen.findByRole("button", { name: "Save playlist" }));
     expect(toast).toHaveBeenCalledWith({ title: "Cannot save empty queue", type: "error" });
     expect(importPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("keeps one mounted dialog across open and rename (no remount)", async () => {
+    state.playlist = [t(1)];
+    const { user } = renderWithProviders(<Harness />);
+    await user.click(screen.getByText("open"));
+    const input = await findFocusedNameInput();
+    await user.type(input, "Y");
+    await user.click(screen.getByRole("button", { name: "Save playlist" }));
+    await waitFor(() => expect(importPlaylist).toHaveBeenCalled());
+    // The same DOM node throughout: a remounted dialog would hand back a new one.
+    expect(screen.getByPlaceholderText("Playlist name")).toBe(input);
   });
 
   it("reports a failed save and closes from outside", async () => {
