@@ -114,7 +114,10 @@ export type AnalyticsEvents = {
       | "scoped_search"
       | "add_track_to_playlist"
       | "optimise_playlist"
-      | "queue_album";
+      | "queue_album"
+      | "queue_track_next"
+      | "queue_track"
+      | "find_similar_vibe";
   };
 
   // ── Server ────────────────────────────────────────────────────────────────

@@ -173,6 +173,17 @@
   margin-top: 4px;
 }
 
+/* A phone has no keyboard to hint at; the rows get the room instead. */
+@media (max-width: 767px) {
+  .footer {
+    display: none;
+  }
+
+  .list {
+    max-height: 60vh;
+  }
+}
+
 .footerHint {
   display: inline-flex;
   align-items: center;
@@ -197,4 +208,76 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.body .list {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemLabel {
+  min-width: 0;
+}
+
+.itemMono {
+  font-family: var(--chakra-fonts-mono);
+  font-size: 11px;
+  color: var(--chakra-colors-fg-muted, #6b7280);
+}
+
+.item[data-selected="true"] .itemMono {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.playable {
+  display: inline-flex;
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+/* Desktop only: a panel for the highlighted result, from the hit already loaded. */
+.preview {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .dialog {
+    width: min(960px, 92vw);
+  }
+
+  .preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 280px;
+    flex-shrink: 0;
+    overflow: auto;
+    padding: 10px;
+    border-left: var(--chakra-border-widths-outline, 2px) solid var(--chakra-colors-border-ink);
+  }
+}
+
+.previewTitle {
+  margin-top: 6px;
+  font-family: var(--chakra-fonts-heading);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.previewNotes {
+  margin: 6px 0 0;
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { GenreTreeNode } from "@/api-contract/schemas";
 import type { Track, Album } from "@/types/track";
@@ -20,6 +20,9 @@ const mocks = vi.hoisted(() => ({
   getAlbumWithTracks: vi.fn(),
   listArtists: vi.fn(),
   replacePlaylist: vi.fn(),
+  appendToQueue: vi.fn(),
+  enqueueNext: vi.fn(),
+  openForTrack: vi.fn(),
   setPaletteOpen: vi.fn(),
   friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
@@ -46,6 +49,15 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
     playPrev: vi.fn(),
     clearQueue: vi.fn(),
     replacePlaylist: mocks.replacePlaylist,
+    appendToQueue: mocks.appendToQueue,
+    enqueueNext: mocks.enqueueNext,
+  }),
+}));
+vi.mock("@/hooks/useAddToPlaylistDialog", () => ({
+  useAddToPlaylistDialog: () => ({
+    openForTrack: mocks.openForTrack,
+    playlistDialog: null,
+    nameDialog: null,
   }),
 }));
 vi.mock("@/providers/CommandPaletteProvider", () => ({
@@ -456,20 +468,11 @@ describe("CommandPalette artists (#709)", () => {
     });
   });
 
-  it("searches tracks by the artist", async () => {
-    mocks.listArtists.mockResolvedValue({
-      items: [{ ...meridian, album_count: 0, track_count: 0 }],
-    });
+  it("no longer lists a second Tracks by row per artist", async () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.type(screen.getByPlaceholderText(/Search tracks, albums, genres/), "meridian");
-
-    expect(await screen.findByText("Open Artist")).toBeTruthy();
-    await user.click(screen.getByText("Tracks by Meridian Brothers"));
-    expect(mocks.push).toHaveBeenCalledWith("/tracks?artist=meridian-brothers");
-    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
-      scope: "global",
-      command: "filter_tracks_by_artist",
-    });
+    expect(await screen.findByText("Meridian Brothers")).toBeTruthy();
+    expect(screen.queryByText("Tracks by Meridian Brothers")).toBeNull();
   });
 
   it("shows no artists when their search fails", async () => {
@@ -566,5 +569,270 @@ describe("page scopes (#1141)", () => {
     const { user } = renderWithProviders(<CommandPalette />);
     await user.keyboard("{Escape}");
     expect(mocks.setPaletteOpen).toHaveBeenCalledWith(false);
+  });
+});
+
+const richTrack = (overrides: Partial<Track> = {}) =>
+  track({
+    duration_seconds: 242,
+    bpm: "127.6",
+    key: "D minor",
+    local_tags: "Cumbia, Porro",
+    local_audio_url: "/audio/a.mp3",
+    star_rating: 4,
+    notes: "Dusty brass over a heavy bassline",
+    album_thumbnail: "https://img/cover.jpg",
+    ...overrides,
+  });
+
+describe("richer rows, actions and preview (#1142)", () => {
+  const input = () => screen.getByPlaceholderText(/Search tracks, albums, genres/);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.scope = undefined;
+    mocks.searchParams = new URLSearchParams();
+    mocks.friend = { id: 1, username: "dj" };
+    mocks.fetchGenreTree.mockResolvedValue([]);
+    mocks.searchTracks.mockResolvedValue({ hits: [] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    mocks.listArtists.mockResolvedValue({ items: [] });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("shows duration, BPM, Camelot key, first genre and an audio marker", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    expect(await screen.findByText("4:02 · 128 BPM · 7A · Cumbia")).toBeTruthy();
+    expect(screen.getAllByLabelText("Has audio").length).toBeGreaterThan(0);
+    expect(screen.getByText("My Bloody Valentine · Loveless")).toBeTruthy();
+  });
+
+  it("copes with a track missing BPM, key, duration, genre, cover and audio", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [track({ album: "" })] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    expect(await screen.findByText("Only Shallow")).toBeTruthy();
+    expect(screen.queryByText(/BPM/)).toBeNull();
+    expect(screen.queryByLabelText("Has audio")).toBeNull();
+  });
+
+  it("uses taxonomy genres, then Discogs genres when there are no tags", async () => {
+    mocks.searchTracks.mockResolvedValue({
+      hits: [
+        richTrack({
+          local_tags: "",
+          track_genres: [
+            { id: "g", name: "Chicha", slug: "chicha", parent_id: null, parent_name: null },
+          ],
+        }),
+        richTrack({ track_id: "t2", title: "Only Shallow Two", local_tags: "", genres: ["Rock"] }),
+      ],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    expect(await screen.findByText(/· Chicha$/)).toBeTruthy();
+    expect(screen.getByText(/· Rock$/)).toBeTruthy();
+  });
+
+  it("shows album year and track count, and drops a zero year", async () => {
+    mocks.searchAlbums.mockResolvedValue({
+      hits: [
+        album({ year: "1991" }),
+        album({ release_id: "r2", title: "Solo", year: "0", track_count: 1 }),
+      ],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "lo");
+    expect(await screen.findByText("1991 · 11 tracks")).toBeTruthy();
+    expect(screen.getByText("1 track")).toBeTruthy();
+  });
+
+  it("previews the highlighted track: meta, genres, rating, notes", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    await screen.findByText("Only Shallow");
+    await user.hover(screen.getByText("Only Shallow"));
+    const preview = await screen.findByTestId("palette-preview");
+    expect(preview.textContent).toContain("4:02 · 128 BPM · 7A");
+    expect(preview.textContent).toContain("Cumbia · Porro");
+    expect(preview.textContent).toContain("Dusty brass");
+    expect(preview.querySelector('[aria-label="Rated 4 of 5"]')).toBeTruthy();
+  });
+
+  it("previews a bare track, an album and an artist", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [track({ album: "Other Record" })] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [album({ label: "Creation" })] });
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, name: "Meridian Brothers", slug: "mb", album_count: 2, track_count: 1 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "m");
+    await screen.findByText("Only Shallow");
+    await user.hover(screen.getByText("Only Shallow"));
+    expect((await screen.findByTestId("palette-preview")).textContent).not.toContain("BPM");
+
+    await user.hover(screen.getByText("Loveless"));
+    await waitFor(() =>
+      expect(screen.getByTestId("palette-preview").textContent).toContain("Creation"),
+    );
+
+    await user.hover(screen.getByText("Meridian Brothers"));
+    await waitFor(() =>
+      expect(screen.getByTestId("palette-preview").textContent).toContain("2 albums"),
+    );
+  });
+
+  const withActions = async (query: string, label: string) => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), query);
+    await screen.findByText(label);
+    await user.hover(screen.getByText(label));
+    await user.keyboard("{Tab}");
+    return user;
+  };
+  const analytic = (command: string) =>
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", { scope: "global", command });
+
+  it("lists a track's five actions on Tab", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    await withActions("shallow", "Only Shallow");
+    for (const label of [
+      "Queue next",
+      "Add to queue",
+      "Add to playlist…",
+      "Find similar vibe",
+      "Open",
+    ]) {
+      expect(await screen.findByText(label)).toBeTruthy();
+    }
+  });
+
+  it.each([
+    [
+      "Queue next",
+      "queue_track_next",
+      () => expect(mocks.enqueueNext).toHaveBeenCalledWith(richTrack()),
+    ],
+    [
+      "Add to queue",
+      "queue_track",
+      () => expect(mocks.appendToQueue).toHaveBeenCalledWith(richTrack()),
+    ],
+    [
+      "Add to playlist…",
+      "add_track_to_playlist",
+      () => expect(mocks.openForTrack).toHaveBeenCalledWith(richTrack()),
+    ],
+    [
+      "Find similar vibe",
+      "find_similar_vibe",
+      () => expect(mocks.push).toHaveBeenCalledWith("/tracks/t1?friend_id=1#suggestions-heading"),
+    ],
+    ["Open", "open_track", () => expect(mocks.push).toHaveBeenCalledWith("/tracks/t1?friend_id=1")],
+  ])("track action %s", async (label, command, check) => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    const user = await withActions("shallow", "Only Shallow");
+    await user.click(await screen.findByText(label));
+    check();
+    analytic(command);
+  });
+
+  it("opens with → at the end of the input, and goes back with ← and Backspace", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    await screen.findByText("Only Shallow");
+    await user.hover(screen.getByText("Only Shallow"));
+
+    await user.keyboard("{ArrowRight}");
+    expect(await screen.findByText("Queue next")).toBeTruthy();
+    expect(screen.queryByText('Search tracks for "shallow"')).toBeNull();
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.queryByText("Queue next")).toBeNull();
+    expect(screen.getByText("Only Shallow")).toBeTruthy();
+
+    await user.hover(screen.getByText("Only Shallow"));
+    await user.keyboard("{ArrowRight}");
+    await screen.findByText("Queue next");
+    await user.keyboard("{Backspace}");
+    expect(screen.queryByText("Queue next")).toBeNull();
+    expect(input()).toHaveProperty("value", "shallow");
+  });
+
+  it("leaves → alone mid-text and Tab alone with nothing highlighted", async () => {
+    mocks.searchTracks.mockResolvedValue({ hits: [richTrack()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(input(), "shallow");
+    await screen.findByText("Only Shallow");
+    await user.hover(screen.getByText("Only Shallow"));
+    await user.keyboard("{ArrowLeft}{ArrowRight}");
+    expect(screen.queryByText("Queue next")).toBeNull();
+    await user.hover(screen.getByText(/^Search tracks for/));
+    await user.keyboard("{Tab}");
+    expect(screen.queryByText("Queue next")).toBeNull();
+  });
+
+  it("queues only the playable tracks of an album", async () => {
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    mocks.getAlbumWithTracks.mockResolvedValue({
+      tracks: [richTrack(), track({ track_id: "t2" })],
+    });
+    const user = await withActions("loveless", "Loveless");
+    await user.click(await screen.findByText("Queue album"));
+    await waitFor(() => expect(mocks.appendToQueue).toHaveBeenCalledWith([richTrack()]));
+    analytic("queue_album");
+  });
+
+  it("plays and opens an album from its actions", async () => {
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    mocks.getAlbumWithTracks.mockResolvedValue({ tracks: [richTrack()] });
+    let user = await withActions("loveless", "Loveless");
+    await user.click(await screen.findByText("Play"));
+    await waitFor(() => expect(mocks.replacePlaylist).toHaveBeenCalled());
+    analytic("play_album");
+    cleanup();
+    user = await withActions("loveless", "Loveless");
+    await user.click(await screen.findByText("Open"));
+    expect(mocks.push).toHaveBeenCalledWith("/albums/r1?friend_id=1");
+  });
+
+  it("reports an album with nothing playable", async () => {
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    mocks.getAlbumWithTracks.mockResolvedValue({ tracks: [track()] });
+    const user = await withActions("loveless", "Loveless");
+    await user.click(await screen.findByText("Queue album"));
+    await waitFor(() => expect(mocks.getAlbumWithTracks).toHaveBeenCalled());
+    expect(mocks.appendToQueue).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed album queue", async () => {
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    mocks.getAlbumWithTracks.mockRejectedValue(new Error("boom"));
+    const user = await withActions("loveless", "Loveless");
+    await user.click(await screen.findByText("Queue album"));
+    await waitFor(() => expect(console.error).toHaveBeenCalled());
+    expect(mocks.appendToQueue).not.toHaveBeenCalled();
+  });
+
+  it("offers artist actions: tracks by the artist", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, name: "Meridian Brothers", slug: "mb", album_count: 0, track_count: 0 }],
+    });
+    const user = await withActions("meridian", "Meridian Brothers");
+    await user.click(await screen.findByText("Tracks by Meridian Brothers"));
+    expect(mocks.push).toHaveBeenCalledWith("/tracks?artist=mb");
+    analytic("filter_tracks_by_artist");
+  });
+
+  it("opens an artist from its actions", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, name: "Meridian Brothers", slug: "mb", album_count: 0, track_count: 0 }],
+    });
+    const user = await withActions("meridian", "Meridian Brothers");
+    await user.click(await screen.findByText("Open"));
+    expect(mocks.push).toHaveBeenCalledWith("/artists/mb");
   });
 });
