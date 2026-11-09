@@ -25,6 +25,15 @@ const mocks = vi.hoisted(() => ({
   openForTrack: vi.fn(),
   setPaletteOpen: vi.fn(),
   queue: [] as unknown[],
+  playing: false,
+  index: 0 as number | null,
+  playlists: [] as unknown[],
+  play: vi.fn(),
+  pause: vi.fn(),
+  playNext: vi.fn(),
+  playPrev: vi.fn(),
+  clearQueue: vi.fn(),
+  importPlaylist: vi.fn(),
   friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
 
@@ -37,19 +46,19 @@ vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: mocks.friend }),
 }));
 vi.mock("@/hooks/usePlaylistsQuery", () => ({
-  usePlaylistsQuery: () => ({ playlists: [] }),
+  usePlaylistsQuery: () => ({ playlists: mocks.playlists }),
 }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayer: () => ({
     playlist: mocks.queue,
-    currentTrackIndex: 0,
+    currentTrackIndex: mocks.index,
     playlistLength: 0,
-    isPlaying: false,
-    play: vi.fn(),
-    pause: vi.fn(),
-    playNext: vi.fn(),
-    playPrev: vi.fn(),
-    clearQueue: vi.fn(),
+    isPlaying: mocks.playing,
+    play: mocks.play,
+    pause: mocks.pause,
+    playNext: mocks.playNext,
+    playPrev: mocks.playPrev,
+    clearQueue: mocks.clearQueue,
     replacePlaylist: mocks.replacePlaylist,
     appendToQueue: mocks.appendToQueue,
     enqueueNext: mocks.enqueueNext,
@@ -69,6 +78,7 @@ vi.mock("@/providers/CommandPaletteProvider", () => ({
     scope: mocks.scope,
   }),
 }));
+vi.mock("@/services/internalApi/playlists", () => ({ importPlaylist: mocks.importPlaylist }));
 vi.mock("@/services/internalApi/genres", () => ({ fetchGenreTree: mocks.fetchGenreTree }));
 vi.mock("@/services/internalApi/tracks", () => ({ searchTracks: mocks.searchTracks }));
 vi.mock("@/services/internalApi/albums", () => ({
@@ -1118,5 +1128,70 @@ describe("phone search screen (#1145)", () => {
       "shallow",
     ]);
     expect(window.localStorage.getItem("groovenet:palette:recent-opens")).toContain("Only Shallow");
+  });
+});
+
+describe("player and playlist rows", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.playing = false;
+    mocks.queue = [];
+    mocks.playlists = [{ id: 7, name: "Warmup", tracks: [1, 2] }];
+    mocks.scope = undefined;
+    mocks.fetchGenreTree.mockResolvedValue(GENRE_TREE);
+    mocks.searchTracks.mockResolvedValue({ hits: [] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [] });
+    mocks.listArtists.mockResolvedValue({ items: [] });
+  });
+
+  it("plays, skips, clears and opens a playlist from their rows", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(screen.getByText("Play"));
+    expect(mocks.play).toHaveBeenCalled();
+    await user.click(screen.getByText("Next Track"));
+    expect(mocks.playNext).toHaveBeenCalled();
+    await user.click(screen.getByText("Previous Track"));
+    expect(mocks.playPrev).toHaveBeenCalled();
+    await user.click(screen.getByText("Clear Queue"));
+    expect(mocks.clearQueue).toHaveBeenCalled();
+    await user.click(screen.getByText("Warmup"));
+    expect(mocks.push).toHaveBeenCalledWith("/playlists/7");
+    expect(screen.getByText("2 tracks")).toBeTruthy();
+  });
+
+  it("pauses while playing", async () => {
+    mocks.playing = true;
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(screen.getByText("Pause"));
+    expect(mocks.pause).toHaveBeenCalled();
+  });
+
+  it("creates a playlist from the queue only when it has tracks", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(screen.getByText("Create Playlist From Queue"));
+    expect(mocks.importPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("lists the queue from the current track on a phone", async () => {
+    const real = window.matchMedia;
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes("max-width: 767px"),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+    mocks.queue = [
+      track({ track_id: "q1", title: "Queued One", local_audio_url: "/a.mp3" }),
+      track({ track_id: "", title: "" }),
+    ];
+    renderWithProviders(<CommandPalette />);
+    expect(screen.getByText("Queued One")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Play Queued One" })).toBeTruthy();
+    cleanup();
+    mocks.index = null;
+    renderWithProviders(<CommandPalette />);
+    expect(screen.getByText("Queued One")).toBeTruthy();
+    mocks.index = 0;
+    window.matchMedia = real;
   });
 });
