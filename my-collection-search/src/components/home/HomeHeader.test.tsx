@@ -32,10 +32,10 @@ describe("HomeHeader", () => {
     expect(screen.queryByTestId("page-header-meta")).toBeNull();
   });
 
-  it("opens search from the phone icon and the desktop field", async () => {
+  it("opens search from the desktop field; phones get the header's own button", async () => {
     const onSearch = vi.fn();
     const { user } = renderWithProviders(<HomeHeader counts={null} onSearch={onSearch} />);
-    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
     const field = screen.getByRole("button", {
       name: "Search tracks, albums, artists",
       hidden: true,
@@ -43,6 +43,6 @@ describe("HomeHeader", () => {
     expect(field.textContent).toContain("⌘K");
     expect(field.getAttribute("aria-keyshortcuts")).toBe("Meta+K");
     await user.click(field);
-    expect(onSearch).toHaveBeenCalledTimes(2);
+    expect(onSearch).toHaveBeenCalledTimes(1);
   });
 });

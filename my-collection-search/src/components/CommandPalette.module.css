@@ -281,3 +281,89 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.rowWrap {
+  position: relative;
+}
+
+.scopePill,
+.cancel,
+.rowPlay,
+.rowMore {
+  font-family: var(--chakra-fonts-label);
+  color: inherit;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.scopePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 32px;
+  margin-left: 8px;
+  padding: 0 8px;
+  font-size: 13px;
+  border: var(--chakra-border-widths-rule, 1px) solid var(--chakra-colors-border-ink);
+}
+
+.cancel {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.rowPlay,
+.rowMore {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 18px;
+}
+
+.rowMore {
+  right: 0;
+}
+
+.rowPlay {
+  right: 44px;
+}
+
+/* A phone gets a full-screen search sheet (#1145); desktop keeps the centred dialog. */
+@media (max-width: 767px) {
+  .dialog {
+    top: var(--palette-top, 0);
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-height: none;
+    height: var(--palette-vh, 100dvh);
+    border: none;
+    box-shadow: none;
+    padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 8px) 8px 0;
+  }
+
+  .list {
+    max-height: none;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .rowWrap .item {
+    min-height: 64px;
+    padding-right: 92px;
+  }
+
+  .playable {
+    display: none;
+  }
+}

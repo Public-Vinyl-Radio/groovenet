@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { GenreTreeNode } from "@/api-contract/schemas";
 import type { Track, Album } from "@/types/track";
@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   enqueueNext: vi.fn(),
   openForTrack: vi.fn(),
   setPaletteOpen: vi.fn(),
+  queue: [] as unknown[],
   friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
 
@@ -40,7 +41,8 @@ vi.mock("@/hooks/usePlaylistsQuery", () => ({
 }));
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({
   usePlaylistPlayer: () => ({
-    playlist: [],
+    playlist: mocks.queue,
+    currentTrackIndex: 0,
     playlistLength: 0,
     isPlaying: false,
     play: vi.fn(),
@@ -834,5 +836,287 @@ describe("richer rows, actions and preview (#1142)", () => {
     const user = await withActions("meridian", "Meridian Brothers");
     await user.click(await screen.findByText("Open"));
     expect(mocks.push).toHaveBeenCalledWith("/artists/mb");
+  });
+});
+
+describe("phone search screen (#1145)", () => {
+  const realMatchMedia = window.matchMedia;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    mocks.queue = [];
+    mocks.scope = undefined;
+    mocks.searchParams = new URLSearchParams();
+    mocks.friend = { id: 1, username: "dj" };
+    mocks.fetchGenreTree.mockResolvedValue(GENRE_TREE);
+    mocks.searchTracks.mockResolvedValue({ hits: [track({ local_audio_url: "/a.mp3" })] });
+    mocks.searchAlbums.mockResolvedValue({ hits: [album()] });
+    mocks.listArtists.mockResolvedValue({ items: [] });
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("max-width: 767px"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+    vi.useRealTimers();
+  });
+
+  it("has a Cancel button and no navigation list while the query is empty", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    expect(screen.queryByText("Navigation")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("shows now playing, recents and the page actions before you type", async () => {
+    mocks.queue = [
+      track({ track_id: "q1", title: "Queued One" }),
+      track({ track_id: "q2", title: "Queued Two" }),
+    ];
+    window.localStorage.setItem(
+      "groovenet:palette:recent-opens",
+      JSON.stringify([
+        { kind: "track", track: track({ track_id: "r1", title: "Recent Track" }) },
+        { kind: "album", album: album({ title: "Recent Album" }) },
+      ]),
+    );
+    window.localStorage.setItem("groovenet:palette:recent-searches", JSON.stringify(["slowdive"]));
+    const onSelect = vi.fn();
+    mocks.scope = {
+      id: "tracks",
+      label: "Tracks",
+      actions: [{ id: "navigate", label: "Select tracks", onSelect }],
+    };
+    const { user } = renderWithProviders(<CommandPalette />);
+
+    expect(screen.getByText("Now playing")).toBeTruthy();
+    expect(screen.getByText("Queued Two")).toBeTruthy();
+    expect(screen.getByText("Recent Track")).toBeTruthy();
+    expect(screen.getByText("Recent Album")).toBeTruthy();
+    expect(screen.getByText("Select tracks")).toBeTruthy();
+
+    await user.click(screen.getByText("slowdive"));
+    expect((screen.getByPlaceholderText(/Search tracks/) as HTMLInputElement).value).toBe(
+      "slowdive",
+    );
+  });
+
+  it("removes the scope from its pill", async () => {
+    mocks.scope = { id: "albums", label: "Albums", onSearch: vi.fn() };
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: "Remove Albums scope" }));
+    expect(screen.queryByRole("button", { name: "Remove Albums scope" })).toBeNull();
+  });
+
+  it("plays a track from the row's own button, which is not inside the item", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const play = await screen.findByRole("button", { name: "Play Only Shallow" });
+    expect(play.closest("[cmdk-item]")).toBeNull();
+    await user.click(play);
+    expect(mocks.replacePlaylist).toHaveBeenCalledWith(
+      [expect.objectContaining({ track_id: "t1" })],
+      {
+        autoplay: true,
+        startIndex: 0,
+      },
+    );
+    expect(mocks.setPaletteOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("plays an album from its row button", async () => {
+    mocks.getAlbumWithTracks.mockResolvedValue({ tracks: [track()] });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "love");
+    await user.click(await screen.findByRole("button", { name: "Play Loveless" }));
+    await waitFor(() => expect(mocks.replacePlaylist).toHaveBeenCalled());
+  });
+
+  it("opens the action sheet from the ⋯ button and runs an action", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    await user.click(await screen.findByRole("button", { name: "More actions for Only Shallow" }));
+    await user.click(await screen.findByRole("button", { name: "Add to queue" }));
+    expect(mocks.appendToQueue).toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith("command_palette_used", {
+      scope: "global",
+      command: "open_action_sheet",
+    });
+  });
+
+  it("opens the action sheet on a long press, without opening the track", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const row = (await screen.findAllByText("Only Shallow"))[0]!.closest("[cmdk-item]")!;
+    vi.useFakeTimers();
+    fireEvent.pointerDown(row, { pointerType: "touch" });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    fireEvent.pointerUp(row);
+    vi.useRealTimers();
+    expect(await screen.findByRole("button", { name: "Find similar vibe" })).toBeTruthy();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("does not open the sheet when the press ends early", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const row = (await screen.findAllByText("Only Shallow"))[0]!.closest("[cmdk-item]")!;
+    vi.useFakeTimers();
+    fireEvent.pointerDown(row, { pointerType: "touch" });
+    fireEvent.pointerCancel(row);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    vi.useRealTimers();
+    expect(screen.queryByRole("button", { name: "Find similar vibe" })).toBeNull();
+  });
+
+  it("sizes the sheet to the visual viewport so the list clears the keyboard", async () => {
+    const listeners: Record<string, () => void> = {};
+    const vv = {
+      height: 420,
+      offsetTop: 12,
+      addEventListener: (type: string, fn: () => void) => (listeners[type] = fn),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, "visualViewport", { value: vv, configurable: true });
+    renderWithProviders(<CommandPalette />);
+    await screen.findByRole("dialog");
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue("--palette-vh")).toBe("420px");
+    expect(root.style.getPropertyValue("--palette-top")).toBe("12px");
+    vv.height = 300;
+    act(() => listeners.resize?.());
+    expect(root.style.getPropertyValue("--palette-vh")).toBe("300px");
+    Object.defineProperty(window, "visualViewport", { value: undefined, configurable: true });
+  });
+
+  it("opens an album's sheet", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, slug: "mbv", name: "My Bloody Valentine", album_count: 1, track_count: 2 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "love");
+    await user.click(await screen.findByRole("button", { name: "More actions for Loveless" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Queue album" }));
+    expect(mocks.getAlbumWithTracks).toHaveBeenCalled();
+  });
+
+  it("opens an artist's sheet", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, slug: "mbv", name: "My Bloody Valentine", album_count: 1, track_count: 2 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "love");
+    await user.click(
+      await screen.findByRole("button", { name: "More actions for My Bloody Valentine" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Tracks by My Bloody Valentine" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(mocks.push).toHaveBeenCalledWith("/artists/mbv");
+  });
+
+  it("blocks the context menu on phones and returns to the results when the sheet closes", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const row = (await screen.findAllByText("Only Shallow"))[0]!.closest("[cmdk-item]")!;
+    expect(fireEvent.contextMenu(row)).toBe(false);
+    await user.click(screen.getByRole("button", { name: "More actions for Only Shallow" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Close" }));
+    expect(await screen.findByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("does not open the sheet when the press ends early", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const row = (await screen.findAllByText("Only Shallow"))[0]!.closest("[cmdk-item]")!;
+    vi.useFakeTimers();
+    fireEvent.pointerDown(row, { pointerType: "touch" });
+    fireEvent.pointerCancel(row);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    vi.useRealTimers();
+    expect(screen.queryByRole("button", { name: "Find similar vibe" })).toBeNull();
+  });
+
+  it("sizes the sheet to the visual viewport so the list clears the keyboard", async () => {
+    const listeners: Record<string, () => void> = {};
+    const vv = {
+      height: 420,
+      offsetTop: 12,
+      addEventListener: (type: string, fn: () => void) => (listeners[type] = fn),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, "visualViewport", { value: vv, configurable: true });
+    renderWithProviders(<CommandPalette />);
+    await screen.findByRole("dialog");
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue("--palette-vh")).toBe("420px");
+    expect(root.style.getPropertyValue("--palette-top")).toBe("12px");
+    vv.height = 300;
+    act(() => listeners.resize?.());
+    expect(root.style.getPropertyValue("--palette-vh")).toBe("300px");
+    Object.defineProperty(window, "visualViewport", { value: undefined, configurable: true });
+  });
+
+  it("opens an album's sheet", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, slug: "mbv", name: "My Bloody Valentine", album_count: 1, track_count: 2 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "love");
+    await user.click(await screen.findByRole("button", { name: "More actions for Loveless" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Queue album" }));
+    expect(mocks.getAlbumWithTracks).toHaveBeenCalled();
+  });
+
+  it("opens an artist's sheet", async () => {
+    mocks.listArtists.mockResolvedValue({
+      items: [{ id: 9, slug: "mbv", name: "My Bloody Valentine", album_count: 1, track_count: 2 }],
+    });
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "love");
+    await user.click(
+      await screen.findByRole("button", { name: "More actions for My Bloody Valentine" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Tracks by My Bloody Valentine" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(mocks.push).toHaveBeenCalledWith("/artists/mbv");
+  });
+
+  it("ignores the select that follows a long press and blocks the context menu", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    const row = (await screen.findAllByText("Only Shallow"))[0]!.closest("[cmdk-item]")!;
+    expect(fireEvent.contextMenu(row)).toBe(false);
+    vi.useFakeTimers();
+    fireEvent.pointerDown(row, { pointerType: "touch" });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    vi.useRealTimers();
+    await user.click(await screen.findByRole("button", { name: "Cancel" }).catch(() => row));
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("remembers what you opened and searched for", async () => {
+    const { user } = renderWithProviders(<CommandPalette />);
+    await user.type(screen.getByPlaceholderText(/Search tracks/), "shallow");
+    await user.click((await screen.findAllByText("Only Shallow"))[0]!);
+    expect(JSON.parse(window.localStorage.getItem("groovenet:palette:recent-searches")!)).toEqual([
+      "shallow",
+    ]);
+    expect(window.localStorage.getItem("groovenet:palette:recent-opens")).toContain("Only Shallow");
   });
 });

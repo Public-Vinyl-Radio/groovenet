@@ -117,7 +117,9 @@ export type AnalyticsEvents = {
       | "queue_album"
       | "queue_track_next"
       | "queue_track"
-      | "find_similar_vibe";
+      | "find_similar_vibe"
+      | "open_from_header"
+      | "open_action_sheet";
   };
 
   // ── Server ────────────────────────────────────────────────────────────────

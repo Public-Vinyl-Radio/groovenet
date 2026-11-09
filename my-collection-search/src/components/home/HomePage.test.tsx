@@ -17,6 +17,7 @@ vi.mock("@/providers/UsernameProvider", () => ({
 }));
 vi.mock("@/providers/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ setPaletteOpen: vi.fn() }),
+  useOptionalCommandPalette: () => null,
 }));
 vi.mock("./HomeNowPlaying", () => ({ default: () => null }));
 vi.mock("./MonthCard", () => ({ default: () => <div data-testid="month" /> }));
