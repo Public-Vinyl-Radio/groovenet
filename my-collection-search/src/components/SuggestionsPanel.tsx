@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
+import RetroDialog from "@/components/ui/RetroDialog";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
@@ -50,8 +51,9 @@ export default function SuggestionsPanel({
   onAdd,
   onClose,
 }: SuggestionsPanelProps) {
-  // Below the docked panel's breakpoint, Suggestions is a bottom sheet over the playlist.
-  const isSheet = useBreakpointValue({ base: true, xl: false }) ?? false;
+  // Phones get a bottom sheet, tablets and small desktops a modal, wide screens the docked panel.
+  const form = useBreakpointValue({ base: "sheet", md: "modal", xl: "panel" }) ?? "panel";
+  const isSheet = form === "sheet";
   const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
   const [compatibleKey, setCompatibleKey] = useState(true);
   const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
@@ -174,36 +176,38 @@ export default function SuggestionsPanel({
     </Text>
   );
 
-  if (isSheet) {
-    return (
-      <SuggestionsSheet
-        onClose={onClose}
-        seedLine={seedLine}
-        chips={
-          <>
-            <Chip pressed={!seedTrack} onClick={() => setMode(seedTrack ? "playlist" : "track")}>
-              Whole playlist
+  if (form !== "panel") {
+    const shared = {
+      onClose,
+      seedLine,
+      chips: (
+        <>
+          <Chip pressed={!seedTrack} onClick={() => setMode(seedTrack ? "playlist" : "track")}>
+            Whole playlist
+          </Chip>
+          <Chip pressed={compatibleKey} onClick={() => setCompatibleKey((v) => !v)}>
+            Compatible key
+          </Chip>
+          <Chip pressed={bpmWithinSixPercent} onClick={() => setBpmWithinSixPercent((v) => !v)}>
+            BPM ±6%
+          </Chip>
+          {SCOPES.map((s) => (
+            <Chip key={s.value} pressed={scope === s.value} onClick={() => setScope(s.value)}>
+              {s.label}
             </Chip>
-            <Chip pressed={compatibleKey} onClick={() => setCompatibleKey((v) => !v)}>
-              Compatible key
-            </Chip>
-            <Chip pressed={bpmWithinSixPercent} onClick={() => setBpmWithinSixPercent((v) => !v)}>
-              BPM ±6%
-            </Chip>
-            {SCOPES.map((s) => (
-              <Chip key={s.value} pressed={scope === s.value} onClick={() => setScope(s.value)}>
-                {s.label}
-              </Chip>
-            ))}
-          </>
-        }
-        footer={`${added.length} added after ${seedTrack ? seedTrack.title : "the playlist"}`}
-      >
-        {status}
-        {empty}
-        {list}
-      </SuggestionsSheet>
-    );
+          ))}
+        </>
+      ),
+      footer: `${added.length} added after ${seedTrack ? seedTrack.title : "the playlist"}`,
+      children: (
+        <>
+          {status}
+          {empty}
+          {list}
+        </>
+      ),
+    };
+    return isSheet ? <SuggestionsSheet {...shared} /> : <SuggestionsModal {...shared} />;
   }
 
   return (
@@ -305,23 +309,75 @@ function Chip({
   );
 }
 
-/** Drag the handle down this far (px) to dismiss. */
-const DISMISS_DRAG = 96;
+/** "N added · Done": the same footer for the sheet and the modal. */
+function SuggestionsFooter({ footer, onClose }: { footer: string; onClose: () => void }) {
+  return (
+    <>
+      <Text fontSize="sm" role="status" data-testid="suggestions-count">
+        {footer}
+      </Text>
+      <Button minH="44px" colorPalette="neutral" onClick={onClose}>
+        Done
+      </Button>
+    </>
+  );
+}
 
-/** The phone form: about 75% of the screen, over the playlist, one tap to add and it stays open. */
-function SuggestionsSheet({
-  onClose,
-  seedLine,
-  chips,
-  footer,
-  children,
-}: {
+type SuggestionsFormProps = {
   onClose: () => void;
   seedLine: React.ReactNode;
   chips: React.ReactNode;
   footer: string;
   children: React.ReactNode;
-}) {
+};
+
+/** The tablet and small-desktop form: a modal; one tap adds and it stays open. */
+function SuggestionsModal({ onClose, seedLine, chips, footer, children }: SuggestionsFormProps) {
+  return (
+    <RetroDialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="Suggestions"
+      maxW="2xl"
+      footer={
+        <Flex align="center" justify="space-between" gap={3} px={3} py={2}>
+          <SuggestionsFooter footer={footer} onClose={onClose} />
+        </Flex>
+      }
+    >
+      <Flex
+        direction="column"
+        data-testid="suggestions-modal"
+        h="min(80dvh, 760px)"
+        // The list scrolls inside the modal; the seed line and filters stay put.
+      >
+        <Flex direction="column" gap={2} p={3} borderBottomWidth="rule" flexShrink={0}>
+          {seedLine}
+          <Flex gap={2} wrap="wrap" role="group" aria-label="Filters">
+            {chips}
+          </Flex>
+        </Flex>
+        <Flex
+          direction="column"
+          gap={3}
+          p={3}
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          data-testid="suggestions-scroll"
+        >
+          {children}
+        </Flex>
+      </Flex>
+    </RetroDialog>
+  );
+}
+
+/** Drag the handle down this far (px) to dismiss. */
+const DISMISS_DRAG = 96;
+
+/** The phone form: about 75% of the screen, over the playlist, one tap to add and it stays open. */
+function SuggestionsSheet({ onClose, seedLine, chips, footer, children }: SuggestionsFormProps) {
   const [drag, setDrag] = useState(0);
   const startY = useRef<number | null>(null);
 
@@ -395,7 +451,15 @@ function SuggestionsSheet({
               {chips}
             </Flex>
           </Flex>
-          <Flex direction="column" gap={3} p={3} flex={1} minH={0} overflowY="auto">
+          <Flex
+            direction="column"
+            gap={3}
+            p={3}
+            flex={1}
+            minH={0}
+            overflowY="auto"
+            data-testid="suggestions-scroll"
+          >
             {children}
           </Flex>
           <Flex
@@ -409,12 +473,7 @@ function SuggestionsSheet({
             // Clear of the home indicator; the sheet sits above the player bar and nav.
             pb="calc(var(--chakra-spacing-2) + var(--safe-bottom, 0px))"
           >
-            <Text fontSize="sm" role="status" data-testid="suggestions-sheet-count">
-              {footer}
-            </Text>
-            <Button minH="44px" colorPalette="neutral" onClick={onClose}>
-              Done
-            </Button>
+            <SuggestionsFooter footer={footer} onClose={onClose} />
           </Flex>
         </Drawer.Content>
       </Drawer.Positioner>

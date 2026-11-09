@@ -191,6 +191,9 @@ export function SuggestionList({ children }: { children: React.ReactNode }) {
       boxShadow="md"
       bg="bg.panel"
       overflow="hidden"
+      // An overflow:hidden flex item may shrink below its content, so in a scrolling
+      // flex column the list would be squeezed to fit instead of overflowing (#1151).
+      flexShrink={0}
     >
       {children}
     </Box>

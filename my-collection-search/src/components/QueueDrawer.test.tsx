@@ -64,7 +64,7 @@ vi.mock("@/components/player/usePlayerControlsController", () => ({
 }));
 const openSave = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useQueueSaveDialog", () => ({
-  useQueueSaveDialog: () => ({ Dialog: () => null, open: openSave }),
+  useQueueSaveDialog: () => ({ dialog: null, open: openSave }),
 }));
 vi.mock("@/components/player/PlaybackOutput", () => ({
   PlayOnRow: () => <button aria-label="Play on: This iPhone">PLAY ON</button>,
