@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.3.18](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.17...v0.3.18) (2026-11-09)
+
+
+### Features
+
+* **artists:** add shared identities, aliases and credits ([#1061](https://github.com/Public-Vinyl-Radio/groovenet/issues/1061)) ([1f334e8](https://github.com/Public-Vinyl-Radio/groovenet/commit/1f334e82b5213f5ff9b0b63fbe6ec46e90f8b477))
+* **artists:** artist filter on search and an artists index ([#1077](https://github.com/Public-Vinyl-Radio/groovenet/issues/1077)) ([72a22a1](https://github.com/Public-Vinyl-Radio/groovenet/commit/72a22a1c825db8f76d9a8c5cb4fefbcdf017d8fb))
+* **artists:** artist page at /artists/[slug] ([#1068](https://github.com/Public-Vinyl-Radio/groovenet/issues/1068)) ([365cb9d](https://github.com/Public-Vinyl-Radio/groovenet/commit/365cb9d547b5e5e591e6de20a4cfcbb136e91cf2))
+* **artists:** artists in the API, client, CLI and MCP ([#1071](https://github.com/Public-Vinyl-Radio/groovenet/issues/1071)) ([3464d5c](https://github.com/Public-Vinyl-Radio/groovenet/commit/3464d5cfc0f39b1f4128bc06f3c59d2a0ea754f5))
+* **artists:** capture Discogs artist credits on import ([#1065](https://github.com/Public-Vinyl-Radio/groovenet/issues/1065)) ([fe0a5e8](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe0a5e8813b4d6252135f330e17b0a93cd345312))
+* **artists:** reconcile and backfill existing albums and tracks ([#1067](https://github.com/Public-Vinyl-Radio/groovenet/issues/1067)) ([8290241](https://github.com/Public-Vinyl-Radio/groovenet/commit/8290241e27abb5833f8c97e083b6d0a51b52425f))
+* **artists:** review, merge and split artists from the CLI ([#1069](https://github.com/Public-Vinyl-Radio/groovenet/issues/1069)) ([08a30bc](https://github.com/Public-Vinyl-Radio/groovenet/commit/08a30bc63abba387b3ca37ddfad44aba56422b43))
+* **brick:** add native REST and SSE client with reconnects ([#1106](https://github.com/Public-Vinyl-Radio/groovenet/issues/1106)) ([7969697](https://github.com/Public-Vinyl-Radio/groovenet/commit/7969697b8e4432dc0500971043bb3f8cd6a1851c))
+* **brick:** browse saved playlists and play or enqueue tracks ([#1110](https://github.com/Public-Vinyl-Radio/groovenet/issues/1110)) ([d5dcf17](https://github.com/Public-Vinyl-Radio/groovenet/commit/d5dcf17cbf37a6460aeb6d4c878f522e8b3d0f7f))
+* **brick:** establish native app and desktop mock preview ([#1105](https://github.com/Public-Vinyl-Radio/groovenet/issues/1105)) ([0bb55bb](https://github.com/Public-Vinyl-Radio/groovenet/commit/0bb55bb3bfa978ae1a1efa11b67ac608728b72a0))
+* **brick:** follow selected players with Now Playing controls ([#1109](https://github.com/Public-Vinyl-Radio/groovenet/issues/1109)) ([8129c3c](https://github.com/Public-Vinyl-Radio/groovenet/commit/8129c3cdb3e93765c3761fb096df002e2a588025))
+* **brick:** select player outputs with explicit takeover handling ([#1118](https://github.com/Public-Vinyl-Radio/groovenet/issues/1118)) ([5dc97d0](https://github.com/Public-Vinyl-Radio/groovenet/commit/5dc97d0928f2e4a1dcbdfc87e879145fc5662f5d))
+* **brick:** view and edit the shared server queue ([#1111](https://github.com/Public-Vinyl-Radio/groovenet/issues/1111)) ([5a58381](https://github.com/Public-Vinyl-Radio/groovenet/commit/5a5838150be50aef29af5d1406104c08895bdf0a))
+* **chores:** show shelf codes and a card view for the pulled stack ([#1011](https://github.com/Public-Vinyl-Radio/groovenet/issues/1011)) ([3294504](https://github.com/Public-Vinyl-Radio/groovenet/commit/32945041cd86375051e101841f12992ab8ce34b8))
+* **dev:** compose profiles so worktrees run only the services a task needs ([#1131](https://github.com/Public-Vinyl-Radio/groovenet/issues/1131)) ([e852935](https://github.com/Public-Vinyl-Radio/groovenet/commit/e852935b48447f6741f2f6877b3aa09d059eb192))
+* **player:** add quality badges and File info ([#1057](https://github.com/Public-Vinyl-Radio/groovenet/issues/1057)) ([8df48db](https://github.com/Public-Vinyl-Radio/groovenet/commit/8df48db155a16e2d55ae2b46b22550b1c0d5cf35))
+* **player:** Homebrew formula updates on player releases ([#1007](https://github.com/Public-Vinyl-Radio/groovenet/issues/1007)) ([57a5972](https://github.com/Public-Vinyl-Radio/groovenet/commit/57a597209e92a93b46968849c721f0f261ab7bae))
+* **playlists:** Suggestions bottom sheet on phones ([#1040](https://github.com/Public-Vinyl-Radio/groovenet/issues/1040)) ([4cc6432](https://github.com/Public-Vinyl-Radio/groovenet/commit/4cc6432d1eee5eab2d113bf6ded14c4c9b5b3746))
+* **playlists:** Suggestions panel with one-tap add after a track ([#1039](https://github.com/Public-Vinyl-Radio/groovenet/issues/1039)) ([1ac5479](https://github.com/Public-Vinyl-Radio/groovenet/commit/1ac547983f43f71d7e1fea767d0d7ecbd1840b3d))
+* **suggestions:** rank candidates with variety and mix fit ([#1036](https://github.com/Public-Vinyl-Radio/groovenet/issues/1036)) ([256ef41](https://github.com/Public-Vinyl-Radio/groovenet/commit/256ef4188f817c3fd405d7f5c7e0ba94b91423d9))
+* **system:** orphan scan for audio files without tracks and tracks with missing files ([#1055](https://github.com/Public-Vinyl-Radio/groovenet/issues/1055)) ([440321e](https://github.com/Public-Vinyl-Radio/groovenet/commit/440321e3a5586ac93661f34c14f4f58903ade6da))
+* **system:** Storage section with file totals, breakdown by source and codec, and free space ([#1060](https://github.com/Public-Vinyl-Radio/groovenet/issues/1060)) ([2a4a0ae](https://github.com/Public-Vinyl-Radio/groovenet/commit/2a4a0ae6c6924e1a89695bcd3cc21d5f0a10d20b))
+* **tracks:** backfill audio file metadata and source for existing files ([#1058](https://github.com/Public-Vinyl-Radio/groovenet/issues/1058)) ([f4f2ecf](https://github.com/Public-Vinyl-Radio/groovenet/commit/f4f2ecf88214174caec2436c6deaa2fb733ca63b))
+* **tracks:** persist local audio metadata and source ([#1056](https://github.com/Public-Vinyl-Radio/groovenet/issues/1056)) ([6d30191](https://github.com/Public-Vinyl-Radio/groovenet/commit/6d30191f592b3a4a45653b9e0b93c790756d8c2e))
+* **ui:** add command palette page scopes and actions ([#1148](https://github.com/Public-Vinyl-Radio/groovenet/issues/1148)) ([b1e4c6e](https://github.com/Public-Vinyl-Radio/groovenet/commit/b1e4c6e0034f86adbb113c94dc0e0979cb6cca21))
+* **ui:** card header rows for home's single-card sections ([#1134](https://github.com/Public-Vinyl-Radio/groovenet/issues/1134)) ([a1fe97c](https://github.com/Public-Vinyl-Radio/groovenet/commit/a1fe97c705ffce832535c03a03c6637961f0d16d))
+* **ui:** command palette phase 1: search first, ⌘K from inputs, one row per result ([#1144](https://github.com/Public-Vinyl-Radio/groovenet/issues/1144)) ([eada001](https://github.com/Public-Vinyl-Radio/groovenet/commit/eada0012e467a265af4d30b575772c2eb2e17bb6))
+* **ui:** command palette phase 3: richer rows, secondary actions, preview pane ([#1149](https://github.com/Public-Vinyl-Radio/groovenet/issues/1149)) ([675d145](https://github.com/Public-Vinyl-Radio/groovenet/commit/675d145b37d66f2e72d4d7d9469f3cb40787b597))
+* **ui:** command palette phase 4: phone search screen ([#1153](https://github.com/Public-Vinyl-Radio/groovenet/issues/1153)) ([95d89ab](https://github.com/Public-Vinyl-Radio/groovenet/commit/95d89abf4ebe57218eef8f052a6a5f946228acf7))
+* **ui:** link artist names to artist pages ([#1076](https://github.com/Public-Vinyl-Radio/groovenet/issues/1076)) ([2b31706](https://github.com/Public-Vinyl-Radio/groovenet/commit/2b31706eecc2806da0d1860a1e755d8892d57c23))
+* **ui:** SuggestionRow, one row for every suggestions list ([#1035](https://github.com/Public-Vinyl-Radio/groovenet/issues/1035)) ([e19939c](https://github.com/Public-Vinyl-Radio/groovenet/commit/e19939cd79785e84c1e4619156a595d1e34ea992))
+
+
+### Bug Fixes
+
+* **artists:** keep the inverted sort name for X, The artists ([#1085](https://github.com/Public-Vinyl-Radio/groovenet/issues/1085)) ([1dfcea1](https://github.com/Public-Vinyl-Radio/groovenet/commit/1dfcea1124454894972a773b1703a7aea60a8e17))
+* **artists:** link credited artists when the display string differs from the credit name ([#1081](https://github.com/Public-Vinyl-Radio/groovenet/issues/1081)) ([6057149](https://github.com/Public-Vinyl-Radio/groovenet/commit/6057149a032b27c7739c5cfedbcc744e6499cafb))
+* **artists:** readable artist slugs with a separate identity key and old-slug redirects ([#1082](https://github.com/Public-Vinyl-Radio/groovenet/issues/1082)) ([5993d44](https://github.com/Public-Vinyl-Radio/groovenet/commit/5993d4456278a30eee4b52919644bc5735b4fa35))
+* **cli:** show artist, album and track names in artists review ([#1087](https://github.com/Public-Vinyl-Radio/groovenet/issues/1087)) ([5fbb997](https://github.com/Public-Vinyl-Radio/groovenet/commit/5fbb9977fb9a04d1b66e084c8d8edd0270f7f10c))
+* **dev:** open herdr-task workspaces in the background ([#1130](https://github.com/Public-Vinyl-Radio/groovenet/issues/1130)) ([e2b9962](https://github.com/Public-Vinyl-Radio/groovenet/commit/e2b9962d1821575162952f5734d63608dfa40ddb))
+* **genres:** genre page opens on tracks, with track actions and infinite scroll ([#1037](https://github.com/Public-Vinyl-Radio/groovenet/issues/1037)) ([ac4eb93](https://github.com/Public-Vinyl-Radio/groovenet/commit/ac4eb93e17fcf4fbb05c22df3316f01083bc0351))
+* **genres:** one genre tag component that opens the genre page ([#1015](https://github.com/Public-Vinyl-Radio/groovenet/issues/1015)) ([777568f](https://github.com/Public-Vinyl-Radio/groovenet/commit/777568f9ae2507e2af402f77b6eeb4e64b04603c))
+* **ui:** album covers match track list sizes (UX batch 6) ([#1137](https://github.com/Public-Vinyl-Radio/groovenet/issues/1137)) ([2136748](https://github.com/Public-Vinyl-Radio/groovenet/commit/213674869595575e4ad66ee216b8797d0c7a5df9))
+* **ui:** batch 1 UX polish ([#1117](https://github.com/Public-Vinyl-Radio/groovenet/issues/1117)) ([1008010](https://github.com/Public-Vinyl-Radio/groovenet/commit/10080104662062678c9ba59dc781a777ba91e939))
+* **ui:** equal-width active phone tab, add tab bar labels setting ([#1114](https://github.com/Public-Vinyl-Radio/groovenet/issues/1114)) ([0b1d34b](https://github.com/Public-Vinyl-Radio/groovenet/commit/0b1d34b50a2ec9fb31ca38a408b683653f9cbc72))
+* **ui:** genre page header, track cards, phone paging; joined spins tabs (UX polish batch 4) ([#1125](https://github.com/Public-Vinyl-Radio/groovenet/issues/1125)) ([368f34c](https://github.com/Public-Vinyl-Radio/groovenet/commit/368f34ccaccd0a55b2c0a9d72c4f2e49c5e53b87))
+* **ui:** link track title, artist, album and cover everywhere a track is shown ([#1064](https://github.com/Public-Vinyl-Radio/groovenet/issues/1064)) ([55c40ce](https://github.com/Public-Vinyl-Radio/groovenet/commit/55c40ceda7774db6f385dee26ad5234853362976))
+* **ui:** mobile header back goes back in history ([#1132](https://github.com/Public-Vinyl-Radio/groovenet/issues/1132)) ([dbd05dc](https://github.com/Public-Vinyl-Radio/groovenet/commit/dbd05dcece29a78564ff91fc8177cda6d7ae9819))
+* **ui:** rebuild suggestion rows from track parts, kebab and inline folds ([#1146](https://github.com/Public-Vinyl-Radio/groovenet/issues/1146)) ([b9339b3](https://github.com/Public-Vinyl-Radio/groovenet/commit/b9339b3ff3b3738353d788828c53a48197add863))
+* **ui:** stop the queue save dialog remounting on every state change ([#1150](https://github.com/Public-Vinyl-Radio/groovenet/issues/1150)) ([ad03459](https://github.com/Public-Vinyl-Radio/groovenet/commit/ad034599f8943051bf3e952df85c614314a445e8))
+* **ui:** Suggestions opens as a modal on desktop, and its list scrolls ([#1152](https://github.com/Public-Vinyl-Radio/groovenet/issues/1152)) ([d1becaa](https://github.com/Public-Vinyl-Radio/groovenet/commit/d1becaa5dfd751a4ae6c824c4a49112b90ff36be))
+* **ui:** tidy artist, album grid and playlist pages (UX polish batch 2) ([#1122](https://github.com/Public-Vinyl-Radio/groovenet/issues/1122)) ([ee632a2](https://github.com/Public-Vinyl-Radio/groovenet/commit/ee632a28a49f40cb62ebcc8a2f24ead19177c2fa))
+* **ui:** UX polish batch 3 — sort in albums modal, phone rating, row layout, empty chip row, multi-artist lines ([#1123](https://github.com/Public-Vinyl-Radio/groovenet/issues/1123)) ([a1e965d](https://github.com/Public-Vinyl-Radio/groovenet/commit/a1e965dda6fdb6383c35ed09b0c3bb4b87624c9b))
+* **ui:** UX polish batch 5 ([#1124](https://github.com/Public-Vinyl-Radio/groovenet/issues/1124)) ([#1127](https://github.com/Public-Vinyl-Radio/groovenet/issues/1127)) ([aeb1cd7](https://github.com/Public-Vinyl-Radio/groovenet/commit/aeb1cd7a6825388a0359b313a13ee03aac38993b))
+* **ui:** UX polish batch 7 ([#1139](https://github.com/Public-Vinyl-Radio/groovenet/issues/1139)) ([ee664f7](https://github.com/Public-Vinyl-Radio/groovenet/commit/ee664f7445f5ea119bf0dafb326857a0cc75b4e6))
+* **worktree:** serialize seed cover restores into the shared bind folder ([#1043](https://github.com/Public-Vinyl-Radio/groovenet/issues/1043)) ([533eaa4](https://github.com/Public-Vinyl-Radio/groovenet/commit/533eaa47ed454893434ba1c1812ed05d78e609a7))
+
 ## [0.3.17](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.16...v0.3.17) (2026-11-05)
 
 
