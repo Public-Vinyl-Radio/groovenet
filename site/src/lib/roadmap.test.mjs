@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fetchRoadmap, loadRoadmap, parseMarker, stripPrefix, toItem } from "./roadmap.mjs";
+import { fetchRoadmap, loadRoadmap, parseMarker, toItem } from "./roadmap.mjs";
 
 const issue = (n, over = {}) => ({
   number: n,
   title: `feat(x): thing ${n}`,
-  body: "",
+  body: `<!-- roadmap\ntitle: thing ${n}\n-->`,
   html_url: `https://github.com/o/r/issues/${n}`,
   created_at: `2026-01-0${n}T00:00:00Z`,
   milestone: null,
@@ -47,24 +47,16 @@ test("marker: extra fields are ignored", () => {
   assert.equal(f.note, "N: with colon");
 });
 
-test("stripPrefix", () => {
-  assert.equal(stripPrefix("feat(spins): dusty crates"), "dusty crates");
-  assert.equal(stripPrefix("fix!: bang"), "bang");
-  assert.equal(stripPrefix("epic: marketing site"), "marketing site");
-  assert.equal(stripPrefix("No prefix here"), "No prefix here");
-  assert.equal(stripPrefix("feat: "), "feat:");
-});
-
-test("toItem uses the marker, or the stripped title with a warning", () => {
+test("toItem uses the marker and skips missing or unusable markers with warnings", () => {
   const warnings = [];
   const warn = (m) => warnings.push(m);
   const a = toItem(issue(1, { body: "<!-- roadmap\ntitle: Site title\nnote: N\n-->" }), warn);
   assert.deepEqual(a, { title: "Site title", note: "N", url: "https://github.com/o/r/issues/1" });
   assert.equal(warnings.length, 0);
-  const b = toItem(issue(2), warn);
-  assert.equal(b.title, "thing 2");
-  assert.equal(b.note, "");
-  assert.match(warnings[0], /#2/);
+  assert.equal(toItem(issue(2, { body: "" }), warn), null);
+  assert.equal(toItem(issue(3, { body: "<!-- roadmap\nnote: only a note\n-->" }), warn), null);
+  assert.match(warnings[0], /#2.*skipping/);
+  assert.match(warnings[1], /#3.*skipping/);
 });
 
 test("columns are ordered, empty ones dropped, PRs skipped", async () => {
@@ -73,6 +65,17 @@ test("columns are ordered, empty ones dropped, PRs skipped", async () => {
     ...quiet,
   });
   assert.deepEqual(cols.map((c) => [c.id, c.label, c.items.length]), [["now", "Now", 1], ["later", "Later", 1]]);
+});
+
+test("drops a column when all its labelled issues lack usable markers", async () => {
+  const warnings = [];
+  const cols = await fetchRoadmap({
+    fetch: mockFetch({ now: [issue(1, { body: "" }), issue(2, { body: "<!-- roadmap\nnote: N\n-->" })], next: [issue(3)] }),
+    warn: (message) => warnings.push(message),
+  });
+  assert.deepEqual(cols.map((c) => c.id), ["next"]);
+  assert.match(warnings[0], /#1/);
+  assert.match(warnings[1], /#2/);
 });
 
 test("ordering: oldest first, milestones before none, by due date", async () => {
@@ -151,5 +154,18 @@ test("loadRoadmap: falls back on an empty response", async () => {
   const logs = [];
   const out = await loadRoadmap(fallback, { fetch: mockFetch({}), log: (m) => logs.push(m), warn() {} });
   assert.equal(out, "FALLBACK");
-  assert.match(logs[0], /no issues carry/);
+  assert.match(logs[0], /no usable roadmap items/);
+});
+
+test("loadRoadmap: falls back when every labelled issue is skipped", async () => {
+  const warnings = [];
+  const logs = [];
+  const out = await loadRoadmap(fallback, {
+    fetch: mockFetch({ now: [issue(1, { body: "" })], later: [issue(2, { body: "<!-- roadmap\nnote: N\n-->" })] }),
+    warn: (message) => warnings.push(message),
+    log: (message) => logs.push(message),
+  });
+  assert.equal(out, "FALLBACK");
+  assert.deepEqual(warnings.map((message) => /#(\d+)/.exec(message)[1]), ["1", "2"]);
+  assert.match(logs[0], /no usable roadmap items/);
 });
