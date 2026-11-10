@@ -87,17 +87,16 @@ note: Records to look for, drawn from what you play.
 -->
 ```
 
-Other fields are ignored. Without a marker with a `title:`, the item uses the
-issue title with its `type(scope):` prefix stripped, no note, and the build logs
-a warning naming the issue.
+Other fields are ignored. Without a marker with a non-empty `title:`, the issue
+is skipped and the build logs a warning naming it. Empty columns are omitted.
 
 - **`GITHUB_TOKEN`** (optional, Netlify env var): a fine-grained, read-only token
   for the public repo. Without it, requests are unauthenticated: 60 an hour per
   IP, and Netlify's build IPs are shared.
-- **Fallback:** a failed request, a ~5 s timeout or no labelled issues uses the
+- **Fallback:** a failed request, a ~5 s timeout or no usable roadmap items uses the
   committed `roadmap.yml` and logs why. A GitHub outage never fails a deploy.
   `just site-roadmap` rewrites that file from GitHub (and leaves it alone when
-  nothing is labelled).
+  no usable items remain).
 - **Daily refresh:** `.github/workflows/site-roadmap.yml` POSTs the
   `NETLIFY_BUILD_HOOK` repo secret once a day, and skips when it's unset.
 - **Tests:** `npm test --prefix site` (`node:test`, no dependencies, fetch mocked).
