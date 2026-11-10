@@ -26,7 +26,11 @@ const item = {
   tracks: [],
   merges: [],
 };
-const client = { listArtistReview: vi.fn(), reviewArtist: vi.fn() };
+const client = {
+  listArtistReview: vi.fn(),
+  reviewArtist: vi.fn(),
+  getArtistSplitProposal: vi.fn(),
+};
 const io = { terminal: true, log: vi.fn(), ask: vi.fn() };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,6 +40,12 @@ beforeEach(() => {
     decision,
     dry_run,
   }));
+  client.getArtistSplitProposal.mockResolvedValue({
+    credits: [
+      { artist_id: 2, role: "primary", position: 0, credited_as: "A" },
+      { name: "B", role: "primary", position: 1, credited_as: "B" },
+    ],
+  });
   makeClient.mockReturnValue(client);
   io.terminal = true;
   io.ask.mockResolvedValue("skip");
@@ -98,9 +108,9 @@ it.each(["accept", "placeholder", "merge", "unmerge", "split", "rename"])(
   async (action) => {
     io.ask.mockResolvedValueOnce(action);
     if (action === "merge" || action === "unmerge") io.ask.mockResolvedValueOnce("2");
-    if (action === "split") io.ask.mockResolvedValueOnce('[{"artist_id":2},{"artist_id":3}]');
+    if (action === "split") io.ask.mockResolvedValueOnce("y");
     if (action === "rename") io.ask.mockResolvedValueOnce("New").mockResolvedValueOnce("New, The");
-    io.ask.mockResolvedValueOnce("y");
+    if (action !== "split") io.ask.mockResolvedValueOnce("y");
     await runArtistReview(client, {}, io);
     expect(client.reviewArtist).toHaveBeenCalledTimes(2);
     expect(client.reviewArtist.mock.calls[0][0].action).toBe(action);
@@ -218,3 +228,110 @@ it("keeps the full JSON evidence with --verbose", async () => {
   await runArtistReview(client, { list: true }, io);
   expect(io.log.mock.calls[0][0]).not.toContain('"original_string"');
 });
+
+it("edits a proposed row without JSON and supports automatic dry runs", async () => {
+  io.ask
+    .mockResolvedValueOnce("split")
+    .mockResolvedValueOnce("e")
+    .mockResolvedValueOnce("1")
+    .mockResolvedValueOnce("rename")
+    .mockResolvedValueOnce("Bee")
+    .mockResolvedValueOnce("y");
+  await runArtistReview(client, {}, io);
+  expect(client.reviewArtist.mock.calls[1][0].credits[1]).toMatchObject({
+    name: "Bee",
+    credited_as: "Bee",
+  });
+  client.reviewArtist.mockClear();
+  await runArtistReview(client, { artist: 1, splitAuto: true, dryRun: true }, io);
+  expect(client.reviewArtist).toHaveBeenCalledWith(
+    expect.objectContaining({ action: "split" }),
+    true,
+  );
+});
+
+it("edits roles, joins rows and changes artist IDs", async () => {
+  client.getArtistSplitProposal.mockResolvedValueOnce({
+    credits: [
+      { artist_id: 2, role: "primary", position: 0, credited_as: "A" },
+      { name: "B", role: "primary", position: 1, credited_as: "B" },
+      { name: "C", role: "primary", position: 2, credited_as: "C" },
+    ],
+  });
+  io.ask
+    .mockResolvedValueOnce("split")
+    .mockResolvedValueOnce("e")
+    .mockResolvedValueOnce("0")
+    .mockResolvedValueOnce("role")
+    .mockResolvedValueOnce("featured")
+    .mockResolvedValueOnce("e")
+    .mockResolvedValueOnce("1")
+    .mockResolvedValueOnce("artist")
+    .mockResolvedValueOnce("8")
+    .mockResolvedValueOnce("e")
+    .mockResolvedValueOnce("0")
+    .mockResolvedValueOnce("join")
+    .mockResolvedValueOnce("y");
+  await runArtistReview(client, {}, io);
+  expect(client.reviewArtist.mock.calls[0][0].credits).toEqual([
+    { name: "A & B", credited_as: "A & B", role: "featured", position: 0 },
+    { name: "C", credited_as: "C", role: "primary", position: 1 },
+  ]);
+});
+it("can decline a proposal", async () => {
+  io.ask.mockResolvedValueOnce("split").mockResolvedValueOnce("n");
+  await runArtistReview(client, {}, io);
+  expect(client.reviewArtist).not.toHaveBeenCalled();
+});
+
+it("keeps editing after invalid input and a one-credit join", async () => {
+  for (const answer of [
+    "split",
+    "?",
+    "e",
+    "-1",
+    "e",
+    "0",
+    "role",
+    "bad",
+    "e",
+    "0",
+    "rename",
+    " ",
+    "e",
+    "1",
+    "join",
+    "e",
+    "0",
+    "join",
+    "y",
+    "n",
+  ]) {
+    io.ask.mockResolvedValueOnce(answer);
+  }
+  await runArtistReview(client, {}, io);
+  expect(io.log).toHaveBeenCalledWith("Invalid row");
+  expect(io.log).toHaveBeenCalledWith("Invalid role");
+  expect(io.log).toHaveBeenCalledWith("Name cannot be empty");
+  expect(io.log).toHaveBeenCalledWith("Invalid edit");
+  expect(io.log).toHaveBeenCalledWith(expect.stringContaining("at least two credits"));
+  expect(client.reviewArtist).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["Missing", "B"],
+  ["A", "Missing"],
+])(
+  "joins edited spellings when the original text no longer contains them",
+  async (first, second) => {
+    client.getArtistSplitProposal.mockResolvedValueOnce({
+      credits: [
+        { name: first, role: "primary", position: 0, credited_as: first },
+        { name: second, role: "primary", position: 1, credited_as: second },
+      ],
+    });
+    for (const answer of ["split", "e", "0", "join", "n"]) io.ask.mockResolvedValueOnce(answer);
+    await runArtistReview(client, {}, io);
+    expect(io.log).toHaveBeenCalledWith(expect.stringContaining(`${first} & ${second}`));
+  },
+);

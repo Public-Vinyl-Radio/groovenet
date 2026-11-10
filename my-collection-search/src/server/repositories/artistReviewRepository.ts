@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { PoolClient } from "pg";
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
+import { invertedSortName } from "@/lib/artists/importCredits";
+import { splitArtistNames } from "@/lib/artists/splitNames";
 import { needsReview } from "@/lib/artists/reconcile";
 import { normaliseArtistName } from "@/lib/artists/normalization";
 import { freeArtistSlug, regenerateArtistSlug } from "@/server/artists/artistSlug";
@@ -67,6 +69,38 @@ export class ArtistReviewRepository {
     return { items: rows };
   }
 
+  async splitProposal(id: number) {
+    const source = await dbQuery<{ name: string }>(
+      "SELECT name FROM artists WHERE id = $1 AND merged_into IS NULL AND credit_override IS NULL",
+      [id],
+    );
+    if (!source.rows.length) throw new ArtistReviewError("Artist not found", 404);
+    const names = splitArtistNames(source.rows[0].name);
+    const credits = await Promise.all(
+      names.map(async ({ name, sort_name, ...credit }) => {
+        const match = await dbQuery<{ id: number }>(
+          `SELECT a.id FROM artists a WHERE a.id <> $2 AND NOT a.is_placeholder
+         AND a.merged_into IS NULL AND a.credit_override IS NULL
+         AND (lower(a.name) = ANY($1::text[]) OR EXISTS
+           (SELECT 1 FROM artist_aliases aa WHERE aa.artist_id = a.id AND lower(aa.alias) = ANY($1::text[])))
+         ORDER BY a.id LIMIT 1`,
+          [
+            [
+              name.toLowerCase(),
+              credit.credited_as.toLowerCase(),
+              invertedSortName(name).toLowerCase(),
+            ],
+            id,
+          ],
+        );
+        return match.rows.length
+          ? { ...credit, artist_id: match.rows[0].id }
+          : { ...credit, name, sort_name };
+      }),
+    );
+    return { credits };
+  }
+
   async decide(decision: ArtistReviewAction, dryRun = false): Promise<ArtistReviewResult> {
     try {
       return await withDbTransaction(async (db) => {
@@ -130,8 +164,11 @@ export class ArtistReviewRepository {
                 if (!normalized)
                   throw new ArtistReviewError("Name has no searchable characters", 400);
                 const existing = await db.query<{ id: number }>(
-                  "SELECT a.id FROM artists a JOIN artist_aliases aa ON aa.artist_id = a.id WHERE aa.alias_normalized = $1 AND a.merged_into IS NULL AND a.credit_override IS NULL",
-                  [normalized],
+                  "SELECT a.id FROM artists a JOIN artist_aliases aa ON aa.artist_id = a.id WHERE aa.alias_normalized = $1 AND NOT a.is_placeholder AND a.merged_into IS NULL AND a.credit_override IS NULL AND (lower(aa.alias) = ANY($2::text[]) OR lower(a.name) = ANY($2::text[]))",
+                  [
+                    normalized,
+                    [credit.name.toLowerCase(), invertedSortName(credit.name).toLowerCase()],
+                  ],
                 );
                 if (existing.rows.length) artistId = existing.rows[0].id;
                 else {

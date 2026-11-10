@@ -29,6 +29,7 @@ import {
   genrePageQuerySchema as sharedGenrePageQuerySchema,
   artistPageQuerySchema as sharedArtistPageQuerySchema,
   artistIndexLetterSchema,
+  artistLetterCountsQuerySchema as sharedArtistLetterCountsQuerySchema,
   artistListQuerySchema as sharedArtistListQuerySchema,
   genreSimilarQuerySchema as sharedGenreSimilarQuerySchema,
 } from "@groovenet/contracts";
@@ -1206,6 +1207,12 @@ export {
   artistListResponseSchema,
 } from "@groovenet/contracts";
 export { artistIndexLetterSchema };
+export { artistLetterCountsResponseSchema } from "@groovenet/contracts";
+export type { ArtistLetterCountsResponse } from "@groovenet/contracts";
+export const artistLetterCountsQuerySchema = sharedArtistLetterCountsQuerySchema.extend({
+  friend_id: intFromInputSchema.optional(),
+  include_placeholders: booleanFlagSchema.optional().default(false),
+});
 export type {
   ArtistCreditRef,
   ArtistFilterRef,

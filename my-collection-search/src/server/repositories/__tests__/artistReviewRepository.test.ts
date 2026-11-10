@@ -242,3 +242,35 @@ it.each(["   ", "Unavailable"])("rolls back unusable split name %j", async (name
     }),
   ).rejects.toMatchObject({ status: name === "   " ? 400 : 409 });
 });
+
+it("proposes matched and new credits and rejects missing sources", async () => {
+  query
+    .mockResolvedValueOnce({ rows: [{ name: "A feat. B" }] })
+    .mockResolvedValueOnce({ rows: [{ id: 2 }] })
+    .mockResolvedValueOnce({ rows: [] });
+  expect(await repo.splitProposal(1)).toEqual({
+    credits: [
+      { artist_id: 2, credited_as: "A", position: 0, role: "primary" },
+      { name: "B", sort_name: "B", credited_as: "B", position: 1, role: "featured" },
+    ],
+  });
+  expect(query).toHaveBeenCalledWith(expect.stringContaining("NOT a.is_placeholder"), [
+    ["a", "a", "a"],
+    1,
+  ]);
+  query.mockResolvedValueOnce({ rows: [] });
+  await expect(repo.splitProposal(1)).rejects.toMatchObject({ status: 404 });
+});
+
+it("matches inverted names using both spellings", async () => {
+  query
+    .mockResolvedValueOnce({ rows: [{ name: "Strokes, The / Guest" }] })
+    .mockResolvedValueOnce({ rows: [{ id: 2 }] })
+    .mockResolvedValueOnce({ rows: [] });
+  const proposal = await repo.splitProposal(1);
+  expect(proposal.credits[0]).toMatchObject({ artist_id: 2, credited_as: "Strokes, The" });
+  expect(query).toHaveBeenCalledWith(expect.stringContaining("lower(aa.alias)"), [
+    ["the strokes", "strokes, the", "strokes, the"],
+    1,
+  ]);
+});

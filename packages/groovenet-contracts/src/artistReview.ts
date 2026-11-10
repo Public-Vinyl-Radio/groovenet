@@ -11,6 +11,8 @@ export const artistReviewCreditSchema = z.union([
   z.object({ artist_id: id, ...creditFields }).strict(),
   z.object({ name, sort_name: name.optional(), ...creditFields }).strict(),
 ]);
+export const artistSplitProposalSchema = z.object({ credits: z.array(artistReviewCreditSchema) });
+export type ArtistSplitProposal = z.infer<typeof artistSplitProposalSchema>;
 export const artistReviewActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("accept"), artist_id: id }).strict(),
   z
@@ -62,6 +64,7 @@ export type ArtistReviewDetail = z.infer<typeof artistReviewDetailSchema>;
 export type ArtistReviewResult = z.infer<typeof artistReviewResultSchema>;
 export type ArtistReviewCredit = z.infer<typeof artistReviewCreditSchema>;
 export const artistReviewJsonSchemas = {
+  ArtistSplitProposal: z.toJSONSchema(artistSplitProposalSchema),
   ArtistReviewList: z.toJSONSchema(artistReviewListSchema),
   ArtistReviewBody: z.toJSONSchema(artistReviewBodySchema),
   ArtistReviewResult: z.toJSONSchema(artistReviewResultSchema),

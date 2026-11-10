@@ -24,6 +24,7 @@ export default defineConfig({
     // Starlight autogeneration matches filePath, relative to site/, not entry IDs.
     sidebar: [
       { label: "Docs", link: "/docs/" },
+      { slug: "docs/how-it-works" },
       { label: "Getting started", items: [{ autogenerate: { directory: "../docs/getting-started" } }] },
       { label: "Configuration", items: [{ autogenerate: { directory: "../docs/configuration" } }] },
       { label: "Using GrooveNet", items: [{ autogenerate: { directory: "../docs/using" } }] },

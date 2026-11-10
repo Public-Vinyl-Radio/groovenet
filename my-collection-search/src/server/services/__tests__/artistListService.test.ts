@@ -1,9 +1,9 @@
 import { expect, it, vi } from "vitest";
 
-const repo = vi.hoisted(() => ({ search: vi.fn(), count: vi.fn() }));
+const repo = vi.hoisted(() => ({ search: vi.fn(), count: vi.fn(), letterCounts: vi.fn() }));
 vi.mock("@/server/repositories/artistListRepository", () => ({ artistListRepository: repo }));
 
-import { listArtists } from "../artistListService";
+import { listArtistLetters, listArtists } from "../artistListService";
 
 it("returns the page and the total for the same filter", async () => {
   repo.search.mockResolvedValue([{ id: 1 }]);
@@ -26,4 +26,19 @@ it("passes the index letter through", async () => {
     includePlaceholders: false,
     letter: "M",
   });
+});
+
+it("totals the letter counts for the friend's scope (#1116)", async () => {
+  repo.letterCounts.mockResolvedValue([
+    { letter: "A", count: 2 },
+    { letter: "#", count: 1 },
+  ]);
+  await expect(listArtistLetters({ friend_id: 6, include_placeholders: false })).resolves.toEqual({
+    letters: [
+      { letter: "A", count: 2 },
+      { letter: "#", count: 1 },
+    ],
+    total: 3,
+  });
+  expect(repo.letterCounts).toHaveBeenCalledWith({ friendId: 6, includePlaceholders: false });
 });

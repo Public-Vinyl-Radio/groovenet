@@ -27,6 +27,7 @@ export const queryKeys = {
   artistPage: (slug: string, friend_id?: number) =>
     ["artists", "page", slug, friend_id ?? null] as const,
   /** The artists index and the artist pickers (#709). */
+  artistLetters: (friendId?: number) => ["artists", "letters", friendId ?? null] as const,
   artistList: (args: { q?: string; letter?: string; friendId?: number; limit?: number }) =>
     ["artists", "list", args] as const,
   genreResults: (

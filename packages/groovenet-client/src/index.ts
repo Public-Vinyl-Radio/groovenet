@@ -7,6 +7,7 @@ export * from "./playerSession.js";
 export * from "./serverPlayerTransport.js";
 
 export type {
+  ArtistSplitProposal,
   ArtistReviewAction,
   ArtistReviewCredit,
   ArtistReviewDetail,

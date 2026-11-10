@@ -210,4 +210,36 @@ describe("artist index letters (#709)", () => {
     const listed = await artistListRepository.search(filter, 200, 0);
     expect(await artistListRepository.count(filter)).toBe(listed.length);
   });
+
+  dbTest("counts artists per letter, # last, matching the letter filter (#1116)", async () => {
+    const counts = await artistListRepository.letterCounts({ includePlaceholders: false });
+    const letters = counts.map((row) => row.letter);
+    expect(letters).toEqual(
+      [...letters].sort((a, b) => (a === "#" ? 1 : b === "#" ? -1 : a < b ? -1 : 1)),
+    );
+    for (const { letter, count } of counts) {
+      expect(await artistListRepository.count({ q: "", includePlaceholders: false, letter })).toBe(
+        count,
+      );
+    }
+    // The accented Á files under A and a digit under #.
+    expect(letters).toEqual(expect.arrayContaining(["A", "#"]));
+  });
+
+  dbTest("counts only the friend's artists (#1116)", async () => {
+    const scoped = await artistListRepository.letterCounts({
+      friendId: friend,
+      includePlaceholders: false,
+    });
+    const everyone = await artistListRepository.letterCounts({ includePlaceholders: false });
+    const sum = (rows: { count: number }[]) => rows.reduce((n, row) => n + row.count, 0);
+    expect(sum(scoped)).toBeLessThanOrEqual(sum(everyone));
+    expect(sum(scoped)).toBe(
+      await artistListRepository.count({
+        q: "",
+        friendId: friend,
+        includePlaceholders: false,
+      }),
+    );
+  });
 });

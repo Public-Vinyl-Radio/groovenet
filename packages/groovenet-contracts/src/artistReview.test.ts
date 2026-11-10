@@ -54,6 +54,7 @@ it("validates queue defaults, paging, evidence, and merge history", () => {
     }).items,
   ).toHaveLength(1);
   expect(Object.keys(artistReviewJsonSchemas)).toEqual([
+    "ArtistSplitProposal",
     "ArtistReviewList",
     "ArtistReviewBody",
     "ArtistReviewResult",

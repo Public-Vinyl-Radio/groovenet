@@ -1,4 +1,5 @@
 import type {
+  ArtistSplitProposal,
   ArtistReviewAction,
   ArtistReviewDetail,
   ArtistReviewResult,
@@ -884,6 +885,10 @@ export class GroovenetClient {
     query: { artist_id?: number; limit?: number; offset?: number } = {},
   ): Promise<{ items: ArtistReviewDetail[] }> {
     return this.request("GET", "/artists/review", undefined, query);
+  }
+
+  async getArtistSplitProposal(id: number): Promise<ArtistSplitProposal> {
+    return this.request("GET", `/artists/review/${id}/split-proposal`);
   }
 
   async reviewArtist(decision: ArtistReviewAction, dry_run = false): Promise<ArtistReviewResult> {
