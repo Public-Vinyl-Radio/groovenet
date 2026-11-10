@@ -282,6 +282,16 @@
           "id": "inter",
           "label": "Inter",
           "face": "inter"
+        },
+        {
+          "id": "plex-mono",
+          "label": "IBM Plex Mono",
+          "face": "plex-mono"
+        },
+        {
+          "id": "jetbrains-mono",
+          "label": "JetBrains Mono",
+          "face": "jetbrains-mono"
         }
       ]
     },

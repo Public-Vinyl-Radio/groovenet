@@ -9,6 +9,7 @@ import {
   fontRoleIds,
   fontRoles,
   isFontChoiceId,
+  monoFallback,
   resolveFontChoice,
 } from "./fontChoices";
 
@@ -18,11 +19,11 @@ describe("font registry", () => {
   });
 
   it.each(fontRoleIds)(
-    "offers %s two to four choices, the default first and System last",
+    "offers %s two to six choices, the default first and System last",
     (role) => {
       const { choices } = fontRoles[role];
       expect(choices.length).toBeGreaterThanOrEqual(2);
-      expect(choices.length).toBeLessThanOrEqual(4);
+      expect(choices.length).toBeLessThanOrEqual(6);
       expect(choices[0].id).toBe(defaultFontChoiceId);
       expect(choices.at(-1)?.id).toBe("system");
       expect(new Set(choices.map((c) => c.id)).size).toBe(choices.length);
@@ -70,6 +71,29 @@ describe("font registry", () => {
     for (const value of ["retired", "zilla-slab", null, undefined, 7]) {
       expect(resolveFontChoice("body", value)).toBe("default");
     }
+  });
+
+  it("offers the mono faces for body text, reusing the Labels faces", () => {
+    expect(fontChoiceIdsFor("body")).toEqual([
+      "default",
+      "inter",
+      "plex-mono",
+      "jetbrains-mono",
+      "system-mono",
+      "system",
+    ]);
+    const faces = (role: "body" | "label") =>
+      new Set(fontRoles[role].choices.flatMap((c) => ("face" in c ? [c.face] : [])));
+    expect(faces("body").has("plex-mono")).toBe(true);
+    expect(faces("body").has("jetbrains-mono")).toBe(true);
+    expect(fontChoiceValue("body", "plex-mono")).toBe(
+      `var(--face-plex-mono, ${fontRoles.body.fallback})`,
+    );
+    expect(fontChoiceValue("body", "system-mono")).toBe(monoFallback);
+    expect(fontChoiceValue("body", "system")).toMatch(/^system-ui/);
+    expect(resolveFontChoice("body", "system-mono")).toBe("system-mono");
+    expect(resolveFontChoice("display", "system-mono")).toBe("default");
+    expect(resolveFontChoice("label", "plex-mono")).toBe("default");
   });
 
   it("lists a role's ids, default first", () => {

@@ -78,7 +78,7 @@ describe("PUT /api/settings/appearance", () => {
     [
       "an unknown font",
       { fonts: { body: "comic-sans" } },
-      "fonts.body must be one of: default, inter, system",
+      "fonts.body must be one of: default, inter, plex-mono, jetbrains-mono, system-mono, system",
     ],
     ["another role's font", { fonts: { body: "zilla-slab" } }, "fonts.body must be one of"],
     [

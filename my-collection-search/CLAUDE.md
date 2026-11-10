@@ -375,9 +375,10 @@ an invalid value the browser drops, so it fails silently.
 - **Type:** three user-selectable roles, each with a curated list in the
   registry `src/app/fontChoices.ts`: **Display** (the `heading` token: page
   titles, card headings), **Body** (`body`: UI text) and **Labels** (`label`:
-  buttons, tags, overlines, nav, IDs such as LP-342). Each role lists 2 to 4
+  buttons, tags, overlines, nav, IDs such as LP-342). Each role lists 2 to 6
   choices; the first (`default`) is the app's own face and the last is
-  `system` (`system-ui` / `ui-monospace`, no file). `fontRoleIds`,
+  `system` (`system-ui` / `ui-monospace`, no file). Body also offers the mono
+  faces (`plex-mono`, `jetbrains-mono`, `system-mono`); ids are unique per role. `fontRoleIds`,
   `isFontChoiceId`, `resolveFontChoice(role, value)` (unknown, missing or
   another role's id is the default) and `fontChoiceIdsFor(role)` derive from it,
   and so do the `PUT /api/settings/appearance` validation, the OpenAPI enums,

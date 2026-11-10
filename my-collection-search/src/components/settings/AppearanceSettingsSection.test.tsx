@@ -229,11 +229,34 @@ describe("AppearanceSettingsSection typography", () => {
     const card = await group("Body").findByRole("radio", { name: /inter/i });
 
     expect(card.style.fontFamily).toContain("--face-inter");
-    expect(group("Body").getByRole("radio", { name: /system/i }).style.fontFamily).toMatch(
+    expect(group("Body").getByRole("radio", { name: "System" }).style.fontFamily).toMatch(
       /^system-ui/,
+    );
+    expect(group("Body").getByRole("radio", { name: "System mono" }).style.fontFamily).toMatch(
+      /^ui-monospace/,
+    );
+    expect(group("Body").getByRole("radio", { name: "IBM Plex Mono" }).style.fontFamily).toContain(
+      "--face-plex-mono",
     );
     expect(group("Labels").getByRole("radio", { name: /jetbrains/i }).style.fontFamily).toContain(
       "--face-jetbrains-mono",
+    );
+  });
+
+  it.each([
+    ["IBM Plex Mono", "plex-mono"],
+    ["JetBrains Mono", "jetbrains-mono"],
+    ["System mono", "system-mono"],
+  ])("applies and saves %s as the body font", async (name, id) => {
+    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
+
+    await user.click(group("Body").getByRole("radio", { name }));
+
+    expect(document.documentElement.dataset.fontBody).toBe(id);
+    expect(document.documentElement.dataset.fontLabel).toBe("default");
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: id } }),
     );
   });
 
