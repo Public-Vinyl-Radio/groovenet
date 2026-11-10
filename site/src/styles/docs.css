@@ -89,3 +89,56 @@ mobile-starlight-toc .toggle { border: 2px solid var(--ink); border-radius: 0; f
 :root:not([data-theme="light"]) starlight-image-zoom-zoomable:has(> .shot-light),
 :root[data-theme="light"] starlight-image-zoom-zoomable:has(> .shot-dark) { display: none; }
 .sl-markdown-content img.shot-light, .sl-markdown-content img.shot-dark { border: 2px solid var(--ink); }
+
+/* How it works: the journey of a record as a numbered list. The list is the
+   text alternative, so it reads the same to a screen reader and in any theme. */
+.sl-markdown-content ol.flow {
+  list-style: none;
+  counter-reset: flow;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+.sl-markdown-content ol.flow > li {
+  counter-increment: flow;
+  position: relative;
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0.6rem 0.9rem 0.6rem 2.6rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+}
+.sl-markdown-content ol.flow > li::before {
+  content: counter(flow);
+  position: absolute;
+  left: 0.9rem;
+  top: 0.6rem;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+.sl-markdown-content ol.flow > li:not(:last-child)::after {
+  content: "↓";
+  position: absolute;
+  left: 0.9rem;
+  bottom: -0.95rem;
+  z-index: 1;
+  line-height: 1;
+  color: var(--muted);
+}
+.sl-markdown-content ol.flow > li > a {
+  font-weight: 600;
+}
+.sl-markdown-content ol.flow > li > span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+@media (min-width: 50rem) {
+  .sl-markdown-content ol.flow > li {
+    grid-template-columns: 8.5rem 1fr;
+    align-items: baseline;
+    gap: 0 1rem;
+  }
+}
