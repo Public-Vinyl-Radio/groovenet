@@ -79,4 +79,18 @@ describe("ArtistListRepository", () => {
     expect(params).toEqual([6, 50, 0]);
     expect(sql).toContain("!~ '^[A-Z]$'");
   });
+
+  it("counts artists per index letter in the list's scope, ignoring search words", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ letter: "A", count: 2 }] });
+    await expect(repo.letterCounts({ friendId: 6, includePlaceholders: false })).resolves.toEqual([
+      { letter: "A", count: 2 },
+    ]);
+    const [sql, params] = lastCall();
+    expect(params).toEqual([6]);
+    expect(sql).toContain("a.friend_id = $1");
+    expect(sql).toContain("NOT ar.is_placeholder");
+    expect(sql).toContain("GROUP BY 1");
+    expect(sql).toMatch(/translate\(ltrim\(sort_name\)/);
+    expect(sql).not.toContain("ILIKE");
+  });
 });

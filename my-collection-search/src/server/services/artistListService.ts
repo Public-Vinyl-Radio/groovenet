@@ -1,4 +1,4 @@
-import type { ArtistListResponse } from "@/api-contract/schemas";
+import type { ArtistLetterCountsResponse, ArtistListResponse } from "@/api-contract/schemas";
 import { artistListRepository } from "@/server/repositories/artistListRepository";
 
 export type ArtistListOptions = {
@@ -23,4 +23,16 @@ export async function listArtists(options: ArtistListOptions): Promise<ArtistLis
     artistListRepository.count(filter),
   ]);
   return { items, total, limit: options.limit, offset: options.offset, query: options.q };
+}
+
+/** `GET /api/artists/letters` (#1116): artists per index letter, and their total. */
+export async function listArtistLetters(options: {
+  friend_id?: number;
+  include_placeholders: boolean;
+}): Promise<ArtistLetterCountsResponse> {
+  const letters = await artistListRepository.letterCounts({
+    friendId: options.friend_id,
+    includePlaceholders: options.include_placeholders,
+  });
+  return { letters, total: letters.reduce((sum, row) => sum + row.count, 0) };
 }

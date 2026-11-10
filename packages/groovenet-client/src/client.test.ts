@@ -1388,6 +1388,40 @@ describe("GroovenetClient audio metadata backfill endpoints (#1049)", () => {
   });
 });
 
+describe("GroovenetClient embedded tags endpoints (#673)", () => {
+  it("starts a backfill with an empty request by default", async () => {
+    const client = clientReturning({ run_id: "run-1", total: 3 });
+    const run = await client.startEmbeddedTagsBackfill();
+    expect(run.total).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/embedded-tags/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards force and friend_id", async () => {
+    const client = clientReturning({});
+    await client.startEmbeddedTagsBackfill({ force: true, friend_id: 2 });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { force: true, friend_id: 2 } }),
+    );
+  });
+
+  it("reads a run and escapes its id", async () => {
+    const client = clientReturning({ run_id: "r", read: 4 });
+    const run = await client.getEmbeddedTagsBackfillRun("r/../x");
+    expect(run.read).toBe(4);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/embedded-tags/backfill/r%2F..%2Fx",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient embeddings endpoints (#388)", () => {
   it("starts a backfill run with defaults when called with no request", async () => {
     const client = clientReturning({ run_id: "run-1", queued: 5 });
@@ -2446,6 +2480,13 @@ describe("artist review", () => {
     await client.listArtistReview({ artist_id: 7, limit: 5, offset: 10 });
     expect(requestMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ params: { artist_id: 7, limit: 5, offset: 10 } }),
+    );
+  });
+  it("fetches a split proposal", async () => {
+    const client = clientReturning({ credits: [] });
+    expect(await client.getArtistSplitProposal(7)).toEqual({ credits: [] });
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/artists/review/7/split-proposal" }),
     );
   });
   it("sends review decisions and dry runs", async () => {

@@ -60,8 +60,10 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/albums/create` | albums | contracts |  |
 | POST | `/api/albums/upsert` | albums | contracts |  |
 | GET | `/api/artists` | artists | contracts | `artists.ts`; search by name or alias, with counts (#710). |
+| GET | `/api/artists/letters` | artists | contracts | `artists.ts`; artists per A to Z index letter (#1116). |
 | POST | `/api/artists/reconcile` | artists | contracts | `artists.ts`; links albums and tracks to artists, dry run (#705). |
 | GET | `/api/artists/review` | artists | contracts | Review queue and source evidence (#706). |
+| GET | `/api/artists/review/{id}/split-proposal` | artists | contracts | Proposed review credits (#1088). |
 | POST | `/api/artists/review` | artists | contracts | Manual decisions, dry runs, and reversible merges (#706). |
 | GET | `/api/audio` | audio streaming | exception | Byte-range audio stream; no JSON body. |
 | POST | `/api/audio/ingest` | vinyl ingest & fingerprints | contracts | Multipart request from the Pi listener stays inline; the response and rejection codes are shared. |
@@ -203,6 +205,8 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
 | POST | `/api/tracks/audio-metadata/backfill` | tracks | contracts |  |
 | GET | `/api/tracks/audio-metadata/backfill/{runId}` | tracks | contracts |  |
+| POST | `/api/tracks/embedded-tags/backfill` | tracks | contracts |  |
+| GET | `/api/tracks/embedded-tags/backfill/{runId}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |

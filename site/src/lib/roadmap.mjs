@@ -11,11 +11,6 @@ export const COLUMNS = [
   { id: "later", label: "Later" },
 ];
 
-/** `feat(spins): dusty crates` -> `dusty crates` (also `fix!:` and `chore:`). */
-export function stripPrefix(title) {
-  return title.replace(/^\s*[a-z]+(\([^)]*\))?!?:\s+/i, "").trim() || title.trim();
-}
-
 /** Reads `key: value` lines from the issue's `<!-- roadmap ... -->` block, or null. */
 export function parseMarker(body) {
   const block = /<!--\s*roadmap\b([\s\S]*?)-->/.exec(body ?? "");
@@ -32,11 +27,12 @@ export function parseMarker(body) {
 export function toItem(issue, warn = console.warn) {
   const fields = parseMarker(issue.body);
   if (!fields) {
-    warn(`[roadmap] #${issue.number} has no usable <!-- roadmap --> marker (needs a title:); using its title`);
+    warn(`[roadmap] #${issue.number} has no usable <!-- roadmap --> marker (needs a title:); skipping`);
+    return null;
   }
   return {
-    title: fields?.title ?? stripPrefix(issue.title),
-    note: fields?.note ?? "",
+    title: fields.title,
+    note: fields.note ?? "",
     url: issue.html_url,
   };
 }
@@ -84,7 +80,8 @@ export async function fetchRoadmap({
     items: lists[i]
       .filter((issue) => !issue.pull_request)
       .sort(compareIssues)
-      .map((issue) => toItem(issue, warn)),
+      .map((issue) => toItem(issue, warn))
+      .filter(Boolean),
   })).filter((c) => c.items.length > 0);
 }
 
@@ -103,7 +100,7 @@ export async function loadRoadmap(fallback, options = {}) {
       log(`[roadmap] ${columns.reduce((n, c) => n + c.items.length, 0)} items from GitHub labels`);
       return columns;
     }
-    log("[roadmap] no issues carry a roadmap:* label; using src/data/roadmap.yml");
+    log("[roadmap] no usable roadmap items found; using src/data/roadmap.yml");
   } catch (err) {
     log(`[roadmap] GitHub fetch failed (${describe(err)}); using src/data/roadmap.yml`);
   }

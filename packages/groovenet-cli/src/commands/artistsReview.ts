@@ -14,6 +14,7 @@ export interface ArtistReviewOptions {
   artist?: number;
   accept?: boolean;
   split?: string;
+  splitAuto?: boolean;
   merge?: number;
   unmerge?: number;
   name?: string;
@@ -30,6 +31,7 @@ export function artistDecision(opts: ArtistReviewOptions): ArtistReviewAction | 
   const actions = [
     opts.accept,
     opts.split !== undefined,
+    opts.splitAuto,
     opts.merge !== undefined,
     opts.unmerge !== undefined,
     opts.name !== undefined || opts.sortName !== undefined,
@@ -39,6 +41,7 @@ export function artistDecision(opts: ArtistReviewOptions): ArtistReviewAction | 
   if (!actions.length) return null;
   if (opts.unmerge !== undefined) return { action: "unmerge", merge_id: opts.unmerge };
   if (!opts.artist) throw new Error("--artist <id> is required for this action");
+  if (opts.splitAuto) return null;
   if (opts.accept) return { action: "accept", artist_id: opts.artist };
   if (opts.merge !== undefined)
     return { action: "merge", artist_id: opts.artist, target_id: opts.merge };
@@ -88,13 +91,18 @@ export function formatArtistEvidence(item: ArtistReviewDetail, verbose = false):
 }
 
 export async function runArtistReview(
-  client: Pick<GroovenetClient, "listArtistReview" | "reviewArtist">,
+  client: Pick<GroovenetClient, "listArtistReview" | "reviewArtist" | "getArtistSplitProposal">,
   opts: ArtistReviewOptions,
   io: ArtistReviewIO,
 ): Promise<void> {
   const decision = artistDecision(opts);
-  if (decision) {
-    const result = await client.reviewArtist(decision, opts.dryRun);
+  if (decision || opts.splitAuto) {
+    const selected: ArtistReviewAction = decision ?? {
+      action: "split",
+      artist_id: opts.artist!,
+      credits: (await client.getArtistSplitProposal(opts.artist!)).credits,
+    };
+    const result = await client.reviewArtist(selected, opts.dryRun);
     io.log(
       opts.json
         ? JSON.stringify(result)
@@ -127,16 +135,80 @@ export async function runArtistReview(
     if (answer === "quit") break;
     if (answer === "skip" || !answer) continue;
     const current: ArtistReviewOptions = { artist: item.id };
+    let splitConfirmed = false;
     if (answer === "accept") current.accept = true;
     else if (answer === "placeholder") current.placeholder = true;
     else if (answer === "merge") current.merge = intOption(await io.ask("Target artist ID: "));
     else if (answer === "unmerge")
       current.unmerge = intOption(await io.ask("Merge ID (shown above): "));
-    else if (answer === "split")
-      current.split = await io.ask(
-        "Credits JSON [{artist_id, role, position, credited_as}, ...]: ",
-      );
-    else if (answer === "rename") {
+    else if (answer === "split") {
+      const credits = (await client.getArtistSplitProposal(item.id)).credits;
+      while (true) {
+        io.log(
+          "Proposed split:\n" +
+            credits
+              .map(
+                (c) =>
+                  `  ${c.position} ${c.role} ${c.credited_as} ${"artist_id" in c ? `existing #${c.artist_id}` : `new (sort: ${c.sort_name ?? c.name})`}`,
+              )
+              .join("\n"),
+        );
+        const choice = (await io.ask("[y]es / [e]dit / [n]o: ")).trim().toLowerCase();
+        if (choice === "n") break;
+        if (choice === "y") {
+          if (credits.length < 2) {
+            io.log("A split needs at least two credits; accept the artist instead.");
+            continue;
+          }
+          current.split = JSON.stringify(credits);
+          splitConfirmed = true;
+          break;
+        }
+        if (choice !== "e") continue;
+        const index = Number(await io.ask("Row number: "));
+        if (!Number.isInteger(index) || index < 0 || index >= credits.length) {
+          io.log("Invalid row");
+          continue;
+        }
+        const row = credits[index];
+        const edit = (await io.ask("role / join / artist / rename: ")).trim().toLowerCase();
+        if (edit === "role") {
+          const role = (await io.ask("Role (primary / featured / remixer / composer): ")).trim();
+          if (
+            role === "primary" ||
+            role === "featured" ||
+            role === "remixer" ||
+            role === "composer"
+          )
+            row.role = role;
+          else io.log("Invalid role");
+        } else if (edit === "join" && index + 1 < credits.length) {
+          const next = credits[index + 1].credited_as;
+          const start = item.name.indexOf(row.credited_as);
+          const end = start < 0 ? -1 : item.name.indexOf(next, start + row.credited_as.length);
+          const name =
+            end < 0 ? `${row.credited_as} & ${next}` : item.name.slice(start, end + next.length);
+          credits.splice(index, 2, { name, credited_as: name, role: row.role, position: index });
+          credits.forEach((c, i) => {
+            c.position = i;
+          });
+        } else if (edit === "artist") {
+          const artist_id = intOption(await io.ask("Artist ID: "));
+          credits[index] = {
+            artist_id,
+            role: row.role,
+            position: row.position,
+            credited_as: row.credited_as,
+          };
+        } else if (edit === "rename") {
+          const name = (await io.ask("Name: ")).trim();
+          if (name)
+            credits[index] = { name, credited_as: name, role: row.role, position: row.position };
+          else io.log("Name cannot be empty");
+        } else io.log("Invalid edit");
+      }
+      if (!current.split) continue;
+    } else if (answer === "rename") {
       current.name = await io.ask("Canonical name: ");
       current.sortName = await io.ask("Sort name: ");
     } else {
@@ -146,7 +218,10 @@ export async function runArtistReview(
     const selected = artistDecision(current)!;
     // Make the concrete preview visible before committing a terminal decision.
     io.log(JSON.stringify(await client.reviewArtist(selected, true)));
-    if (!opts.dryRun && (await io.ask("Save this decision? [y/N] ")).trim().toLowerCase() === "y")
+    if (
+      !opts.dryRun &&
+      (splitConfirmed || (await io.ask("Save this decision? [y/N] ")).trim().toLowerCase() === "y")
+    )
       io.log(JSON.stringify(await client.reviewArtist(selected)));
   }
 }
@@ -158,6 +233,7 @@ export function addArtistsReviewCommand(artists: Command): void {
     .option("--artist <id>", "Artist ID (also inspect a reviewed artist)", intOption)
     .option("--accept", "Accept this string as one artist")
     .option("--split <json>", "Replace this artist with ordered credits JSON")
+    .option("--split-auto", "Apply the proposed split without prompting")
     .option("--merge <id>", "Merge --artist into this target ID", intOption)
     .option("--unmerge <id>", "Undo a recorded merge", intOption)
     .option("--name <name>", "Canonical name")
