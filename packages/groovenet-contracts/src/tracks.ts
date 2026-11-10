@@ -88,6 +88,41 @@ export const audioMetadataBackfillRunSchema = z.object({
 });
 export type AudioMetadataBackfillRun = z.infer<typeof audioMetadataBackfillRunSchema>;
 
+/** Which tracks an embedded-tags backfill reads: everything unless narrowed to one friend. */
+export const embeddedTagsBackfillRequestSchema = z.object({
+  friend_id: z.number().int().optional(),
+  /** Read again even when the track was read after its file last changed. */
+  force: z.boolean().optional(),
+});
+export type EmbeddedTagsBackfillRequest = z.infer<typeof embeddedTagsBackfillRequestSchema>;
+
+/**
+ * Progress and report for one embedded-tags backfill (#673).
+ *
+ * Every candidate lands in exactly one of `read`, `skipped`, `missing_files` or
+ * `read_failures`; `complete` is true once they add up to `total`. The `with_*`
+ * counts say how many of the tracks read carried each tag, so a library of
+ * instrumentals reads as zero lyrics rather than as a failure.
+ */
+export const embeddedTagsBackfillRunSchema = z.object({
+  run_id: z.string(),
+  /** Tracks with a `local_audio_url`, whether or not they need reading. */
+  total: z.number().int(),
+  read: z.number().int(),
+  /** Already read after the file's mtime (never with `force`). */
+  skipped: z.number().int(),
+  missing_files: z.number().int(),
+  read_failures: z.number().int(),
+  with_composer: z.number().int(),
+  with_genre: z.number().int(),
+  with_lyrics: z.number().int(),
+  errors: z.array(z.string()),
+  started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  complete: z.boolean(),
+});
+export type EmbeddedTagsBackfillRun = z.infer<typeof embeddedTagsBackfillRunSchema>;
+
 /**
  * The full track entity. Only the identifying fields are required on the wire;
  * the database may return more columns, so unknown keys pass through.
@@ -123,6 +158,11 @@ const trackShape = z.object({
   /** Normalised mood and description words, kept out of genres (#371). */
   descriptors: z.array(z.string()).optional(),
   composer: z.string().nullable().optional(),
+  /**
+   * Genre names the audio file declares (Apple/ID3 taxonomy). Evidence only:
+   * never mixed into `local_tags` or `track_genres`, the DJ's own genres (#673).
+   */
+  audio_file_genre: z.array(z.string()).nullable().optional(),
   bpm: z.union([z.string(), z.number()]).nullable().optional(),
   key: z.string().nullable().optional(),
   /** Confidence (0-1) of the EDMA key estimate stored in `key` (#524). */
@@ -406,6 +446,10 @@ export const trackJsonSchemas = {
     io: "input",
   }),
   AudioMetadataBackfillRun: z.toJSONSchema(audioMetadataBackfillRunSchema),
+  EmbeddedTagsBackfillRequest: z.toJSONSchema(embeddedTagsBackfillRequestSchema, {
+    io: "input",
+  }),
+  EmbeddedTagsBackfillRun: z.toJSONSchema(embeddedTagsBackfillRunSchema),
   TrackExtractEmbeddedCoverResponse: z.toJSONSchema(trackExtractEmbeddedCoverResponseSchema),
   TrackEssentia: z.toJSONSchema(trackEssentiaSchema),
   TrackDeleteResponse: z.toJSONSchema(trackDeleteResponseSchema),

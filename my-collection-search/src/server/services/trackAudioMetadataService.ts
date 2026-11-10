@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { promisify } from "util";
 import { execFile } from "child_process";
+import { stripNullBytes } from "@/lib/stripNullBytes";
 
 const execFileAsync = promisify(execFile);
 
@@ -85,31 +86,146 @@ export function audioFieldsFromProbe(probe: unknown): Omit<TrackAudioFileFields,
   };
 }
 
+/** Text tags read from the file itself: never user-edited, always from the audio. */
+export type EmbeddedTags = {
+  composer: string | null;
+  /** Genre names as the file spells them (Apple/ID3 taxonomy, not Groovenet's). */
+  genres: string[];
+  lyrics: string | null;
+};
+
+export const EMPTY_EMBEDDED_TAGS: EmbeddedTags = { composer: null, genres: [], lyrics: null };
+
+/**
+ * ffprobe lowercases ID3 frames (TCOM, TCON, USLT) and MP4 atoms (©wrt, ©gen, ©lyr)
+ * to `composer`, `genre`, `lyrics`, but Vorbis/FLAC keeps the file's own case, and
+ * a few muxers leave the raw frame id or an alias. Keys are matched case-insensitively.
+ * `TPE2` is deliberately absent: it is the album artist, not the composer.
+ */
+const COMPOSER_KEYS = ["composer", "tcom", "©wrt", "wrt"];
+const GENRE_KEYS = ["genre", "tcon", "©gen", "gen"];
+const LYRICS_KEYS = ["lyrics", "unsyncedlyrics", "unsynced lyrics", "uslt", "©lyr", "lyr"];
+
+/** Format tags win; stream tags (Ogg, some Matroska) fill the gaps. */
+function collectTags(probe: unknown): Map<string, string> {
+  const data = (probe ?? {}) as {
+    format?: { tags?: Record<string, unknown> };
+    streams?: Array<{ tags?: Record<string, unknown> }>;
+  };
+  const sources = [data.format?.tags, ...(data.streams ?? []).map((stream) => stream?.tags)];
+  const tags = new Map<string, string>();
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const [key, value] of Object.entries(source)) {
+      const lower = key.toLowerCase();
+      if (typeof value === "string" && !tags.has(lower)) tags.set(lower, value);
+    }
+  }
+  return tags;
+}
+
+function firstTag(tags: Map<string, string>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = tags.get(key);
+    if (value !== undefined && stripNullBytes(value).trim().length > 0) return value;
+  }
+  return null;
+}
+
+/**
+ * A NUL is ID3v2.4's separator between values, so it splits before it is
+ * stripped; whatever remains is trimmed and de-duplicated case-insensitively.
+ */
+function splitValues(raw: string, delimiter: RegExp): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const part of raw.split("\u0000").flatMap((chunk) => chunk.split(delimiter))) {
+    const value = stripNullBytes(part).trim();
+    if (value && !seen.has(value.toLowerCase())) {
+      seen.add(value.toLowerCase());
+      values.push(value);
+    }
+  }
+  return values;
+}
+
+/**
+ * Composers, joined as `A, B`. Splits on `;` `/` `&` `,` (gamdl joins with ` & `,
+ * ID3v2.3 with `/`); `normalizeComposer` downstream splits on the same set, so a
+ * `Last, First` name round-trips unchanged.
+ */
+export function composerFromTags(tags: Map<string, string>): string | null {
+  const raw = firstTag(tags, COMPOSER_KEYS);
+  const names = raw === null ? [] : splitValues(raw, /[;/&,]/);
+  return names.length > 0 ? names.join(", ") : null;
+}
+
+/**
+ * Genres split only on NUL and `;`. `/` and `&` live inside Apple's own names
+ * (`Hip-Hop/Rap`, `R&B/Soul`, `Drum & Bass`), and ffprobe cannot say whether a `/`
+ * was a separator, so keeping the value whole is the lossless choice.
+ */
+export function genresFromTags(tags: Map<string, string>): string[] {
+  const raw = firstTag(tags, GENRE_KEYS);
+  return raw === null ? [] : splitValues(raw, /;/);
+}
+
+export function lyricsFromTags(tags: Map<string, string>): string | null {
+  const raw = firstTag(tags, LYRICS_KEYS);
+  const lyrics = raw === null ? "" : stripNullBytes(raw).replace(/\r\n?/g, "\n").trim();
+  return lyrics.length > 0 ? lyrics : null;
+}
+
+/** Composer, genre and lyrics from an ffprobe result. Missing or empty tags give nulls. */
+export function embeddedTagsFromProbe(probe: unknown): EmbeddedTags {
+  const tags = collectTags(probe);
+  return {
+    composer: composerFromTags(tags),
+    genres: genresFromTags(tags),
+    lyrics: lyricsFromTags(tags),
+  };
+}
+
 export class TrackAudioMetadataService {
   /** All file writers use this path, including removal and replacement. */
   async fieldsForLocalAudio(
     filename: string | null,
     source?: TrackAudioFileFields["audio_source"],
   ): Promise<TrackAudioFileFields> {
+    return (await this.inspectLocalAudio(filename, source)).fields;
+  }
+
+  /**
+   * One ffprobe for everything read from a file: the `audio_*` columns and the
+   * embedded text tags. The write paths persist both from this single probe.
+   */
+  async inspectLocalAudio(
+    filename: string | null,
+    source?: TrackAudioFileFields["audio_source"],
+  ): Promise<{ fields: TrackAudioFileFields; tags: EmbeddedTags | null }> {
     if (!filename) {
       return {
-        audio_source: null,
-        audio_codec: null,
-        audio_container: null,
-        audio_sample_rate: null,
-        audio_bit_depth: null,
-        audio_bitrate: null,
-        audio_channels: null,
-        audio_size_bytes: null,
-        audio_lossless: null,
-        audio_probed_at: null,
+        tags: null,
+        fields: {
+          audio_source: null,
+          audio_codec: null,
+          audio_container: null,
+          audio_sample_rate: null,
+          audio_bit_depth: null,
+          audio_bitrate: null,
+          audio_channels: null,
+          audio_size_bytes: null,
+          audio_lossless: null,
+          audio_probed_at: null,
+        },
       };
     }
     const filePath = this.resolveAudioFilePath(filename);
     if (!filePath) throw new Error("Local audio file not found");
+    const probe = await this.runFfprobe(filePath);
     return {
-      ...audioFieldsFromProbe(await this.runFfprobe(filePath)),
-      audio_source: source ?? "unknown",
+      fields: { ...audioFieldsFromProbe(probe), audio_source: source ?? "unknown" },
+      tags: embeddedTagsFromProbe(probe),
     };
   }
 
@@ -260,26 +376,7 @@ export class TrackAudioMetadataService {
   }
 
   extractComposerFromProbe(probe: unknown): string | null {
-    const tags =
-      probe &&
-      typeof probe === "object" &&
-      "format" in probe &&
-      (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags &&
-      typeof (probe as { format?: { tags?: Record<string, unknown> } }).format?.tags === "object"
-        ? (probe as { format: { tags: Record<string, unknown> } }).format.tags
-        : null;
-
-    if (!tags) return null;
-
-    const composerKeys = ["composer", "COMPOSER", "Composer", "TPE2", "TCOM"];
-    for (const key of composerKeys) {
-      const value = tags[key];
-      if (typeof value === "string" && value.trim().length > 0) {
-        return value.trim();
-      }
-    }
-
-    return null;
+    return embeddedTagsFromProbe(probe).composer;
   }
 }
 

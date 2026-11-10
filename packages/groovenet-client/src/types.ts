@@ -282,6 +282,7 @@ export interface RecommendationCandidatesQuery {
 // ─── Audio file metadata backfill (#1049) ─────────────────────────────────────
 
 export type { AudioMetadataBackfillRequest, AudioMetadataBackfillRun } from "@groovenet/contracts";
+export type { EmbeddedTagsBackfillRequest, EmbeddedTagsBackfillRun } from "@groovenet/contracts";
 
 // ─── Fingerprint indexing (#277) ──────────────────────────────────────────────
 
