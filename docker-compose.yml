@@ -148,6 +148,9 @@ services:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
       GAMDL_COOKIE_FILE: /app/cookies/gamdl_cookies.txt
+      GAMDL_WRAPPER_URL: ${GAMDL_WRAPPER_URL:-}
+      GAMDL_WRAPPER_DECRYPT_HOST: ${GAMDL_WRAPPER_DECRYPT_HOST:-}
+      GAMDL_WRAPPER_DECRYPT_PORT: ${GAMDL_WRAPPER_DECRYPT_PORT:-}
       ESSENTIA_DATA_DIR: /app/essentia-data
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-0.3.2}

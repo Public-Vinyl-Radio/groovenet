@@ -10,6 +10,8 @@ from worker.jobs.download import (
     _extract_ytdlp_error,
     download_with_gamdl,
     download_with_ytdlp,
+    gamdl_quality_args,
+    gamdl_wrapper_args,
     resolve_gamdl_cookie_file,
 )
 
@@ -184,37 +186,91 @@ class TestGamdlCookieHandling:
 # ---------------------------------------------------------------------------
 
 
+WRAPPER_ENV = ("GAMDL_WRAPPER_URL", "GAMDL_WRAPPER_DECRYPT_HOST", "GAMDL_WRAPPER_DECRYPT_PORT")
+
+
+@pytest.fixture
+def no_wrapper(monkeypatch):
+    for name in (*WRAPPER_ENV, "GAMDL_COOKIE_FILE"):
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+class TestGamdlWrapperArgs:
+    def test_empty_without_a_wrapper_url(self, no_wrapper):
+        assert gamdl_wrapper_args() == []
+
+    def test_blank_wrapper_url_counts_as_unset(self, no_wrapper):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "   ")
+        assert gamdl_wrapper_args() == []
+
+    def test_decrypt_host_defaults_to_the_wrapper_url_host(self, no_wrapper):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "http://gamdl-wrapper:80")
+        assert gamdl_wrapper_args() == [
+            "--use-wrapper",
+            "--wrapper-url",
+            "http://gamdl-wrapper:80",
+            "--wrapper-decrypt-host",
+            "gamdl-wrapper",
+        ]
+
+    def test_explicit_decrypt_host_and_port_win(self, no_wrapper):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "http://gamdl-wrapper")
+        no_wrapper.setenv("GAMDL_WRAPPER_DECRYPT_HOST", "10.0.0.5")
+        no_wrapper.setenv("GAMDL_WRAPPER_DECRYPT_PORT", "11020")
+        args = gamdl_wrapper_args()
+        assert args[args.index("--wrapper-decrypt-host") + 1] == "10.0.0.5"
+        assert args[args.index("--wrapper-decrypt-port") + 1] == "11020"
+
+    def test_omits_the_decrypt_host_when_the_url_has_none(self, no_wrapper):
+        """A URL with no parseable host leaves gamdl's own decrypt-host default in place."""
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "not-a-url")
+        assert gamdl_wrapper_args() == ["--use-wrapper", "--wrapper-url", "not-a-url"]
+
+
+class TestGamdlQualityArgs:
+    @pytest.mark.parametrize("quality", ["best", "high", "standard", "128k"])
+    def test_non_lossless_settings_pass_nothing(self, no_wrapper, quality):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "http://gamdl-wrapper")
+        assert gamdl_quality_args(quality) == []
+
+    def test_lossless_without_a_wrapper_falls_back_to_the_default(self, no_wrapper):
+        assert gamdl_quality_args("lossless") == []
+
+    def test_lossless_with_a_wrapper_prefers_alac_then_aac(self, no_wrapper):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "http://gamdl-wrapper")
+        args = gamdl_quality_args("lossless")
+        assert args[0] == "--use-wrapper"
+        assert args[-2:] == ["--song-codec-priority", "alac,aac-web"]
+
+
 class TestGamdlQuality:
-    @patch("worker.jobs.download.run_subprocess")
-    def test_omits_audio_quality_when_best(self, mock_run, tmp_path, monkeypatch):
-        monkeypatch.delenv("GAMDL_COOKIE_FILE", raising=False)
+    def _run(self, mock_run, tmp_path, quality):
         write_audio(str(tmp_path / "out" / "t1.m4a"))
         mock_run.return_value = make_proc(returncode=0)
-
         download_with_gamdl(
             "https://music.apple.com/x",
             str(tmp_path / "out"),
             "t1",
-            job_data={"track_id": "t1", "friend_id": 1, "quality": "best"},
+            job_data={"track_id": "t1", "friend_id": 1, "quality": quality},
         )
+        return mock_run.call_args[0][0]
 
-        assert "--audio-quality" not in mock_run.call_args[0][0]
+    @pytest.mark.parametrize("quality", ["best", "high", "standard", "lossless"])
+    @patch("worker.jobs.download.run_subprocess")
+    def test_never_passes_the_removed_audio_quality_flag(self, mock_run, tmp_path, no_wrapper, quality):
+        """gamdl 3.9 rejects --audio-quality, so passing it failed every download."""
+        cmd = self._run(mock_run, tmp_path, quality)
+        assert "--audio-quality" not in cmd
+        assert "--song-codec-priority" not in cmd
 
     @patch("worker.jobs.download.run_subprocess")
-    def test_passes_an_explicit_quality(self, mock_run, tmp_path, monkeypatch):
-        monkeypatch.delenv("GAMDL_COOKIE_FILE", raising=False)
-        write_audio(str(tmp_path / "out" / "t1.m4a"))
-        mock_run.return_value = make_proc(returncode=0)
-
-        download_with_gamdl(
-            "https://music.apple.com/x",
-            str(tmp_path / "out"),
-            "t1",
-            job_data={"track_id": "t1", "friend_id": 1, "quality": "128k"},
-        )
-
-        cmd = mock_run.call_args[0][0]
-        assert cmd[cmd.index("--audio-quality") + 1] == "128k"
+    def test_lossless_with_a_wrapper_requests_alac_before_the_url(self, mock_run, tmp_path, no_wrapper):
+        no_wrapper.setenv("GAMDL_WRAPPER_URL", "http://gamdl-wrapper")
+        cmd = self._run(mock_run, tmp_path, "lossless")
+        assert cmd[cmd.index("--song-codec-priority") + 1] == "alac,aac-web"
+        assert "--use-wrapper" in cmd
+        assert cmd[-1] == "https://music.apple.com/x"
 
 
 class TestGamdlFileDiscovery:
