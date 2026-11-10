@@ -16,9 +16,9 @@ it("requires unambiguous identities, valid roles/order, and positive IDs", () =>
     expect(parse([credit, invalid])).toBe(false);
 });
 it("documents GET and POST runtime schemas and JSON responses", () => {
-  expect(artistReviewContracts.map((c) => c.method)).toEqual(["get", "post"]);
+  expect(artistReviewContracts.map((c) => c.method)).toEqual(["get", "get", "post"]);
   for (const contract of artistReviewContracts) {
-    expect(contract.path).toBe("/api/artists/review");
+    expect(contract.path).toMatch(/^\/api\/artists\/review/);
     expect(contract.openapi.responses["200"]).toHaveProperty("content.application/json.schema");
   }
 });

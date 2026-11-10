@@ -62,6 +62,7 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/artists` | artists | contracts | `artists.ts`; search by name or alias, with counts (#710). |
 | POST | `/api/artists/reconcile` | artists | contracts | `artists.ts`; links albums and tracks to artists, dry run (#705). |
 | GET | `/api/artists/review` | artists | contracts | Review queue and source evidence (#706). |
+| GET | `/api/artists/review/{id}/split-proposal` | artists | contracts | Proposed review credits (#1088). |
 | POST | `/api/artists/review` | artists | contracts | Manual decisions, dry runs, and reversible merges (#706). |
 | GET | `/api/audio` | audio streaming | exception | Byte-range audio stream; no JSON body. |
 | POST | `/api/audio/ingest` | vinyl ingest & fingerprints | contracts | Multipart request from the Pi listener stays inline; the response and rejection codes are shared. |

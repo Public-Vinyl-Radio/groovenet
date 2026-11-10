@@ -243,3 +243,19 @@ dbTest("keeps a reviewed legacy merge when Discogs supplies an ID for the first 
     [],
   );
 });
+
+dbTest("matches proposal names and aliases exactly, excluding placeholders", async () => {
+  await artists.addAlias(b, "Review test Alias");
+  await dbQuery(
+    "UPDATE artists SET name = 'Review test A / review test alias / Review test C / Review test New' WHERE id = $1",
+    [a],
+  );
+  await dbQuery("UPDATE artists SET is_placeholder = true WHERE id = $1", [c]);
+  const proposal = await review.splitProposal(a);
+  expect(proposal.credits).toMatchObject([
+    { name: "Review test A" },
+    { artist_id: b },
+    { name: "Review test C" },
+    { name: "Review test New" },
+  ]);
+});
