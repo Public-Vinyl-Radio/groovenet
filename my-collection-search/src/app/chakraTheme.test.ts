@@ -316,6 +316,16 @@ describe("font blocks", () => {
     );
   });
 
+  it("sets a mono body from the Labels faces, or a system mono stack", () => {
+    const key = selector("body", "jetbrains-mono") as string;
+    expect(blocks[key]).toEqual({
+      "--gn-font-body": `var(--face-jetbrains-mono, ${fontRoles.body.fallback})`,
+    });
+    expect(blocks[selector("body", "system-mono") as string]).toEqual({
+      "--gn-font-body": expect.stringMatching(/^ui-monospace/),
+    });
+  });
+
   it("maps System to a stack with no face", () => {
     expect(fontChoiceValue("body", "system")).toMatch(/^system-ui/);
     expect(fontChoiceValue("label", "system")).toMatch(/^ui-monospace/);
