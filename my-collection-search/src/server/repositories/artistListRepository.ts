@@ -11,9 +11,10 @@ export type ArtistListFilter = {
 };
 
 /** The sort name with its first letter's accents folded, for the A to Z index. */
-const FOLDED_SORT_NAME = `translate(ltrim(ar.sort_name),
+const foldedSortName = (column: string) => `translate(ltrim(${column}),
   'ÁÀÂÄÃÅáàâäãåÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÖÕóòôöõÚÙÛÜúùûüÑñÇçÝý',
   'AAAAAAaaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuNnCcYy')`;
+const FOLDED_SORT_NAME = foldedSortName("ar.sort_name");
 
 /** `%` and `_` in a user's query match themselves, not any character. */
 function likePattern(text: string): string {
@@ -93,6 +94,24 @@ export class ArtistListRepository {
       FROM matched
       ORDER BY exact DESC, lower(sort_name) ASC, id ASC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    );
+    return rows;
+  }
+
+  /**
+   * How many artists file under each index letter (#1116), for the jump index.
+   * Same scope and folding as the list, ignoring any search words.
+   */
+  async letterCounts(filter: Pick<ArtistListFilter, "friendId" | "includePlaceholders">) {
+    const { sql, params } = this.matched({ ...filter, q: "" });
+    const letter = `upper(left(${foldedSortName("sort_name")}, 1))`;
+    const { rows } = await dbQuery<{ letter: string; count: number }>(
+      `${sql}
+      SELECT CASE WHEN ${letter} ~ '^[A-Z]$' THEN ${letter} ELSE '#' END AS letter,
+        count(*)::integer AS count
+      FROM matched GROUP BY 1
+      ORDER BY (CASE WHEN ${letter} ~ '^[A-Z]$' THEN ${letter} ELSE '#' END = '#'), 1`,
       params,
     );
     return rows;

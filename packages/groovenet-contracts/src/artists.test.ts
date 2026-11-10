@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   artistJsonSchemas,
+  artistLetterCountsQuerySchema,
+  artistLetterCountsResponseSchema,
   artistReconcileRequestSchema,
   artistReconcileResponseSchema,
 } from "./artists.js";
@@ -48,7 +50,26 @@ describe("artist reconcile contracts", () => {
       "ArtistReconcileRequest",
       "ArtistReconcileResponse",
       "ArtistListResponse",
+      "ArtistLetterCountsResponse",
       "ArtistPageResponse",
     ]);
+  });
+
+  it("describes the letter counts (#1116)", () => {
+    const counts = {
+      letters: [
+        { letter: "A", count: 2 },
+        { letter: "#", count: 1 },
+      ],
+      total: 3,
+    };
+    expect(artistLetterCountsResponseSchema.parse(counts)).toEqual(counts);
+    expect(
+      artistLetterCountsResponseSchema.safeParse({
+        letters: [{ letter: "aa", count: 1 }],
+        total: 1,
+      }).success,
+    ).toBe(false);
+    expect(artistLetterCountsQuerySchema.parse({ friend_id: 6 })).toEqual({ friend_id: 6 });
   });
 });
