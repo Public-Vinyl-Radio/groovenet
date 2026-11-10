@@ -2,6 +2,8 @@ import { artistReviewContracts } from "./artistReview";
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
+  embeddedTagsBackfillRequestSchema,
+  embeddedTagsBackfillRunSchema,
 } from "@groovenet/contracts";
 import {
   homeQuerySchema,
@@ -1188,6 +1190,67 @@ const audioMetadataBackfillContracts: ApiContractRoute[] = [
         "200": {
           description: "Run counters and per-source report",
           content: { "application/json": { schema: componentRef("AudioMetadataBackfillRun") } },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const embeddedTagsBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startEmbeddedTagsBackfill",
+    method: "post",
+    path: "/api/tracks/embedded-tags/backfill",
+    summary: "Read composer, genre and lyrics from existing local audio files",
+    tags: ["Tracks"],
+    bodySchema: embeddedTagsBackfillRequestSchema,
+    successSchema: embeddedTagsBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: componentRef("EmbeddedTagsBackfillRequest") },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run started; poll the run for progress",
+          content: { "application/json": { schema: componentRef("EmbeddedTagsBackfillRun") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getEmbeddedTagsBackfillRun",
+    method: "get",
+    path: "/api/tracks/embedded-tags/backfill/{runId}",
+    summary: "Progress and report for one embedded-tags backfill",
+    tags: ["Tracks"],
+    successSchema: embeddedTagsBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/tracks/embedded-tags/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: { "application/json": { schema: componentRef("EmbeddedTagsBackfillRun") } },
         },
         "404": {
           description: "Run not found or expired",
@@ -6602,6 +6665,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...audioMetadataBackfillContracts,
+  ...embeddedTagsBackfillContracts,
   ...embeddingsBackfillContracts,
   ...embeddingsQueueContracts,
   ...embeddingModelSettingsContracts,

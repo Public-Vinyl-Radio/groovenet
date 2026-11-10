@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TrackAudioMetadataService } from "../trackAudioMetadataService";
+import { TrackAudioMetadataService, embeddedTagsFromProbe } from "../trackAudioMetadataService";
 
 const svc = new TrackAudioMetadataService();
 
@@ -174,8 +174,11 @@ describe("extractComposerFromProbe", () => {
     );
   });
 
-  it("returns composer from TPE2 tag", () => {
-    expect(svc.extractComposerFromProbe({ format: { tags: { TPE2: "Mozart" } } })).toBe("Mozart");
+  it("does not treat TPE2 (album artist) as a composer", () => {
+    expect(svc.extractComposerFromProbe({ format: { tags: { TPE2: "Mozart" } } })).toBeNull();
+    expect(
+      svc.extractComposerFromProbe({ format: { tags: { album_artist: "Mozart" } } }),
+    ).toBeNull();
   });
 
   it("returns composer from TCOM tag", () => {
@@ -192,9 +195,123 @@ describe("extractComposerFromProbe", () => {
     expect(svc.extractComposerFromProbe({ format: { tags: { composer: "   " } } })).toBeNull();
   });
 
-  it("prefers 'composer' key over TPE2", () => {
+  it("ignores TPE2 even when a composer is present", () => {
     expect(
       svc.extractComposerFromProbe({ format: { tags: { composer: "Bach", TPE2: "Other" } } }),
     ).toBe("Bach");
+  });
+});
+
+// ─── embeddedTagsFromProbe (#673) ─────────────────────────────────────────────
+// Key shapes below are what ffprobe -show_format printed for real ffmpeg-made files:
+// m4a and ID3 (v2.3 and v2.4) both surface lowercase composer/genre/lyrics; FLAC keeps
+// the file's own upper case.
+
+const tagsOf = (tags: Record<string, unknown>) => embeddedTagsFromProbe({ format: { tags } });
+
+describe("embeddedTagsFromProbe", () => {
+  it("reads an m4a (gamdl) file", () => {
+    expect(
+      tagsOf({
+        composer: "Camilo Lara Alvarez & Eblis Javier Álvarez Vargas",
+        genre: "Música tropical",
+        lyrics: "la la",
+        album_artist: "Camilo",
+      }),
+    ).toEqual({
+      composer: "Camilo Lara Alvarez, Eblis Javier Álvarez Vargas",
+      genres: ["Música tropical"],
+      lyrics: "la la",
+    });
+  });
+
+  it("reads an ID3 file (TCOM/TCON/USLT arrive as lowercase names)", () => {
+    expect(tagsOf({ composer: "A;B", genre: "House", lyrics: "x", album_artist: "A" })).toEqual({
+      composer: "A, B",
+      genres: ["House"],
+      lyrics: "x",
+    });
+  });
+
+  it("matches Vorbis/FLAC upper-case keys and the UNSYNCEDLYRICS alias", () => {
+    expect(tagsOf({ COMPOSER: "F", GENRE: "G", UNSYNCEDLYRICS: "u" })).toEqual({
+      composer: "F",
+      genres: ["G"],
+      lyrics: "u",
+    });
+  });
+
+  it("accepts raw frame ids and MP4 atom names when a muxer leaves them", () => {
+    expect(tagsOf({ TCOM: "C", TCON: "Techno", USLT: "words" })).toEqual({
+      composer: "C",
+      genres: ["Techno"],
+      lyrics: "words",
+    });
+    expect(tagsOf({ "©wrt": "W", "©gen": "Gen", "©lyr": "Lyr" })).toEqual({
+      composer: "W",
+      genres: ["Gen"],
+      lyrics: "Lyr",
+    });
+  });
+
+  it("falls back to stream tags (Ogg) when the format has none", () => {
+    expect(
+      embeddedTagsFromProbe({
+        format: { tags: {} },
+        streams: [{ tags: { composer: "S", genre: "Dub" } }, { tags: "bad" }, {}],
+      }),
+    ).toMatchObject({ composer: "S", genres: ["Dub"] });
+  });
+
+  it("lets format tags win over stream tags", () => {
+    expect(
+      embeddedTagsFromProbe({
+        format: { tags: { composer: "Format" } },
+        streams: [{ tags: { composer: "Stream" } }],
+      }).composer,
+    ).toBe("Format");
+  });
+
+  it("splits composers on ; / & , and NUL, dropping duplicates", () => {
+    expect(tagsOf({ composer: "A/B; C & a ,D\u0000E" }).composer).toBe("A, B, C, D, E");
+  });
+
+  it("keeps a 'Last, First' composer unchanged", () => {
+    expect(tagsOf({ composer: "Bach, J.S." }).composer).toBe("Bach, J.S.");
+  });
+
+  it("splits genres only on NUL and ';', keeping Apple names whole", () => {
+    expect(tagsOf({ genre: "House;Techno\u0000House" }).genres).toEqual(["House", "Techno"]);
+    expect(tagsOf({ genre: "Hip-Hop/Rap" }).genres).toEqual(["Hip-Hop/Rap"]);
+    expect(tagsOf({ genre: "Drum & Bass" }).genres).toEqual(["Drum & Bass"]);
+  });
+
+  it("strips null bytes everywhere", () => {
+    expect(tagsOf({ composer: "Ba\u0000ch", lyrics: "li\u0000ne" })).toMatchObject({
+      composer: "Ba, ch",
+      lyrics: "line",
+    });
+    expect(tagsOf({ composer: "\u0000", genre: "\u0000", lyrics: "\u0000" })).toEqual({
+      composer: null,
+      genres: [],
+      lyrics: null,
+    });
+  });
+
+  it("normalises lyric line endings and trims", () => {
+    expect(tagsOf({ lyrics: "  one\r\ntwo\rthree\n " }).lyrics).toBe("one\ntwo\nthree");
+  });
+
+  it("returns empty tags for missing, blank or non-string values", () => {
+    const empty = { composer: null, genres: [], lyrics: null };
+    expect(embeddedTagsFromProbe(null)).toEqual(empty);
+    expect(embeddedTagsFromProbe({})).toEqual(empty);
+    expect(tagsOf({})).toEqual(empty);
+    expect(tagsOf({ composer: "  ", genre: "", lyrics: "\n" })).toEqual(empty);
+    expect(tagsOf({ composer: 5, genre: ["x"], lyrics: null })).toEqual(empty);
+  });
+
+  it("skips a blank earlier alias for a later one", () => {
+    expect(tagsOf({ lyrics: " ", unsyncedlyrics: "u" }).lyrics).toBe("u");
   });
 });

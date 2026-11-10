@@ -86,6 +86,8 @@ import type {
   RecommendationCandidatesQuery,
   AudioMetadataBackfillRequest,
   AudioMetadataBackfillRun,
+  EmbeddedTagsBackfillRequest,
+  EmbeddedTagsBackfillRun,
   FingerprintIndexRequest,
   FingerprintIndexRun,
   EmbeddingBackfillRequest,
@@ -899,6 +901,26 @@ export class GroovenetClient {
     return this.request<AudioMetadataBackfillRun>(
       "GET",
       `/tracks/audio-metadata/backfill/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  // ── Embedded tags (#673) ───────────────────────────────────────────────────
+
+  /**
+   * Read composer, genre and lyrics from every local file that has not been
+   * read since it last changed. Returns at once; poll `getEmbeddedTagsBackfillRun`.
+   */
+  async startEmbeddedTagsBackfill(
+    request: EmbeddedTagsBackfillRequest = {},
+  ): Promise<EmbeddedTagsBackfillRun> {
+    return this.request<EmbeddedTagsBackfillRun>("POST", "/tracks/embedded-tags/backfill", request);
+  }
+
+  /** Counters for one embedded-tags backfill. */
+  async getEmbeddedTagsBackfillRun(runId: string): Promise<EmbeddedTagsBackfillRun> {
+    return this.request<EmbeddedTagsBackfillRun>(
+      "GET",
+      `/tracks/embedded-tags/backfill/${encodeURIComponent(runId)}`,
     );
   }
 

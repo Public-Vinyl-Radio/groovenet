@@ -1,6 +1,8 @@
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
+  embeddedTagsBackfillRequestSchema,
+  embeddedTagsBackfillRunSchema,
   trackAudioFileFieldsSchema,
 } from "./tracks.js";
 import { describe, expect, it } from "vitest";
@@ -357,5 +359,46 @@ describe("audio metadata backfill contracts (#1049)", () => {
     expect(audioMetadataBackfillRunSchema.parse(run)).toEqual(run);
     expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRequest");
     expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRun");
+  });
+});
+
+describe("embedded tags contracts (#673)", () => {
+  it("accepts an empty request and rejects a non-integer friend", () => {
+    expect(embeddedTagsBackfillRequestSchema.parse({})).toEqual({});
+    expect(embeddedTagsBackfillRequestSchema.safeParse({ friend_id: 1.5 }).success).toBe(false);
+  });
+
+  it("describes a run and publishes both shapes", () => {
+    const run = {
+      run_id: "r1",
+      total: 3,
+      read: 2,
+      skipped: 1,
+      missing_files: 0,
+      read_failures: 0,
+      with_composer: 2,
+      with_genre: 2,
+      with_lyrics: 0,
+      errors: [],
+      started_at: 1,
+      updated_at: 2,
+      complete: true,
+    };
+    expect(embeddedTagsBackfillRunSchema.parse(run)).toEqual(run);
+    expect(trackJsonSchemas).toHaveProperty("EmbeddedTagsBackfillRequest");
+    expect(trackJsonSchemas).toHaveProperty("EmbeddedTagsBackfillRun");
+  });
+
+  it("carries the file's genre on a track, apart from local_tags, and never lyrics", () => {
+    const track = trackSchema.parse({
+      track_id: "t",
+      friend_id: 1,
+      title: "T",
+      artist: "A",
+      album: null,
+      audio_file_genre: ["Música tropical"],
+    });
+    expect(track.audio_file_genre).toEqual(["Música tropical"]);
+    expect(trackJsonSchemas.Track).not.toHaveProperty("properties.lyrics");
   });
 });

@@ -1388,6 +1388,40 @@ describe("GroovenetClient audio metadata backfill endpoints (#1049)", () => {
   });
 });
 
+describe("GroovenetClient embedded tags endpoints (#673)", () => {
+  it("starts a backfill with an empty request by default", async () => {
+    const client = clientReturning({ run_id: "run-1", total: 3 });
+    const run = await client.startEmbeddedTagsBackfill();
+    expect(run.total).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/embedded-tags/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards force and friend_id", async () => {
+    const client = clientReturning({});
+    await client.startEmbeddedTagsBackfill({ force: true, friend_id: 2 });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { force: true, friend_id: 2 } }),
+    );
+  });
+
+  it("reads a run and escapes its id", async () => {
+    const client = clientReturning({ run_id: "r", read: 4 });
+    const run = await client.getEmbeddedTagsBackfillRun("r/../x");
+    expect(run.read).toBe(4);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/embedded-tags/backfill/r%2F..%2Fx",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient embeddings endpoints (#388)", () => {
   it("starts a backfill run with defaults when called with no request", async () => {
     const client = clientReturning({ run_id: "run-1", queued: 5 });
