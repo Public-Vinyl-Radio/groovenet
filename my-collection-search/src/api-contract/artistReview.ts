@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ApiContractRoute } from "./routes";
 
 import {
+  artistSplitProposalSchema,
   artistReviewBodySchema,
   artistReviewListSchema,
   artistReviewQuerySchema,
@@ -21,6 +22,27 @@ export type {
 } from "@groovenet/contracts";
 const error = z.object({ error: z.string() });
 export const artistReviewContracts: ApiContractRoute[] = [
+  {
+    operationId: "getArtistSplitProposal",
+    method: "get",
+    path: "/api/artists/review/{id}/split-proposal",
+    summary: "Suggest ordered credits for an artist review",
+    tags: ["Artists"],
+    successSchema: artistSplitProposalSchema,
+    errorSchema: error,
+    openapi: {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+      responses: {
+        "200": {
+          description: "Proposed split",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/ArtistSplitProposal" } },
+          },
+        },
+        "404": { description: "Artist not found" },
+      },
+    },
+  },
   {
     operationId: "listArtistReview",
     method: "get",

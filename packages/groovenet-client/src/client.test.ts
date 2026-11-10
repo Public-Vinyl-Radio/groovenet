@@ -2448,6 +2448,13 @@ describe("artist review", () => {
       expect.objectContaining({ params: { artist_id: 7, limit: 5, offset: 10 } }),
     );
   });
+  it("fetches a split proposal", async () => {
+    const client = clientReturning({ credits: [] });
+    expect(await client.getArtistSplitProposal(7)).toEqual({ credits: [] });
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: "GET", url: "/artists/review/7/split-proposal" }),
+    );
+  });
   it("sends review decisions and dry runs", async () => {
     const client = clientReturning({
       dry_run: false,

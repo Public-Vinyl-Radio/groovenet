@@ -34,6 +34,7 @@ file probing capped at five tracks per item.
 groovenet artists review --list
 groovenet artists review --artist 42 --json
 groovenet artists review --artist 42 --accept --dry-run --json
+groovenet artists review --artist 42 --split-auto --dry-run --json
 groovenet artists review --artist 42 --merge 7 --json
 groovenet artists review --unmerge 3 --json
 groovenet artists review --artist 7 --name 'The Strokes' --sort-name 'Strokes, The'
@@ -41,6 +42,10 @@ groovenet artists review --artist 12 --placeholder
 groovenet artists review --artist 12 --no-placeholder
 groovenet artists review --artist 42 --split '[{"name":"Mexican Institute of Sound","role":"primary","position":0,"credited_as":"Mexican Institute Of Sound"},{"artist_id":7,"role":"primary","position":1,"credited_as":"Meridian brothers"}]' --dry-run --json
 ```
+
+Interactive `split` proposes credits and lets you edit individual rows before saving.
+`--split-auto` applies the proposal without prompting; use `--dry-run` to preview it.
+The proposal keeps names containing `& The` together.
 
 `--split` accepts existing `artist_id`s or new names (optional `sort_name`),
 plus explicit `role`, zero-based `position`, and `credited_as`. Roles are
