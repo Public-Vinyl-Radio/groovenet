@@ -1,5 +1,9 @@
 import { http } from "@/services/http";
-import type { ArtistListResponse, ArtistPageResponse } from "@/api-contract/schemas";
+import type {
+  ArtistLetterCountsResponse,
+  ArtistListResponse,
+  ArtistPageResponse,
+} from "@/api-contract/schemas";
 import type { Album, Track } from "@/types/track";
 
 /** The wire page with its entities typed as the app's own `Album` and `Track`. */
@@ -33,4 +37,11 @@ export async function listArtists(params: ArtistListParams = {}): Promise<Artist
   if (params.offset) search.set("offset", String(params.offset));
   const query = search.toString();
   return http<ArtistListResponse>(query ? `/api/artists?${query}` : "/api/artists");
+}
+
+/** How many artists file under each index letter (#1116), scoped like the list. */
+export async function fetchArtistLetters(friendId?: number): Promise<ArtistLetterCountsResponse> {
+  return http<ArtistLetterCountsResponse>(
+    friendId === undefined ? "/api/artists/letters" : `/api/artists/letters?friend_id=${friendId}`,
+  );
 }

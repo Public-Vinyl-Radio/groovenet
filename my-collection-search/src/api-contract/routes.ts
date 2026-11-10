@@ -134,6 +134,8 @@ import {
   artistPageResponseSchema,
   artistListQuerySchema,
   artistListResponseSchema,
+  artistLetterCountsQuerySchema,
+  artistLetterCountsResponseSchema,
   genrePageResponseSchema,
   genreSimilarResponseSchema,
   genreSimilarQuerySchema,
@@ -6240,6 +6242,43 @@ export const apiContractRoutes: ApiContractRoute[] = [
         "200": {
           description: "One page of artists, sorted by sort name; merged artists never appear",
           content: { "application/json": { schema: componentRef("ArtistListResponse") } },
+        },
+        "400": jsonError("Invalid query"),
+        "500": jsonError("Server error"),
+      },
+    },
+  },
+  {
+    operationId: "listArtistLetters",
+    method: "get",
+    path: "/api/artists/letters",
+    summary: "Count artists under each A to Z index letter",
+    tags: ["Artists"],
+    querySchema: artistLetterCountsQuerySchema,
+    successSchema: artistLetterCountsResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: [
+        {
+          name: "friend_id",
+          in: "query",
+          required: false,
+          description: "Only artists credited in this collection, as in the list",
+          schema: { type: "integer" },
+        },
+        {
+          name: "include_placeholders",
+          in: "query",
+          required: false,
+          description: "Include Various and Unknown Artist",
+          schema: { type: "boolean", default: false },
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Artists per index letter (#1116), accents folded as in the list's letter filter; letters with none are left out",
+          content: { "application/json": { schema: componentRef("ArtistLetterCountsResponse") } },
         },
         "400": jsonError("Invalid query"),
         "500": jsonError("Server error"),

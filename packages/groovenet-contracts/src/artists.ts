@@ -162,6 +162,20 @@ export const artistListResponseSchema = z.object({
   offset: z.number().int(),
   query: z.string(),
 });
+
+/** `GET /api/artists/letters` (#1116): how many artists file under each index letter. */
+export const artistLetterCountsQuerySchema = z.object({
+  friend_id: z.number().int().optional(),
+  include_placeholders: z.boolean().optional(),
+});
+
+export const artistLetterCountsResponseSchema = z.object({
+  letters: z
+    .array(z.object({ letter: artistIndexLetterSchema, count }))
+    .meta({ description: "Only letters with artists, A to Z then #" }),
+  total: count,
+});
+export type ArtistLetterCountsResponse = z.infer<typeof artistLetterCountsResponseSchema>;
 export type ArtistListQuery = z.infer<typeof artistListQuerySchema>;
 export type ArtistListItem = z.infer<typeof artistListItemSchema>;
 export type ArtistListResponse = z.infer<typeof artistListResponseSchema>;
@@ -170,6 +184,7 @@ export const artistJsonSchemas = {
   ArtistReconcileRequest: z.toJSONSchema(artistReconcileRequestSchema),
   ArtistReconcileResponse: z.toJSONSchema(artistReconcileResponseSchema),
   ArtistListResponse: z.toJSONSchema(artistListResponseSchema),
+  ArtistLetterCountsResponse: z.toJSONSchema(artistLetterCountsResponseSchema),
   ArtistPageResponse: z.toJSONSchema(artistPageResponseSchema, {
     io: "input",
     // Entities are shared components; keep them inline rather than local refs.
