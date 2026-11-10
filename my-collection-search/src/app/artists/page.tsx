@@ -96,8 +96,8 @@ function useActiveLetter(letters: string[]) {
     const update = () => {
       let current = key[0];
       for (const letter of key) {
-        const section = document.getElementById(sectionId(letter))?.closest("section");
-        if (!section) continue;
+        // `letters` come from the rendered groups, so every section is in the page.
+        const section = document.getElementById(sectionId(letter))!.closest("section")!;
         const top = parseFloat(getComputedStyle(section.firstElementChild!).top);
         if (section.getBoundingClientRect().top <= (Number.isNaN(top) ? 0 : top) + 1) {
           current = letter;
@@ -129,16 +129,16 @@ function ArtistsPageContent() {
   React.useEffect(() => setInput(urlQuery), [urlQuery]);
 
   const writeUrl = React.useCallback(
-    (next: { q?: string }) => {
+    (nextQuery: string) => {
       const params = new URLSearchParams(searchParams.toString());
-      const q = next.q !== undefined ? next.q.trim() : urlQuery;
+      const q = nextQuery.trim();
       if (q) params.set("q", q);
       else params.delete("q");
       params.delete("letter");
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname);
     },
-    [pathname, router, searchParams, urlQuery],
+    [pathname, router, searchParams],
   );
 
   usePaletteScope({
@@ -146,14 +146,14 @@ function ArtistsPageContent() {
     label: "Artists",
     onSearch: (q) => {
       setInput(q);
-      writeUrl({ q });
+      writeUrl(q);
     },
   });
 
   // Search as the viewer types, once they pause.
   React.useEffect(() => {
     if (input.trim() === urlQuery) return;
-    const handle = setTimeout(() => writeUrl({ q: input }), 250);
+    const handle = setTimeout(() => writeUrl(input), 250);
     return () => clearTimeout(handle);
   }, [input, urlQuery, writeUrl]);
 
@@ -215,8 +215,9 @@ function ArtistsPageContent() {
   }, []);
   const jump = React.useCallback(
     (letter: string) => {
-      if (!scrollTo(letter)) return;
       window.history.replaceState(null, "", `#${encodeURIComponent(letter)}`);
+      // The counts know the letter before its page has loaded: hold the jump.
+      if (!scrollTo(letter)) setPending(letter);
     },
     [scrollTo],
   );
@@ -242,7 +243,7 @@ function ArtistsPageContent() {
               <SearchField
                 value={input}
                 onChange={setInput}
-                onEnter={() => writeUrl({ q: input })}
+                onEnter={() => writeUrl(input)}
                 label="Search artists"
                 placeholder="Search artists by name or alias"
               />

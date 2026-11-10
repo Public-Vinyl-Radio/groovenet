@@ -152,6 +152,23 @@ describe("ArtistsPage (#709, #1116)", () => {
     expect(window.location.hash).toBe("#%23");
   });
 
+  it("holds a jump to a letter whose page is still loading, then lands on it", async () => {
+    let release!: (value: ReturnType<typeof page>) => void;
+    mocks.listArtists
+      .mockResolvedValueOnce(page([artist(1, "A1")], 2))
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+    mocks.fetchArtistLetters.mockResolvedValue(letters(["A", 1], ["B", 1]));
+    const { user } = renderWithProviders(<ArtistsPage />);
+    await screen.findByRole("heading", { level: 2, name: "A · 1" });
+    await desktopNav();
+    await user.click(screen.getByRole("button", { name: "B" }));
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("#B");
+    await act(async () => release(page([artist(2, "B1")], 2, 1)));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2, name: "B · 1" }));
+  });
+
   it("falls back to the loaded letters when the counts fail", async () => {
     mocks.fetchArtistLetters.mockRejectedValue(new Error("down"));
     renderWithProviders(<ArtistsPage />);
@@ -173,6 +190,15 @@ describe("ArtistsPage (#709, #1116)", () => {
       const letter = this.querySelector("h2")?.textContent?.[0];
       return { top: letter ? tops[letter] : 0 } as DOMRect;
     });
+    // Sticky headers stick at their computed `top`; give them one.
+    const computed = window.getComputedStyle.bind(window);
+    const styleSpy = vi
+      .spyOn(window, "getComputedStyle")
+      .mockImplementation((el: Element, pseudo?: string | null) =>
+        el.parentElement?.tagName === "SECTION"
+          ? ({ top: "36px" } as CSSStyleDeclaration)
+          : computed(el, pseudo),
+      );
     renderWithProviders(<ArtistsPage />);
     await screen.findByRole("navigation", { name: "Jump to letter" });
     const nav = await desktopNav();
@@ -190,6 +216,7 @@ describe("ArtistsPage (#709, #1116)", () => {
     });
     await waitFor(() => expect(current()).toEqual(["S"]));
     spy.mockRestore();
+    styleSpy.mockRestore();
   });
 
   it("scrolls to the section in the URL hash, and on a later hash change", async () => {
