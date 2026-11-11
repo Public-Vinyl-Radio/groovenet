@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.19](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.18...v0.3.19) (2026-11-11)
+
+
+### Features
+
+* **artists:** grouped A–Z list with a jump index ([#1158](https://github.com/Public-Vinyl-Radio/groovenet/issues/1158)) ([7bb6682](https://github.com/Public-Vinyl-Radio/groovenet/commit/7bb66823848887bef63f10ffe203293c22cb755a))
+* **cli:** guided split in artists review ([#1159](https://github.com/Public-Vinyl-Radio/groovenet/issues/1159)) ([a03ed77](https://github.com/Public-Vinyl-Radio/groovenet/commit/a03ed77ca65215b82447f60d0c60ed2f49f922f7))
+* **settings:** offer mono fonts for body text ([#1165](https://github.com/Public-Vinyl-Radio/groovenet/issues/1165)) ([3146679](https://github.com/Public-Vinyl-Radio/groovenet/commit/3146679d21d1ef7115c65ddb264fb1cf454adaa8))
+* **tracks:** backfill and store ISRC for tracks with an Apple Music link ([#1166](https://github.com/Public-Vinyl-Radio/groovenet/issues/1166)) ([43e83ec](https://github.com/Public-Vinyl-Radio/groovenet/commit/43e83ec22e1a7e9df9ee4385d5b7c3aea51fadec))
+* **tracks:** import composer, genre and lyrics from embedded tags ([#1164](https://github.com/Public-Vinyl-Radio/groovenet/issues/1164)) ([0b6d57c](https://github.com/Public-Vinyl-Radio/groovenet/commit/0b6d57c982026d39276913d3c3594395f5a1f956))
+
+
+### Bug Fixes
+
+* **tracks:** queue identity embeddings when the embedded-tags backfill fills a composer ([#1173](https://github.com/Public-Vinyl-Radio/groovenet/issues/1173)) ([3bd82fa](https://github.com/Public-Vinyl-Radio/groovenet/commit/3bd82fa5dfbcf34482e0808e81b5a124406368e5))
+* **worktree:** herdr-done supports the herdr app ([#1168](https://github.com/Public-Vinyl-Radio/groovenet/issues/1168)) ([a99ccfc](https://github.com/Public-Vinyl-Radio/groovenet/commit/a99ccfc5f0d86caac71c9fc35f52ad57b4b7bdea))
+
 ## [0.3.18](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.17...v0.3.18) (2026-11-09)
 
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.14.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.13.0...groovenet-cli-v3.14.0) (2026-11-11)
+
+
+### Features
+
+* **cli:** guided split in artists review ([#1159](https://github.com/Public-Vinyl-Radio/groovenet/issues/1159)) ([a03ed77](https://github.com/Public-Vinyl-Radio/groovenet/commit/a03ed77ca65215b82447f60d0c60ed2f49f922f7))
+* **tracks:** backfill and store ISRC for tracks with an Apple Music link ([#1166](https://github.com/Public-Vinyl-Radio/groovenet/issues/1166)) ([43e83ec](https://github.com/Public-Vinyl-Radio/groovenet/commit/43e83ec22e1a7e9df9ee4385d5b7c3aea51fadec))
+* **tracks:** import composer, genre and lyrics from embedded tags ([#1164](https://github.com/Public-Vinyl-Radio/groovenet/issues/1164)) ([0b6d57c](https://github.com/Public-Vinyl-Radio/groovenet/commit/0b6d57c982026d39276913d3c3594395f5a1f956))
+
+
+### Bug Fixes
+
+* **tracks:** queue identity embeddings when the embedded-tags backfill fills a composer ([#1173](https://github.com/Public-Vinyl-Radio/groovenet/issues/1173)) ([3bd82fa](https://github.com/Public-Vinyl-Radio/groovenet/commit/3bd82fa5dfbcf34482e0808e81b5a124406368e5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.12.0 to ^3.13.0
+    * @groovenet/contracts bumped from 1.8.0 to 1.9.0
+    * @groovenet/player bumped from 0.1.12 to 0.1.13
+
 ## [3.13.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.12.0...groovenet-cli-v3.13.0) (2026-11-09)
 
 
