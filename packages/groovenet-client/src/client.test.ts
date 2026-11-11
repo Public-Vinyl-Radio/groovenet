@@ -318,6 +318,45 @@ describe("GroovenetClient track endpoints", () => {
     });
   });
 
+  it("getTrackLyrics returns the lyrics, or null on a 404", async () => {
+    const lyrics = { text: "verse", source: "user", updated_at: "2026-11-11T00:00:00.000Z" };
+    requestMock.mockResolvedValueOnce({ status: 200, data: lyrics });
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+
+    await expect(client.getTrackLyrics("a/b", 3)).resolves.toEqual(lyrics);
+    const config = requestMock.mock.calls[0][0];
+    expect(config).toMatchObject({
+      method: "GET",
+      url: "/tracks/a%2Fb/lyrics",
+      params: { friend_id: 3 },
+    });
+    expect(config.validateStatus(404)).toBe(true);
+    expect(config.validateStatus(403)).toBe(false);
+
+    requestMock.mockResolvedValueOnce({ status: 404, data: { error: "No lyrics for this track" } });
+    await expect(client.getTrackLyrics("t1", 3)).resolves.toBeNull();
+  });
+
+  it("setTrackLyrics PUTs the text and deleteTrackLyrics DELETEs", async () => {
+    const client = clientReturning({ deleted: true });
+
+    await client.setTrackLyrics("t1", 3, "my verse");
+    expect(requestMock).toHaveBeenLastCalledWith({
+      method: "PUT",
+      url: "/tracks/t1/lyrics",
+      data: { text: "my verse" },
+      params: { friend_id: 3 },
+    });
+
+    await expect(client.deleteTrackLyrics("t1", 3)).resolves.toEqual({ deleted: true });
+    expect(requestMock).toHaveBeenLastCalledWith({
+      method: "DELETE",
+      url: "/tracks/t1/lyrics",
+      data: undefined,
+      params: { friend_id: 3 },
+    });
+  });
+
   it("updateTrack merges the updates into the PATCH body", async () => {
     const client = clientReturning({ track_id: "t1" });
 
@@ -1382,6 +1421,72 @@ describe("GroovenetClient audio metadata backfill endpoints (#1049)", () => {
     expect(requestMock).toHaveBeenCalledWith({
       method: "GET",
       url: "/tracks/audio-metadata/backfill/r%2F..%2Fx",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
+describe("GroovenetClient embedded tags endpoints (#673)", () => {
+  it("starts a backfill with an empty request by default", async () => {
+    const client = clientReturning({ run_id: "run-1", total: 3 });
+    const run = await client.startEmbeddedTagsBackfill();
+    expect(run.total).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/embedded-tags/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards force and friend_id", async () => {
+    const client = clientReturning({});
+    await client.startEmbeddedTagsBackfill({ force: true, friend_id: 2 });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { force: true, friend_id: 2 } }),
+    );
+  });
+
+  it("reads a run and escapes its id", async () => {
+    const client = clientReturning({ run_id: "r", read: 4 });
+    const run = await client.getEmbeddedTagsBackfillRun("r/../x");
+    expect(run.read).toBe(4);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/embedded-tags/backfill/r%2F..%2Fx",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
+describe("GroovenetClient ISRC endpoints (#1156)", () => {
+  it("starts a backfill with an empty request by default", async () => {
+    const client = clientReturning({ run_id: "run-1", total: 3 });
+    expect((await client.startIsrcBackfill()).total).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/isrc/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards limit and dry_run", async () => {
+    const client = clientReturning({});
+    await client.startIsrcBackfill({ limit: 5, dry_run: true });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { limit: 5, dry_run: true } }),
+    );
+  });
+
+  it("reads a run and escapes its id", async () => {
+    const client = clientReturning({ run_id: "r", filled: 4 });
+    expect((await client.getIsrcBackfillRun("r/../x")).filled).toBe(4);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/isrc/backfill/r%2F..%2Fx",
       data: undefined,
       params: undefined,
     });

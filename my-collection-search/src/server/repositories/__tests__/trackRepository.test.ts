@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TrackRepository } from "../trackRepository";
 import type { Track } from "@/types/track";
 
-const fieldsForLocalAudio = vi.hoisted(() => vi.fn());
+const inspectLocalAudio = vi.hoisted(() => vi.fn());
 vi.mock("@/server/services/trackAudioMetadataService", () => ({
-  trackAudioMetadataService: { fieldsForLocalAudio },
+  trackAudioMetadataService: { inspectLocalAudio },
+  EMPTY_EMBEDDED_TAGS: { composer: null, genres: [], lyrics: null },
 }));
 const dbQuery = vi.hoisted(() => vi.fn());
 
@@ -12,7 +13,7 @@ vi.mock("@/lib/serverDb", () => ({ dbQuery }));
 
 beforeEach(() => {
   vi.resetAllMocks();
-  fieldsForLocalAudio.mockResolvedValue({});
+  inspectLocalAudio.mockResolvedValue({ fields: {}, tags: null });
 });
 
 function makeRepo() {
@@ -901,10 +902,13 @@ describe("updateTrackComposer()", () => {
 describe("persisting local audio metadata", () => {
   it("writes probe fields and source atomically with the new filename", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
-    fieldsForLocalAudio.mockResolvedValue({
-      audio_codec: "alac",
-      audio_source: "apple_music",
-      audio_sample_rate: 96000,
+    inspectLocalAudio.mockResolvedValue({
+      fields: {
+        audio_codec: "alac",
+        audio_source: "apple_music",
+        audio_sample_rate: 96000,
+      },
+      tags: null,
     });
     await makeRepo().updateTrackFields({
       track_id: "t1",
@@ -913,16 +917,19 @@ describe("persisting local audio metadata", () => {
       audio_source: "apple_music",
       audio_codec: "wrong",
     });
-    expect(fieldsForLocalAudio).toHaveBeenCalledWith("new.m4a", "apple_music");
+    expect(inspectLocalAudio).toHaveBeenCalledWith("new.m4a", "apple_music");
     expect(dbQuery.mock.calls[0][0]).toContain("audio_sample_rate =");
     expect(dbQuery.mock.calls[0][1]).toEqual(["new.m4a", "apple_music", "alac", 96000, "t1", 1]);
   });
   it.each([null, ""])("clears stored metadata with a removed URL (%s)", async (url) => {
     dbQuery.mockResolvedValue({ rows: [] });
-    fieldsForLocalAudio.mockResolvedValue({
-      audio_source: null,
-      audio_codec: null,
-      audio_probed_at: null,
+    inspectLocalAudio.mockResolvedValue({
+      fields: {
+        audio_source: null,
+        audio_codec: null,
+        audio_probed_at: null,
+      },
+      tags: null,
     });
     await makeRepo().updateTrackFields({
       track_id: "t1",
@@ -934,12 +941,15 @@ describe("persisting local audio metadata", () => {
   });
   it("writes upload metadata for every friend sharing the track", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
-    fieldsForLocalAudio.mockResolvedValue({ audio_source: "upload", audio_codec: "aac" });
+    inspectLocalAudio.mockResolvedValue({
+      fields: { audio_source: "upload", audio_codec: "aac" },
+      tags: null,
+    });
     await makeRepo().updateTrackAnalysisByTrackId("t1", {
       local_audio_url: "upload.m4a",
       audio_source: "upload",
     });
-    expect(fieldsForLocalAudio).toHaveBeenCalledWith("upload.m4a", "upload");
+    expect(inspectLocalAudio).toHaveBeenCalledWith("upload.m4a", "upload");
     expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("audio_codec = $2"), [
       "upload",
       "aac",
@@ -948,7 +958,7 @@ describe("persisting local audio metadata", () => {
     ]);
   });
   it("does not update the row when probing fails", async () => {
-    fieldsForLocalAudio.mockRejectedValue(new Error("bad audio"));
+    inspectLocalAudio.mockRejectedValue(new Error("bad audio"));
     await expect(
       makeRepo().updateTrackFields({ track_id: "t1", friend_id: 1, local_audio_url: "broken" }),
     ).rejects.toThrow("bad audio");
@@ -990,5 +1000,157 @@ describe("TrackRepository.getStorageStats", () => {
   it("defaults to zero tracks", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
     expect((await makeRepo().getStorageStats()).tracks).toBe(0);
+  });
+});
+
+describe("embedded tags (#673)", () => {
+  const tags = { composer: "A, B", genres: ["House"], lyrics: "la la" };
+
+  it("saveEmbeddedTags fills composer only while empty, refreshes genre, upserts embedded lyrics", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().saveEmbeddedTags("t1", 2, tags);
+    const [update, upsert] = dbQuery.mock.calls;
+    // A user's or Discogs's composer is never replaced: the CASE keeps any non-empty value.
+    expect(update[0]).toContain("WHEN COALESCE(prev.composer, '') = ''");
+    expect(update[0]).toContain("audio_file_genre = $4::text[]");
+    expect(update[0]).not.toContain("local_tags");
+    expect(update[1]).toEqual(["t1", 2, "A, B", ["House"]]);
+    // A lyrics row a user wrote (source 'user') is never overwritten.
+    expect(upsert[0]).toContain("WHERE track_lyrics.source = 'embedded'");
+    expect(upsert[1]).toEqual(["t1", 2, "la la"]);
+  });
+
+  it("saveEmbeddedTags reports the friends whose composer it filled (#1169)", async () => {
+    dbQuery.mockResolvedValueOnce({
+      rows: [
+        { friend_id: 2, composer_filled: true },
+        { friend_id: 3, composer_filled: false },
+      ],
+    });
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await makeRepo().saveEmbeddedTags("t1", null, tags)).toEqual({
+      composerFilledFor: [2],
+    });
+    expect(dbQuery.mock.calls[0][0]).toContain("AS composer_filled");
+  });
+
+  it("saveEmbeddedTags clears file-derived genre and lyrics when the tags are empty or the file is gone", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().saveEmbeddedTags("t1", null, null);
+    const [update, del] = dbQuery.mock.calls;
+    expect(update[1]).toEqual(["t1", null, null, null]);
+    expect(del[0]).toContain("DELETE FROM track_lyrics");
+    expect(del[0]).toContain("source = 'embedded'");
+    expect(del[1]).toEqual(["t1", null]);
+  });
+
+  it("saveEmbeddedTags strips null bytes and drops empty genres", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().saveEmbeddedTags("t1", 1, {
+      composer: "A\u0000B",
+      genres: ["\u0000", "Dub\u0000"],
+      lyrics: "l\u0000y",
+    });
+    expect(dbQuery.mock.calls[0][1]).toEqual(["t1", 1, "AB", ["Dub"]]);
+    expect(dbQuery.mock.calls[1][1]).toEqual(["t1", 1, "ly"]);
+  });
+
+  it("stores tags after the track update when a file is attached", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    inspectLocalAudio.mockResolvedValue({ fields: { audio_codec: "aac" }, tags });
+    await makeRepo().updateTrackFields({ track_id: "t1", friend_id: 1, local_audio_url: "a.m4a" });
+    const sql = dbQuery.mock.calls.map((c) => c[0] as string);
+    expect(sql[0]).toContain("UPDATE tracks");
+    expect(sql.some((q) => q.includes("embedded_tags_read_at"))).toBe(true);
+    expect(sql.some((q) => q.includes("INSERT INTO track_lyrics"))).toBe(true);
+  });
+
+  it("stores tags for every friend on the upload path", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    inspectLocalAudio.mockResolvedValue({ fields: { audio_codec: "aac" }, tags });
+    await makeRepo().updateTrackAnalysisByTrackId("t1", { local_audio_url: "u.m4a" });
+    expect(dbQuery.mock.calls[1][1]).toEqual(["t1", null, "A, B", ["House"]]);
+  });
+
+  it("does not touch tags when the local file is not being changed", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().updateTrackFields({ track_id: "t1", friend_id: 1, notes: "n" });
+    expect(inspectLocalAudio).not.toHaveBeenCalled();
+    expect(dbQuery.mock.calls.every((c) => !String(c[0]).includes("embedded_tags_read_at"))).toBe(
+      true,
+    );
+  });
+
+  it("never fails the write over a tag-storage error", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    inspectLocalAudio.mockResolvedValue({ fields: { audio_codec: "aac" }, tags });
+    dbQuery
+      .mockResolvedValueOnce({ rows: [] }) // the track UPDATE
+      .mockRejectedValueOnce(new Error("lyrics table missing"))
+      .mockResolvedValue({ rows: [] });
+    await expect(
+      makeRepo().updateTrackFields({ track_id: "t1", friend_id: 1, local_audio_url: "a.m4a" }),
+    ).resolves.toBeDefined();
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to store embedded tags"),
+      expect.any(Error),
+    );
+    error.mockRestore();
+  });
+
+  it("lists candidates for one friend or all", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "t1" }] });
+    const repo = makeRepo();
+    expect(await repo.listEmbeddedTagsCandidates(3)).toEqual([{ track_id: "t1" }]);
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.stringContaining("embedded_tags_read_at"), [3]);
+    await repo.listEmbeddedTagsCandidates();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
+  });
+});
+
+describe("ISRC (#1156)", () => {
+  it("lists every live track for one friend or all", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "t1" }] });
+    const repo = makeRepo();
+    expect(await repo.listIsrcCandidates(3)).toEqual([{ track_id: "t1" }]);
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.stringContaining("isrc_checked_at"), [3]);
+    await repo.listIsrcCandidates();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
+  });
+
+  it("saves a batch in one statement, stamping null results as checked", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().saveIsrcs([
+      { track_id: "a", friend_id: 1, isrc: "USAB11800123" },
+      { track_id: "b", friend_id: 2, isrc: null },
+    ]);
+    expect(dbQuery).toHaveBeenCalledTimes(1);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc_checked_at = now()"), [
+      ["a", "b"],
+      [1, 2],
+      ["USAB11800123", null],
+    ]);
+  });
+
+  it("does nothing for an empty batch", async () => {
+    dbQuery.mockClear();
+    await makeRepo().saveIsrcs([]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("clears the ISRC and its check", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().clearIsrc("a", 1);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc = NULL"), ["a", 1]);
+  });
+
+  it("updateTrackFields writes isrc as a column", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "a", friend_id: 1 }] });
+    await makeRepo().updateTrackFields({ track_id: "a", friend_id: 1, isrc: "USAB11800123" });
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc = $1"), [
+      "USAB11800123",
+      "a",
+      1,
+    ]);
   });
 });

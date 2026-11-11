@@ -1,7 +1,14 @@
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
+  embeddedTagsBackfillRequestSchema,
+  embeddedTagsBackfillRunSchema,
+  isrcBackfillRequestSchema,
+  isrcBackfillRunSchema,
   trackAudioFileFieldsSchema,
+  trackLyricsDeleteResponseSchema,
+  trackLyricsSchema,
+  trackLyricsUpdateRequestSchema,
 } from "./tracks.js";
 import { describe, expect, it } from "vitest";
 import {
@@ -357,5 +364,104 @@ describe("audio metadata backfill contracts (#1049)", () => {
     expect(audioMetadataBackfillRunSchema.parse(run)).toEqual(run);
     expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRequest");
     expect(trackJsonSchemas).toHaveProperty("AudioMetadataBackfillRun");
+  });
+});
+
+describe("embedded tags contracts (#673)", () => {
+  it("accepts an empty request and rejects a non-integer friend", () => {
+    expect(embeddedTagsBackfillRequestSchema.parse({})).toEqual({});
+    expect(embeddedTagsBackfillRequestSchema.safeParse({ friend_id: 1.5 }).success).toBe(false);
+  });
+
+  it("describes a run and publishes both shapes", () => {
+    const run = {
+      run_id: "r1",
+      total: 3,
+      read: 2,
+      skipped: 1,
+      missing_files: 0,
+      read_failures: 0,
+      with_composer: 2,
+      with_genre: 2,
+      with_lyrics: 0,
+      queued_embeddings: 2,
+      errors: [],
+      started_at: 1,
+      updated_at: 2,
+      complete: true,
+    };
+    expect(embeddedTagsBackfillRunSchema.parse(run)).toEqual(run);
+    expect(trackJsonSchemas).toHaveProperty("EmbeddedTagsBackfillRequest");
+    expect(trackJsonSchemas).toHaveProperty("EmbeddedTagsBackfillRun");
+  });
+
+  it("carries the file's genre on a track, apart from local_tags, and never lyrics", () => {
+    const track = trackSchema.parse({
+      track_id: "t",
+      friend_id: 1,
+      title: "T",
+      artist: "A",
+      album: null,
+      audio_file_genre: ["Música tropical"],
+    });
+    expect(track.audio_file_genre).toEqual(["Música tropical"]);
+    expect(trackJsonSchemas.Track).not.toHaveProperty("properties.lyrics");
+  });
+});
+
+describe("ISRC contracts (#1156)", () => {
+  it("accepts an empty request and rejects a zero limit", () => {
+    expect(isrcBackfillRequestSchema.parse({})).toEqual({});
+    expect(isrcBackfillRequestSchema.parse({ limit: 5, dry_run: true })).toEqual({
+      limit: 5,
+      dry_run: true,
+    });
+    expect(isrcBackfillRequestSchema.safeParse({ limit: 0 }).success).toBe(false);
+  });
+
+  it("describes a run and publishes both shapes", () => {
+    const run = {
+      run_id: "r1",
+      total: 5,
+      filled: 2,
+      skipped: 1,
+      no_link: 1,
+      not_found: 1,
+      failed: 0,
+      dry_run: false,
+      errors: [],
+      started_at: 1,
+      updated_at: 2,
+      complete: true,
+    };
+    expect(isrcBackfillRunSchema.parse(run)).toEqual(run);
+    expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRequest");
+    expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRun");
+  });
+});
+
+describe("track lyrics contracts (#1171)", () => {
+  it("describes stored lyrics with their source", () => {
+    const lyrics = { text: "la la", source: "user", updated_at: "2026-11-11T00:00:00.000Z" };
+    expect(trackLyricsSchema.parse(lyrics)).toEqual(lyrics);
+    expect(trackLyricsSchema.safeParse({ ...lyrics, source: "discogs" }).success).toBe(false);
+  });
+
+  it("refuses blank text, which DELETE clears instead", () => {
+    expect(trackLyricsUpdateRequestSchema.parse({ text: "verse" })).toEqual({ text: "verse" });
+    const blank = trackLyricsUpdateRequestSchema.safeParse({ text: "  \n " });
+    expect(blank.success).toBe(false);
+    expect(blank.error?.issues[0]?.message).toMatch(/DELETE clears/);
+    expect(trackLyricsUpdateRequestSchema.safeParse({}).success).toBe(false);
+    expect(trackLyricsUpdateRequestSchema.safeParse({ text: "a".repeat(100_001) }).success).toBe(
+      false,
+    );
+  });
+
+  it("publishes every shape", () => {
+    expect(trackLyricsDeleteResponseSchema.parse({ deleted: true })).toEqual({ deleted: true });
+    expect(trackJsonSchemas).toHaveProperty("TrackLyrics");
+    expect(trackJsonSchemas).toHaveProperty("TrackLyricsUpdateRequest");
+    expect(trackJsonSchemas).toHaveProperty("TrackLyricsDeleteResponse");
   });
 });

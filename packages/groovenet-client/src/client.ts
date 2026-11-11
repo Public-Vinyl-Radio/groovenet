@@ -87,6 +87,12 @@ import type {
   RecommendationCandidatesQuery,
   AudioMetadataBackfillRequest,
   AudioMetadataBackfillRun,
+  EmbeddedTagsBackfillRequest,
+  EmbeddedTagsBackfillRun,
+  TrackLyrics,
+  TrackLyricsDeleteResponse,
+  IsrcBackfillRequest,
+  IsrcBackfillRun,
   FingerprintIndexRequest,
   FingerprintIndexRun,
   EmbeddingBackfillRequest,
@@ -290,6 +296,43 @@ export class GroovenetClient {
 
   async getTrack(trackId: string, friendId: number): Promise<Track> {
     return this.request<Track>("GET", `/tracks/${trackId}`, undefined, { friend_id: friendId });
+  }
+
+  // ── Lyrics (#1171) ─────────────────────────────────────────────────────────
+
+  /**
+   * A track's lyrics and who wrote them (`embedded` from the file, `user` typed
+   * in), or null when it has none or there is no such track. Your own library
+   * only: a friend's track throws rather than returning anything.
+   */
+  async getTrackLyrics(trackId: string, friendId: number): Promise<TrackLyrics | null> {
+    const { status, data } = await this.send<TrackLyrics>({
+      method: "GET",
+      url: `/tracks/${encodeURIComponent(trackId)}/lyrics`,
+      params: { friend_id: friendId },
+      validateStatus: (code) => code === 200 || code === 404,
+    });
+    return status === 200 ? data : null;
+  }
+
+  /** Store lyrics as the user's; an embedded re-read (`files tags --force`) never overwrites them. */
+  async setTrackLyrics(trackId: string, friendId: number, text: string): Promise<TrackLyrics> {
+    return this.request<TrackLyrics>(
+      "PUT",
+      `/tracks/${encodeURIComponent(trackId)}/lyrics`,
+      { text },
+      { friend_id: friendId },
+    );
+  }
+
+  /** Clear a track's lyrics, so the next tag read can fill them from the file again. */
+  async deleteTrackLyrics(trackId: string, friendId: number): Promise<TrackLyricsDeleteResponse> {
+    return this.request<TrackLyricsDeleteResponse>(
+      "DELETE",
+      `/tracks/${encodeURIComponent(trackId)}/lyrics`,
+      undefined,
+      { friend_id: friendId },
+    );
   }
 
   async updateTrack(trackId: string, updates: TrackUpdate, friendId = 1): Promise<Track> {
@@ -904,6 +947,44 @@ export class GroovenetClient {
     return this.request<AudioMetadataBackfillRun>(
       "GET",
       `/tracks/audio-metadata/backfill/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  // ── Embedded tags (#673) ───────────────────────────────────────────────────
+
+  /**
+   * Read composer, genre and lyrics from every local file that has not been
+   * read since it last changed. Returns at once; poll `getEmbeddedTagsBackfillRun`.
+   */
+  async startEmbeddedTagsBackfill(
+    request: EmbeddedTagsBackfillRequest = {},
+  ): Promise<EmbeddedTagsBackfillRun> {
+    return this.request<EmbeddedTagsBackfillRun>("POST", "/tracks/embedded-tags/backfill", request);
+  }
+
+  /** Counters for one embedded-tags backfill. */
+  async getEmbeddedTagsBackfillRun(runId: string): Promise<EmbeddedTagsBackfillRun> {
+    return this.request<EmbeddedTagsBackfillRun>(
+      "GET",
+      `/tracks/embedded-tags/backfill/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  // ── ISRC (#1156) ───────────────────────────────────────────────────────────
+
+  /**
+   * Resolve the ISRC of every track with an Apple Music link. Returns at once;
+   * poll `getIsrcBackfillRun`.
+   */
+  async startIsrcBackfill(request: IsrcBackfillRequest = {}): Promise<IsrcBackfillRun> {
+    return this.request<IsrcBackfillRun>("POST", "/tracks/isrc/backfill", request);
+  }
+
+  /** Counters for one ISRC backfill. */
+  async getIsrcBackfillRun(runId: string): Promise<IsrcBackfillRun> {
+    return this.request<IsrcBackfillRun>(
+      "GET",
+      `/tracks/isrc/backfill/${encodeURIComponent(runId)}`,
     );
   }
 

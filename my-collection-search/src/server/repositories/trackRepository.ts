@@ -1,5 +1,9 @@
 import type { TrackAudioFileFields } from "@groovenet/contracts";
-import { trackAudioMetadataService } from "@/server/services/trackAudioMetadataService";
+import {
+  EMPTY_EMBEDDED_TAGS,
+  trackAudioMetadataService,
+  type EmbeddedTags,
+} from "@/server/services/trackAudioMetadataService";
 import { dbQuery } from "@/lib/serverDb";
 import { stripNullBytes } from "@/lib/stripNullBytes";
 import type { Track } from "@/types/track";
@@ -50,6 +54,7 @@ type UpdatableTrackFields = Partial<
     | "year"
     | "local_tags"
     | "apple_music_url"
+    | "isrc"
     | "local_audio_url"
     | "audio_file_album_art_url"
     | "youtube_url"
@@ -137,6 +142,7 @@ const UPDATABLE_COLUMNS = {
   year: "year",
   local_tags: "local_tags",
   apple_music_url: "apple_music_url",
+  isrc: "isrc",
   youtube_url: "youtube_url",
   soundcloud_url: "soundcloud_url",
   local_audio_url: "local_audio_url",
@@ -163,6 +169,23 @@ export type AudioBackfillCandidate = {
   audio_source: NonNullable<TrackAudioFileFields["audio_source"]> | null;
   audio_probed_at: Date | string | null;
 };
+
+export type EmbeddedTagsCandidate = {
+  track_id: string;
+  friend_id: number;
+  local_audio_url: string;
+  embedded_tags_read_at: Date | string | null;
+};
+
+export type IsrcCandidate = {
+  track_id: string;
+  friend_id: number;
+  apple_music_url: string | null;
+  isrc: string | null;
+  isrc_checked_at: Date | string | null;
+};
+
+export type IsrcResult = { track_id: string; friend_id: number; isrc: string | null };
 
 export type StorageStats = {
   tracks: number;
@@ -219,6 +242,56 @@ export class TrackRepository {
       [friendId ?? null],
     );
     return rows;
+  }
+
+  async listEmbeddedTagsCandidates(friendId?: number): Promise<EmbeddedTagsCandidate[]> {
+    const { rows } = await dbQuery<EmbeddedTagsCandidate>(
+      `SELECT track_id, friend_id, local_audio_url, embedded_tags_read_at
+         FROM tracks
+        WHERE deleted_at IS NULL
+          AND local_audio_url IS NOT NULL
+          AND local_audio_url <> ''
+          AND ($1::int IS NULL OR friend_id = $1)
+        ORDER BY friend_id, track_id`,
+      [friendId ?? null],
+    );
+    return rows;
+  }
+
+  /** Every live track, so the ISRC backfill can report the ones with no Apple Music link too (#1156). */
+  async listIsrcCandidates(friendId?: number): Promise<IsrcCandidate[]> {
+    const { rows } = await dbQuery<IsrcCandidate>(
+      `SELECT track_id, friend_id, apple_music_url, isrc, isrc_checked_at
+         FROM tracks
+        WHERE deleted_at IS NULL
+          AND ($1::int IS NULL OR friend_id = $1)
+        ORDER BY friend_id, track_id`,
+      [friendId ?? null],
+    );
+    return rows;
+  }
+
+  /**
+   * Store the ISRCs Apple returned and stamp `isrc_checked_at`. A null ISRC is
+   * recorded as checked so the next run skips the track; one write per batch.
+   */
+  async saveIsrcs(results: IsrcResult[]): Promise<void> {
+    if (results.length === 0) return;
+    await dbQuery(
+      `UPDATE tracks t
+          SET isrc = r.isrc, isrc_checked_at = now()
+         FROM unnest($1::text[], $2::int[], $3::text[]) AS r(track_id, friend_id, isrc)
+        WHERE t.track_id = r.track_id AND t.friend_id = r.friend_id`,
+      [results.map((r) => r.track_id), results.map((r) => r.friend_id), results.map((r) => r.isrc)],
+    );
+  }
+
+  /** Forget the ISRC and its check: the Apple Music link it came from changed (#1156). */
+  async clearIsrc(trackId: string, friendId: number): Promise<void> {
+    await dbQuery(
+      `UPDATE tracks SET isrc = NULL, isrc_checked_at = NULL WHERE track_id = $1 AND friend_id = $2`,
+      [trackId, friendId],
+    );
   }
 
   async upsertDiscogsTrackByTrackIdUsername(
@@ -658,14 +731,14 @@ export class TrackRepository {
     const { track_id, friend_id, ...fields } = data;
     if (!track_id || !friend_id) return null;
 
+    let embedded: EmbeddedTags | null | undefined;
     if (fields.local_audio_url !== undefined) {
-      Object.assign(
-        fields,
-        await trackAudioMetadataService.fieldsForLocalAudio(
-          fields.local_audio_url,
-          fields.audio_source,
-        ),
+      const inspected = await trackAudioMetadataService.inspectLocalAudio(
+        fields.local_audio_url,
+        fields.audio_source,
       );
+      Object.assign(fields, inspected.fields);
+      embedded = inspected.tags;
     }
     const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
     if (entries.length === 0) {
@@ -701,6 +774,7 @@ export class TrackRepository {
       `,
       values,
     );
+    if (embedded !== undefined) await this.saveEmbeddedTagsQuietly(track_id, friend_id, embedded);
 
     return this.findTrackByTrackIdAndFriendId(track_id, friend_id);
   }
@@ -775,12 +849,14 @@ export class TrackRepository {
     const vals: unknown[] = [];
     let i = 1;
 
+    let embedded: EmbeddedTags | null | undefined;
     if (updates.local_audio_url !== undefined) {
-      const metadata = await trackAudioMetadataService.fieldsForLocalAudio(
+      const inspected = await trackAudioMetadataService.inspectLocalAudio(
         updates.local_audio_url,
         updates.audio_source,
       );
-      for (const [column, value] of Object.entries(metadata)) {
+      embedded = inspected.tags;
+      for (const [column, value] of Object.entries(inspected.fields)) {
         sets.push(`${column} = $${i++}`);
         vals.push(value);
       }
@@ -836,6 +912,86 @@ export class TrackRepository {
 
     vals.push(trackId);
     await dbQuery(`UPDATE tracks SET ${sets.join(", ")} WHERE track_id = $${i}`, vals);
+    if (embedded !== undefined) await this.saveEmbeddedTagsQuietly(trackId, null, embedded);
+  }
+
+  /**
+   * Store what a file's tags say (#673). `null` means the file is gone, so the
+   * file-derived genre and lyrics are cleared.
+   *
+   * No-overwrite rule, by field:
+   * - `composer` is the shared `tracks.composer` that Discogs or a person may
+   *   fill, so it is written only while empty. There is no provenance column:
+   *   whatever is there wins, and a changed file never replaces it.
+   * - `audio_file_genre` and `track_lyrics` (source `embedded`) belong to the
+   *   file alone; a re-read refreshes them. A lyrics row whose source is `user`
+   *   is never touched.
+   *
+   * `friendId` null applies to every library holding the track, as the upload
+   * path does.
+   *
+   * Returns the friends whose row had its composer filled by this call (#1169):
+   * composer feeds the identity and context text, so those rows need new
+   * embeddings. A composer that was already there, or a file without one,
+   * fills nothing. Postgres 15 has no `OLD` in `RETURNING`, so the prior value
+   * comes from a self-join on the row being updated.
+   */
+  async saveEmbeddedTags(
+    trackId: string,
+    friendId: number | null,
+    tags: EmbeddedTags | null,
+  ): Promise<{ composerFilledFor: number[] }> {
+    const t = tags ?? EMPTY_EMBEDDED_TAGS;
+    const composer = t.composer === null ? null : stripNullBytes(t.composer);
+    const genres = t.genres.map(stripNullBytes).filter((genre) => genre.length > 0);
+    const lyrics = t.lyrics === null ? null : stripNullBytes(t.lyrics);
+    const updated = await dbQuery<{ friend_id: number; composer_filled: boolean }>(
+      `UPDATE tracks
+          SET composer = CASE WHEN COALESCE(prev.composer, '') = '' THEN COALESCE($3::text, prev.composer) ELSE prev.composer END,
+              audio_file_genre = $4::text[],
+              embedded_tags_read_at = now()
+         FROM tracks prev
+        WHERE tracks.track_id = $1 AND ($2::int IS NULL OR tracks.friend_id = $2)
+          AND prev.track_id = tracks.track_id AND prev.username = tracks.username
+        RETURNING tracks.friend_id,
+                  (COALESCE(prev.composer, '') = '' AND COALESCE($3::text, '') <> '') AS composer_filled`,
+      [trackId, friendId, composer, genres.length > 0 ? genres : null],
+    );
+    if (lyrics) {
+      await dbQuery(
+        `INSERT INTO track_lyrics (track_id, friend_id, lyrics, source)
+         SELECT track_id, friend_id, $3, 'embedded'
+           FROM tracks WHERE track_id = $1 AND ($2::int IS NULL OR friend_id = $2)
+         ON CONFLICT (track_id, friend_id) DO UPDATE
+           SET lyrics = EXCLUDED.lyrics, updated_at = now()
+           WHERE track_lyrics.source = 'embedded'`,
+        [trackId, friendId, lyrics],
+      );
+    } else {
+      await dbQuery(
+        `DELETE FROM track_lyrics
+          WHERE track_id = $1 AND ($2::int IS NULL OR friend_id = $2) AND source = 'embedded'`,
+        [trackId, friendId],
+      );
+    }
+    return {
+      composerFilledFor: updated.rows
+        .filter((row) => row.composer_filled)
+        .map((row) => row.friend_id),
+    };
+  }
+
+  /** The write paths must never fail a download or upload over a tag problem. */
+  private async saveEmbeddedTagsQuietly(
+    trackId: string,
+    friendId: number | null,
+    tags: EmbeddedTags | null,
+  ): Promise<void> {
+    try {
+      await this.saveEmbeddedTags(trackId, friendId, tags);
+    } catch (error) {
+      console.error(`Failed to store embedded tags (track_id=${trackId}):`, error);
+    }
   }
 
   async updateTrackNotesAndTagsByTrackId(

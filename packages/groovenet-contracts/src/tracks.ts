@@ -88,6 +88,87 @@ export const audioMetadataBackfillRunSchema = z.object({
 });
 export type AudioMetadataBackfillRun = z.infer<typeof audioMetadataBackfillRunSchema>;
 
+/** Which tracks an embedded-tags backfill reads: everything unless narrowed to one friend. */
+export const embeddedTagsBackfillRequestSchema = z.object({
+  friend_id: z.number().int().optional(),
+  /** Read again even when the track was read after its file last changed. */
+  force: z.boolean().optional(),
+});
+export type EmbeddedTagsBackfillRequest = z.infer<typeof embeddedTagsBackfillRequestSchema>;
+
+/**
+ * Progress and report for one embedded-tags backfill (#673).
+ *
+ * Every candidate lands in exactly one of `read`, `skipped`, `missing_files` or
+ * `read_failures`; `complete` is true once they add up to `total`. The `with_*`
+ * counts say how many of the tracks read carried each tag, so a library of
+ * instrumentals reads as zero lyrics rather than as a failure.
+ */
+export const embeddedTagsBackfillRunSchema = z.object({
+  run_id: z.string(),
+  /** Tracks with a `local_audio_url`, whether or not they need reading. */
+  total: z.number().int(),
+  read: z.number().int(),
+  /** Already read after the file's mtime (never with `force`). */
+  skipped: z.number().int(),
+  missing_files: z.number().int(),
+  read_failures: z.number().int(),
+  with_composer: z.number().int(),
+  with_genre: z.number().int(),
+  with_lyrics: z.number().int(),
+  /**
+   * Tracks whose composer this run filled, queued for new identity and context
+   * embeddings (#1169). A composer already set, or a forced re-read that
+   * changes nothing, queues nothing.
+   */
+  queued_embeddings: z.number().int(),
+  errors: z.array(z.string()),
+  started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  complete: z.boolean(),
+});
+export type EmbeddedTagsBackfillRun = z.infer<typeof embeddedTagsBackfillRunSchema>;
+
+/** Which tracks an ISRC backfill resolves: everything unless narrowed to one friend or capped. */
+export const isrcBackfillRequestSchema = z.object({
+  friend_id: z.number().int().optional(),
+  /** Ask Apple again even for a track that already has an ISRC or was already checked. */
+  force: z.boolean().optional(),
+  /** Resolve at most this many tracks; the rest are left for the next run. */
+  limit: z.number().int().positive().optional(),
+  /** Resolve and report, but store nothing. */
+  dry_run: z.boolean().optional(),
+});
+export type IsrcBackfillRequest = z.infer<typeof isrcBackfillRequestSchema>;
+
+/**
+ * Progress and report for one ISRC backfill (#1156).
+ *
+ * Every track in scope lands in exactly one of `filled`, `skipped`, `no_link`,
+ * `not_found` or `failed`; `complete` is true once they add up to `total`. With
+ * `dry_run`, `filled` counts the ISRCs that would have been stored.
+ */
+export const isrcBackfillRunSchema = z.object({
+  run_id: z.string(),
+  /** Tracks in scope: live tracks, or the ones a `limit` kept. */
+  total: z.number().int(),
+  filled: z.number().int(),
+  /** Already has an ISRC, or was checked and Apple had none (never with `force`). */
+  skipped: z.number().int(),
+  /** No Apple Music link, or one that names no song (an album link). */
+  no_link: z.number().int(),
+  /** Apple returned the song without an ISRC, or did not return it. */
+  not_found: z.number().int(),
+  /** The lookup failed (rate limit, outage); the track is retried on the next run. */
+  failed: z.number().int(),
+  dry_run: z.boolean(),
+  errors: z.array(z.string()),
+  started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  complete: z.boolean(),
+});
+export type IsrcBackfillRun = z.infer<typeof isrcBackfillRunSchema>;
+
 /**
  * The full track entity. Only the identifying fields are required on the wire;
  * the database may return more columns, so unknown keys pass through.
@@ -97,6 +178,7 @@ const trackShape = z.object({
   id: z.number().int().optional(),
   track_id: z.string(),
   friend_id: z.number().int(),
+  /** 12 characters, upper case, no hyphens (#1156). */
   isrc: z.string().nullable().optional(),
   title: z.string(),
   artist: z.string(),
@@ -123,6 +205,11 @@ const trackShape = z.object({
   /** Normalised mood and description words, kept out of genres (#371). */
   descriptors: z.array(z.string()).optional(),
   composer: z.string().nullable().optional(),
+  /**
+   * Genre names the audio file declares (Apple/ID3 taxonomy). Evidence only:
+   * never mixed into `local_tags` or `track_genres`, the DJ's own genres (#673).
+   */
+  audio_file_genre: z.array(z.string()).nullable().optional(),
   bpm: z.union([z.string(), z.number()]).nullable().optional(),
   key: z.string().nullable().optional(),
   /** Confidence (0-1) of the EDMA key estimate stored in `key` (#524). */
@@ -201,6 +288,43 @@ export const trackPlaylistMembershipSchema = z.object({
 export const trackPlaylistsResponseSchema = z.object({
   playlists: z.array(trackPlaylistMembershipSchema).optional(),
 });
+
+/**
+ * Who wrote a track's lyrics (#1171): `embedded` came from the audio file and
+ * a re-read refreshes it; `user` was typed in and a re-read never touches it.
+ */
+export const trackLyricsSourceSchema = z.enum(["embedded", "user"]);
+
+/** `GET /api/tracks/{id}/lyrics`: owner-only, 404 when the track has none. */
+export const trackLyricsSchema = z.object({
+  text: z.string(),
+  source: trackLyricsSourceSchema,
+  updated_at: z.string().meta({ description: "ISO 8601 timestamp" }),
+});
+
+/**
+ * `PUT /api/tracks/{id}/lyrics` stores the text as `source = 'user'`. Blank text
+ * is refused: clearing is `DELETE`, which drops the row so the next tag read can
+ * fill it from the file again.
+ */
+export const trackLyricsUpdateRequestSchema = z.object({
+  text: z
+    .string()
+    .max(100_000)
+    .refine((text) => text.trim().length > 0, {
+      message: "text must not be blank; DELETE clears lyrics",
+    }),
+});
+
+/** `DELETE /api/tracks/{id}/lyrics`: `deleted` is false when there was nothing to clear. */
+export const trackLyricsDeleteResponseSchema = z.object({
+  deleted: z.boolean(),
+});
+
+export type TrackLyricsSource = z.infer<typeof trackLyricsSourceSchema>;
+export type TrackLyrics = z.infer<typeof trackLyricsSchema>;
+export type TrackLyricsUpdateRequest = z.infer<typeof trackLyricsUpdateRequestSchema>;
+export type TrackLyricsDeleteResponse = z.infer<typeof trackLyricsDeleteResponseSchema>;
 
 export const trackAudioMetadataEmbeddedCoverSchema = z
   .object({
@@ -401,11 +525,20 @@ export const trackJsonSchemas = {
   TrackPlaylistCountsRequest: z.toJSONSchema(trackPlaylistCountsRequestSchema),
   TrackPlaylistCountsResponse: z.toJSONSchema(trackPlaylistCountsResponseSchema),
   TrackPlaylistsResponse: z.toJSONSchema(trackPlaylistsResponseSchema),
+  TrackLyrics: z.toJSONSchema(trackLyricsSchema),
+  TrackLyricsUpdateRequest: z.toJSONSchema(trackLyricsUpdateRequestSchema, { io: "input" }),
+  TrackLyricsDeleteResponse: z.toJSONSchema(trackLyricsDeleteResponseSchema),
   TrackAudioMetadata: z.toJSONSchema(trackAudioMetadataSchema),
   AudioMetadataBackfillRequest: z.toJSONSchema(audioMetadataBackfillRequestSchema, {
     io: "input",
   }),
   AudioMetadataBackfillRun: z.toJSONSchema(audioMetadataBackfillRunSchema),
+  EmbeddedTagsBackfillRequest: z.toJSONSchema(embeddedTagsBackfillRequestSchema, {
+    io: "input",
+  }),
+  EmbeddedTagsBackfillRun: z.toJSONSchema(embeddedTagsBackfillRunSchema),
+  IsrcBackfillRequest: z.toJSONSchema(isrcBackfillRequestSchema, { io: "input" }),
+  IsrcBackfillRun: z.toJSONSchema(isrcBackfillRunSchema),
   TrackExtractEmbeddedCoverResponse: z.toJSONSchema(trackExtractEmbeddedCoverResponseSchema),
   TrackEssentia: z.toJSONSchema(trackEssentiaSchema),
   TrackDeleteResponse: z.toJSONSchema(trackDeleteResponseSchema),

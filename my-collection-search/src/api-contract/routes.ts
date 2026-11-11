@@ -2,6 +2,13 @@ import { artistReviewContracts } from "./artistReview";
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
+  embeddedTagsBackfillRequestSchema,
+  embeddedTagsBackfillRunSchema,
+  isrcBackfillRequestSchema,
+  isrcBackfillRunSchema,
+  trackLyricsDeleteResponseSchema,
+  trackLyricsSchema,
+  trackLyricsUpdateRequestSchema,
 } from "@groovenet/contracts";
 import {
   homeQuerySchema,
@@ -1199,6 +1206,225 @@ const audioMetadataBackfillContracts: ApiContractRoute[] = [
           description: "Server error",
           content: { "application/json": { schema: errorResponseSchemaObject } },
         },
+      },
+    },
+  },
+];
+
+const embeddedTagsBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startEmbeddedTagsBackfill",
+    method: "post",
+    path: "/api/tracks/embedded-tags/backfill",
+    summary: "Read composer, genre and lyrics from existing local audio files",
+    tags: ["Tracks"],
+    bodySchema: embeddedTagsBackfillRequestSchema,
+    successSchema: embeddedTagsBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: componentRef("EmbeddedTagsBackfillRequest") },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run started; poll the run for progress",
+          content: { "application/json": { schema: componentRef("EmbeddedTagsBackfillRun") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getEmbeddedTagsBackfillRun",
+    method: "get",
+    path: "/api/tracks/embedded-tags/backfill/{runId}",
+    summary: "Progress and report for one embedded-tags backfill",
+    tags: ["Tracks"],
+    successSchema: embeddedTagsBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/tracks/embedded-tags/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: { "application/json": { schema: componentRef("EmbeddedTagsBackfillRun") } },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const isrcBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startIsrcBackfill",
+    method: "post",
+    path: "/api/tracks/isrc/backfill",
+    summary: "Resolve and store the ISRC of every track with an Apple Music link",
+    tags: ["Tracks"],
+    bodySchema: isrcBackfillRequestSchema,
+    successSchema: isrcBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: componentRef("IsrcBackfillRequest") },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run started; poll the run for progress",
+          content: { "application/json": { schema: componentRef("IsrcBackfillRun") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getIsrcBackfillRun",
+    method: "get",
+    path: "/api/tracks/isrc/backfill/{runId}",
+    summary: "Progress and report for one ISRC backfill",
+    tags: ["Tracks"],
+    successSchema: isrcBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/tracks/isrc/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: { "application/json": { schema: componentRef("IsrcBackfillRun") } },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const trackLyricsParameters = [
+  { name: "id", in: "path", required: true, schema: { type: "string" } },
+  { name: "friend_id", in: "query", required: true, schema: { type: "integer" } },
+];
+
+const trackLyricsErrors = {
+  "400": {
+    description: "Missing or invalid parameters",
+    content: { "application/json": { schema: errorResponseSchemaObject } },
+  },
+  "403": {
+    description: "The track is in a friend's library: lyrics are kept for your own only",
+    content: { "application/json": { schema: errorResponseSchemaObject } },
+  },
+  "500": {
+    description: "Server error",
+    content: { "application/json": { schema: errorResponseSchemaObject } },
+  },
+};
+
+const trackLyricsContracts: ApiContractRoute[] = [
+  {
+    operationId: "getTrackLyrics",
+    method: "get",
+    path: "/api/tracks/{id}/lyrics",
+    summary: "A track's lyrics, for your own library only",
+    tags: ["Tracks"],
+    successSchema: trackLyricsSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: trackLyricsParameters,
+      responses: {
+        "200": {
+          description: "The lyrics and who wrote them",
+          content: { "application/json": { schema: componentRef("TrackLyrics") } },
+        },
+        "404": {
+          description: "No such track, or it has no lyrics",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        ...trackLyricsErrors,
+      },
+    },
+  },
+  {
+    operationId: "setTrackLyrics",
+    method: "put",
+    path: "/api/tracks/{id}/lyrics",
+    summary: "Store lyrics a person typed; an embedded re-read never overwrites them",
+    tags: ["Tracks"],
+    bodySchema: trackLyricsUpdateRequestSchema,
+    successSchema: trackLyricsSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: trackLyricsParameters,
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: componentRef("TrackLyricsUpdateRequest") } },
+      },
+      responses: {
+        "200": {
+          description: "The stored lyrics, source user",
+          content: { "application/json": { schema: componentRef("TrackLyrics") } },
+        },
+        "404": {
+          description: "Track not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        ...trackLyricsErrors,
+      },
+    },
+  },
+  {
+    operationId: "deleteTrackLyrics",
+    method: "delete",
+    path: "/api/tracks/{id}/lyrics",
+    summary: "Clear a track's lyrics so the next tag read can fill them from the file",
+    tags: ["Tracks"],
+    successSchema: trackLyricsDeleteResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: trackLyricsParameters,
+      responses: {
+        "200": {
+          description: "Whether there were lyrics to clear",
+          content: { "application/json": { schema: componentRef("TrackLyricsDeleteResponse") } },
+        },
+        "404": {
+          description: "Track not found",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        ...trackLyricsErrors,
       },
     },
   },
@@ -6641,6 +6867,9 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...audioMetadataBackfillContracts,
+  ...embeddedTagsBackfillContracts,
+  ...trackLyricsContracts,
+  ...isrcBackfillContracts,
   ...embeddingsBackfillContracts,
   ...embeddingsQueueContracts,
   ...embeddingModelSettingsContracts,

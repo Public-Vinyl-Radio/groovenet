@@ -54,6 +54,10 @@ export const fontRoles = {
     choices: [
       { id: "default", label: "IBM Plex Sans", face: "plex-sans" },
       { id: "inter", label: "Inter", face: "inter" },
+      // The Labels role's mono faces, offered for body text too (same files).
+      { id: "plex-mono", label: "IBM Plex Mono", face: "plex-mono" },
+      { id: "jetbrains-mono", label: "JetBrains Mono", face: "jetbrains-mono" },
+      { id: "system-mono", label: "System mono", stack: monoFallback },
       { id: "system", label: "System", stack: systemSans },
     ],
   },

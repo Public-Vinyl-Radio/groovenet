@@ -7,8 +7,10 @@ const {
   mockStartFingerprintRun,
   mockResolveGenres,
   mockReplaceGenres,
+  mockSyncIsrc,
 } = vi.hoisted(() => {
   return {
+    mockSyncIsrc: vi.fn().mockResolvedValue(undefined),
     mockResolveGenres: vi.fn(),
     mockReplaceGenres: vi.fn().mockResolvedValue(undefined),
     mockFindTrack: vi.fn(),
@@ -35,6 +37,10 @@ vi.mock("@/server/repositories/trackGenreRepository", async (importOriginal) => 
 
 vi.mock("@/server/services/embeddingQueueService", () => ({
   embeddingQueueService: { enqueue: mockEnqueue },
+}));
+
+vi.mock("@/server/services/isrcService", () => ({
+  isrcService: { syncForLinkChange: mockSyncIsrc },
 }));
 
 vi.mock("@/server/services/fingerprintIndexService", () => ({
@@ -537,5 +543,85 @@ it("accepts clearing the local audio URL", async () => {
     track_id: "t1",
     friend_id: 1,
     local_audio_url: null,
+  });
+});
+
+describe("PATCH /api/tracks — ISRC (#1156)", () => {
+  const LINK = "https://music.apple.com/us/album/x/1?i=2";
+
+  beforeEach(() => {
+    mockFindTrack.mockReset();
+    mockUpdateTrack.mockReset();
+    mockSyncIsrc.mockClear();
+  });
+
+  it("re-syncs the ISRC when the Apple Music link changes, and returns the fresh row", async () => {
+    mockFindTrack
+      .mockResolvedValueOnce(baseTrack({ apple_music_url: null }))
+      .mockResolvedValueOnce(baseTrack({ apple_music_url: LINK, isrc: "USAB11800123" }));
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    const res = await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: LINK }));
+    expect(res.status).toBe(200);
+    expect(mockSyncIsrc).toHaveBeenCalledWith(
+      expect.objectContaining({ apple_music_url: LINK }),
+      undefined,
+    );
+    expect((await res.json()).isrc).toBe("USAB11800123");
+  });
+
+  it("clears the ISRC when the link is removed", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: undefined }));
+    await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: null }));
+    expect(mockSyncIsrc).toHaveBeenCalledTimes(1);
+  });
+
+  it("syncs when the track was not readable beforehand", async () => {
+    mockFindTrack.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: LINK }));
+    expect(mockSyncIsrc).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the updated row when the re-read finds nothing", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack()).mockResolvedValueOnce(null);
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    const res = await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: LINK }));
+    expect((await res.json()).apple_music_url).toBe(LINK);
+  });
+
+  it("hands the sync the ISRC the caller already has", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack({ apple_music_url: null }));
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: LINK, isrc: "us-ab1-18-00123" }));
+    expect(mockSyncIsrc).toHaveBeenCalledWith(expect.anything(), "us-ab1-18-00123");
+  });
+
+  it("does not sync when the link is unchanged or not part of the update", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    mockUpdateTrack.mockResolvedValue(baseTrack({ apple_music_url: LINK }));
+    await PATCH(makeReq({ ...PATCH_BODY, apple_music_url: LINK }));
+    await PATCH(makeReq({ ...PATCH_BODY, notes: "x" }));
+    expect(mockSyncIsrc).not.toHaveBeenCalled();
+  });
+
+  it("stores a supplied ISRC normalised", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack());
+    mockUpdateTrack.mockResolvedValue(baseTrack());
+    await PATCH(makeReq({ ...PATCH_BODY, isrc: "us-ab1-18-00123" }));
+    expect(mockUpdateTrack).toHaveBeenCalledWith(expect.objectContaining({ isrc: "USAB11800123" }));
+  });
+
+  it("passes null through to clear the ISRC", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack());
+    mockUpdateTrack.mockResolvedValue(baseTrack());
+    await PATCH(makeReq({ ...PATCH_BODY, isrc: null }));
+    expect(mockUpdateTrack).toHaveBeenCalledWith(expect.objectContaining({ isrc: null }));
+  });
+
+  it("rejects an ISRC that is not one", async () => {
+    const res = await PATCH(makeReq({ ...PATCH_BODY, isrc: "nope" }));
+    expect(res.status).toBe(400);
+    expect(mockUpdateTrack).not.toHaveBeenCalled();
   });
 });

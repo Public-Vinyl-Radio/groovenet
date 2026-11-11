@@ -76,9 +76,28 @@ describe("settings contracts", () => {
         fonts: { display: "inter", body: "inter", label: "system" },
       }).success,
     ).toBe(false);
+    for (const body of ["plex-mono", "jetbrains-mono", "system-mono"]) {
+      expect(
+        appearanceSettingsSchema.safeParse({ ...settings, fonts: { ...settings.fonts, body } })
+          .success,
+      ).toBe(true);
+    }
+    expect(
+      appearanceSettingsSchema.safeParse({
+        ...settings,
+        fonts: { ...settings.fonts, body: "zilla-slab" },
+      }).success,
+    ).toBe(false);
     expect(APPEARANCE_PALETTE_IDS).toContain("sleeve");
     expect(APPEARANCE_CORNERS).toEqual(["square", "rounded"]);
-    expect(APPEARANCE_FONT_CHOICES.body).toEqual(["default", "inter", "system"]);
+    expect(APPEARANCE_FONT_CHOICES.body).toEqual([
+      "default",
+      "inter",
+      "plex-mono",
+      "jetbrains-mono",
+      "system-mono",
+      "system",
+    ]);
   });
 
   it("makes every appearance update field optional, rejects unknown keys and a custom palette-less custom", () => {

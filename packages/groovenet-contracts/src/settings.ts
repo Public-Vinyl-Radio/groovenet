@@ -78,7 +78,14 @@ export const appearanceDisplayFontSchema = z.enum([
   "zilla-slab",
   "system",
 ]);
-export const appearanceBodyFontSchema = z.enum(["default", "inter", "system"]);
+export const appearanceBodyFontSchema = z.enum([
+  "default",
+  "inter",
+  "plex-mono",
+  "jetbrains-mono",
+  "system-mono",
+  "system",
+]);
 export const appearanceLabelFontSchema = z.enum(["default", "jetbrains-mono", "system"]);
 
 export const appearanceFontsShape = {

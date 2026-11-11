@@ -11,6 +11,8 @@ import { shouldTriggerFingerprintIndex } from "@/lib/trackFingerprintTrigger";
 import { fingerprintIndexService } from "@/server/services/fingerprintIndexService";
 import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 import type { EmbeddingJob } from "@/types/embeddingQueue";
+import { normalizeIsrc } from "@/lib/isrc";
+import { isrcService } from "@/server/services/isrcService";
 
 export async function PATCH(req: Request) {
   try {
@@ -36,6 +38,20 @@ export async function PATCH(req: Request) {
     const body = parsed.data;
     const { genres, descriptors, genre_source, ...fields } = body;
     const data = fields as UpdateTrackInput;
+
+    // The ISRC is stored normalised (#1156); anything that is not one is a 400
+    // rather than a CHECK violation. null clears it.
+    const suppliedIsrc = (fields as { isrc?: unknown }).isrc;
+    if (suppliedIsrc !== undefined && suppliedIsrc !== null) {
+      const isrc = normalizeIsrc(suppliedIsrc);
+      if (!isrc) {
+        return NextResponse.json(
+          { error: "isrc must be 12 letters or digits (hyphens are ignored)" },
+          { status: 400 },
+        );
+      }
+      data.isrc = isrc;
+    }
 
     if (descriptors !== undefined) {
       data.descriptors = normalizeDescriptors(descriptors);
@@ -80,6 +96,21 @@ export async function PATCH(req: Request) {
     const updated = await trackRepository.updateTrackFields(data);
     if (!updated) {
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
+    }
+
+    // A new Apple Music link makes the stored ISRC stale. Resolve the new one
+    // (or take the one the caller already has) so the two never disagree (#1156).
+    let result = updated;
+    if (
+      "apple_music_url" in data &&
+      (current?.apple_music_url ?? null) !== (updated.apple_music_url ?? null)
+    ) {
+      await isrcService.syncForLinkChange(updated, suppliedIsrc);
+      result =
+        (await trackRepository.findTrackByTrackIdAndFriendId(
+          updated.track_id,
+          updated.friend_id,
+        )) ?? updated;
     }
 
     const embeddingUpdates = computeEmbeddingUpdates(current, updated);
@@ -141,7 +172,7 @@ export async function PATCH(req: Request) {
       { request: req },
     );
 
-    return NextResponse.json(updated);
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Error updating track:", error);
     return NextResponse.json({ error: "Failed to update track" }, { status: 500 });

@@ -219,6 +219,16 @@ release_worktree_lock() {
   rm -rf "$(worktree_lock_dir)"
 }
 
+# random_password prints 32 hex characters. The worktree db publishes no port,
+# so this only has to be unguessable-enough and shell/URL safe.
+random_password() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 16
+  else
+    od -An -N16 -tx1 /dev/urandom | tr -d ' \n'
+  fi
+}
+
 # create_worktree_env finds a port and writes the env file under the lock, so
 # concurrent setups can't both pick the same port. If this worktree's file
 # appeared while waiting, its existing claim is kept.
@@ -240,6 +250,7 @@ COMPOSE_PROJECT_NAME=$project
 WORKTREE_HOST=$host
 APP_PORT=$port
 COMPOSE_PROFILES=
+POSTGRES_PASSWORD=$(random_password)
 EOF
   )
 }
@@ -259,10 +270,33 @@ ensure_worktree_env() {
   [[ -f "$env_file" ]] || create_worktree_env
 
   ensure_worktree_audio_mount_env "$env_file"
+  ensure_worktree_db_password "$env_file"
   if ! grep -q '^COMPOSE_PROFILES=' "$env_file"; then
     printf 'COMPOSE_PROFILES=\n' >>"$env_file"
   fi
   load_worktree_env
+}
+
+# worktree_db_volume_exists: this worktree's Postgres volume was already
+# initialised (Postgres fixes its password at that point).
+worktree_db_volume_exists() {
+  local project
+  project="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$1" | head -n1)"
+  [[ -n "$project" ]] || return 1
+  docker volume inspect "${project}_db_data" >/dev/null 2>&1
+}
+
+# ensure_worktree_db_password gives env files that predate per-worktree
+# passwords one, unless their db volume already exists: that database was
+# initialised with the 1Password password, so those worktrees keep reading it
+# from 1Password until `just worktree-purge && just worktree-up`.
+ensure_worktree_db_password() {
+  local env_file="$1"
+  grep -q '^POSTGRES_PASSWORD=' "$env_file" && return 0
+  if worktree_db_volume_exists "$env_file"; then
+    return 0
+  fi
+  printf 'POSTGRES_PASSWORD=%s\n' "$(random_password)" >>"$env_file"
 }
 
 # Validate and normalize comma-separated profile names.
@@ -338,11 +372,17 @@ compose_args_array() {
 
 # op_injection_available: 1Password injection can work (op installed, signed
 # in, and a template exists). Checked up front so a compose failure is never
-# mistaken for an injection failure.
+# mistaken for an injection failure. `op whoami` never triggers the desktop
+# app's authorisation prompt, so an interactive terminal uses `op vault list`,
+# which does; unattended runs keep the non-blocking `whoami`.
 op_injection_available() {
-  command -v op >/dev/null 2>&1 \
-    && [[ -f "$COMPOSE_DIR/.env.tpl" ]] \
-    && op whoami >/dev/null 2>&1
+  command -v op >/dev/null 2>&1 || return 1
+  [[ -f "$COMPOSE_DIR/.env.tpl" ]] || return 1
+  if [[ -t 0 && -t 1 ]]; then
+    op vault list >/dev/null 2>&1
+  else
+    op whoami >/dev/null 2>&1
+  fi
 }
 
 # run_compose runs "docker compose <args>", injecting secrets via 1Password
@@ -350,8 +390,13 @@ op_injection_available() {
 # Compose's own exit status is returned as-is; it is never retried.
 run_compose() {
   if op_injection_available; then
+    # A worktree's own password (when its env file has one) is set after op
+    # run resolves the template, so it wins over the 1Password value.
+    local pw_env=()
+    [[ -z "${POSTGRES_PASSWORD:-}" ]] || pw_env=(POSTGRES_PASSWORD="$POSTGRES_PASSWORD")
     op run --env-file="$COMPOSE_DIR/.env.tpl" -- \
       env \
+        ${pw_env[@]+"${pw_env[@]}"} \
         COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-}" \
         WORKTREE_HOST="${WORKTREE_HOST:-}" \
         APP_PORT="${APP_PORT:-}" \
@@ -362,7 +407,7 @@ run_compose() {
     return
   fi
   if command -v op >/dev/null 2>&1 && [[ -f "$COMPOSE_DIR/.env.tpl" ]]; then
-    echo "Warning: 1Password is unavailable (locked or signed out); running docker compose without env injection" >&2
+    echo "Warning: 1Password is unavailable (locked or signed out); running docker compose without env injection (API-key features such as OpenAI, Discogs, Apple Music and YouTube will not work)" >&2
   fi
   docker compose "$@"
 }
