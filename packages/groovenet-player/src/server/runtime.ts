@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { z } from "zod";
 import { OwnToneBackend } from "../ownToneBackend.js";
 import { playerIdSchema } from "@groovenet/contracts";
-import { ServerPlayerManager, type PlayerEngine } from "./manager.js";
+import { ServerPlayerManager, type PlayerEngine, type ServerPlayerErrorEvent } from "./manager.js";
 import type { ServerPlay } from "./store.js";
 import { PostgresPlayerStore } from "./store.js";
 import { homeAssistantObserver } from "./observer.js";
@@ -124,6 +124,9 @@ export async function runPlayerWorker(
     );
   const server = dependencies.server ?? playerHttpServer(manager, key);
   const signals = dependencies.signals ?? process;
+  // Engine error messages carry no credentials or source paths.
+  const logPlayerError = (event: ServerPlayerErrorEvent) =>
+    console.error(`Player error ${JSON.stringify(event)}`);
   let stopping = false;
   let shutdownPromise: Promise<void> | undefined;
   let heartbeat: NodeJS.Timeout | undefined;
@@ -142,6 +145,7 @@ export async function runPlayerWorker(
         await manager.shutdown();
       } finally {
         manager.off("fault", failStop);
+        manager.off("player-error", logPlayerError);
         await store.release();
       }
     })();
@@ -159,6 +163,7 @@ export async function runPlayerWorker(
   try {
     await store.acquire(failStop);
     manager.on("fault", failStop);
+    manager.on("player-error", logPlayerError);
     await manager.initialize();
     if (stopping) throw new Error("Player worker lost its lease during initialization");
     let checking = false;

@@ -64,6 +64,23 @@ describe("player worker lifecycle", () => {
     );
     expect(f.signals.listenerCount("SIGTERM")).toBe(0);
   });
+  it("logs player errors until shutdown", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const f = fixture();
+    const running = await runPlayerWorker(env, f.dependencies);
+    const event = {
+      at: "2026-11-08T17:06:48.000Z",
+      player_id: "lounge",
+      engine_id: "primary",
+      code: "ENGINE_TIMEOUT",
+      message: "OwnTone API request timed out",
+    };
+    f.manager.emit("player-error", event);
+    expect(logged).toHaveBeenCalledWith(`Player error ${JSON.stringify(event)}`);
+    await running.shutdown();
+    expect(f.manager.listenerCount("player-error")).toBe(0);
+  });
   it("fails closed after a DB heartbeat error and closes client connections", async () => {
     vi.useFakeTimers();
     vi.spyOn(console, "log").mockImplementation(() => {});
