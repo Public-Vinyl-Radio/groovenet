@@ -152,10 +152,14 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
   // All commands and polls share a serial lane: no delayed response from an old
   // load can emit an event for the next track, or race cleanup.
   private serial<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.tail.then(() => {
+    return this.lane(() => {
       if (this.closed) throw new PlayerError("ENGINE_UNAVAILABLE", "OwnTone backend is closed");
       return operation();
     });
+  }
+
+  private lane<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.tail.then(operation);
     this.tail = result.catch(() => {});
     return result;
   }
@@ -312,9 +316,12 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
     });
   }
 
+  /** A failed close refuses further commands but keeps the session identity,
+   * so a later close() can retry the release once the engine answers again.
+   */
   close(): Promise<void> {
     if (this.closing) return this.closing;
-    this.closing = this.serial(async () => {
+    const closing = this.lane(async () => {
       this.cancelPoll();
       try {
         if (this.session || this.finishedSession || this.failedSession || this.selected) {
@@ -363,14 +370,18 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             await this.persistSession?.(null);
           }
         }
-      } finally {
         this.session = null;
         this.failedSession = null;
         this.selected = false;
+      } finally {
         this.closed = true;
       }
     });
-    return this.closing;
+    this.closing = closing;
+    closing.catch(() => {
+      this.closing = undefined;
+    });
+    return closing;
   }
 
   private async request<T = unknown>(path: string, method = "GET", body?: unknown): Promise<T> {

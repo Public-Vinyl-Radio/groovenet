@@ -855,6 +855,75 @@ describe("persistent server player manager", () => {
     expect(f.fault).toHaveBeenCalled();
   });
 
+  it("retries a release that timed out during an error-event detach, then plays", async () => {
+    const f = await fixture();
+    const errors = vi.fn();
+    f.manager.on("player-error", errors);
+    await f.prepare("a");
+    await f.command("a", { type: "play", allow_unknown: true });
+    const stalled = f.backends[0]!;
+    const timeout = new PlayerError("ENGINE_TIMEOUT", "OwnTone API request timed out");
+    stalled.close.mockRejectedValueOnce(timeout);
+    stalled.emit("error", timeout);
+    await f.settle();
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: "speaker-a",
+      state: { status: "error", error: { code: "ENGINE_TIMEOUT" } },
+    });
+    expect(errors).toHaveBeenCalledOnce();
+    expect(errors.mock.calls[0]![0]).toMatchObject({
+      player_id: "a",
+      engine_id: "a",
+      code: "ENGINE_TIMEOUT",
+      message: "OwnTone API request timed out",
+    });
+    // The speaker stays claimed while the release is uncertain.
+    await f.prepare("b", "speaker-a");
+    await expect(f.command("b", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "OUTPUT_ASSIGNED",
+    });
+    // Still stalled: the retry fails without touching state.
+    stalled.close.mockRejectedValueOnce(timeout);
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "RELEASE_UNCERTAIN",
+      message: expect.stringContaining("retry once the engine responds"),
+    });
+    expect(f.manager.get("a").assigned_output).toBe("speaker-a");
+    // The engine answers again: the next play releases and reconnects.
+    await f.command("a", { type: "play", allow_unknown: true });
+    expect(stalled.close).toHaveBeenCalledTimes(3);
+    expect(f.manager.get("a")).toMatchObject({
+      assigned_output: "speaker-a",
+      state: { status: "playing", error: null },
+    });
+    expect(f.backends).toHaveLength(2);
+    expect(f.backends[1]!.load).toHaveBeenCalledOnce();
+    // Stop after the retry has nothing left to release.
+    await f.command("a", { type: "stop" });
+    expect(stalled.close).toHaveBeenCalledTimes(3);
+    expect(f.manager.get("a").assigned_output).toBeNull();
+    expect(errors).toHaveBeenCalledOnce();
+    await f.manager.shutdown();
+  });
+
+  it("still refuses a claim with no backend left to retry", async () => {
+    const f = await fixture();
+    await f.prepare("a");
+    const saved = f.store.rows.get("a")!;
+    saved.assigned_output = "speaker-a";
+    // Simulate a claim with no runtime or pending release behind it.
+    (f.manager as unknown as { players: Map<string, ServerPlayer> }).players.set(
+      "a",
+      structuredClone(saved),
+    );
+    await expect(f.command("a", { type: "play", allow_unknown: true })).rejects.toMatchObject({
+      code: "RELEASE_UNCERTAIN",
+      message: expect.stringContaining("restart the worker"),
+    });
+    expect(f.backends).toHaveLength(0);
+    await f.manager.shutdown();
+  });
+
   it("requires a fresh occupancy decision when a paused engine released transport", async () => {
     const f = await fixture();
     await f.prepare("a");
@@ -1205,6 +1274,12 @@ describe("persistent server player manager", () => {
             code: "RELEASE_UNCERTAIN",
           });
           expect(writes.filter((path) => path === "player/play")).toHaveLength(plays);
+          // The engine recovers: the same backend retries its release, then plays.
+          failStop = false;
+          await command({ type: "play", allow_unknown: true });
+          expect(manager.get("a").state).toMatchObject({ status: "playing", error: null });
+          expect(writes.filter((path) => path === "player/play")).toHaveLength(plays + 1);
+          expect(create).toHaveBeenCalledTimes(2);
         } else {
           expect(failed.assigned_output).toBeNull();
           expect(status.state).toBe("stop");

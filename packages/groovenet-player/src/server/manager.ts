@@ -37,6 +37,14 @@ interface Runtime {
   backend: PlaybackBackend;
   generation: number;
 }
+/** Emitted as "player-error" when a player enters, or changes, an error state. */
+export interface ServerPlayerErrorEvent {
+  at: string;
+  player_id: string;
+  engine_id: string;
+  code: string;
+  message: string;
+}
 export interface ServerPlayLogging {
   ownerFriendId: number;
   logPlay: (play: ServerPlay) => Promise<void>;
@@ -52,6 +60,8 @@ const clone = <T>(value: T): T => structuredClone(value);
 export class ServerPlayerManager extends EventEmitter {
   private players = new Map<string, ServerPlayer>();
   private runtimes = new Map<string, Runtime>();
+  /** Backends whose close failed; detach retries them before reassigning. */
+  private releasing = new Map<string, PlaybackBackend>();
   private generation = 0;
   private tail: Promise<unknown> = Promise.resolve();
   private stopping = false;
@@ -653,10 +663,30 @@ export class ServerPlayerManager extends EventEmitter {
 
   private async detach(player: ServerPlayer): Promise<void> {
     const runtime = this.runtimes.get(player.id);
+    const pending = this.releasing.get(player.id);
     if (runtime) {
       // Invalidate callbacks before awaiting close, including duplicate EOFs.
       this.runtimes.delete(player.id);
-      await runtime.backend.close();
+      try {
+        await runtime.backend.close();
+      } catch (error) {
+        // Keep the backend and its session identity so a later detach can
+        // retry the release; the speaker stays claimed until one succeeds.
+        this.releasing.set(player.id, runtime.backend);
+        throw error;
+      }
+      player.state.engine_session = this.get(player.id).state.engine_session;
+    } else if (pending) {
+      try {
+        await pending.close();
+      } catch {
+        throw new ServerPlayerError(
+          "RELEASE_UNCERTAIN",
+          "Previous engine release failed; retry once the engine responds again",
+          503,
+        );
+      }
+      this.releasing.delete(player.id);
       player.state.engine_session = this.get(player.id).state.engine_session;
     } else if (player.assigned_output !== null) {
       throw new ServerPlayerError(
@@ -852,8 +882,22 @@ export class ServerPlayerManager extends EventEmitter {
       throw new ServerPlayerError("WORKER_STOPPING", "Player worker is stopping", 503);
   }
   private async save(player: ServerPlayer): Promise<ServerPlayer> {
+    const previous = this.players.get(player.id)?.state;
     const saved = await this.store.save(player, player.revision);
     this.players.set(player.id, saved);
+    const error = saved.state.error;
+    if (
+      saved.state.status === "error" &&
+      error &&
+      (previous?.status !== "error" || previous.error?.code !== error.code)
+    )
+      this.emit("player-error", {
+        at: new Date().toISOString(),
+        player_id: saved.id,
+        engine_id: saved.engine_id,
+        code: error.code,
+        message: error.message,
+      } satisfies ServerPlayerErrorEvent);
     this.publish(saved);
     return clone(saved);
   }

@@ -757,6 +757,13 @@ describe("OwnToneBackend", () => {
     await expect(f.backend.close()).rejects.toMatchObject({ code: "ENGINE_UNAVAILABLE" });
     expect(f.status.state).toBe("pause");
     expect(f.outputs[0]!.selected).toBe(true);
+    // Commands stay refused, but the release can be retried once the engine answers.
+    await expect(f.backend.pause(true)).rejects.toMatchObject({ code: "ENGINE_UNAVAILABLE" });
+    f.failures.delete("player/stop");
+    await f.backend.close();
+    expect(f.status.state).toBe("stop");
+    expect(f.outputs[0]!.selected).toBe(false);
+    await f.backend.close();
   });
 
   it("waits for a nonplaying state before cleaning up a terminal failure observed during transition", async () => {
