@@ -2,6 +2,16 @@ import fs from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 
+// Every format an upload can be stored as (#1155); anything else is served as MP3.
+const CONTENT_TYPES: Record<string, string> = {
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".flac": "audio/flac",
+  ".aac": "audio/aac",
+  ".ogg": "audio/ogg",
+  ".webm": "audio/webm",
+};
+
 function normalizeFilenameInput(raw: string): string {
   let value = raw.trim();
   try {
@@ -76,9 +86,7 @@ export async function GET(request: Request) {
   const stat = fs.statSync(/* turbopackIgnore: true */ filePath);
   const totalSize = stat.size;
   const ext = path.extname(filePath).toLowerCase();
-  let contentType = "audio/mpeg";
-  if (ext === ".wav") contentType = "audio/wav";
-  if (ext === ".m4a") contentType = "audio/mp4";
+  const contentType = CONTENT_TYPES[ext] ?? "audio/mpeg";
 
   // If no Range header, just stream the whole file
   if (!range) {
