@@ -207,6 +207,8 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/tracks/audio-metadata/backfill/{runId}` | tracks | contracts |  |
 | POST | `/api/tracks/embedded-tags/backfill` | tracks | contracts |  |
 | GET | `/api/tracks/embedded-tags/backfill/{runId}` | tracks | contracts |  |
+| POST | `/api/tracks/isrc/backfill` | tracks | contracts |  |
+| GET | `/api/tracks/isrc/backfill/{runId}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |

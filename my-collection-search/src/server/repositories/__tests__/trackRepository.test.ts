@@ -1093,3 +1093,50 @@ describe("embedded tags (#673)", () => {
     expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
   });
 });
+
+describe("ISRC (#1156)", () => {
+  it("lists every live track for one friend or all", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "t1" }] });
+    const repo = makeRepo();
+    expect(await repo.listIsrcCandidates(3)).toEqual([{ track_id: "t1" }]);
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.stringContaining("isrc_checked_at"), [3]);
+    await repo.listIsrcCandidates();
+    expect(dbQuery).toHaveBeenLastCalledWith(expect.any(String), [null]);
+  });
+
+  it("saves a batch in one statement, stamping null results as checked", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().saveIsrcs([
+      { track_id: "a", friend_id: 1, isrc: "USAB11800123" },
+      { track_id: "b", friend_id: 2, isrc: null },
+    ]);
+    expect(dbQuery).toHaveBeenCalledTimes(1);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc_checked_at = now()"), [
+      ["a", "b"],
+      [1, 2],
+      ["USAB11800123", null],
+    ]);
+  });
+
+  it("does nothing for an empty batch", async () => {
+    dbQuery.mockClear();
+    await makeRepo().saveIsrcs([]);
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+
+  it("clears the ISRC and its check", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().clearIsrc("a", 1);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc = NULL"), ["a", 1]);
+  });
+
+  it("updateTrackFields writes isrc as a column", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ track_id: "a", friend_id: 1 }] });
+    await makeRepo().updateTrackFields({ track_id: "a", friend_id: 1, isrc: "USAB11800123" });
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("isrc = $1"), [
+      "USAB11800123",
+      "a",
+      1,
+    ]);
+  });
+});

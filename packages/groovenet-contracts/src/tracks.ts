@@ -123,6 +123,46 @@ export const embeddedTagsBackfillRunSchema = z.object({
 });
 export type EmbeddedTagsBackfillRun = z.infer<typeof embeddedTagsBackfillRunSchema>;
 
+/** Which tracks an ISRC backfill resolves: everything unless narrowed to one friend or capped. */
+export const isrcBackfillRequestSchema = z.object({
+  friend_id: z.number().int().optional(),
+  /** Ask Apple again even for a track that already has an ISRC or was already checked. */
+  force: z.boolean().optional(),
+  /** Resolve at most this many tracks; the rest are left for the next run. */
+  limit: z.number().int().positive().optional(),
+  /** Resolve and report, but store nothing. */
+  dry_run: z.boolean().optional(),
+});
+export type IsrcBackfillRequest = z.infer<typeof isrcBackfillRequestSchema>;
+
+/**
+ * Progress and report for one ISRC backfill (#1156).
+ *
+ * Every track in scope lands in exactly one of `filled`, `skipped`, `no_link`,
+ * `not_found` or `failed`; `complete` is true once they add up to `total`. With
+ * `dry_run`, `filled` counts the ISRCs that would have been stored.
+ */
+export const isrcBackfillRunSchema = z.object({
+  run_id: z.string(),
+  /** Tracks in scope: live tracks, or the ones a `limit` kept. */
+  total: z.number().int(),
+  filled: z.number().int(),
+  /** Already has an ISRC, or was checked and Apple had none (never with `force`). */
+  skipped: z.number().int(),
+  /** No Apple Music link, or one that names no song (an album link). */
+  no_link: z.number().int(),
+  /** Apple returned the song without an ISRC, or did not return it. */
+  not_found: z.number().int(),
+  /** The lookup failed (rate limit, outage); the track is retried on the next run. */
+  failed: z.number().int(),
+  dry_run: z.boolean(),
+  errors: z.array(z.string()),
+  started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),
+  complete: z.boolean(),
+});
+export type IsrcBackfillRun = z.infer<typeof isrcBackfillRunSchema>;
+
 /**
  * The full track entity. Only the identifying fields are required on the wire;
  * the database may return more columns, so unknown keys pass through.
@@ -132,6 +172,7 @@ const trackShape = z.object({
   id: z.number().int().optional(),
   track_id: z.string(),
   friend_id: z.number().int(),
+  /** 12 characters, upper case, no hyphens (#1156). */
   isrc: z.string().nullable().optional(),
   title: z.string(),
   artist: z.string(),
@@ -450,6 +491,8 @@ export const trackJsonSchemas = {
     io: "input",
   }),
   EmbeddedTagsBackfillRun: z.toJSONSchema(embeddedTagsBackfillRunSchema),
+  IsrcBackfillRequest: z.toJSONSchema(isrcBackfillRequestSchema, { io: "input" }),
+  IsrcBackfillRun: z.toJSONSchema(isrcBackfillRunSchema),
   TrackExtractEmbeddedCoverResponse: z.toJSONSchema(trackExtractEmbeddedCoverResponseSchema),
   TrackEssentia: z.toJSONSchema(trackEssentiaSchema),
   TrackDeleteResponse: z.toJSONSchema(trackDeleteResponseSchema),

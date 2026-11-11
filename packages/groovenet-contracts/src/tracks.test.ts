@@ -3,6 +3,8 @@ import {
   audioMetadataBackfillRunSchema,
   embeddedTagsBackfillRequestSchema,
   embeddedTagsBackfillRunSchema,
+  isrcBackfillRequestSchema,
+  isrcBackfillRunSchema,
   trackAudioFileFieldsSchema,
 } from "./tracks.js";
 import { describe, expect, it } from "vitest";
@@ -400,5 +402,36 @@ describe("embedded tags contracts (#673)", () => {
     });
     expect(track.audio_file_genre).toEqual(["Música tropical"]);
     expect(trackJsonSchemas.Track).not.toHaveProperty("properties.lyrics");
+  });
+});
+
+describe("ISRC contracts (#1156)", () => {
+  it("accepts an empty request and rejects a zero limit", () => {
+    expect(isrcBackfillRequestSchema.parse({})).toEqual({});
+    expect(isrcBackfillRequestSchema.parse({ limit: 5, dry_run: true })).toEqual({
+      limit: 5,
+      dry_run: true,
+    });
+    expect(isrcBackfillRequestSchema.safeParse({ limit: 0 }).success).toBe(false);
+  });
+
+  it("describes a run and publishes both shapes", () => {
+    const run = {
+      run_id: "r1",
+      total: 5,
+      filled: 2,
+      skipped: 1,
+      no_link: 1,
+      not_found: 1,
+      failed: 0,
+      dry_run: false,
+      errors: [],
+      started_at: 1,
+      updated_at: 2,
+      complete: true,
+    };
+    expect(isrcBackfillRunSchema.parse(run)).toEqual(run);
+    expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRequest");
+    expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRun");
   });
 });

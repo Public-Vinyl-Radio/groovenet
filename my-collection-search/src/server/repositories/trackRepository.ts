@@ -54,6 +54,7 @@ type UpdatableTrackFields = Partial<
     | "year"
     | "local_tags"
     | "apple_music_url"
+    | "isrc"
     | "local_audio_url"
     | "audio_file_album_art_url"
     | "youtube_url"
@@ -141,6 +142,7 @@ const UPDATABLE_COLUMNS = {
   year: "year",
   local_tags: "local_tags",
   apple_music_url: "apple_music_url",
+  isrc: "isrc",
   youtube_url: "youtube_url",
   soundcloud_url: "soundcloud_url",
   local_audio_url: "local_audio_url",
@@ -174,6 +176,16 @@ export type EmbeddedTagsCandidate = {
   local_audio_url: string;
   embedded_tags_read_at: Date | string | null;
 };
+
+export type IsrcCandidate = {
+  track_id: string;
+  friend_id: number;
+  apple_music_url: string | null;
+  isrc: string | null;
+  isrc_checked_at: Date | string | null;
+};
+
+export type IsrcResult = { track_id: string; friend_id: number; isrc: string | null };
 
 export type StorageStats = {
   tracks: number;
@@ -244,6 +256,42 @@ export class TrackRepository {
       [friendId ?? null],
     );
     return rows;
+  }
+
+  /** Every live track, so the ISRC backfill can report the ones with no Apple Music link too (#1156). */
+  async listIsrcCandidates(friendId?: number): Promise<IsrcCandidate[]> {
+    const { rows } = await dbQuery<IsrcCandidate>(
+      `SELECT track_id, friend_id, apple_music_url, isrc, isrc_checked_at
+         FROM tracks
+        WHERE deleted_at IS NULL
+          AND ($1::int IS NULL OR friend_id = $1)
+        ORDER BY friend_id, track_id`,
+      [friendId ?? null],
+    );
+    return rows;
+  }
+
+  /**
+   * Store the ISRCs Apple returned and stamp `isrc_checked_at`. A null ISRC is
+   * recorded as checked so the next run skips the track; one write per batch.
+   */
+  async saveIsrcs(results: IsrcResult[]): Promise<void> {
+    if (results.length === 0) return;
+    await dbQuery(
+      `UPDATE tracks t
+          SET isrc = r.isrc, isrc_checked_at = now()
+         FROM unnest($1::text[], $2::int[], $3::text[]) AS r(track_id, friend_id, isrc)
+        WHERE t.track_id = r.track_id AND t.friend_id = r.friend_id`,
+      [results.map((r) => r.track_id), results.map((r) => r.friend_id), results.map((r) => r.isrc)],
+    );
+  }
+
+  /** Forget the ISRC and its check: the Apple Music link it came from changed (#1156). */
+  async clearIsrc(trackId: string, friendId: number): Promise<void> {
+    await dbQuery(
+      `UPDATE tracks SET isrc = NULL, isrc_checked_at = NULL WHERE track_id = $1 AND friend_id = $2`,
+      [trackId, friendId],
+    );
   }
 
   async upsertDiscogsTrackByTrackIdUsername(
