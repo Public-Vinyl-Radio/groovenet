@@ -58,10 +58,22 @@ Output that breaks the shape is dropped (no lyric line), never repaired. The
 cache key is prompt version + model digest + lyrics, so a prompt or model
 change re-summarises.
 
-Model: `qwen3.5:latest`, manifest digest
-`6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7`. The run
-records quantisation, parameter size, prompt SHA-256 and options in
+Model: `qwen3.5:9b-q4_K_M` (GGUF, Q4_K_M, 9.0B, llama.cpp runner), digest
+`56671c2ab9385f9cfcb404638e32cd62d88e3501d44822208363c010179a3c90`, on
+Ollama 0.40.16. The run also records the prompt SHA-256 and options in
 `eval-data/1170-summaries/manifest.json`; copy them here with the results.
+
+Why not `qwen3.5:latest`: since Ollama 0.40 that tag is the Apple-only MLX
+build (`nvfp4`), which rejects schema-constrained output ("structured output
+is unavailable") and cannot run on the amd64 homelab. The GGUF build is the
+one a homelab service would run, so its outputs and CPU timings carry over.
+
+Smoke test on three synthetic lyrics (hook-only, Spanish, English protest),
+M4 Pro, warm model: about 2 s per track on the GPU and about 4 s CPU-only
+(`num_gpu: 0`). Repeats gave identical output on one backend, but
+**CPU and GPU outputs differ slightly** (one theme and one mood word on one
+sample). A shipped design must pin summaries to the host and backend that
+made them, or accept that a re-summarise elsewhere changes source hashes.
 
 ## Reproduce
 
@@ -119,8 +131,5 @@ and per-query comparisons against `I0`/`C0` use a seeded 95% bootstrap.
       `sha-faf3a62` (#1167), which predates #1176: `/api/tracks/{id}/lyrics`
       returns the Next.js HTML 404. Search already serves `composer` and
       `audio_file_genre`.
-- [ ] Local model: the `qwen3.5` manifest is installed, but its 6.6 GB weights
-      blob (`sha256-dec52a44…`) is missing from `~/.ollama/models/blobs`, so
-      Ollama can't load it (`model 'qwen3.5:latest' not found`). It needs a
-      re-pull, which may change the digest above.
+- [x] Local model: `qwen3.5:9b-q4_K_M` installed and smoke-tested.
 - [ ] Summaries, quality review, retrieval results, go / no-go.

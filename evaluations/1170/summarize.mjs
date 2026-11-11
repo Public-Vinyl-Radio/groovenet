@@ -6,7 +6,7 @@
  * host must be a loopback address.
  *
  *   node evaluations/1170/summarize.mjs --snapshot eval-data/1170-friend-6.json \
- *     --output-dir eval-data/1170-summaries [--model qwen3.5] [--limit N] [--cpu]
+ *     --output-dir eval-data/1170-summaries [--model qwen3.5:9b-q4_K_M] [--limit N] [--cpu]
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -116,7 +116,7 @@ export function timingReport(rows) {
 export async function run({
   snapshotFile,
   outputDir,
-  model = "qwen3.5",
+  model = "qwen3.5:9b-q4_K_M",
   host = "http://127.0.0.1:11434",
   limit = Infinity,
   cpu = false,
@@ -198,7 +198,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   try {
     if (!option("--snapshot") || !option("--output-dir"))
       throw new Error(
-        "Usage: node evaluations/1170/summarize.mjs --snapshot S --output-dir DIR [--model qwen3.5] [--host http://127.0.0.1:11434] [--limit N] [--cpu]",
+        "Usage: node evaluations/1170/summarize.mjs --snapshot S --output-dir DIR [--model qwen3.5:9b-q4_K_M] [--host http://127.0.0.1:11434] [--limit N] [--cpu]",
       );
     const limit = option("--limit") ? Number(option("--limit")) : Infinity;
     if (limit !== Infinity && (!Number.isInteger(limit) || limit < 1))

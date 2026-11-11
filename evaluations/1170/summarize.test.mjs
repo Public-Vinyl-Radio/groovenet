@@ -98,7 +98,14 @@ function ollama({ installed = true, loadable = true, reply = good, chatError = n
     calls.push({ path, body });
     const json = (data, ok = true) => ({ ok, status: ok ? 200 : 500, json: async () => data });
     if (path === "/api/tags")
-      return json({ models: installed ? [{ name: "qwen3.5:latest", digest: "abc" }] : [] });
+      return json({
+        models: installed
+          ? [
+              { name: "qwen3.5:latest", digest: "abc" },
+              { name: "qwen3.5:9b-q4_K_M", digest: "abc" },
+            ]
+          : [],
+      });
     if (path === "/api/show")
       return loadable
         ? json({ details: { quantization_level: "Q4_K_M", parameter_size: "9B", family: "qwen" } })
