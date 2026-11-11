@@ -66,6 +66,10 @@ describe("resolveBackfillRequest()", () => {
     expect(resolveBackfillRequest({ all: true })).toEqual({ scope: "all" });
   });
 
+  it("resolves --changed", () => {
+    expect(resolveBackfillRequest({ changed: true })).toEqual({ scope: "changed" });
+  });
+
   it("resolves --release with its id", () => {
     expect(resolveBackfillRequest({ release: "r9" })).toEqual({
       scope: "release",

@@ -929,22 +929,32 @@ export class TrackRepository {
    *
    * `friendId` null applies to every library holding the track, as the upload
    * path does.
+   *
+   * Returns the friends whose row had its composer filled by this call (#1169):
+   * composer feeds the identity and context text, so those rows need new
+   * embeddings. A composer that was already there, or a file without one,
+   * fills nothing. Postgres 15 has no `OLD` in `RETURNING`, so the prior value
+   * comes from a self-join on the row being updated.
    */
   async saveEmbeddedTags(
     trackId: string,
     friendId: number | null,
     tags: EmbeddedTags | null,
-  ): Promise<void> {
+  ): Promise<{ composerFilledFor: number[] }> {
     const t = tags ?? EMPTY_EMBEDDED_TAGS;
     const composer = t.composer === null ? null : stripNullBytes(t.composer);
     const genres = t.genres.map(stripNullBytes).filter((genre) => genre.length > 0);
     const lyrics = t.lyrics === null ? null : stripNullBytes(t.lyrics);
-    await dbQuery(
+    const updated = await dbQuery<{ friend_id: number; composer_filled: boolean }>(
       `UPDATE tracks
-          SET composer = CASE WHEN COALESCE(composer, '') = '' THEN COALESCE($3::text, composer) ELSE composer END,
+          SET composer = CASE WHEN COALESCE(prev.composer, '') = '' THEN COALESCE($3::text, prev.composer) ELSE prev.composer END,
               audio_file_genre = $4::text[],
               embedded_tags_read_at = now()
-        WHERE track_id = $1 AND ($2::int IS NULL OR friend_id = $2)`,
+         FROM tracks prev
+        WHERE tracks.track_id = $1 AND ($2::int IS NULL OR tracks.friend_id = $2)
+          AND prev.track_id = tracks.track_id AND prev.username = tracks.username
+        RETURNING tracks.friend_id,
+                  (COALESCE(prev.composer, '') = '' AND COALESCE($3::text, '') <> '') AS composer_filled`,
       [trackId, friendId, composer, genres.length > 0 ? genres : null],
     );
     if (lyrics) {
@@ -964,6 +974,11 @@ export class TrackRepository {
         [trackId, friendId],
       );
     }
+    return {
+      composerFilledFor: updated.rows
+        .filter((row) => row.composer_filled)
+        .map((row) => row.friend_id),
+    };
   }
 
   /** The write paths must never fail a download or upload over a tag problem. */

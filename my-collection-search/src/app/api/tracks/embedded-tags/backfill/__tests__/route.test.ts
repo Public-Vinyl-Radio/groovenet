@@ -17,6 +17,7 @@ const run = {
   with_composer: 0,
   with_genre: 0,
   with_lyrics: 0,
+  queued_embeddings: 0,
   errors: [],
   started_at: 1,
   updated_at: 1,

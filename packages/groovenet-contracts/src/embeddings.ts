@@ -9,7 +9,12 @@ export const EMBEDDING_KINDS = ["identity", "audio_vibe", "context"] as const;
 export const embeddingKindSchema = z.enum(EMBEDDING_KINDS);
 export type EmbeddingKind = z.infer<typeof embeddingKindSchema>;
 
-export const EMBEDDING_BACKFILL_SCOPES = ["missing", "all", "release", "track"] as const;
+/**
+ * `changed` lists every track like `all` but queues without `force`, so the
+ * worker re-embeds only those whose source text moved since their embedding
+ * (#1169): the repair after a bulk metadata write that queued nothing.
+ */
+export const EMBEDDING_BACKFILL_SCOPES = ["missing", "all", "changed", "release", "track"] as const;
 export const embeddingBackfillScopeSchema = z.enum(EMBEDDING_BACKFILL_SCOPES);
 export type EmbeddingBackfillScope = z.infer<typeof embeddingBackfillScopeSchema>;
 
@@ -29,7 +34,7 @@ export const embeddingsBackfillObjectSchema = z.object({
   limit: z.number().int().optional(),
   force: z.boolean().optional().meta({
     description:
-      "Orthogonal to scope: even `release` and `track` only fill what is missing by default. `all` implies it.",
+      "Orthogonal to scope: even `release` and `track` only fill what is missing by default. `all` implies it; with `changed` it is the same as `all`.",
   }),
   dry_run: z.boolean().optional().meta({ description: "Report counts and enqueue nothing." }),
 });

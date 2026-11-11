@@ -38,6 +38,7 @@ const redis = vi.hoisted(() => {
     lists,
     multi: pipeline,
     pipeline,
+    hincrby: async (k: string, f: string, n: number) => pipeline().hincrby(k, f, n).exec(),
     hgetall: async (k: string) => hashes.get(k) ?? {},
     lrange: async (k: string) => lists.get(k) ?? [],
   };
@@ -50,6 +51,9 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("@/server/repositories/trackRepository", () => ({ trackRepository: repo }));
 
+const queue = vi.hoisted(() => ({ enqueue: vi.fn() }));
+vi.mock("@/server/services/embeddingQueueService", () => ({ embeddingQueueService: queue }));
+
 const files = vi.hoisted(() => ({ statSync: vi.fn() }));
 vi.mock("fs", () => ({ default: files, ...files }));
 
@@ -59,7 +63,7 @@ vi.mock("@/server/services/trackAudioMetadataService", async (importOriginal) =>
   return { ...actual, trackAudioMetadataService: meta };
 });
 
-import { EmbeddedTagsBackfillService } from "../embeddedTagsBackfillService";
+import { EMBEDDING_BATCH_SIZE, EmbeddedTagsBackfillService } from "../embeddedTagsBackfillService";
 
 const probe = (tags: Record<string, string> = {}) => ({ format: { tags } });
 
@@ -79,7 +83,8 @@ beforeEach(() => {
   meta.resolveAudioFilePath.mockImplementation((f: string) => `/audio/${f}`);
   meta.runFfprobe.mockResolvedValue(probe({ composer: "A", genre: "House", lyrics: "la" }));
   files.statSync.mockReturnValue({ mtimeMs: 1000 });
-  repo.saveEmbeddedTags.mockResolvedValue(undefined);
+  repo.saveEmbeddedTags.mockResolvedValue({ composerFilledFor: [] });
+  queue.enqueue.mockResolvedValue(undefined);
   service = new EmbeddedTagsBackfillService();
 });
 
@@ -175,6 +180,74 @@ describe("EmbeddedTagsBackfillService", () => {
       read: 2,
       with_composer: 0,
       errors: [],
+    });
+  });
+
+  describe("queues embeddings for filled composers (#1169)", () => {
+    const filledFor = (ids: string[]) =>
+      repo.saveEmbeddedTags.mockImplementation(async (id: string, friendId: number) => ({
+        composerFilledFor: ids.includes(id) ? [friendId] : [],
+      }));
+
+    it("queues identity and context for exactly the tracks whose composer was filled", async () => {
+      filledFor(["a", "c"]);
+      const run = await runAll([cand("a"), cand("b"), cand("c")]);
+
+      expect(run).toMatchObject({ read: 3, with_composer: 3, queued_embeddings: 2 });
+      expect(queue.enqueue).toHaveBeenCalledTimes(1);
+      expect(queue.enqueue).toHaveBeenCalledWith(
+        [
+          { track_id: "a", friend_id: 1, kind: "identity" },
+          { track_id: "a", friend_id: 1, kind: "context" },
+          { track_id: "c", friend_id: 1, kind: "identity" },
+          { track_id: "c", friend_id: 1, kind: "context" },
+        ],
+        "bulk",
+      );
+    });
+
+    it("queues nothing when no composer was filled, forced or not", async () => {
+      expect((await runAll([cand("a"), cand("b")])).queued_embeddings).toBe(0);
+      expect((await runAll([cand("a")], true)).queued_embeddings).toBe(0);
+      expect(queue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("queues nothing for skipped, missing or failed tracks", async () => {
+      filledFor(["skip", "gone", "bad"]);
+      meta.resolveAudioFilePath.mockImplementation((f: string) => (f === "gone.m4a" ? null : f));
+      meta.runFfprobe.mockRejectedValueOnce(new Error("Invalid data"));
+      const run = await runAll([
+        cand("skip", { embedded_tags_read_at: new Date(5000).toISOString() }),
+        cand("gone"),
+        cand("bad"),
+      ]);
+      expect(run).toMatchObject({ skipped: 1, missing_files: 1, read_failures: 1 });
+      expect(queue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("batches the queue writes instead of one call per track", async () => {
+      const ids = Array.from({ length: EMBEDDING_BATCH_SIZE + 5 }, (_, i) => `t${i}`);
+      filledFor(ids);
+      const run = await runAll(ids.map((id) => cand(id)));
+
+      expect(run.queued_embeddings).toBe(ids.length);
+      expect(queue.enqueue).toHaveBeenCalledTimes(2);
+      expect(queue.enqueue.mock.calls[0][0]).toHaveLength(EMBEDDING_BATCH_SIZE * 2);
+      expect(queue.enqueue.mock.calls[1][0]).toHaveLength(10);
+    });
+
+    it("logs a queue failure and still completes the run", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      filledFor(["a"]);
+      queue.enqueue.mockRejectedValueOnce(new Error("redis down"));
+
+      const run = await runAll([cand("a"), cand("b")]);
+
+      expect(run).toMatchObject({ read: 2, complete: true, queued_embeddings: 0, errors: [] });
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining("failed to queue embeddings for 1 track(s)"),
+        expect.any(Error),
+      );
     });
   });
 });

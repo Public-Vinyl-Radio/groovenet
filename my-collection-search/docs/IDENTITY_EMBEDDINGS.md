@@ -164,6 +164,10 @@ reports counts without queuing anything.
 - `--type identity`: Only the identity embedding (default: identity and audio_vibe)
 - `--friend-id N`: Limit to specific friend/user
 - `--force`: Force re-embedding even if the source hash is unchanged
+- `--all`: Every track, regenerated whether or not anything changed (implies `--force`)
+- `--changed`: Every track, queued without `--force`, so the worker re-embeds only
+  those whose source text changed since their embedding (#1169). Use it after a
+  bulk metadata write that queued nothing, such as the first embedded-tags read.
 - `--release <id>` / `--track <ids>`: Narrow to one release or a comma-separated list of track ids
 - `--dry-run`: Report counts only, queue nothing
 - `--no-wait`: Queue and exit without waiting for it to finish
@@ -183,6 +187,9 @@ groovenet embeddings backfill --type identity --release 38278164 --force
 
 # Just see the counts first
 groovenet embeddings backfill --type identity --dry-run
+
+# Re-embed only what went stale (here: composers filled by `files tags`)
+groovenet embeddings backfill --changed --type identity,context --friend-id 6
 ```
 
 **Output**:

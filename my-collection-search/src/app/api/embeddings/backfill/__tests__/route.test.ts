@@ -89,6 +89,18 @@ describe("POST /api/embeddings/backfill", () => {
     );
   });
 
+  it("scope=changed lists every track but queues without force (#1169)", async () => {
+    repo.listTracksForBackfill.mockResolvedValue([{ track_id: "t1", friend_id: 6 }]);
+    await POST(post({ scope: "changed", friend_id: 6, types: ["identity"] }));
+
+    expect(repo.listTracksForBackfill).toHaveBeenCalledWith(
+      expect.objectContaining({ friend_id: 6, force: true }),
+    );
+    expect(queue.startBackfillRun).toHaveBeenCalledWith([
+      { track_id: "t1", friend_id: 6, kind: "identity", force: false },
+    ]);
+  });
+
   it("scope=release only fills what's missing unless force is set", async () => {
     await POST(post({ scope: "release", release_id: "rel-1" }));
     expect(repo.listTracksForBackfill).toHaveBeenCalledWith(

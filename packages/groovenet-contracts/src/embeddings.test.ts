@@ -15,7 +15,7 @@ import {
 describe("embedding contracts", () => {
   it("publishes the kind, scope and field enums", () => {
     expect(EMBEDDING_KINDS).toEqual(["identity", "audio_vibe", "context"]);
-    expect(EMBEDDING_BACKFILL_SCOPES).toEqual(["missing", "all", "release", "track"]);
+    expect(EMBEDDING_BACKFILL_SCOPES).toEqual(["missing", "all", "changed", "release", "track"]);
     expect(EMBEDDING_MODEL_FIELDS).toEqual(["target", "serving"]);
   });
 
