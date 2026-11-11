@@ -56,6 +56,7 @@ vi.mock("@/server/services/embeddingQueueService", () => ({
 
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { trackLyricsRepository } from "@/server/repositories/trackLyricsRepository";
 import { EmbeddedTagsBackfillService } from "../embeddedTagsBackfillService";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
@@ -258,4 +259,39 @@ describe("embedded tags (real Postgres)", () => {
       expect(enqueue).toHaveBeenCalledTimes(1);
     },
   );
+  dbTest("edited lyrics survive a forced re-read; cleared ones refill from the file", async () => {
+    makeAudio("edit.m4a", [...tag("lyrics", "from the file")]);
+    await insertTrack("edit", "edit.m4a");
+    const service = new EmbeddedTagsBackfillService();
+    const forcedRead = async () => {
+      const started = await service.start({ friend_id: friendId, force: true });
+      await vi.waitFor(async () =>
+        expect((await service.getRun(started.run_id))?.complete).toBe(true),
+      );
+    };
+
+    await forcedRead();
+    expect(await trackLyricsRepository.find("edit", friendId)).toMatchObject({
+      text: "from the file",
+      source: "embedded",
+    });
+
+    const saved = await trackLyricsRepository.saveUserLyrics("edit", friendId, "my words");
+    expect(saved).toMatchObject({ text: "my words", source: "user" });
+    await forcedRead();
+    expect(await trackLyricsRepository.find("edit", friendId)).toMatchObject({
+      text: "my words",
+      source: "user",
+    });
+
+    expect(await trackLyricsRepository.delete("edit", friendId)).toBe(true);
+    expect(await trackLyricsRepository.find("edit", friendId)).toBeNull();
+    expect(await trackLyricsRepository.delete("edit", friendId)).toBe(false);
+    await forcedRead();
+    expect(await trackLyricsRepository.find("edit", friendId)).toMatchObject({
+      text: "from the file",
+      source: "embedded",
+    });
+    expect(await trackLyricsRepository.findTrackLibrary("edit", friendId)).toBe(USERNAME);
+  });
 });

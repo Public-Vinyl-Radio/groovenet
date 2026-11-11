@@ -2,6 +2,7 @@
 
 import { Flex, Text } from "@chakra-ui/react";
 import { GenreBadgeList } from "@/components/GenreBadge";
+import { CategoryTag } from "@/components/ui/RoleTags";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import { useTrack } from "@/hooks/useTrack";
 import { discogsGenreBadges, trackGenreBadges, type GenreBadgeItem } from "@/lib/genres/links";
@@ -34,9 +35,19 @@ const tagCss = {
   },
 };
 
+const groupLabel = {
+  fontFamily: "label",
+  fontSize: "11px",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "fg.muted",
+  mx: 1,
+} as const;
+
 /**
  * The track's DJ genres, then its album's effective Discogs genres and styles,
- * each a link into track search (#376). One wrapping row for the track page
+ * each a link into track search (#376), then the genre the audio file declares
+ * (read-only: it refreshes from the file). One wrapping row for the track page
  * header; each genre shows once. Reads the store, so an edit shows at once.
  * Editing itself is the menu's Edit Track.
  */
@@ -54,6 +65,12 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
     seen,
   );
   const hasAlbum = discogsGenres.length > 0 || discogsStyles.length > 0;
+  // What the audio file's own tags say (#673): Apple/ID3 names, never a genre
+  // assignment, so plain tags rather than links, under a label naming the file.
+  const fileGenres = withoutSeen(
+    (track.audio_file_genre ?? []).map((label) => ({ label, slug: null })),
+    seen,
+  );
 
   return (
     <Flex
@@ -71,20 +88,26 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
         </Text>
       )}
       {hasAlbum && (
-        <Text
-          as="span"
-          fontFamily="label"
-          fontSize="11px"
-          letterSpacing="0.08em"
-          textTransform="uppercase"
-          color="fg.muted"
-          mx={1}
-        >
+        <Text as="span" {...groupLabel}>
           Album
         </Text>
       )}
       <GenreBadgeList items={discogsGenres} kind="discogs-genre" />
       <GenreBadgeList items={discogsStyles} kind="discogs-style" />
+      {fileGenres.length > 0 && (
+        <Text
+          as="span"
+          {...groupLabel}
+          title="Read from the audio file's tags; refreshes when the file is re-read"
+        >
+          Genre from file
+        </Text>
+      )}
+      {fileGenres.map((item) => (
+        <CategoryTag key={`file:${item.label}`} size="sm" data-testid="file-genre">
+          {item.label}
+        </CategoryTag>
+      ))}
     </Flex>
   );
 }

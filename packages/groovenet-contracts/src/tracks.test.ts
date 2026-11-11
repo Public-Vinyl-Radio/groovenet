@@ -6,6 +6,9 @@ import {
   isrcBackfillRequestSchema,
   isrcBackfillRunSchema,
   trackAudioFileFieldsSchema,
+  trackLyricsDeleteResponseSchema,
+  trackLyricsSchema,
+  trackLyricsUpdateRequestSchema,
 } from "./tracks.js";
 import { describe, expect, it } from "vitest";
 import {
@@ -434,5 +437,31 @@ describe("ISRC contracts (#1156)", () => {
     expect(isrcBackfillRunSchema.parse(run)).toEqual(run);
     expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRequest");
     expect(trackJsonSchemas).toHaveProperty("IsrcBackfillRun");
+  });
+});
+
+describe("track lyrics contracts (#1171)", () => {
+  it("describes stored lyrics with their source", () => {
+    const lyrics = { text: "la la", source: "user", updated_at: "2026-11-11T00:00:00.000Z" };
+    expect(trackLyricsSchema.parse(lyrics)).toEqual(lyrics);
+    expect(trackLyricsSchema.safeParse({ ...lyrics, source: "discogs" }).success).toBe(false);
+  });
+
+  it("refuses blank text, which DELETE clears instead", () => {
+    expect(trackLyricsUpdateRequestSchema.parse({ text: "verse" })).toEqual({ text: "verse" });
+    const blank = trackLyricsUpdateRequestSchema.safeParse({ text: "  \n " });
+    expect(blank.success).toBe(false);
+    expect(blank.error?.issues[0]?.message).toMatch(/DELETE clears/);
+    expect(trackLyricsUpdateRequestSchema.safeParse({}).success).toBe(false);
+    expect(trackLyricsUpdateRequestSchema.safeParse({ text: "a".repeat(100_001) }).success).toBe(
+      false,
+    );
+  });
+
+  it("publishes every shape", () => {
+    expect(trackLyricsDeleteResponseSchema.parse({ deleted: true })).toEqual({ deleted: true });
+    expect(trackJsonSchemas).toHaveProperty("TrackLyrics");
+    expect(trackJsonSchemas).toHaveProperty("TrackLyricsUpdateRequest");
+    expect(trackJsonSchemas).toHaveProperty("TrackLyricsDeleteResponse");
   });
 });

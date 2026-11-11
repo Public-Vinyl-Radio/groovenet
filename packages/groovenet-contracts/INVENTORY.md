@@ -211,6 +211,9 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/tracks/isrc/backfill/{runId}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
 | POST | `/api/tracks/{id}/audio-metadata` | tracks | contracts |  |
+| DELETE | `/api/tracks/{id}/lyrics` | tracks | contracts |  |
+| GET | `/api/tracks/{id}/lyrics` | tracks | contracts | Owner only: a friend's track is a 403 (#1171). |
+| PUT | `/api/tracks/{id}/lyrics` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/embedding-preview` | tracks | contracts | `type` enum shared; preview `data` is documented, not parsed at runtime (#606). |
 | GET | `/api/tracks/{id}/essentia` | tracks | contracts |  |
 | GET | `/api/tracks/{id}/playlists` | tracks | contracts |  |
