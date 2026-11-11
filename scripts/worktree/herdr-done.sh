@@ -61,9 +61,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-require_command git docker herdr jq
+require_command git docker jq
 
-if [[ "${HERDR_ENV:-}" != 1 ]]; then
+# Two front ends: the herdr TUI (HERDR_ENV=1) and the herdr app, whose
+# terminals run in herdr-core and carry HC_TERMINAL_ID.
+if [[ "${HERDR_ENV:-}" == 1 ]]; then
+  backend=tui
+  require_command herdr
+elif [[ -n "${HC_TERMINAL_ID:-}" ]] && command -v herdr-app >/dev/null 2>&1; then
+  backend=app
+else
   usage_error "Not inside herdr. Run this from a pane in the worktree's herdr workspace."
 fi
 
@@ -111,6 +118,32 @@ if [[ "$DELETE_BRANCH" == true ]]; then
   else
     echo "PR for $CURRENT_BRANCH is not merged (state: ${pr_state:-none}); not deleting the branch."
   fi
+fi
+
+if [[ "$backend" == app ]]; then
+  space_id="$(herdr-app ls | jq -r --arg t "$HC_TERMINAL_ID" \
+    '[.spaces[] | select(any(.tabs[].terminals[]; .terminal == $t)) | .id][0] // empty')"
+  [[ -n "$space_id" ]] || usage_error "Could not find the herdr space holding terminal $HC_TERMINAL_ID."
+
+  remove_args=()
+  [[ "$FORCE" == true ]] && remove_args=(--force)
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "Would run: git -C $main_worktree worktree remove ${remove_args[*]-} $REPO_ROOT"
+    [[ -z "$branch_to_delete" ]] || echo "Would run: git -C $main_worktree branch -D $branch_to_delete"
+    echo "Would run: herdr-app do space.close $space_id"
+    exit 0
+  fi
+
+  # Remove the checkout and branch first and close the space last: closing it
+  # ends this terminal, so nothing can run after it.
+  git -C "$main_worktree" worktree remove ${remove_args[@]+"${remove_args[@]}"} "$REPO_ROOT"
+  if [[ -n "$branch_to_delete" ]]; then
+    git -C "$main_worktree" branch -D "$branch_to_delete"
+  fi
+  echo "Closing herdr space $space_id ..."
+  herdr-app do space.close "$(jq -nc --arg id "$space_id" '{id: $id, confirmed: true}')"
+  exit 0
 fi
 
 workspace_id="${HERDR_WORKSPACE_ID:-}"
