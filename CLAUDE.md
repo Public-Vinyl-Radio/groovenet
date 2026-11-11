@@ -136,7 +136,11 @@ Production seed creation reads covers through the app container, independent
 of the host's Docker volume names. An explicit `PROD_SEED_COVERS_PATH` host-path
 override checks sudo access before dumping and prompts locally if needed.
 `latest` advances only after the database and covers
-have both finished copying. Existing worktree databases are preserved; to
+have both finished copying. Each worktree gets its own random `POSTGRES_PASSWORD` in its env file, so the
+stack starts even when 1Password is locked (only API-key features are then
+unavailable). A worktree whose db volume predates this keeps using the
+1Password password; `just worktree-purge` then `just worktree-up` switches it.
+Existing worktree databases are preserved; to
 recreate one from the current seed, run `just worktree-purge` then
 `just worktree-up` in that worktree. Purging deletes all of that worktree's
 Compose volumes, including its database.

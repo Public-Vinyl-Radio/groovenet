@@ -301,6 +301,71 @@ assert_eq "a compose failure under op is not retried without op" \
     '^docker compose ' "$(cat "$FAKE_LOG")"
 )
 
+# --- per-worktree Postgres password ---
+
+# Fake docker/op that record the POSTGRES_PASSWORD compose would see. The fake
+# op, like the real one, injects its own (1Password) value into `op run`.
+pw_bin="$TEST_TMP/bin-pw"
+mkdir -p "$pw_bin"
+cat >"$pw_bin/docker" <<'FAKE'
+#!/usr/bin/env bash
+if [[ "$1" == "volume" ]]; then
+  [[ "${FAKE_DB_VOLUME:-}" == "1" ]]
+  exit
+fi
+echo "compose pw=${POSTGRES_PASSWORD:-<unset>}" >>"$FAKE_LOG"
+FAKE
+cat >"$pw_bin/op" <<'FAKE'
+#!/usr/bin/env bash
+case "$1" in
+  whoami) exit "${FAKE_OP_WHOAMI_STATUS:-0}" ;;
+  run)
+    while [[ "$1" != "--" ]]; do shift; done
+    shift
+    exec env POSTGRES_PASSWORD=from-1password "$@"
+    ;;
+esac
+FAKE
+chmod +x "$pw_bin/docker" "$pw_bin/op"
+
+# pw_case <whoami-status> <db-volume 0|1> <env-file-has-password 0|1>
+pw_case() {
+  local log="$TEST_TMP/pw.log" state="$TEST_TMP/pw-state"
+  rm -rf "$state"
+  mkdir -p "$state"
+  : >"$log"
+  (
+    export PATH="$pw_bin:$PATH" FAKE_LOG="$log" COMPOSE_DIR="$TEST_TMP"
+    export FAKE_OP_WHOAMI_STATUS="$1" FAKE_DB_VOLUME="$2" WORKTREE_STATE_DIR="$state"
+    export WORKTREE_STATE_SCAN_DIRS="$state" WORKTREE_LOCK_DIR="$TEST_TMP/pw.lock"
+    if [[ "$3" == "1" ]]; then
+      create_worktree_env
+    else
+      printf 'COMPOSE_PROJECT_NAME=dj-legacy\nAPP_PORT=39900\nCOMPOSE_PROFILES=\n' >"$(worktree_env_file)"
+    fi
+    compose_exec up -d
+  ) >/dev/null 2>&1
+  stored="$(sed -n 's/^POSTGRES_PASSWORD=//p' "$state"/*.env)"
+  seen="$(sed -n 's/^compose pw=//p' "$log")"
+}
+
+pw_case 1 0 1
+assert_true "new worktree env file stores a 32-character POSTGRES_PASSWORD" \
+  "$([[ ${#stored} -eq 32 ]] && echo true || echo false)"
+assert_eq "with op locked, compose gets the worktree password" "$stored" "$seen"
+
+pw_case 0 0 1
+assert_true "with op available, the worktree password still wins over 1Password" \
+  "$([[ -n "$stored" && "$seen" == "$stored" && "$seen" != from-1password ]] && echo true || echo false)"
+
+pw_case 0 1 0
+assert_eq "existing-volume worktree gets no generated password" "" "$stored"
+assert_eq "existing-volume worktree keeps the 1Password password" "from-1password" "$seen"
+
+pw_case 1 0 0
+assert_true "env file without a password and no db volume gets one" \
+  "$([[ ${#stored} -eq 32 && "$seen" == "$stored" ]] && echo true || echo false)"
+
 failures="$(wc -l <"$FAIL_FILE" | tr -d ' ')"
 echo
 if ((failures == 0)); then
