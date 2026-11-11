@@ -19,7 +19,12 @@ import PageHeader from "@/components/layout/PageHeader";
 import type { Crumb } from "@/components/layout/Breadcrumbs";
 import { trackMeta } from "@/lib/entityMeta";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
-import { TrackPlaylistsSection, TrackHeader, TrackDebugModal } from "@/components/track-detail";
+import {
+  TrackPlaylistsSection,
+  TrackHeader,
+  TrackDebugModal,
+  TrackLyricsSection,
+} from "@/components/track-detail";
 
 export default function TrackPage() {
   const params = useParams<{ id: string }>();
@@ -147,6 +152,8 @@ export default function TrackPage() {
               />
 
               <TrackPlaylistsSection query={playlistsQuery} />
+
+              <TrackLyricsSection trackId={trackId} friendId={friendId} />
 
               <RelatedTracksSection track={trackQuery.data} />
 

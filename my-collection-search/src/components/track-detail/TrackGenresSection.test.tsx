@@ -72,6 +72,26 @@ describe("TrackGenresSection", () => {
     expect(screen.getByText("Latin")).toBeTruthy();
   });
 
+  it("labels the file's genre as from the file, as plain tags shown once", () => {
+    renderSection({
+      track_genres: [
+        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: "latin", parent_name: "Latin" },
+      ],
+      genres: [],
+      styles: [],
+      audio_file_genre: ["Latin Pop", "cumbia"],
+    });
+
+    expect(screen.getByText("Genre from file")).toBeTruthy();
+    const tags = screen.getAllByTestId("file-genre");
+    expect(tags.map((tag) => tag.textContent)).toEqual(["Latin Pop"]);
+    expect(tags[0].closest("a")).toBeNull();
+  });
+
+  it("has no file label when the file declares no genre", () => {
+    renderSection({ audio_file_genre: null });
+    expect(screen.queryByText("Genre from file")).toBeNull();
+  });
   it("is one inline row, not a card with a heading", () => {
     renderSection({ track_genres: [], local_tags: undefined, genres: [], styles: [] });
     expect(screen.queryByRole("heading")).toBeNull();

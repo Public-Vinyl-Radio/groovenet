@@ -69,6 +69,11 @@ vi.mock("@/components/TrackActionsMenu", () => ({
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
+  TrackLyricsSection: (props: { trackId: string; friendId: number }) => (
+    <div data-testid="lyrics-section">
+      {props.trackId}:{props.friendId}
+    </div>
+  ),
   TrackHeader: (props: {
     showUsername?: boolean;
     onChangeArtwork?: () => void;
@@ -99,6 +104,11 @@ beforeEach(() => {
 });
 
 describe("TrackPage", () => {
+  it("shows the lyrics panel for the track", () => {
+    renderWithProviders(<TrackPage />);
+    expect(screen.getByTestId("lyrics-section").textContent).toBe("t1:6");
+  });
+
   it("hands the debug modal the context embedding preview", () => {
     renderWithProviders(<TrackPage />);
     expect(modalProps).toHaveBeenCalledWith(

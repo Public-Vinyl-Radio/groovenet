@@ -289,6 +289,43 @@ export const trackPlaylistsResponseSchema = z.object({
   playlists: z.array(trackPlaylistMembershipSchema).optional(),
 });
 
+/**
+ * Who wrote a track's lyrics (#1171): `embedded` came from the audio file and
+ * a re-read refreshes it; `user` was typed in and a re-read never touches it.
+ */
+export const trackLyricsSourceSchema = z.enum(["embedded", "user"]);
+
+/** `GET /api/tracks/{id}/lyrics`: owner-only, 404 when the track has none. */
+export const trackLyricsSchema = z.object({
+  text: z.string(),
+  source: trackLyricsSourceSchema,
+  updated_at: z.string().meta({ description: "ISO 8601 timestamp" }),
+});
+
+/**
+ * `PUT /api/tracks/{id}/lyrics` stores the text as `source = 'user'`. Blank text
+ * is refused: clearing is `DELETE`, which drops the row so the next tag read can
+ * fill it from the file again.
+ */
+export const trackLyricsUpdateRequestSchema = z.object({
+  text: z
+    .string()
+    .max(100_000)
+    .refine((text) => text.trim().length > 0, {
+      message: "text must not be blank; DELETE clears lyrics",
+    }),
+});
+
+/** `DELETE /api/tracks/{id}/lyrics`: `deleted` is false when there was nothing to clear. */
+export const trackLyricsDeleteResponseSchema = z.object({
+  deleted: z.boolean(),
+});
+
+export type TrackLyricsSource = z.infer<typeof trackLyricsSourceSchema>;
+export type TrackLyrics = z.infer<typeof trackLyricsSchema>;
+export type TrackLyricsUpdateRequest = z.infer<typeof trackLyricsUpdateRequestSchema>;
+export type TrackLyricsDeleteResponse = z.infer<typeof trackLyricsDeleteResponseSchema>;
+
 export const trackAudioMetadataEmbeddedCoverSchema = z
   .object({
     index: z.number().int(),
@@ -488,6 +525,9 @@ export const trackJsonSchemas = {
   TrackPlaylistCountsRequest: z.toJSONSchema(trackPlaylistCountsRequestSchema),
   TrackPlaylistCountsResponse: z.toJSONSchema(trackPlaylistCountsResponseSchema),
   TrackPlaylistsResponse: z.toJSONSchema(trackPlaylistsResponseSchema),
+  TrackLyrics: z.toJSONSchema(trackLyricsSchema),
+  TrackLyricsUpdateRequest: z.toJSONSchema(trackLyricsUpdateRequestSchema, { io: "input" }),
+  TrackLyricsDeleteResponse: z.toJSONSchema(trackLyricsDeleteResponseSchema),
   TrackAudioMetadata: z.toJSONSchema(trackAudioMetadataSchema),
   AudioMetadataBackfillRequest: z.toJSONSchema(audioMetadataBackfillRequestSchema, {
     io: "input",

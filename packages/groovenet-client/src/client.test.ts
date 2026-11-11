@@ -318,6 +318,45 @@ describe("GroovenetClient track endpoints", () => {
     });
   });
 
+  it("getTrackLyrics returns the lyrics, or null on a 404", async () => {
+    const lyrics = { text: "verse", source: "user", updated_at: "2026-11-11T00:00:00.000Z" };
+    requestMock.mockResolvedValueOnce({ status: 200, data: lyrics });
+    const client = new GroovenetClient({ baseUrl: "https://example.test" });
+
+    await expect(client.getTrackLyrics("a/b", 3)).resolves.toEqual(lyrics);
+    const config = requestMock.mock.calls[0][0];
+    expect(config).toMatchObject({
+      method: "GET",
+      url: "/tracks/a%2Fb/lyrics",
+      params: { friend_id: 3 },
+    });
+    expect(config.validateStatus(404)).toBe(true);
+    expect(config.validateStatus(403)).toBe(false);
+
+    requestMock.mockResolvedValueOnce({ status: 404, data: { error: "No lyrics for this track" } });
+    await expect(client.getTrackLyrics("t1", 3)).resolves.toBeNull();
+  });
+
+  it("setTrackLyrics PUTs the text and deleteTrackLyrics DELETEs", async () => {
+    const client = clientReturning({ deleted: true });
+
+    await client.setTrackLyrics("t1", 3, "my verse");
+    expect(requestMock).toHaveBeenLastCalledWith({
+      method: "PUT",
+      url: "/tracks/t1/lyrics",
+      data: { text: "my verse" },
+      params: { friend_id: 3 },
+    });
+
+    await expect(client.deleteTrackLyrics("t1", 3)).resolves.toEqual({ deleted: true });
+    expect(requestMock).toHaveBeenLastCalledWith({
+      method: "DELETE",
+      url: "/tracks/t1/lyrics",
+      data: undefined,
+      params: { friend_id: 3 },
+    });
+  });
+
   it("updateTrack merges the updates into the PATCH body", async () => {
     const client = clientReturning({ track_id: "t1" });
 
