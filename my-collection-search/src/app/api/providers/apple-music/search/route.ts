@@ -1,33 +1,7 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { generateAppleMusicDeveloperToken } from "@/server/services/appleMusicCatalogService";
 
 const APPLE_MUSIC_API_URL = "https://api.music.apple.com/v1/catalog/us/search";
-
-function generateAppleMusicDeveloperToken() {
-  const teamId = process.env.APPLE_MUSIC_TEAM_ID;
-  const keyId = process.env.APPLE_MUSIC_KEY_ID;
-  const privateKeyRaw = process.env.APPLE_MUSIC_PRIVATE_KEY;
-  if (!teamId || !keyId || !privateKeyRaw) {
-    throw new Error(
-      "Missing Apple Music credentials (APPLE_MUSIC_TEAM_ID, APPLE_MUSIC_KEY_ID, or APPLE_MUSIC_PRIVATE_KEY)",
-    );
-  }
-  const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: teamId,
-    iat: now,
-    exp: now + 60 * 60 * 24 * 180, // 6 months
-  };
-  const header = {
-    alg: "ES256",
-    kid: keyId,
-  };
-  return jwt.sign(payload, privateKey, {
-    algorithm: "ES256",
-    header,
-  });
-}
 
 interface SongAttributes {
   name: string;

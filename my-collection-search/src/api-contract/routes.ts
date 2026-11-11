@@ -4,6 +4,8 @@ import {
   audioMetadataBackfillRunSchema,
   embeddedTagsBackfillRequestSchema,
   embeddedTagsBackfillRunSchema,
+  isrcBackfillRequestSchema,
+  isrcBackfillRunSchema,
 } from "@groovenet/contracts";
 import {
   homeQuerySchema,
@@ -1253,6 +1255,67 @@ const embeddedTagsBackfillContracts: ApiContractRoute[] = [
         "200": {
           description: "Run counters",
           content: { "application/json": { schema: componentRef("EmbeddedTagsBackfillRun") } },
+        },
+        "404": {
+          description: "Run not found or expired",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const isrcBackfillContracts: ApiContractRoute[] = [
+  {
+    operationId: "startIsrcBackfill",
+    method: "post",
+    path: "/api/tracks/isrc/backfill",
+    summary: "Resolve and store the ISRC of every track with an Apple Music link",
+    tags: ["Tracks"],
+    bodySchema: isrcBackfillRequestSchema,
+    successSchema: isrcBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: componentRef("IsrcBackfillRequest") },
+        },
+      },
+      responses: {
+        "202": {
+          description: "Run started; poll the run for progress",
+          content: { "application/json": { schema: componentRef("IsrcBackfillRun") } },
+        },
+        "400": {
+          description: "Invalid request",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+  {
+    operationId: "getIsrcBackfillRun",
+    method: "get",
+    path: "/api/tracks/isrc/backfill/{runId}",
+    summary: "Progress and report for one ISRC backfill",
+    tags: ["Tracks"],
+    successSchema: isrcBackfillRunSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      parameters: buildPathParameters("/api/tracks/isrc/backfill/{runId}"),
+      responses: {
+        "200": {
+          description: "Run counters",
+          content: { "application/json": { schema: componentRef("IsrcBackfillRun") } },
         },
         "404": {
           description: "Run not found or expired",
@@ -6705,6 +6768,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...fingerprintContracts,
   ...audioMetadataBackfillContracts,
   ...embeddedTagsBackfillContracts,
+  ...isrcBackfillContracts,
   ...embeddingsBackfillContracts,
   ...embeddingsQueueContracts,
   ...embeddingModelSettingsContracts,

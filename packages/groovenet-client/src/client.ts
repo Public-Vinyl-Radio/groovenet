@@ -89,6 +89,8 @@ import type {
   AudioMetadataBackfillRun,
   EmbeddedTagsBackfillRequest,
   EmbeddedTagsBackfillRun,
+  IsrcBackfillRequest,
+  IsrcBackfillRun,
   FingerprintIndexRequest,
   FingerprintIndexRun,
   EmbeddingBackfillRequest,
@@ -926,6 +928,24 @@ export class GroovenetClient {
     return this.request<EmbeddedTagsBackfillRun>(
       "GET",
       `/tracks/embedded-tags/backfill/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  // ── ISRC (#1156) ───────────────────────────────────────────────────────────
+
+  /**
+   * Resolve the ISRC of every track with an Apple Music link. Returns at once;
+   * poll `getIsrcBackfillRun`.
+   */
+  async startIsrcBackfill(request: IsrcBackfillRequest = {}): Promise<IsrcBackfillRun> {
+    return this.request<IsrcBackfillRun>("POST", "/tracks/isrc/backfill", request);
+  }
+
+  /** Counters for one ISRC backfill. */
+  async getIsrcBackfillRun(runId: string): Promise<IsrcBackfillRun> {
+    return this.request<IsrcBackfillRun>(
+      "GET",
+      `/tracks/isrc/backfill/${encodeURIComponent(runId)}`,
     );
   }
 

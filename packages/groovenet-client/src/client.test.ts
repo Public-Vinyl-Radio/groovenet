@@ -1422,6 +1422,38 @@ describe("GroovenetClient embedded tags endpoints (#673)", () => {
   });
 });
 
+describe("GroovenetClient ISRC endpoints (#1156)", () => {
+  it("starts a backfill with an empty request by default", async () => {
+    const client = clientReturning({ run_id: "run-1", total: 3 });
+    expect((await client.startIsrcBackfill()).total).toBe(3);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/tracks/isrc/backfill",
+      data: {},
+      params: undefined,
+    });
+  });
+
+  it("forwards limit and dry_run", async () => {
+    const client = clientReturning({});
+    await client.startIsrcBackfill({ limit: 5, dry_run: true });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { limit: 5, dry_run: true } }),
+    );
+  });
+
+  it("reads a run and escapes its id", async () => {
+    const client = clientReturning({ run_id: "r", filled: 4 });
+    expect((await client.getIsrcBackfillRun("r/../x")).filled).toBe(4);
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "GET",
+      url: "/tracks/isrc/backfill/r%2F..%2Fx",
+      data: undefined,
+      params: undefined,
+    });
+  });
+});
+
 describe("GroovenetClient embeddings endpoints (#388)", () => {
   it("starts a backfill run with defaults when called with no request", async () => {
     const client = clientReturning({ run_id: "run-1", queued: 5 });
