@@ -75,6 +75,20 @@ M4 Pro, warm model: about 2 s per track on the GPU and about 4 s CPU-only
 sample). A shipped design must pin summaries to the host and backend that
 made them, or accept that a re-summarise elsewhere changes source hashes.
 
+## Snapshot
+
+| Field                   | Tracks (of 4,063)        |
+| ----------------------- | ------------------------ |
+| composer                | 3,551 (87%)              |
+| `audio_file_genre`      | 3,809 (94%)              |
+| lyrics                  | 2,444 (60%)              |
+| distinct lyric texts    | 2,399                    |
+| lyrics over 6,000 chars | 2 (cut before prompting) |
+
+414 albums, 35 playlists. Lyrics are a median of 1,014 characters (p90
+1,914). This is a new snapshot, so its numbers are not directly comparable to
+#379/#382's; `I0` and `C0` are re-measured here as the baselines.
+
 ## Reproduce
 
 Node 26+. `S` is the private #379/#382 data directory. Pass every earlier
@@ -127,9 +141,8 @@ and per-query comparisons against `I0`/`C0` use a seeded 95% bootstrap.
       `--lyrics` adds owner-only lyrics. It fails if no track returns lyrics,
       because a server without the route reads as "no lyrics" for every track.
 - [x] Summariser, variant builders, scoring and review tools, with tests.
-- [ ] **Snapshot waiting on deploy.** On 2026-11-11, production runs
-      `sha-faf3a62` (#1167), which predates #1176: `/api/tracks/{id}/lyrics`
-      returns the Next.js HTML 404. Search already serves `composer` and
-      `audio_file_genre`.
+- [x] Snapshot: exported 2026-11-11 from `sha-6a68c4b` (which includes
+      #1176), friend 6. SHA-256
+      `d0ffee14ff56345807884e838187259871d2e4b6fd973791625e0b6ea6f5d1a0`.
 - [x] Local model: `qwen3.5:9b-q4_K_M` installed and smoke-tested.
 - [ ] Summaries, quality review, retrieval results, go / no-go.
