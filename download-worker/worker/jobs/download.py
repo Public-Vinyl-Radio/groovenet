@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import time
 import traceback
+from urllib.parse import urlparse
 
 from ..audio_utils import cleanup_download_directory
 from ..config import logger
@@ -41,6 +42,44 @@ def resolve_gamdl_cookie_file() -> str | None:
     return configured_path
 
 
+# gamdl 3.x has no quality flag: what you get is chosen by --song-codec-priority,
+# and its default (aac-web) is already the best lossy stream. ALAC is FairPlay
+# protected and only decrypts through a wrapper-v2 sidecar (#1147), so lossless
+# is requested only when one is configured; every other setting gets the default.
+LOSSLESS_CODEC_PRIORITY = "alac,aac-web"
+
+
+def gamdl_wrapper_args() -> list[str]:
+    """gamdl's --use-wrapper flags, or [] when GAMDL_WRAPPER_URL is unset."""
+    wrapper_url = (os.getenv("GAMDL_WRAPPER_URL") or "").strip()
+    if not wrapper_url:
+        return []
+
+    # gamdl defaults the TCP decrypt host to 127.0.0.1, which is wrong for a
+    # sidecar container, so fall back to the host in the wrapper's URL.
+    decrypt_host = (os.getenv("GAMDL_WRAPPER_DECRYPT_HOST") or "").strip() or urlparse(wrapper_url).hostname
+    args = ["--use-wrapper", "--wrapper-url", wrapper_url]
+    if decrypt_host:
+        args.extend(["--wrapper-decrypt-host", decrypt_host])
+    decrypt_port = (os.getenv("GAMDL_WRAPPER_DECRYPT_PORT") or "").strip()
+    if decrypt_port:
+        args.extend(["--wrapper-decrypt-port", decrypt_port])
+    return args
+
+
+def gamdl_quality_args(quality: str) -> list[str]:
+    """Map the gamdl_settings audio_quality value onto gamdl 3.9 options."""
+    if quality != "lossless":
+        return []
+
+    wrapper_args = gamdl_wrapper_args()
+    if not wrapper_args:
+        logger.warning("Lossless requested but GAMDL_WRAPPER_URL is not set; downloading AAC")
+        return []
+
+    return [*wrapper_args, "--song-codec-priority", LOSSLESS_CODEC_PRIORITY]
+
+
 def has_download_urls(job_data: JobData) -> bool:
     for key in ["apple_music_url", "youtube_url", "soundcloud_url"]:
         value = job_data.get(key)
@@ -70,8 +109,7 @@ def download_with_gamdl(
             "--no-exceptions",
         ]
 
-        if quality != "best":
-            cmd.extend(["--audio-quality", quality])
+        cmd.extend(gamdl_quality_args(quality))
 
         cookie_file = resolve_gamdl_cookie_file()
         if cookie_file:

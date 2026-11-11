@@ -78,7 +78,11 @@ failed. The download job still completes with `analysis_status: 'queued'` and
 `analysis_job_id`; if the enqueue itself fails it is sent to Sentry and the job
 completes with `analysis_status: 'failed'` and `analysis_error`.
 
-Audio quality is one of `best`, `high`, `standard`, `lossless`.
+Audio quality is one of `best`, `high`, `standard`, `lossless`. gamdl 3.x has
+no quality flag, so `gamdl_quality_args` passes nothing for the first three
+(gamdl's default `aac-web`, 256 kbps AAC). `lossless` becomes `--use-wrapper ...
+--song-codec-priority alac,aac-web` only when `GAMDL_WRAPPER_URL` names a
+wrapper-v2 sidecar; without one it is AAC too. See `docs/lossless-alac.md`.
 
 ## Talking to the app
 
