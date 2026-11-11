@@ -643,16 +643,37 @@ const remainingTracksContracts: ApiContractRoute[] = [
                 file: { type: "string" },
                 track_id: { type: "string" },
                 local_audio_url: { type: "string" },
-                format: { type: "string" },
+                format: {
+                  type: "string",
+                  description:
+                    "Extension of the stored file, chosen from the audio itself: lossless uploads are stored as flac, lossy ones in their original container.",
+                },
+                lossless: { type: "boolean" },
                 analysis: { type: "object", additionalProperties: true },
               },
-              required: ["success", "file", "track_id", "local_audio_url", "format", "analysis"],
+              required: [
+                "success",
+                "file",
+                "track_id",
+                "local_audio_url",
+                "format",
+                "lossless",
+                "analysis",
+              ],
             },
           },
         },
       },
       "400": {
-        description: "Invalid upload payload",
+        description: "Invalid upload payload, or a file that is not readable audio",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "404": {
+        description: "Track not found",
+        content: { "application/json": { schema: errorResponseSchemaObject } },
+      },
+      "415": {
+        description: "Lossy audio in a container the app does not serve",
         content: { "application/json": { schema: errorResponseSchemaObject } },
       },
       "500": {

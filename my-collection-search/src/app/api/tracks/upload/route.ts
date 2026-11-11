@@ -2,7 +2,8 @@ import { serviceNotRunning } from "@/lib/serviceConnection";
 import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { exec } from "child_process";
+import { randomUUID } from "crypto";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeEssentiaAnalysis } from "@/lib/essentia-storage";
 import { extractBpmConfidence, type EssentiaRhythm } from "@/lib/essentiaBpm";
@@ -13,10 +14,14 @@ import {
 } from "@/lib/essentiaKey";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { embeddingQueueService } from "@/server/services/embeddingQueueService";
+import { trackAudioMetadataService } from "@/server/services/trackAudioMetadataService";
+import { uploadStorageFor, type UploadStorage } from "@/server/services/uploadAudioFormat";
 
 export const runtime = "nodejs"; // Ensure Node.js runtime for file system access
 
-const execAsync = promisify(exec);
+// execFile, never exec: arguments go to ffmpeg as an array, so nothing in an
+// upload can reach a shell (#1155).
+const execFileAsync = promisify(execFile);
 
 type AnalysisResult = {
   rhythm?: EssentiaRhythm;
@@ -99,6 +104,45 @@ function persistRawAnalysis(
   }
 }
 
+/** Lossless to FLAC, keeping tags and an embedded cover. */
+function flacArgs(input: string, output: string): string[] {
+  return [
+    "-y",
+    "-i",
+    input,
+    "-map",
+    "0:a:0",
+    "-map",
+    "0:v?",
+    "-map_metadata",
+    "0",
+    "-c:a",
+    "flac",
+    "-c:v",
+    "copy",
+    output,
+  ];
+}
+
+async function storeUpload(storage: UploadStorage, uploadPath: string, dest: string) {
+  if (storage.action === "keep") {
+    // Copy, not rename: the audio directory is usually a separate volume.
+    await fs.copyFile(uploadPath, dest);
+  } else {
+    await execFileAsync("ffmpeg", flacArgs(uploadPath, dest));
+  }
+}
+
+async function removeIfPresent(filePath: string) {
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      console.warn("Cleanup warning:", err);
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   // Parse multipart form data
   const formData = await req.formData();
@@ -113,119 +157,107 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing file or track_id" }, { status: 400 });
   }
 
-  // Save file to /tmp or a desired directory
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // track_id is client input: it must name a track before anything uses it.
+  const existing = await trackRepository.findTracksByTrackId(track_id);
+  if (!existing || existing.length === 0) {
+    return NextResponse.json({ error: "Track not found" }, { status: 404 });
+  }
 
+  // Every path below is generated; neither file.name nor track_id is part of one.
+  const baseName = `audio_${Date.now()}_${randomUUID()}`;
   const tmpDir = path.join(process.cwd(), "tmp", "uploads");
-  await fs.mkdir(tmpDir, { recursive: true });
-  const filePath = path.join(tmpDir, `${track_id}_${file.name}`);
-  await fs.writeFile(filePath, buffer);
-
-  // Generate base name for this upload
-  const baseName = `audio_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
-  // Convert to wav for Essentia and save in audio directory for public access
-  const audioDir = path.join(process.cwd(), "audio");
-  await fs.mkdir(audioDir, { recursive: true });
+  const audioDir = process.env.AUDIO_DIR || path.join(process.cwd(), "audio");
+  const uploadPath = path.join(tmpDir, `${baseName}.upload`);
   const wavFileName = `${baseName}.wav`;
   const wavDest = path.join(audioDir, wavFileName);
-  try {
-    await execAsync(`ffmpeg -y -i "${filePath}" -ac 1 "${wavDest}"`);
-  } catch (err) {
-    return NextResponse.json(
-      { error: "ffmpeg conversion failed", details: String(err) },
-      { status: 500 },
-    );
-  }
-
-  // Call Essentia API using the wav file
-  let analysisResult: AnalysisResult;
-  try {
-    const essentiaApiUrl = process.env.ESSENTIA_API_URL || "http://essentia:8001/analyze";
-    const fileUrl = `http://app:3000/api/audio?filename=${encodeURIComponent(wavFileName)}`;
-    const res = await fetch(essentiaApiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: fileUrl }),
-    });
-    const responseText = await res.json();
-    if (!res.ok) {
-      throw new Error(`Essentia API error: ${res.status} ${JSON.stringify(responseText)}`);
-    }
-    analysisResult = responseText;
-  } catch (err) {
-    if (serviceNotRunning(err)) {
-      return NextResponse.json({ error: "Essentia service not running" }, { status: 503 });
-    }
-    return NextResponse.json(
-      {
-        error: `Essentia API call failed: ${err instanceof Error ? err.message : String(err)}`,
-      },
-      { status: 500 },
-    );
-  }
-
-  // Convert and save as m4a (192kbps) to audio directory for playback
-  let audioFileName = `${baseName}.m4a`;
-  let audioDest = path.join(audioDir, audioFileName);
-  let conversionFormat = "m4a";
 
   try {
-    // Try with libfdk_aac first (better quality), fallback to aac if not available
+    await fs.mkdir(tmpDir, { recursive: true });
+    await fs.mkdir(audioDir, { recursive: true });
+    await fs.writeFile(uploadPath, Buffer.from(await file.arrayBuffer()));
+
+    // What is stored is decided from the content, never the filename.
+    let storage: UploadStorage | null;
     try {
-      await execAsync(`ffmpeg -y -i "${filePath}" -c:a libfdk_aac -b:a 192k "${audioDest}"`);
-    } catch (libfdkError) {
-      console.warn("libfdk_aac not available, falling back to aac codec", libfdkError);
-      await execAsync(`ffmpeg -y -i "${filePath}" -c:a aac -b:a 192k "${audioDest}"`);
+      storage = uploadStorageFor(await trackAudioMetadataService.runFfprobe(uploadPath));
+    } catch {
+      return NextResponse.json({ error: "File is not readable audio" }, { status: 400 });
     }
-  } catch (err) {
-    console.error("ffmpeg m4a conversion error:", err);
-    // If m4a conversion fails, try to save as mp3 instead
-    audioFileName = `${baseName}.mp3`;
-    audioDest = path.join(audioDir, audioFileName);
-    conversionFormat = "mp3";
+    if (!storage) {
+      return NextResponse.json({ error: "Unsupported audio format" }, { status: 415 });
+    }
 
+    // Mono WAV for Essentia, served to it through /api/audio.
     try {
-      await execAsync(`ffmpeg -y -i "${filePath}" -c:a libmp3lame -b:a 192k "${audioDest}"`);
-      console.warn(`Used MP3 instead of M4A for ${track_id}`);
-    } catch (mp3Error) {
+      await execFileAsync("ffmpeg", ["-y", "-i", uploadPath, "-ac", "1", wavDest]);
+    } catch (err) {
+      return NextResponse.json(
+        { error: "ffmpeg conversion failed", details: String(err) },
+        { status: 500 },
+      );
+    }
+
+    let analysisResult: AnalysisResult;
+    try {
+      const essentiaApiUrl = process.env.ESSENTIA_API_URL || "http://essentia:8001/analyze";
+      const fileUrl = `http://app:3000/api/audio?filename=${encodeURIComponent(wavFileName)}`;
+      const res = await fetch(essentiaApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: fileUrl }),
+      });
+      const responseText = await res.json();
+      if (!res.ok) {
+        throw new Error(`Essentia API error: ${res.status} ${JSON.stringify(responseText)}`);
+      }
+      analysisResult = responseText;
+    } catch (err) {
+      if (serviceNotRunning(err)) {
+        return NextResponse.json({ error: "Essentia service not running" }, { status: 503 });
+      }
       return NextResponse.json(
         {
-          error: "Audio conversion failed (tried m4a and mp3)",
-          m4a_error: String(err),
-          mp3_error: String(mp3Error),
+          error: `Essentia API call failed: ${err instanceof Error ? err.message : String(err)}`,
         },
         { status: 500 },
       );
     }
+
+    const local_audio_url = `${baseName}.${storage.extension}`;
+    const audioDest = path.join(audioDir, local_audio_url);
+    try {
+      await storeUpload(storage, uploadPath, audioDest);
+    } catch (err) {
+      console.error("Storing the uploaded audio failed:", err);
+      await removeIfPresent(audioDest);
+      return NextResponse.json(
+        { error: "Storing the uploaded audio failed", details: String(err) },
+        { status: 500 },
+      );
+    }
+
+    // Update database
+    let friendIds: number[] = [];
+    try {
+      friendIds = await processAudioFile(local_audio_url, track_id, friendId, analysisResult);
+    } catch (err) {
+      console.warn("Could not update track with local_audio_url:", err);
+    }
+
+    // After the DB update so a file error can never undo it.
+    persistRawAnalysis(track_id, friendIds, friendId, analysisResult);
+
+    return NextResponse.json({
+      success: true,
+      file: file.name,
+      track_id,
+      analysis: analysisResult,
+      local_audio_url,
+      format: storage.extension,
+      lossless: storage.lossless,
+    });
+  } finally {
+    await removeIfPresent(uploadPath);
+    await removeIfPresent(wavDest);
   }
-
-  const local_audio_url = audioFileName;
-
-  // Clean up temp files (but keep the final audio file)
-  try {
-    if (filePath && (await fs.stat(filePath)).isFile()) await fs.unlink(filePath);
-    if (wavDest && (await fs.stat(wavDest)).isFile()) await fs.unlink(wavDest);
-  } catch (cleanupErr) {
-    console.warn("Cleanup warning:", cleanupErr);
-  }
-
-  // Update database
-  let friendIds: number[] = [];
-  try {
-    friendIds = await processAudioFile(local_audio_url, track_id, friendId, analysisResult);
-  } catch (err) {
-    console.warn("Could not update track with local_audio_url:", err);
-  }
-
-  // After the DB update so a file error can never undo it.
-  persistRawAnalysis(track_id, friendIds, friendId, analysisResult);
-
-  return NextResponse.json({
-    success: true,
-    file: file.name,
-    track_id,
-    analysis: analysisResult,
-    local_audio_url,
-    format: conversionFormat,
-  });
 }

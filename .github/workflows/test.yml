@@ -115,9 +115,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Ingest tests skip without ffprobe. Assert the image still supplies it.
-      - name: Verify ffprobe is available
-        run: ffprobe -version
+      # Ingest and upload tests skip without ffprobe and ffmpeg. Assert the
+      # image still supplies both.
+      - name: Verify ffprobe and ffmpeg are available
+        run: |
+          ffprobe -version
+          ffmpeg -version
 
       # Coverage executes the full suite; a second plain test run duplicates it.
       # CI needs only lcov (Codecov) and json-summary, and passing tests' output
