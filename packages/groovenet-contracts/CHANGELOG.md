@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.9.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.8.0...groovenet-contracts-v1.9.0) (2026-11-11)
+
+
+### Features
+
+* **artists:** grouped A–Z list with a jump index ([#1158](https://github.com/Public-Vinyl-Radio/groovenet/issues/1158)) ([7bb6682](https://github.com/Public-Vinyl-Radio/groovenet/commit/7bb66823848887bef63f10ffe203293c22cb755a))
+* **cli:** guided split in artists review ([#1159](https://github.com/Public-Vinyl-Radio/groovenet/issues/1159)) ([a03ed77](https://github.com/Public-Vinyl-Radio/groovenet/commit/a03ed77ca65215b82447f60d0c60ed2f49f922f7))
+* **settings:** offer mono fonts for body text ([#1165](https://github.com/Public-Vinyl-Radio/groovenet/issues/1165)) ([3146679](https://github.com/Public-Vinyl-Radio/groovenet/commit/3146679d21d1ef7115c65ddb264fb1cf454adaa8))
+* **tracks:** backfill and store ISRC for tracks with an Apple Music link ([#1166](https://github.com/Public-Vinyl-Radio/groovenet/issues/1166)) ([43e83ec](https://github.com/Public-Vinyl-Radio/groovenet/commit/43e83ec22e1a7e9df9ee4385d5b7c3aea51fadec))
+* **tracks:** import composer, genre and lyrics from embedded tags ([#1164](https://github.com/Public-Vinyl-Radio/groovenet/issues/1164)) ([0b6d57c](https://github.com/Public-Vinyl-Radio/groovenet/commit/0b6d57c982026d39276913d3c3594395f5a1f956))
+
 ## [1.8.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.7.0...groovenet-contracts-v1.8.0) (2026-11-09)
 
 
