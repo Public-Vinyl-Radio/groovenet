@@ -381,6 +381,7 @@ describe("embedded tags contracts (#673)", () => {
       with_composer: 2,
       with_genre: 2,
       with_lyrics: 0,
+      queued_embeddings: 2,
       errors: [],
       started_at: 1,
       updated_at: 2,

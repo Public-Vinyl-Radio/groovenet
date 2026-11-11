@@ -40,6 +40,7 @@ function sleep(ms: number): Promise<void> {
 export interface EmbeddingsBackfillOptions {
   missing?: boolean;
   all?: boolean;
+  changed?: boolean;
   release?: string;
   track?: string;
   type?: string;
@@ -67,6 +68,7 @@ export function resolveBackfillRequest(opts: EmbeddingsBackfillOptions): Embeddi
   const chosen = [
     opts.missing ? "missing" : null,
     opts.all ? "all" : null,
+    opts.changed ? "changed" : null,
     opts.track ? "track" : null,
     opts.release ? "release" : null,
   ].filter((scope): scope is string => scope !== null);
@@ -262,6 +264,7 @@ export function addEmbeddingsCommands(program: Command): void {
     .description("Queue missing embeddings for background generation")
     .option("--missing", "Only tracks with no embedding yet (default)")
     .option("--all", "Every track, regenerating even what's already embedded")
+    .option("--changed", "Every track, regenerating only what's changed since it was embedded")
     .option("--release <id>", "Every track on one release")
     .option("--track <ids>", "One or more track ids, comma-separated")
     .option("--type <kinds>", "identity, audio_vibe, context — comma-separated (default: all)")

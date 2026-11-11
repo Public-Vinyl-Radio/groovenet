@@ -4,8 +4,9 @@
  * What a mocked `dbQuery` cannot prove: the migration's foreign key and CHECK,
  * the `ON CONFLICT ... WHERE source = 'embedded'` guard that protects a user's
  * lyrics, the composer fill-only-when-empty rule, the text[] genre column kept
- * apart from `local_tags`, and the backfill's candidate query. Redis is a
- * counter map. Run with `just backfill-test`.
+ * apart from `local_tags`, the backfill's candidate query, and which rows the
+ * composer UPDATE actually filled (#1169). Redis is a counter map and the
+ * embedding queue a spy. Run with `just backfill-test`.
  */
 import { execFileSync } from "child_process";
 import fs from "fs";
@@ -41,11 +42,17 @@ vi.mock("@/lib/redis", () => {
     getRedisConnection: () => ({
       multi: pipeline,
       pipeline,
+      hincrby: async (k: string, f: string, n: number) => pipeline().hincrby(k, f, n),
       hgetall: async (k: string) => counters.get(k) ?? {},
       lrange: async () => [],
     }),
   };
 });
+
+const enqueue = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@/server/services/embeddingQueueService", () => ({
+  embeddingQueueService: { enqueue },
+}));
 
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { trackRepository } from "@/server/repositories/trackRepository";
@@ -124,11 +131,21 @@ afterAll(async () => {
 describe("embedded tags (real Postgres)", () => {
   dbTest("stores genre apart from local_tags and lyrics in the side table", async () => {
     await insertTrack("a", null);
-    await trackRepository.saveEmbeddedTags("a", friendId, {
-      composer: "A, B",
-      genres: ["Música tropical"],
-      lyrics: "la la",
-    });
+    expect(
+      await trackRepository.saveEmbeddedTags("a", friendId, {
+        composer: "A, B",
+        genres: ["Música tropical"],
+        lyrics: "la la",
+      }),
+    ).toEqual({ composerFilledFor: [friendId] });
+    // Filled once: the second read keeps the composer, so it reports nothing.
+    expect(
+      await trackRepository.saveEmbeddedTags("a", friendId, {
+        composer: "A, B",
+        genres: ["Música tropical"],
+        lyrics: "la la",
+      }),
+    ).toEqual({ composerFilledFor: [] });
     const track = await row("a");
     expect(track).toMatchObject({
       composer: "A, B",
@@ -146,11 +163,13 @@ describe("embedded tags (real Postgres)", () => {
       `INSERT INTO track_lyrics (track_id, friend_id, lyrics, source) VALUES ('b', $1, 'mine', 'user')`,
       [friendId],
     );
-    await trackRepository.saveEmbeddedTags("b", friendId, {
-      composer: "From File",
-      genres: [],
-      lyrics: "from file",
-    });
+    expect(
+      await trackRepository.saveEmbeddedTags("b", friendId, {
+        composer: "From File",
+        genres: [],
+        lyrics: "from file",
+      }),
+    ).toEqual({ composerFilledFor: [] });
     await trackRepository.saveEmbeddedTags("b", friendId, {
       composer: null,
       genres: [],
@@ -206,8 +225,24 @@ describe("embedded tags (real Postgres)", () => {
         return (await service.getRun(started.run_id))!;
       };
 
+      enqueue.mockClear();
       const first = await run();
-      expect(first).toMatchObject({ read: 3, missing_files: 1, with_composer: 2, with_lyrics: 1 });
+      expect(first).toMatchObject({
+        read: 3,
+        missing_files: 1,
+        with_composer: 2,
+        with_lyrics: 1,
+        queued_embeddings: 2,
+      });
+      expect(enqueue).toHaveBeenCalledTimes(1);
+      expect(enqueue).toHaveBeenCalledWith(
+        expect.arrayContaining(
+          ["m", "i"].flatMap((track_id) =>
+            ["identity", "context"].map((kind) => ({ track_id, friend_id: friendId, kind })),
+          ),
+        ),
+        "bulk",
+      );
       expect(await row("m")).toMatchObject({
         composer: "Camilo, Eblis",
         audio_file_genre: ["Música tropical"],
@@ -218,7 +253,9 @@ describe("embedded tags (real Postgres)", () => {
       expect(await lyricsRow("i")).toBeUndefined();
 
       expect(await run()).toMatchObject({ read: 0, skipped: 3, missing_files: 1 });
-      expect((await run(true)).read).toBe(3);
+      // A forced re-read finds the composers already filled and queues nothing.
+      expect(await run(true)).toMatchObject({ read: 3, queued_embeddings: 0 });
+      expect(enqueue).toHaveBeenCalledTimes(1);
     },
   );
 });

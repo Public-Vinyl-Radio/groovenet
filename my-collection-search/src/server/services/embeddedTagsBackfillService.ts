@@ -3,6 +3,7 @@ import fs from "fs";
 import type { EmbeddedTagsBackfillRequest, EmbeddedTagsBackfillRun } from "@groovenet/contracts";
 import { getRedisConnection } from "@/lib/redis";
 import { trackRepository, type EmbeddedTagsCandidate } from "@/server/repositories/trackRepository";
+import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 import {
   embeddedTagsFromProbe,
   trackAudioMetadataService,
@@ -17,10 +18,18 @@ import {
  * hash that `getRun` reads. Idempotent: a track read after its file's mtime is
  * skipped unless `force`, and writing a read twice changes nothing (composer is
  * only ever filled while empty; see `TrackRepository.saveEmbeddedTags`).
+ *
+ * Composer is part of the identity and context text, so a track whose composer
+ * this run filled is queued for both embeddings (#1169), in batches on the bulk
+ * lane. Nothing else compares source hashes on a schedule; without this those
+ * embeddings stay stale until a sync or an edit happens to queue the track. A
+ * queue failure is logged and never fails the run.
  */
 export const RUN_KEY_PREFIX = "embeddedtags:run:";
 const RUN_TTL_SECONDS = 86_400;
 const MAX_ERRORS = 50;
+/** Tracks per `enqueue` call: one Redis pipeline each, not one per track. */
+export const EMBEDDING_BATCH_SIZE = 100;
 
 export const runKey = (runId: string) => `${RUN_KEY_PREFIX}${runId}`;
 
@@ -31,6 +40,7 @@ const toInt = (value: string | undefined) => {
 
 type Outcome = "read" | "skipped" | "missing" | "failed";
 type Found = { composer: boolean; genre: boolean; lyrics: boolean };
+type TrackRef = { track_id: string; friend_id: number };
 
 export class EmbeddedTagsBackfillService {
   private redis = getRedisConnection();
@@ -66,6 +76,7 @@ export class EmbeddedTagsBackfillService {
       with_composer: 0,
       with_genre: 0,
       with_lyrics: 0,
+      queued_embeddings: 0,
       errors: [],
       started_at: now,
       updated_at: now,
@@ -76,7 +87,8 @@ export class EmbeddedTagsBackfillService {
   /** Runs to completion; exported for tests, which await it instead of polling. */
   async execute(runId: string, candidates: EmbeddedTagsCandidate[], force: boolean): Promise<void> {
     const key = runKey(runId);
-    for (const candidate of candidates) {
+    let filled: TrackRef[] = [];
+    for (const [index, candidate] of candidates.entries()) {
       let outcome: Outcome = "failed";
       let found: Found | undefined;
       let error: string | null = null;
@@ -84,8 +96,16 @@ export class EmbeddedTagsBackfillService {
         const result = await this.readOne(candidate, force);
         outcome = result.outcome;
         found = result.found;
+        filled.push(...(result.composerFilled ?? []));
       } catch (err) {
         error = `${candidate.track_id}: ${err instanceof Error ? err.message : String(err)}`;
+      }
+
+      // Before the counters: the last candidate's write is what makes the run
+      // `complete`, and by then its embeddings have to be counted.
+      if (filled.length >= EMBEDDING_BATCH_SIZE || index === candidates.length - 1) {
+        await this.queueEmbeddings(runId, filled);
+        filled = [];
       }
 
       const pipeline = this.redis.pipeline();
@@ -103,10 +123,29 @@ export class EmbeddedTagsBackfillService {
     }
   }
 
+  /** Identity and context for each track, like `syncIdentityEmbeddings`, never throwing. */
+  private async queueEmbeddings(runId: string, tracks: TrackRef[]): Promise<void> {
+    if (tracks.length === 0) return;
+    try {
+      await embeddingQueueService.enqueue(
+        tracks.flatMap((track) =>
+          (["identity", "context"] as const).map((kind) => ({ ...track, kind })),
+        ),
+        "bulk",
+      );
+      await this.redis.hincrby(runKey(runId), "queued_embeddings", tracks.length);
+    } catch (error) {
+      console.error(
+        `[embedded-tags] run ${runId}: failed to queue embeddings for ${tracks.length} track(s):`,
+        error,
+      );
+    }
+  }
+
   private async readOne(
     candidate: EmbeddedTagsCandidate,
     force: boolean,
-  ): Promise<{ outcome: Outcome; found?: Found }> {
+  ): Promise<{ outcome: Outcome; found?: Found; composerFilled?: TrackRef[] }> {
     const filePath = trackAudioMetadataService.resolveAudioFilePath(candidate.local_audio_url);
     if (!filePath) return { outcome: "missing" };
 
@@ -116,9 +155,17 @@ export class EmbeddedTagsBackfillService {
     }
 
     const tags = embeddedTagsFromProbe(await trackAudioMetadataService.runFfprobe(filePath));
-    await trackRepository.saveEmbeddedTags(candidate.track_id, candidate.friend_id, tags);
+    const saved = await trackRepository.saveEmbeddedTags(
+      candidate.track_id,
+      candidate.friend_id,
+      tags,
+    );
     return {
       outcome: "read",
+      composerFilled: saved.composerFilledFor.map((friend_id) => ({
+        track_id: candidate.track_id,
+        friend_id,
+      })),
       found: {
         composer: tags.composer !== null,
         genre: tags.genres.length > 0,
@@ -150,6 +197,7 @@ export class EmbeddedTagsBackfillService {
       with_composer: toInt(stored.with_composer),
       with_genre: toInt(stored.with_genre),
       with_lyrics: toInt(stored.with_lyrics),
+      queued_embeddings: toInt(stored.queued_embeddings),
       errors: errors ?? [],
       started_at: toInt(stored.started_at),
       updated_at: toInt(stored.updated_at),

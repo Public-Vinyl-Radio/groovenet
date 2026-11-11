@@ -11,8 +11,11 @@ async function resolveCandidates(
 ): Promise<Record<EmbeddingJobKind, EmbeddingJob[]>> {
   const types = body.types ?? ALL_TYPES;
   // `all` always re-embeds; `release`/`track` only do when `force` says so —
-  // same orthogonal split as the fingerprint index body.
+  // same orthogonal split as the fingerprint index body. `changed` lists every
+  // track but queues without force: the worker skips any whose source hash is
+  // unchanged, so only stale embeddings are regenerated (#1169).
   const force = body.scope === "all" || body.force === true;
+  const listEvery = force || body.scope === "changed";
 
   const byType = await Promise.all(
     types.map((type) =>
@@ -21,7 +24,7 @@ async function resolveCandidates(
         friend_id: body.friend_id,
         release_id: body.scope === "release" ? body.release_id : undefined,
         track_ids: body.scope === "track" ? body.track_ids : undefined,
-        force,
+        force: listEvery,
         limit: body.limit,
       }),
     ),

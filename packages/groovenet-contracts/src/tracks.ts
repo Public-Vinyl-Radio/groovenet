@@ -116,6 +116,12 @@ export const embeddedTagsBackfillRunSchema = z.object({
   with_composer: z.number().int(),
   with_genre: z.number().int(),
   with_lyrics: z.number().int(),
+  /**
+   * Tracks whose composer this run filled, queued for new identity and context
+   * embeddings (#1169). A composer already set, or a forced re-read that
+   * changes nothing, queues nothing.
+   */
+  queued_embeddings: z.number().int(),
   errors: z.array(z.string()),
   started_at: z.number().int().meta({ description: "Epoch milliseconds" }),
   updated_at: z.number().int().meta({ description: "Epoch milliseconds" }),

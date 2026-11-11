@@ -1011,13 +1011,27 @@ describe("embedded tags (#673)", () => {
     await makeRepo().saveEmbeddedTags("t1", 2, tags);
     const [update, upsert] = dbQuery.mock.calls;
     // A user's or Discogs's composer is never replaced: the CASE keeps any non-empty value.
-    expect(update[0]).toContain("WHEN COALESCE(composer, '') = ''");
+    expect(update[0]).toContain("WHEN COALESCE(prev.composer, '') = ''");
     expect(update[0]).toContain("audio_file_genre = $4::text[]");
     expect(update[0]).not.toContain("local_tags");
     expect(update[1]).toEqual(["t1", 2, "A, B", ["House"]]);
     // A lyrics row a user wrote (source 'user') is never overwritten.
     expect(upsert[0]).toContain("WHERE track_lyrics.source = 'embedded'");
     expect(upsert[1]).toEqual(["t1", 2, "la la"]);
+  });
+
+  it("saveEmbeddedTags reports the friends whose composer it filled (#1169)", async () => {
+    dbQuery.mockResolvedValueOnce({
+      rows: [
+        { friend_id: 2, composer_filled: true },
+        { friend_id: 3, composer_filled: false },
+      ],
+    });
+    dbQuery.mockResolvedValue({ rows: [] });
+    expect(await makeRepo().saveEmbeddedTags("t1", null, tags)).toEqual({
+      composerFilledFor: [2],
+    });
+    expect(dbQuery.mock.calls[0][0]).toContain("AS composer_filled");
   });
 
   it("saveEmbeddedTags clears file-derived genre and lyrics when the tags are empty or the file is gone", async () => {

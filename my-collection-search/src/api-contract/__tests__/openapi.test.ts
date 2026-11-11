@@ -627,7 +627,7 @@ describe("shared embedding and recommendation components", () => {
       enum: ["identity", "audio_vibe", "context"],
     });
     expect(doc.components.schemas.EmbeddingBackfillRequest).toMatchObject({
-      properties: { scope: { enum: ["missing", "all", "release", "track"] } },
+      properties: { scope: { enum: ["missing", "all", "changed", "release", "track"] } },
     });
   });
 });

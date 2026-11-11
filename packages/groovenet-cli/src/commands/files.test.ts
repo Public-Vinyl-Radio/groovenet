@@ -37,6 +37,7 @@ function tagsRun(overrides: Partial<EmbeddedTagsBackfillRun> = {}): EmbeddedTags
     with_composer: 0,
     with_genre: 0,
     with_lyrics: 0,
+    queued_embeddings: 0,
     errors: [],
     started_at: 1,
     updated_at: 1,
@@ -256,6 +257,7 @@ describe("files tags", () => {
         with_composer: 4,
         with_genre: 5,
         with_lyrics: 0,
+        queued_embeddings: 0,
       }),
     ).join("\n");
     expect(text).toContain("5 read");
@@ -263,6 +265,10 @@ describe("files tags", () => {
     expect(text).toContain("1 failures");
     expect(text).toContain("composer 4   genre 5   lyrics 0");
     expect(formatTagsReport(tagsRun()).join("\n")).toContain("0 missing files");
+    expect(text).not.toContain("queued for new embeddings");
+    expect(formatTagsReport(tagsRun({ queued_embeddings: 3 })).join("\n")).toContain(
+      "3 track(s) queued for new embeddings",
+    );
   });
 
   it("passes options through, polls to completion and exits 1 on failures", async () => {

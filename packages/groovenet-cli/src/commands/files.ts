@@ -135,6 +135,13 @@ export function formatTagsReport(run: EmbeddedTagsBackfillRun): string[] {
     ].join("   ")}`,
     chalk.bold("  Found in the files read"),
     `    composer ${run.with_composer}   genre ${run.with_genre}   lyrics ${run.with_lyrics}`,
+    ...(run.queued_embeddings > 0
+      ? [
+          chalk.gray(
+            `  ${run.queued_embeddings} track(s) queued for new embeddings (composer filled)`,
+          ),
+        ]
+      : []),
   ];
 }
 
