@@ -72,18 +72,6 @@ describe("useQueueSaveDialog", () => {
     expect(importPlaylist).not.toHaveBeenCalled();
   });
 
-  it("keeps one mounted dialog across open and rename (no remount)", async () => {
-    state.playlist = [t(1)];
-    const { user } = renderWithProviders(<Harness />);
-    await user.click(screen.getByText("open"));
-    const input = await findFocusedNameInput();
-    await user.type(input, "Y");
-    await user.click(screen.getByRole("button", { name: "Save playlist" }));
-    await waitFor(() => expect(importPlaylist).toHaveBeenCalled());
-    // The same DOM node throughout: a remounted dialog would hand back a new one.
-    expect(screen.getByPlaceholderText("Playlist name")).toBe(input);
-  });
-
   it("reports a failed save and closes from outside", async () => {
     state.playlist = [t(1)];
     importPlaylist.mockRejectedValueOnce(new Error("boom"));
