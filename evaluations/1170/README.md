@@ -89,6 +89,32 @@ made them, or accept that a re-summarise elsewhere changes source hashes.
 1,914). This is a new snapshot, so its numbers are not directly comparable to
 #379/#382's; `I0` and `C0` are re-measured here as the baselines.
 
+## Summary run
+
+`qwen3.5:9b-q4_K_M`, digest `56671c2a…a3c90`, prompt version 1, prompt
+SHA-256 `168eb944b0f513ef75e70ec733425e984354a99b9c66d25108764092e06b6a1c`,
+options `temperature 0, seed 0, num_ctx 8192, think false`. M4 Pro, Metal.
+
+| Measure                         | Value                                                           |
+| ------------------------------- | --------------------------------------------------------------- |
+| Distinct lyric texts summarised | 2,399                                                           |
+| Failed validation               | 8 (0.3%), all a theme longer than 4 words                       |
+| Truncated at 6,000 chars        | 2                                                               |
+| Time per track                  | mean 3.24 s, median 3.09 s, p90 4.12 s                          |
+| Total                           | 2 h 9 min (7,767 s), ≈ 22 output tokens/s                       |
+| Vocal presence                  | full 2,248 · hook-only 106 · sparse 37                          |
+| Languages                       | english 1,357 · spanish 879 · mixed 74+ · portuguese 40 · other |
+| No themes                       | 10                                                              |
+
+The homelab is amd64 CPU only; the CPU-only smoke test here was about 2× the
+GPU time, and a homelab CPU will be slower still, so budget several hours for
+a full backfill there. Language lists keep the model's order
+(`spanish, english` and `english, spanish` both occur).
+
+The quality sample deliberately oversamples hook-only and sparse tracks (7/7/6
+per vocal-presence × English/other stratum), so report counts per stratum, not
+one rate for the whole sample.
+
 ## Reproduce
 
 Node 26+. `S` is the private #379/#382 data directory. Pass every earlier
@@ -145,4 +171,6 @@ and per-query comparisons against `I0`/`C0` use a seeded 95% bootstrap.
       #1176), friend 6. SHA-256
       `d0ffee14ff56345807884e838187259871d2e4b6fd973791625e0b6ea6f5d1a0`.
 - [x] Local model: `qwen3.5:9b-q4_K_M` installed and smoke-tested.
-- [ ] Summaries, quality review, retrieval results, go / no-go.
+- [x] Summaries (see above).
+- [ ] Summary quality review (40 tracks, human).
+- [ ] Retrieval results, go / no-go.
