@@ -41,6 +41,35 @@ export function paired(a, b, iterations = 10000, seed = 1170) {
 
 export const baselineOf = (label) => (label.startsWith("I") ? "I0" : "C0");
 
+/**
+ * Worst and best mean precision@10 delta of a run against its baseline. Hits
+ * both top 10s share cancel; an unjudged or uncertain hit counts for whichever
+ * side gives the extreme, so neither end treats it as a miss.
+ */
+export function deltaRange(run, base, querySet, judged) {
+  let worst = 0;
+  let best = 0;
+  for (const query of querySet.queries) {
+    const mine = new Set(run[query.id]);
+    const theirs = new Set(base[query.id]);
+    const value = (key) => judged.get(`${query.id}:${key}`);
+    for (const key of mine) {
+      if (theirs.has(key)) continue;
+      const v = value(key);
+      if (v === "relevant") worst++;
+      if (v !== "not_relevant") best++;
+    }
+    for (const key of theirs) {
+      if (mine.has(key)) continue;
+      const v = value(key);
+      if (v === "relevant") best--;
+      if (v !== "not_relevant") worst--;
+    }
+  }
+  const n = 10 * querySet.queries.length;
+  return [worst / n, best / n];
+}
+
 export function scoreJudgments(reviews, scores, queriesBytes) {
   const sha = createHash("sha256").update(queriesBytes).digest("hex");
   if (scores.query_sha256 !== sha) throw new Error("Frozen query set hash mismatch");
@@ -96,13 +125,17 @@ export function scoreJudgments(reviews, scores, queriesBytes) {
       ),
     };
   }
+  const complete = Object.values(runs).every((r) => r.uncertain === 0 && r.unjudged === 0);
   const comparisons = {};
   for (const label of Object.keys(runs)) {
     const base = baselineOf(label);
-    if (label !== base && perQuery[base])
-      comparisons[`${label} vs ${base}`] = paired(perQuery[label], perQuery[base]);
+    if (label === base || !perQuery[base]) continue;
+    comparisons[`${label} vs ${base}`] = {
+      delta_range: deltaRange(scores.queries[label], scores.queries[base], querySet, judged),
+      // A bootstrap over lower bounds would count unjudged hits as misses.
+      bootstrap: complete ? paired(perQuery[label], perQuery[base]) : null,
+    };
   }
-  const complete = Object.values(runs).every((r) => r.uncertain === 0 && r.unjudged === 0);
   return { query_sha256: sha, queries: querySet.queries.length, complete, runs, comparisons };
 }
 

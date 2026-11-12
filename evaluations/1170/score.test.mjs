@@ -107,7 +107,19 @@ test("scoreJudgments bounds unjudged hits and splits by hit lyrics", () => {
     not_relevant: 0,
     judged_precision: 1,
   });
-  assert.equal(report.comparisons["IL vs I0"].losses, 1);
+  // IL drops relevant k0 and adds unjudged k10: at best a tie, at worst one hit lost.
+  assert.deepEqual(report.comparisons["IL vs I0"], { delta_range: [-0.1, 0], bootstrap: null });
+  review.queries[0].candidates.push({
+    friend_id: 6,
+    track_id: "k10",
+    judgment: "not_relevant",
+    reason: "",
+  });
+  const done = scoreJudgments([review], scores, queriesBytes);
+  assert.equal(done.complete, true);
+  assert.deepEqual(done.comparisons["IL vs I0"].delta_range, [-0.1, -0.1]);
+  assert.equal(done.comparisons["IL vs I0"].bootstrap.losses, 1);
+  review.queries[0].candidates.pop();
   assert.throws(
     () => scoreJudgments([review], { ...scores, query_sha256: "x" }, queriesBytes),
     /hash mismatch/,
