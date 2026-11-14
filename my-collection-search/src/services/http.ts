@@ -18,9 +18,11 @@ export async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T
     const error = new Error(message) as Error & {
       status?: number;
       data?: unknown;
+      headers?: Headers;
     };
     error.status = res.status;
     error.data = data;
+    error.headers = res.headers;
     throw error;
   }
   return data as T;
