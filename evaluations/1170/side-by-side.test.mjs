@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   buildSideBySide,
-  otherReleases,
   pickSeeds,
   signTest,
   tallySideBySide,
   topK,
+  varietyCap,
 } from "./side-by-side.mjs";
 import { apply, display, save } from "./review-side-by-side.mjs";
 
@@ -49,9 +49,18 @@ test("topK excludes the seed and keeps cosine order", () => {
   const v = (x, y) => Float32Array.from([x, y]);
   const candidates = [v(1, 0), v(0, 1), v(0.9, 0.1), v(0.5, 0.5)];
   assert.deepEqual(topK(candidates, 0, 2), [2, 3]);
-  // Track 2 shares the seed's release, so the cut reaches past it.
-  const tracks = ["r1", "r2", "r1", "r3"].map((release_id) => ({ friend_id: 6, release_id }));
-  assert.deepEqual(topK(candidates, 0, 2, otherReleases(tracks, 0)), [3, 1]);
+  // One per release, keyed by artist + album: tracks 2 and 3 share an album.
+  const tracks = ["X", "Y", "Z", "Z"].map((album, i) => ({
+    track_id: `t${i}`,
+    friend_id: 6,
+    artist: " A ",
+    album,
+  }));
+  assert.deepEqual(topK(candidates, 0, 3, varietyCap(tracks, 1)), [2, 1]);
+  assert.deepEqual(topK(candidates, 0, 3, varietyCap(tracks, 2)), [2, 3, 1]);
+  // No album: every track is its own release.
+  const loose = tracks.map((t) => ({ ...t, album: "" }));
+  assert.deepEqual(topK(candidates, 0, 3, varietyCap(loose, 1)), [2, 3, 1]);
 });
 
 test("the sheet is blind, ties are automatic, and the tally unblinds", () => {

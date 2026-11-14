@@ -6,11 +6,12 @@
  * dig through. This is how the collection is used (start from a track and
  * traverse), so it replaces query precision as the identity decision.
  *
- * The top 10 is the app's: exact cosine, the seed itself excluded, tracks
- * from the seed's release kept (`recommendationRepository.findSimilar`).
- * With `--other-releases` the seed's release is dropped first: about 7 of
- * the app's 10 are album mates, identical under every variant, and the
- * suggestions that matter are the ones past the album.
+ * The list is exact cosine with the seed excluded
+ * (`recommendationRepository.findSimilar`). With `--variety-cap N` it also
+ * keeps at most N tracks per release, keyed as `rankSuggestions`' `releaseOf`
+ * does (artist + album), which is what Related tracks and the Suggestions
+ * panel show (#1029). Without the cap about 7 of the 10 are album mates,
+ * identical under every variant.
  *
  * The sheet holds track metadata only: no variant names, scores, AI notes,
  * lyrics or summaries. Which list is which lives in a separate key file the
@@ -18,7 +19,7 @@
  * recorded in the key and never shown.
  *
  *   node evaluations/1170/side-by-side.mjs --snapshot S --texts T --vectors DIR \
- *     --compare IL:I0 --compare IG:I0 [--other-releases] --output SHEET --key KEY
+ *     --compare IL:I0 --compare IG:I0 [--variety-cap 1] --output SHEET --key KEY
  *   node evaluations/1170/side-by-side.mjs --tally SHEET --key KEY
  */
 import { createHash } from "node:crypto";
@@ -55,10 +56,28 @@ export function topK(candidates, index, k = 10, keep = () => true) {
     .slice(0, k);
 }
 
-/** Drops the seed's own release: album mates fill the top under every variant. */
-export const otherReleases = (tracks, index) => (j) =>
-  `${tracks[j].friend_id}:${tracks[j].release_id}` !==
-  `${tracks[index].friend_id}:${tracks[index].release_id}`;
+/** `rankSuggestions`' `releaseOf`: artist + album, else the track itself. */
+export function releaseOf(track) {
+  const artist = track.artist?.trim().toLowerCase();
+  const album = track.album?.trim().toLowerCase();
+  return artist && album
+    ? `${track.friend_id}:${artist}:${album}`
+    : `${track.track_id}:${track.friend_id}`;
+}
+
+/**
+ * At most `cap` tracks per release, in ranked order, like the app's variety
+ * cap. Stateful: make a fresh one for each list.
+ */
+export function varietyCap(tracks, cap) {
+  const counts = new Map();
+  return (j) => {
+    const release = releaseOf(tracks[j]);
+    const count = counts.get(release) ?? 0;
+    counts.set(release, count + 1);
+    return count < cap;
+  };
+}
 
 function describe(snapshot, albums, index) {
   const t = snapshot.tracks[index];
@@ -204,7 +223,9 @@ async function main() {
             candidates,
             index,
             10,
-            args.includes("--other-releases") ? otherReleases(snapshot.tracks, index) : undefined,
+            opt("--variety-cap")
+              ? varietyCap(snapshot.tracks, Number(opt("--variety-cap")))
+              : undefined,
           ),
       ];
     }),
