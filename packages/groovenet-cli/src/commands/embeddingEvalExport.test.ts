@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Album, Playlist, Track } from "@groovenet/client";
 import {
   collectEmbeddingEvalSnapshot,
+  collectLyrics,
   evalAlbum,
   evalTrack,
   exportEmbeddingEvalSnapshot,
@@ -22,6 +23,7 @@ const track = (id: string) =>
     year: "1974",
     notes: "Useful context",
     local_tags: "cumbia",
+    audio_file_genre: ["Música tropical"],
     local_audio_url: "/private/audio.mp3",
   }) as Track;
 const album = {
@@ -60,6 +62,9 @@ function client(): EvalExportClient {
       sort: "created_at:desc",
     })),
     listPlaylists: vi.fn(async () => [playlist]),
+    getTrackLyrics: vi.fn(async (id: string) =>
+      id === "t1" ? { text: "la la la", source: "embedded" as const, updated_at: "x" } : null,
+    ),
   };
 }
 
@@ -80,8 +85,59 @@ describe("offline embedding evaluation export", () => {
       albums: [{ country: "Peru", label: "Label" }],
       playlists: [{ tracks: [{ track_id: "t1", friend_id: 6, position: 1 }] }],
     });
-    expect(result.tracks[0]).toMatchObject({ notes: "Useful context", local_tags: "cumbia" });
+    expect(result.tracks[0]).toMatchObject({
+      notes: "Useful context",
+      local_tags: "cumbia",
+      audio_file_genre: ["Música tropical"],
+    });
     expect(JSON.stringify(result)).not.toContain("private/audio.mp3");
+  });
+
+  it("leaves lyrics out unless asked", async () => {
+    const api = client();
+    const result = await collectEmbeddingEvalSnapshot(api, 6);
+    expect(result.lyrics_included).toBe(false);
+    expect(result.tracks[0]).not.toHaveProperty("lyrics");
+    expect(api.getTrackLyrics).not.toHaveBeenCalled();
+  });
+
+  it("adds each track's lyrics, or null, when asked", async () => {
+    const api = client();
+    const result = await collectEmbeddingEvalSnapshot(api, 6, { lyrics: true });
+    expect(result.lyrics_included).toBe(true);
+    expect(result.tracks.map((t) => ("lyrics" in t ? t.lyrics : undefined))).toEqual([
+      "la la la",
+      null,
+    ]);
+    expect(api.getTrackLyrics).toHaveBeenCalledWith("t1", 6);
+    expect(api.getTrackLyrics).toHaveBeenCalledWith("t2", 6);
+  });
+
+  it("treats blank lyrics as none and fails when no track has any", async () => {
+    const blank = client();
+    blank.getTrackLyrics = vi.fn(async () => ({
+      text: "  ",
+      source: "user" as const,
+      updated_at: "x",
+    }));
+    await expect(collectLyrics(blank, 6, ["t1", "t2"])).rejects.toThrow("lyrics endpoint");
+    await expect(collectLyrics(blank, 6, [])).resolves.toEqual(new Map());
+    await expect(collectLyrics(blank, 6, ["t1"], 0)).rejects.toThrow("positive integer");
+  });
+
+  it("reads lyrics with bounded concurrency", async () => {
+    let inFlight = 0,
+      peak = 0;
+    const api = client();
+    api.getTrackLyrics = vi.fn(async () => {
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight--;
+      return { text: "x", source: "embedded" as const, updated_at: "x" };
+    });
+    const ids = Array.from({ length: 10 }, (_, i) => `t${i}`);
+    expect((await collectLyrics(api, 6, ids, 3)).size).toBe(10);
+    expect(peak).toBe(3);
   });
 
   it("preserves missing optional fields as null", () => {
@@ -121,6 +177,14 @@ describe("offline embedding evaluation export", () => {
       });
       expect(JSON.parse(await readFile(file, "utf8")).tracks).toHaveLength(2);
       expect((await stat(file)).mode & 0o777).toBe(0o600);
+      const withLyrics = join(dir, "lyrics.json");
+      expect(await exportEmbeddingEvalSnapshot(client(), 6, withLyrics, { lyrics: true })).toEqual({
+        tracks: 2,
+        albums: 1,
+        playlists: 1,
+        with_lyrics: 1,
+      });
+      expect((await stat(withLyrics)).mode & 0o777).toBe(0o600);
       await expect(exportEmbeddingEvalSnapshot(client(), 6, file)).rejects.toThrow();
     } finally {
       await rm(dir, { recursive: true, force: true });

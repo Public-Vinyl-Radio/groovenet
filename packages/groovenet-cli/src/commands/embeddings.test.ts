@@ -479,7 +479,7 @@ describe("addEmbeddingsCommands()", () => {
 
   it("exports an evaluation snapshot and prints only counts", async () => {
     await parse("embeddings", "export-eval", "--friend-id", "6", "--output", "snapshot.json");
-    expect(exportEval).toHaveBeenCalledWith(expect.anything(), 6, "snapshot.json");
+    expect(exportEval).toHaveBeenCalledWith(expect.anything(), 6, "snapshot.json", {});
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Exported 2 tracks"));
     await parse(
       "embeddings",
@@ -493,6 +493,23 @@ describe("addEmbeddingsCommands()", () => {
     expect(console.log).toHaveBeenCalledWith(
       JSON.stringify({ output: "snapshot.json", tracks: 2, albums: 1, playlists: 1 }),
     );
+  });
+
+  it("asks for lyrics only with --lyrics and reports how many tracks had them", async () => {
+    exportEval.mockResolvedValue({ tracks: 2, albums: 1, playlists: 1, with_lyrics: 1 });
+    await parse(
+      "embeddings",
+      "export-eval",
+      "--friend-id",
+      "6",
+      "--output",
+      "snapshot.json",
+      "--lyrics",
+    );
+    expect(exportEval).toHaveBeenCalledWith(expect.anything(), 6, "snapshot.json", {
+      lyrics: true,
+    });
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("(1 with lyrics)"));
   });
 
   it("reports export errors without printing private data", async () => {

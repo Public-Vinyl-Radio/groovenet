@@ -243,21 +243,30 @@ export function addEmbeddingsCommands(program: Command): void {
     .description("Export a read-only snapshot for offline embedding evaluation (#379)")
     .requiredOption("--friend-id <n>", "Friend whose collection to export", intOption)
     .requiredOption("--output <path>", "New JSON file (never overwrites)")
+    .option("--lyrics", "Include each track's owner-only lyrics, for a local summariser (#1170)")
     .option("--json", "Output summary as JSON")
-    .action(async (opts: { friendId: number; output: string; json?: boolean }) => {
-      try {
-        const counts = await exportEmbeddingEvalSnapshot(makeClient(), opts.friendId, opts.output);
-        const summary = { output: opts.output, ...counts };
-        if (opts.json) console.log(JSON.stringify(summary));
-        else
-          console.log(
-            `Exported ${counts.tracks} tracks, ${counts.albums} albums and ${counts.playlists} playlists to ${opts.output}`,
+    .action(
+      async (opts: { friendId: number; output: string; lyrics?: boolean; json?: boolean }) => {
+        try {
+          const counts = await exportEmbeddingEvalSnapshot(
+            makeClient(),
+            opts.friendId,
+            opts.output,
+            opts.lyrics ? { lyrics: true } : {},
           );
-      } catch (err: unknown) {
-        printError(err instanceof Error ? err.message : String(err));
-        process.exit(1);
-      }
-    });
+          const summary = { output: opts.output, ...counts };
+          if (opts.json) console.log(JSON.stringify(summary));
+          else
+            console.log(
+              `Exported ${counts.tracks} tracks, ${counts.albums} albums and ${counts.playlists} playlists to ${opts.output}` +
+                (counts.with_lyrics === undefined ? "" : ` (${counts.with_lyrics} with lyrics)`),
+            );
+        } catch (err: unknown) {
+          printError(err instanceof Error ? err.message : String(err));
+          process.exit(1);
+        }
+      },
+    );
 
   embeddings
     .command("backfill")
