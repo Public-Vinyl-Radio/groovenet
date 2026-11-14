@@ -8,6 +8,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { MetaTag } from "@/components/ui/RoleTags";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import AlbumResult from "@/components/AlbumResult";
+import AlbumCardGrid from "@/components/AlbumCardGrid";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import TrackViewToggle from "@/components/TrackViewToggle";
@@ -363,34 +364,28 @@ function ArtistContent({
                           {section.title} [{section.albums.length.toLocaleString()}]
                         </SectionHeading>
                       </Flex>
-                      <Grid
-                        templateColumns={{
-                          base: "repeat(2, minmax(0, 1fr))",
-                          lg: "repeat(3, minmax(0, 1fr))",
-                        }}
-                        gap={5}
-                        p="0 6px 6px 0"
-                      >
+                      <AlbumCardGrid>
                         {shown.map((album) => (
-                          <Stack key={`${album.release_id}:${album.friend_id}`} gap={1} minW={0}>
-                            <AlbumResult
-                              albumRef={{
-                                release_id: album.release_id,
-                                friend_id: album.friend_id,
-                              }}
-                              layout="cover"
-                            />
-                            {album.appears_on_tracks > 0 && (
-                              <MetaTag alignSelf="start">
-                                Appears on · {album.appears_on_tracks}{" "}
-                                {album.appears_on_tracks === 1 ? "track" : "tracks"}
-                                {album.appears_on_positions.filter(Boolean).length > 0 &&
-                                  ` · ${album.appears_on_positions.filter(Boolean).join(", ")}`}
-                              </MetaTag>
-                            )}
-                          </Stack>
+                          <AlbumResult
+                            key={`${album.release_id}:${album.friend_id}`}
+                            albumRef={{
+                              release_id: album.release_id,
+                              friend_id: album.friend_id,
+                            }}
+                            layout="card"
+                            meta={
+                              album.appears_on_tracks > 0 ? (
+                                <MetaTag maxW="100%" truncate>
+                                  Appears on · {album.appears_on_tracks}{" "}
+                                  {album.appears_on_tracks === 1 ? "track" : "tracks"}
+                                  {album.appears_on_positions.filter(Boolean).length > 0 &&
+                                    ` · ${album.appears_on_positions.filter(Boolean).join(", ")}`}
+                                </MetaTag>
+                              ) : undefined
+                            }
+                          />
                         ))}
-                      </Grid>
+                      </AlbumCardGrid>
                     </Stack>
                   );
                 })}

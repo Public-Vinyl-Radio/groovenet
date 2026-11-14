@@ -22,6 +22,7 @@ import { TrackListHeader } from "@/components/TrackResult";
 import { useTrackViewMode, type TrackViewMode } from "@/hooks/useTrackViewMode";
 import { FiPlay, FiShuffle } from "react-icons/fi";
 import AlbumResult from "@/components/AlbumResult";
+import AlbumCardGrid, { ALBUM_CARD_MIN_H } from "@/components/AlbumCardGrid";
 import TrackResultStore from "@/components/TrackResultStore";
 import TrackActionsMenu from "@/components/TrackActionsMenu";
 import { useTrack } from "@/hooks/useTrack";
@@ -283,37 +284,25 @@ function GenreContent({
               </Box>
             )}
             {results.isPending ? (
-              <Grid
-                data-testid="genre-results-loading"
-                templateColumns="repeat(2, minmax(0, 1fr))"
-                gap={5}
-              >
-                <Skeleton h="180px" />
-                <Skeleton h="180px" />
-              </Grid>
+              <AlbumCardGrid data-testid="genre-results-loading">
+                <Skeleton h={ALBUM_CARD_MIN_H} mb="14px" />
+                <Skeleton h={ALBUM_CARD_MIN_H} mb="14px" />
+              </AlbumCardGrid>
             ) : (
               <>
                 {refs.length === 0 && !results.error && (
                   <Text color="fg.muted">No {view} in this genre yet.</Text>
                 )}
                 {view === "albums" ? (
-                  <Grid
-                    aria-label="Albums"
-                    templateColumns={{
-                      base: "repeat(2, minmax(0, 1fr))",
-                      lg: "repeat(3, minmax(0, 1fr))",
-                      "2xl": "repeat(4, minmax(0, 1fr))",
-                    }}
-                    gap={5}
-                    p="0 6px 6px 0"
-                  >
+                  <AlbumCardGrid aria-label="Albums">
                     {refs.map((ref) => (
                       <AlbumResult
                         key={`${ref.id}:${ref.friend_id}`}
                         albumRef={{ release_id: ref.id, friend_id: ref.friend_id }}
-                        layout="cover"
+                        layout="card"
                       />
                     ))}
+                    {/* Room for more: dashed slots the height of a card fill out the last row. */}
                     {isThin &&
                       !results.error &&
                       !results.hasNextPage &&
@@ -322,20 +311,19 @@ function GenreContent({
                           key={`empty-${index}`}
                           data-testid="crate-empty-slot"
                           aria-hidden="true"
-                          aspectRatio={1}
-                          alignSelf="start"
+                          minH={ALBUM_CARD_MIN_H}
+                          mb="14px"
                           borderWidth="outline"
                           borderRadius="md"
                           borderStyle="dashed"
                           borderColor="border.ink"
                           display={{
-                            base: index < emptySlots(2) ? "block" : "none",
-                            lg: index < emptySlots(3) ? "block" : "none",
-                            "2xl": index < emptySlots(4) ? "block" : "none",
+                            base: index < emptySlots(1) ? "block" : "none",
+                            md: index < emptySlots(2) ? "block" : "none",
                           }}
                         />
                       ))}
-                  </Grid>
+                  </AlbumCardGrid>
                 ) : (
                   refs.length > 0 &&
                   (layout === "row" ? (

@@ -28,13 +28,28 @@ describe("NewArrivals", () => {
     rows.forEach((row, i) => expect(row.textContent).toContain(titles[i]));
   });
 
-  it("links every item to its album page with title and artist in its name", () => {
+  it("links every item to its album page", () => {
     renderWithProviders(<NewArrivals arrivals={HOME_ARRIVALS} friendId={7} now={now} />);
-    const link = screen.getByRole("link", { name: /Jazz Samba.*Stan Getz \/ Charlie Byrd/ });
+    const link = screen.getByRole("link", { name: "Open Jazz Samba" });
     expect(link.getAttribute("href")).toBe("/albums/4?friend_id=7");
+    expect(link.textContent).toContain("Stan Getz / Charlie Byrd");
     const row = within(lists()[desktop]).getAllByRole("link", { hidden: true })[3];
     expect(row.textContent).toContain("Jazz Samba");
     expect(row.getAttribute("href")).toBe("/albums/4?friend_id=7");
+  });
+
+  it("renders the phone scroller through the compact album card, plays and rating as its meta", () => {
+    renderWithProviders(<NewArrivals arrivals={HOME_ARRIVALS} friendId={7} now={now} />);
+    const cards = within(lists()[phone]).getAllByTestId("album-card");
+    expect(cards).toHaveLength(5);
+    cards.forEach((card) => expect(card.getAttribute("data-size")).toBe("compact"));
+    // One link per tile, nothing nested, no card menu.
+    cards.forEach((card) => expect(card.querySelector("a")).toBeNull());
+    expect(within(lists()[phone]).queryByRole("button")).toBeNull();
+    const meta = within(cards[3]).getByTestId("album-card-meta");
+    expect(meta.textContent).toContain("6 PLAYS");
+    expect(within(meta).getByRole("img", { name: "Rated 4 of 5" })).toBeTruthy();
+    expect(within(cards[0]).getByTestId("album-card-meta").textContent).toContain("Unrated");
   });
 
   it("shows plays, the rating chips and the added wording", () => {

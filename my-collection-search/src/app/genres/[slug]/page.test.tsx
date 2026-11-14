@@ -179,7 +179,7 @@ describe("genre detail", () => {
     expect(screen.getByText("90.5–128")).toBeTruthy();
     expect(screen.getByText("5")).toBeTruthy();
     expect(screen.getByText("Added this year").parentElement?.title).toContain("date_added");
-    expect(screen.getByTestId("album-row").textContent).toBe("r1 cover");
+    expect(screen.getByTestId("album-row").textContent).toBe("r1 card");
     expect(screen.queryByText("SAMPLE")).toBeNull();
     expect(screen.queryByTestId("track-row")).toBeNull();
     expect(

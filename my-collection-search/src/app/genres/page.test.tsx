@@ -37,8 +37,16 @@ vi.mock("@/hooks/useRecentAlbumsQuery", () => ({
   },
 }));
 vi.mock("@/components/AlbumResult", () => ({
-  default: ({ albumRef, layout }: { albumRef: { release_id: string }; layout: string }) => (
-    <div data-testid="arrival" data-layout={layout}>
+  default: ({
+    albumRef,
+    layout,
+    size,
+  }: {
+    albumRef: { release_id: string };
+    layout: string;
+    size: unknown;
+  }) => (
+    <div data-testid="arrival" data-layout={layout} data-size={JSON.stringify(size)}>
       {albumRef.release_id}
     </div>
   ),
@@ -203,7 +211,9 @@ describe("genres discovery page", () => {
     expect(screen.getByText("Latin +2 · Rock +1")).toBeTruthy();
     expect(screen.getByText("Last 2 albums brought in")).toBeTruthy();
     expect(screen.getAllByTestId("arrival").map((el) => el.textContent)).toEqual(["one", "two"]);
-    expect(screen.getAllByTestId("arrival")[0].getAttribute("data-layout")).toBe("discovery");
+    const first = screen.getAllByTestId("arrival")[0];
+    expect(first.getAttribute("data-layout")).toBe("card");
+    expect(JSON.parse(first.getAttribute("data-size")!)).toEqual({ base: "compact", md: "full" });
   });
 
   it("handles an empty collection and albums without known genre tags", () => {

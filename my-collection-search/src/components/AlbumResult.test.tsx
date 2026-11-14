@@ -361,71 +361,97 @@ describe("AlbumResult row", () => {
   });
 });
 
-it("renders the cover layout as one link with no nested links or genre tags", () => {
-  renderWithProviders(
-    <AlbumResult
-      album={{
-        ...full,
-        title: "A very long album title ".repeat(10),
-        effective_genres: ["Jazz"],
-        year: "1991",
-        format: "LP",
-      }}
-      layout="cover"
-    />,
-  );
-  const card = screen.getByTestId("album-cover-card");
-  expect(card.tagName).toBe("A");
-  expect(card.getAttribute("href")).toBe("/albums/rel?friend_id=7");
-  expect(card.getAttribute("aria-label")).toMatch(/^Open A very long album/);
-  expect(screen.getAllByRole("link")).toHaveLength(1);
-  expect(card.querySelector("a")).toBeNull();
-  expect(card.querySelector("[data-cover-placeholder]")).toBeTruthy();
-  expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
-  expect(screen.getByText("Massive Attack")).toBeTruthy();
-  expect(screen.getByText("1991 · LP")).toBeTruthy();
-  expect(screen.queryByText("Jazz")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
-});
-
-it("shows the discovery layout as the one-link cover card on phones", () => {
-  setViewportWidth(390);
-  try {
+describe("AlbumResult compact card", () => {
+  it("is one link with no nested links, genre tags, menu or rating", () => {
     renderWithProviders(
-      <AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />,
+      <AlbumResult
+        album={{
+          ...full,
+          title: "A very long album title ".repeat(10),
+          effective_genres: ["Jazz"],
+          year: "1991",
+          format: "LP",
+        }}
+        size="compact"
+      />,
     );
-    const card = screen.getByTestId("album-cover-card");
+    const card = screen.getByTestId("album-card");
+    expect(card.getAttribute("data-size")).toBe("compact");
+    expect(card.tagName).toBe("A");
     expect(card.getAttribute("href")).toBe("/albums/rel?friend_id=7");
+    expect(card.getAttribute("aria-label")).toMatch(/^Open A very long album/);
     expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(card.querySelector("a")).toBeNull();
+    expect(card.querySelector("[data-cover-placeholder]")).toBeTruthy();
+    expect(screen.getByTitle(/^A very long album title/)).toBeTruthy();
+    // The artist is plain text inside the tile, never an ArtistLink.
+    expect(screen.getByText("Massive Attack").closest("a")).toBe(card);
+    expect(screen.getByTestId("album-card-meta").textContent).toBe("1991 · LP");
     expect(screen.queryByText("Jazz")).toBeNull();
-    expect(screen.queryByTestId("album-discovery-card")).toBeNull();
-  } finally {
+    expect(screen.queryByText("LP-42")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  it("leaves the default meta line out when there is no year or format", () => {
+    renderWithProviders(
+      <AlbumResult album={{ ...full, year: "0", format: undefined }} size="compact" />,
+    );
+    expect(screen.queryByTestId("album-card-meta")).toBeNull();
+  });
+
+  it("puts the caller's meta in place of year · format", () => {
+    renderWithProviders(
+      <AlbumResult
+        album={{ ...full, year: "1991", format: "LP" }}
+        size="compact"
+        meta={<span>6 PLAYS</span>}
+      />,
+    );
+    expect(screen.getByTestId("album-card-meta").textContent).toBe("6 PLAYS");
+    expect(screen.queryByText("1991 · LP")).toBeNull();
+  });
+
+  it("follows a responsive size: compact on phones, full from md", () => {
+    setViewportWidth(390);
+    const { unmount } = renderWithProviders(
+      <AlbumResult album={full} size={{ base: "compact", md: "full" }} />,
+    );
+    expect(screen.getByTestId("album-card").getAttribute("data-size")).toBe("compact");
+    unmount();
     setViewportWidth(1280);
-  }
+    renderWithProviders(<AlbumResult album={full} size={{ base: "compact", md: "full" }} />);
+    expect(screen.getByTestId("album-card").getAttribute("data-size")).toBe("full");
+    expect(screen.getAllByRole("button", { name: "Album actions" }).length).toBeGreaterThan(0);
+  });
+
+  it("defaults a responsive value without a base to the full card", () => {
+    setViewportWidth(390);
+    renderWithProviders(<AlbumResult album={full} size={{ md: "compact" }} />);
+    expect(screen.getByTestId("album-card").getAttribute("data-size")).toBe("full");
+  });
+
+  it("is never compact as a table row", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult album={full} layout="row" size="compact" />
+      </AlbumTable>,
+    );
+    expect(screen.getByTestId("album-row")).toBeTruthy();
+  });
 });
 
-it("keeps the discovery layout on desktop: artwork beside the title, with its effective genre", () => {
-  renderWithProviders(
-    <AlbumResult album={{ ...full, effective_genres: ["Jazz"] }} layout="discovery" />,
-  );
-  expect(screen.getByTestId("album-discovery-card")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Open Blue Lines" }).getAttribute("href")).toBe(
-    "/albums/rel?friend_id=7",
-  );
-  expect(screen.getByRole("link", { name: "Blue Lines" }).getAttribute("href")).toBe(
-    "/albums/rel?friend_id=7",
-  );
-  expect(screen.getByText("Massive Attack")).toBeTruthy();
-  expect(screen.getByText("Jazz")).toBeTruthy();
-  expect(screen.queryByText("Electronic")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Album actions" })).toBeNull();
-});
+describe("AlbumResult full card", () => {
+  it("is the default size and renders a caller's meta on its own line", () => {
+    renderWithProviders(<AlbumResult album={full} meta={<span>Appears on · 2 tracks</span>} />);
+    expect(screen.getByTestId("album-card").getAttribute("data-size")).toBe("full");
+    expect(screen.getByTestId("album-card-extra").textContent).toBe("Appears on · 2 tracks");
+  });
 
-it("leaves the cover meta line out when there is no year or format", () => {
-  renderWithProviders(
-    <AlbumResult album={{ ...full, year: null, format: undefined }} layout="cover" />,
-  );
-  expect(screen.queryByText(/·/)).toBeNull();
+  it("has no extra line without meta", () => {
+    renderWithProviders(<AlbumResult album={full} />);
+    expect(screen.queryByTestId("album-card-extra")).toBeNull();
+  });
 });
 
 it.each([

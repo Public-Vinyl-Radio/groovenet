@@ -63,8 +63,15 @@ vi.mock("@/components/TrackResultStore", () => ({
   ),
 }));
 vi.mock("@/components/AlbumResult", () => ({
-  default: (props: { albumRef: { release_id: string } }) => (
-    <div data-testid="album">{props.albumRef.release_id}</div>
+  default: (props: {
+    albumRef: { release_id: string };
+    layout: string;
+    meta?: React.ReactNode;
+  }) => (
+    <div data-testid="album" data-layout={props.layout}>
+      {props.albumRef.release_id}
+      {props.meta}
+    </div>
   ),
 }));
 import ArtistPage, { sortAlbums } from "./page";
@@ -142,6 +149,9 @@ describe("ArtistPage", () => {
     ).toEqual(["a2", "a1"]);
     const appears = screen.getByRole("region", { name: "Appears on" });
     expect(appears.textContent).toContain("Appears on · 2 tracks · B3, B4");
+    for (const card of screen.getAllByTestId("album")) {
+      expect(card.getAttribute("data-layout")).toBe("card");
+    }
     expect(screen.getByText(/by spins/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Cumbia · 3" }).getAttribute("href")).toContain(
       "cumbia",
