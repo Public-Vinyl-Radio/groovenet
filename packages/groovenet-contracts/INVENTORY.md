@@ -142,6 +142,13 @@ is closed; #606 owns them (its album half is migrated).
 | POST | `/api/providers/youtube/music-search` | providers & Discogs | contracts |  |
 | GET | `/api/recommendations/candidates` | recommendations | contracts |  |
 | POST | `/api/recommendations/candidates` | recommendations | contracts |  |
+| GET | `/api/ranking/profiles` | ranking | contracts |  |
+| POST | `/api/ranking/profiles` | ranking | contracts |  |
+| GET | `/api/ranking/profiles/{id}` | ranking | contracts |  |
+| PUT | `/api/ranking/profiles/{id}` | ranking | contracts |  |
+| DELETE | `/api/ranking/profiles/{id}` | ranking | contracts |  |
+| POST | `/api/ranking/profiles/{id}/copy` | ranking | contracts |  |
+| PUT | `/api/ranking/active` | ranking | contracts |  |
 | POST | `/api/record-actions` | record care | contracts |  |
 | DELETE | `/api/record-actions/{id}` | record care | contracts |  |
 | GET | `/api/record-care/sessions` | record care | contracts |  |

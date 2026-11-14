@@ -18,6 +18,7 @@ import { addGenresCommands } from "../commands/genres.js";
 import { addNowPlayingCommands } from "../commands/nowPlaying.js";
 import { addPlayerCommands } from "../commands/player.js";
 import { addStatusCommand } from "../commands/status.js";
+import { addProfilesCommands } from "../commands/profiles.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../../package.json") as { version: string };
@@ -43,6 +44,7 @@ addGenresCommands(program);
 addPlayerCommands(program);
 addNowPlayingCommands(program);
 addStatusCommand(program);
+addProfilesCommands(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(`Fatal: ${err instanceof Error ? err.message : String(err)}\n`);

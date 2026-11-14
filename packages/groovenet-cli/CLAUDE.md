@@ -27,6 +27,7 @@ tracks              search | show | update | missing-apple-music | deleted
 albums              list | show | update | download | delete
 playlists           list | show | check | create | set-tracks | generate | log-spins
 friends             list | add
+profiles            list | show | create --from <preset> [--use] | use [--surface] | delete
 fingerprint-library (no subcommands — scope flags)
 vinyl               status | detections | ingests | aggregate
 sets                derive | review | show
@@ -528,6 +529,15 @@ default. `--performance` chooses another performance, `--at` supplies a single
 timestamp for a playlist without one, and `--derivation` uses the matched set
 offsets while omitting planned entries that were not played. Re-running the
 same playlist/performance or playlist/timestamp is idempotent.
+
+## profiles
+
+Ranking profiles (#1192). `list` marks with `*` each profile active on a
+surface; `show <id>` prints weights and constraints. Presets are read-only, so
+`create --from beatmatcher [--name N] [--use]` copies one (the server's copy
+endpoint; the CLI never holds preset data). `use <id> [--surface related,...]`
+chooses it, by default on every surface it applies to. `--friend-id` falls back
+to `default_friend_id`. The `run*` functions take the client and an `io`.
 
 ## records
 

@@ -17,6 +17,7 @@ import {
   recommendationSeedTrackSchema as sharedRecommendationSeedTrackSchema,
   recommendationsBatchBodySchema as sharedRecommendationsBatchBodySchema,
   recommendationsQuerySchema as sharedRecommendationsQuerySchema,
+  rankingProfilesQuerySchema as sharedRankingProfilesQuerySchema,
   refineEmbeddingsBackfillBody,
   requireServingForTemplateVersion,
 } from "@groovenet/contracts";
@@ -633,6 +634,24 @@ export {
   seedEmbeddingsSchema,
   recommendationCandidateSchema,
   recommendationsResponseSchema,
+} from "@groovenet/contracts";
+
+// ─── Ranking profiles (#1192) ────────────────────────────────────────────────
+
+export const rankingProfilesListQuerySchema = sharedRankingProfilesQuerySchema.extend({
+  friend_id: intFromInputSchema,
+});
+
+export {
+  rankingActiveResponseSchema,
+  rankingActiveUpdateSchema as rankingActiveUpdateBodySchema,
+  rankingProfileCopySchema as rankingProfileCopyBodySchema,
+  rankingProfileCreateSchema as rankingProfileCreateBodySchema,
+  rankingProfileDeleteResponseSchema,
+  rankingProfileEntrySchema,
+  rankingProfileSchema,
+  rankingProfilesResponseSchema,
+  rankingProfileUpdateSchema as rankingProfileUpdateBodySchema,
 } from "@groovenet/contracts";
 
 export const durationBackfillQueueErrorSchema = z.object({

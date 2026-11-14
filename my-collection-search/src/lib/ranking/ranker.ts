@@ -5,7 +5,8 @@
  *   score = (prior ?? best weighted base signal) + Σ weight × value
  *
  * over the other signals, in registry order. Hard constraints never change a
- * score; they mark the candidate failed and say which.
+ * score; they mark the candidate failed and say which. The one exception is
+ * `bpm_window.half_double`, which the tempo signal reads too (#1192).
  */
 import type {
   CandidateRanking,
@@ -61,14 +62,22 @@ function failedConstraints(
   signals: Record<RankingSignalId, SignalValue>,
 ): RankingConstraintId[] {
   const failed: RankingConstraintId[] = [];
-  const { bpm_window, key_rule, genre_floor } = config.constraints;
+  const { bpm_window, key_rule, genre_floor, energy_range } = config.constraints;
 
   if (bpm_window) {
     const baseBpm = parseBpm(seed.bpm);
     const candidateBpm = parseBpm(candidate.bpm);
     if (baseBpm !== null && candidateBpm !== null) {
-      const delta = Math.abs(candidateBpm - baseBpm);
-      const distance = bpm_window.unit === "ratio" ? delta / baseBpm : delta;
+      // Half and double time: the candidate also counts at ×2 and ×½.
+      const tempos = bpm_window.half_double
+        ? [candidateBpm, candidateBpm * 2, candidateBpm / 2]
+        : [candidateBpm];
+      const distance = Math.min(
+        ...tempos.map((tempo) => {
+          const delta = Math.abs(tempo - baseBpm);
+          return bpm_window.unit === "ratio" ? delta / baseBpm : delta;
+        }),
+      );
       if (distance > bpm_window.max) failed.push("bpm_window");
     }
   }
@@ -90,6 +99,17 @@ function failedConstraints(
     failed.push("genre_floor");
   }
 
+  if (energy_range) {
+    const seedEnergy = seed.energy;
+    const candidateEnergy = candidate.energy;
+    if (typeof seedEnergy === "number" && typeof candidateEnergy === "number") {
+      const change = candidateEnergy - seedEnergy;
+      if (change > energy_range.max_rise || -change > energy_range.max_drop) {
+        failed.push("energy_range");
+      }
+    }
+  }
+
   return failed;
 }
 
@@ -100,7 +120,9 @@ export function scoreCandidate(
   config: RankingConfig,
   genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
 ): CandidateRanking {
-  const signals = computeSignals(seed, candidate, genreContext);
+  const signals = computeSignals(seed, candidate, genreContext, {
+    halfDouble: config.constraints.bpm_window?.half_double === true,
+  });
   const weightOf = (id: RankingSignalId) => config.weights[id] ?? 0;
   const baseIds = new Set(config.base?.signals ?? []);
   const prior = config.usePrior ? (candidate.prior ?? null) : null;

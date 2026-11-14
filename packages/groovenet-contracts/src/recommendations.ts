@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { recommendationScopeSchema } from "./settings.js";
-import { candidateRankingSchema, rankingConfigIdSchema, rankingSurfaceSchema } from "./ranking.js";
+import { candidateRankingSchema, rankingRefSchema, rankingSurfaceSchema } from "./ranking.js";
 
 // Recommendation candidates retrieved from the identity and audio-vibe
 // embedding indexes (#1020).
@@ -30,9 +30,9 @@ const rankingParams = {
     description:
       "Attach each candidate's `ranking`: its score, hard-constraint result and per-signal breakdown. Off by default; the order and set of candidates never change.",
   }),
-  ranker: rankingConfigIdSchema.optional().meta({
+  ranker: rankingRefSchema.optional().meta({
     description:
-      "Built-in ranking config the breakdown uses: `default` (today's suggestion ranking) or the pre-scorer's `blend`, `mixable` and `strict`. Defaults to `default`.",
+      "What the breakdown ranks with: a preset (`default`, `beatmatcher`, `selector`), a built-in config (`blend`, `mixable`, `strict`) or a stored ranking profile's id. Omitted, the library's active profile for `recommendations` (`default` until one is chosen).",
   }),
 };
 
@@ -137,8 +137,11 @@ export const recommendationsResponseSchema = z.object({
   /** Which config and seed the candidates' `ranking` used; present only with `breakdown`. */
   ranking: z
     .object({
-      config: rankingConfigIdSchema,
+      /** The preset, built-in config or stored profile id that ranked them. */
+      config: z.string(),
       surface: rankingSurfaceSchema,
+      /** True when the stored profile asked for no longer parses, so Default ranked instead. */
+      fallback: z.boolean().optional(),
       /** The track scored against: the seed, or a batch's last track. */
       seed: z.object({ trackId: z.string(), friendId: z.number().int() }),
     })

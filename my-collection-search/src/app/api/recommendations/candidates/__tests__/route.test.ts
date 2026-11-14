@@ -25,6 +25,14 @@ vi.mock("@/server/services/settingsService", () => ({
   settingsService: { resolveRecommendationScope: resolveScope },
 }));
 
+const profileRepo = vi.hoisted(() => ({
+  listSelections: vi.fn(async (): Promise<unknown[]> => []),
+  findById: vi.fn(async (): Promise<unknown> => null),
+}));
+vi.mock("@/server/repositories/rankingProfileRepository", () => ({
+  rankingProfileRepository: profileRepo,
+}));
+
 import { GET, POST } from "../route";
 import { setAnalyticsProvider } from "@/lib/analytics/server";
 import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
@@ -258,6 +266,8 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
       similarity: new Map(),
       parentOf: new Map(),
     });
+    profileRepo.listSelections.mockResolvedValue([]);
+    profileRepo.findById.mockResolvedValue(null);
   });
 
   const get = (query = "") =>
@@ -345,6 +355,76 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
       seed: { trackId: "last", friendId: 2 },
     });
     expect(body.candidates).toHaveLength(3);
+  });
+
+  const storedRow = (config: unknown) => ({
+    id: 17,
+    friend_id: 1,
+    name: "Mine",
+    description: "",
+    surfaces: ["recommendations"],
+    version: 1,
+    config,
+  });
+
+  it("ranks with the library's active profile when no ranker is named (#1192)", async () => {
+    profileRepo.listSelections.mockResolvedValue([
+      { surface: "suggestions", preset_id: "selector", profile_id: null },
+      { surface: "recommendations", preset_id: "beatmatcher", profile_id: null },
+    ]);
+    const body = await (await get("&breakdown=true&library_friend_id=4")).json();
+    expect(profileRepo.listSelections).toHaveBeenCalledWith(4);
+    expect(body.ranking.config).toBe("beatmatcher");
+    expect(body.candidates[1].ranking.signals.key_relation.weight).toBe(0.3);
+  });
+
+  it("uses the seed's library for a batch's active profile", async () => {
+    await post({ breakdown: true });
+    expect(profileRepo.listSelections).toHaveBeenCalledWith(1);
+  });
+
+  it("ranks with an active stored profile", async () => {
+    profileRepo.listSelections.mockResolvedValue([
+      { surface: "recommendations", preset_id: null, profile_id: 17 },
+    ]);
+    profileRepo.findById.mockResolvedValue(storedRow({ weights: { rating: 1 }, constraints: {} }));
+    const body = await (await get("&breakdown=true")).json();
+    expect(body.ranking).toMatchObject({ config: "17" });
+    expect(body.ranking).not.toHaveProperty("fallback");
+    expect(body.candidates[0].ranking.score).toBe(0);
+  });
+
+  it("accepts a stored profile id as the ranker", async () => {
+    profileRepo.findById.mockResolvedValue(storedRow({ weights: { identity_similarity: 2 } }));
+    const body = await (await get("&breakdown=true&ranker=17")).json();
+    expect(profileRepo.findById).toHaveBeenCalledWith(17);
+    expect(body.ranking.config).toBe("17");
+    expect(body.candidates[0].ranking.score).toBe(1);
+  });
+
+  it("falls back to Default for a stored profile that can't be read", async () => {
+    profileRepo.findById.mockResolvedValue(storedRow({ weights: { plays: 1 } }));
+    const res = await get("&breakdown=true&ranker=17");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ranking).toMatchObject({ config: "17", fallback: true });
+    expect(body.candidates[1].ranking.score).toBeCloseTo(0.63, 12);
+  });
+
+  it("falls back to Default when the active stored profile is gone", async () => {
+    profileRepo.listSelections.mockResolvedValue([
+      { surface: "recommendations", preset_id: null, profile_id: 17 },
+    ]);
+    const body = await (await get("&breakdown=true")).json();
+    expect(body.ranking).toMatchObject({ config: "17", fallback: true });
+  });
+
+  it("rejects a stored profile id that names nothing", async () => {
+    const res = await get("&breakdown=true&ranker=999");
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Unknown ranker 999");
+    const batch = await post({ breakdown: true, ranker: "999" });
+    expect(batch.status).toBe(400);
   });
 
   it("leaves a batch response unchanged without the flag", async () => {
