@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.20](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.19...v0.3.20) (2026-11-14)
+
+
+### Features
+
+* **albums:** one album card with a compact size for scrollers ([#1181](https://github.com/Public-Vinyl-Radio/groovenet/issues/1181)) ([7f50def](https://github.com/Public-Vinyl-Radio/groovenet/commit/7f50def34496ba7c5c8176d6cf117f12ca38bafd))
+* **analytics:** record which suggestions are shown and used, and from which source ([#1186](https://github.com/Public-Vinyl-Radio/groovenet/issues/1186)) ([4b90bc6](https://github.com/Public-Vinyl-Radio/groovenet/commit/4b90bc61c40c7c361d226749e2a820b2161377be))
+* **cli:** file genre and lyrics in embedding eval exports ([#1170](https://github.com/Public-Vinyl-Radio/groovenet/issues/1170) eval: no-go) ([#1184](https://github.com/Public-Vinyl-Radio/groovenet/issues/1184)) ([8bf1944](https://github.com/Public-Vinyl-Radio/groovenet/commit/8bf19446e8deb6ea3c2bd55a96ad7bf067ff405a))
+* **tracks:** show file genre and an owner-only lyrics panel ([#1176](https://github.com/Public-Vinyl-Radio/groovenet/issues/1176)) ([b305cd6](https://github.com/Public-Vinyl-Radio/groovenet/commit/b305cd6addc2e8028416ce6f2d882a43183cff3a))
+
+
+### Bug Fixes
+
+* **app:** keep lossless uploads as FLAC and run ffmpeg without a shell ([#1179](https://github.com/Public-Vinyl-Radio/groovenet/issues/1179)) ([6a68c4b](https://github.com/Public-Vinyl-Radio/groovenet/commit/6a68c4ba04a283c1a9cd3e16ab244d4514198a4b))
+* **discogs:** resume interrupted syncs and checkpoint the manifest ([#1183](https://github.com/Public-Vinyl-Radio/groovenet/issues/1183)) ([d8fe4fe](https://github.com/Public-Vinyl-Radio/groovenet/commit/d8fe4fe76190f1264092dc0b8f18909a8adea770))
+* **download-worker:** stop passing unsupported --audio-quality to gamdl ([#1154](https://github.com/Public-Vinyl-Radio/groovenet/issues/1154)) ([e03c3c6](https://github.com/Public-Vinyl-Radio/groovenet/commit/e03c3c6ac6e7beebf7674c9cec4f18ae2edbc388))
+* **player:** retry a failed engine release instead of requiring a worker restart ([#1178](https://github.com/Public-Vinyl-Radio/groovenet/issues/1178)) ([5405f4b](https://github.com/Public-Vinyl-Radio/groovenet/commit/5405f4b140008650ea6d5bfd602d34c5830f0bab))
+* **worktree:** give each worktree its own Postgres password ([#1175](https://github.com/Public-Vinyl-Radio/groovenet/issues/1175)) ([7ee46c1](https://github.com/Public-Vinyl-Radio/groovenet/commit/7ee46c19d9ae6e13740361f726a849fed412aa2c))
+
 ## [0.3.19](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.18...v0.3.19) (2026-11-11)
 
 

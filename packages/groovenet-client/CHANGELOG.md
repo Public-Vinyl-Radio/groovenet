@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.14.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.13.0...groovenet-client-v3.14.0) (2026-11-14)
+
+
+### Features
+
+* **tracks:** show file genre and an owner-only lyrics panel ([#1176](https://github.com/Public-Vinyl-Radio/groovenet/issues/1176)) ([b305cd6](https://github.com/Public-Vinyl-Radio/groovenet/commit/b305cd6addc2e8028416ce6f2d882a43183cff3a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.9.0 to 1.10.0
+
 ## [3.13.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v3.12.0...groovenet-client-v3.13.0) (2026-11-11)
 
 
