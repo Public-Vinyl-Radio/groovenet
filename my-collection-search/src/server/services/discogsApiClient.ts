@@ -33,11 +33,43 @@ export async function getCollectionPage(username: string, page: number = 1, perP
   });
 }
 
-export async function getReleaseDetails(releaseId: string): Promise<DiscogsReleaseDetails> {
+/** Waits before each retry of a rate-limited (429) release fetch, when Discogs sends no Retry-After. */
+export const RELEASE_RETRY_BACKOFF_MS = [5_000, 10_000, 20_000];
+/** The longest Retry-After honoured, so an absurd value can't stall a sync. */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Retry-After in milliseconds, when it is a number of seconds. */
+function retryAfterMs(headers: Headers | undefined): number | null {
+  const value = headers?.get("retry-after");
+  if (!value) return null;
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+}
+
+/**
+ * One release's details. A 429 is retried up to
+ * `RELEASE_RETRY_BACKOFF_MS.length` times, after Retry-After when Discogs sends
+ * it and the backoff otherwise; then it throws like any other failure.
+ */
+export async function getReleaseDetails(
+  releaseId: string,
+  { sleep = wait }: { sleep?: (ms: number) => Promise<void> } = {},
+): Promise<DiscogsReleaseDetails> {
   const url = `https://api.discogs.com/releases/${releaseId}`;
-  return await http<DiscogsReleaseDetails>(url, {
-    headers: { Authorization: `Discogs token=${DISCOGS_USER_TOKEN}` },
-  });
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await http<DiscogsReleaseDetails>(url, {
+        headers: { Authorization: `Discogs token=${DISCOGS_USER_TOKEN}` },
+      });
+    } catch (error) {
+      const { status, headers } = error as { status?: number; headers?: Headers };
+      if (status !== 429 || attempt >= RELEASE_RETRY_BACKOFF_MS.length) throw error;
+      await sleep(retryAfterMs(headers) ?? RELEASE_RETRY_BACKOFF_MS[attempt]);
+    }
+  }
 }
 
 export type DiscogsUserLookup = { found: true; releaseCount: number } | { found: false };

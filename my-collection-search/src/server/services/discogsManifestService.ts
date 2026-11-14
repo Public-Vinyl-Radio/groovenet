@@ -130,6 +130,17 @@ export function loadAlbum(releasePath: string): DiscogsRelease | null {
   }
 }
 
+/**
+ * Whether this user's own copy of a release is already on disk and readable:
+ * a file an interrupted sync wrote, so the next sync need not fetch it again.
+ * Checks the write path, not `getReleasePath`, which for a friend falls back
+ * to the current user's file. A file that does not parse doesn't count.
+ */
+export function hasDownloadedRelease(username: string, releaseId: string): boolean {
+  const releasePath = getReleaseWritePath(username, releaseId);
+  return fs.existsSync(releasePath) && loadAlbum(releasePath) !== null;
+}
+
 export function saveManifest(
   manifestPath: string,
   releaseIds: string[],

@@ -270,6 +270,29 @@ describe("loadAlbum()", () => {
   });
 });
 
+// ─── hasDownloadedRelease ─────────────────────────────────────────────────────
+
+describe("hasDownloadedRelease()", () => {
+  it("is true when the user's own release file parses", () => {
+    writeJson(path.join(exportsDir, "friend1_release_100.json"), makeAlbum());
+    expect(mod.hasDownloadedRelease("friend1", "100")).toBe(true);
+  });
+
+  it("is false when there is no file", () => {
+    expect(mod.hasDownloadedRelease("owner", "100")).toBe(false);
+  });
+
+  it("is false for a friend when only the current user's file exists", () => {
+    writeJson(path.join(exportsDir, "release_100.json"), makeAlbum());
+    expect(mod.hasDownloadedRelease("friend1", "100")).toBe(false);
+  });
+
+  it("is false when the file is corrupt, so it is fetched again", () => {
+    fs.writeFileSync(path.join(exportsDir, "release_100.json"), '{"id": 10', "utf8");
+    expect(mod.hasDownloadedRelease("owner", "100")).toBe(false);
+  });
+});
+
 // ─── saveManifest ─────────────────────────────────────────────────────────────
 
 describe("saveManifest()", () => {

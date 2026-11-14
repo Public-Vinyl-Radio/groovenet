@@ -11,6 +11,7 @@ const manifest = vi.hoisted(() => {
     getManifestPath: vi.fn(() => "/dev/null"),
     deleteRelease: vi.fn(() => true),
     getTracksFromManifestReleases: vi.fn((): unknown[] => []),
+    hasDownloadedRelease: vi.fn<(username: string, releaseId: string) => boolean>(() => false),
   };
 });
 const discogs = vi.hoisted(() => ({
@@ -30,9 +31,10 @@ const repair = vi.hoisted(() => ({
 vi.mock("@/server/services/discogsManifestService", () => manifest);
 vi.mock("@/server/services/discogsApiClient", () => discogs);
 vi.mock("@/lib/serverDb", () => ({ dbPool: {} }));
-vi.mock("@/server/services/discogsCleanupService", () => ({
-  cleanupDiscogsReleases: vi.fn().mockResolvedValue({ friendId: null }),
+const cleanup = vi.hoisted(() => ({
+  cleanupDiscogsReleases: vi.fn(async (): Promise<Record<string, unknown>> => ({ friendId: null })),
 }));
+vi.mock("@/server/services/discogsCleanupService", () => cleanup);
 vi.mock("@/server/services/trackUpsertService", () => trackUpsert);
 vi.mock("@/server/services/albumUpsertService", () => albumUpsert);
 vi.mock("@/server/services/trackEmbeddingSyncService", () => embeddingSync);
@@ -323,5 +325,312 @@ describe("GET /api/discogs — collection date repair (#847)", () => {
     repair.repairDiscogsCollectionFields.mockRejectedValueOnce("boom");
 
     expect(await runSync()).toContain("Collection date repair error: boom");
+  });
+});
+
+describe("GET /api/discogs — resume and checkpoints (#1182)", () => {
+  const ids = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => String(from + i));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    analyticsEvents.reset();
+    setAnalyticsProvider(analyticsEvents);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+
+    manifest.getManifestReleaseIds.mockReturnValue([]);
+    manifest.hasDownloadedRelease.mockReturnValue(false);
+    manifest.saveManifest.mockImplementation(() => {});
+    manifest.deleteRelease.mockImplementation(() => true);
+    manifest.getTracksFromManifestReleases.mockImplementation(((
+      _username: string,
+      releaseIds: string[],
+    ) => releaseIds.map((id) => ({ track_id: `${id}-A1` }))) as never);
+    discogs.getReleaseDetails.mockImplementation(async (id: string) => ({ id: Number(id) }));
+    trackUpsert.upsertTracks.mockImplementation(async (tracks: { track_id: string }[]) => ({
+      upserted: tracks.map((t) => ({ ...t, friend_id: 1 })),
+      errors: [],
+    }));
+    albumUpsert.getAlbumsFromManifestReleases.mockImplementation(
+      async (_username: string, releaseIds: string[]) => releaseIds.map((id) => ({ id })),
+    );
+    albumUpsert.upsertAlbums.mockImplementation(
+      async (_pool: unknown, albums: unknown[]) => albums,
+    );
+    embeddingSync.syncIdentityEmbeddings.mockImplementation(async (tracks: unknown[]) => ({
+      queued: tracks.length,
+    }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    setAnalyticsProvider(null);
+  });
+
+  async function runSync() {
+    const res = await GET(new Request("http://localhost/api/discogs?username=dj") as never);
+    const body = res.text();
+    await vi.runAllTimersAsync();
+    return body;
+  }
+
+  const savedIds = () => manifest.saveManifest.mock.calls.map((call) => (call as unknown[])[1]);
+
+  it("resumes releases already on disk without fetching or waiting for them", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1, 2, 3]));
+    manifest.hasDownloadedRelease.mockImplementation((_u: string, id: string) => id !== "2");
+    const timeout = vi.spyOn(globalThis, "setTimeout");
+
+    const body = await runSync();
+
+    expect(manifest.hasDownloadedRelease).toHaveBeenCalledWith("dj", "1");
+    expect(discogs.getReleaseDetails).toHaveBeenCalledTimes(1);
+    expect(discogs.getReleaseDetails).toHaveBeenCalledWith("2");
+    expect(timeout.mock.calls.filter(([, ms]) => ms === 1200)).toHaveLength(1);
+    expect(body).toContain("Resuming 2 new releases already on disk");
+    expect(body).toContain("New IDs to fetch: 1\n");
+    expect(body).toContain("Already downloaded release ID: 1");
+    expect(body).toContain("Saved release ID: 2");
+    expect(body).toContain("Already downloaded release ID: 3");
+    expect(body).toContain("New releases downloaded: 3");
+    expect(savedIds().at(-1)).toEqual(["1", "2", "3"]);
+    expect(manifest.getTracksFromManifestReleases).toHaveBeenCalledWith("dj", ["1", "2", "3"]);
+    expect(albumUpsert.getAlbumsFromManifestReleases).toHaveBeenCalledWith("dj", ["1", "2", "3"]);
+  });
+
+  it("fetches a release again when its file on disk doesn't parse", async () => {
+    // hasDownloadedRelease is false for an unparseable file (tested in the
+    // manifest service), so the route treats it as not yet downloaded.
+    discogs.getCollectionPage.mockResolvedValue(page([7]));
+    manifest.hasDownloadedRelease.mockReturnValue(false);
+
+    const body = await runSync();
+
+    expect(discogs.getReleaseDetails).toHaveBeenCalledWith("7");
+    expect(body).not.toContain("Resuming");
+    expect(body).toContain("Saved release ID: 7");
+  });
+
+  it("checkpoints the manifest and ingests each batch of 25 with only that batch's IDs", async () => {
+    manifest.getManifestReleaseIds.mockReturnValue(["900", "901"]);
+    discogs.getCollectionPage.mockResolvedValue(page([900, ...ids(1, 30).map(Number)]));
+
+    const body = await runSync();
+
+    const batch1 = ids(1, 25);
+    const batch2 = ids(26, 30);
+    expect(savedIds()[0]).toEqual(["900", ...batch1]);
+    expect(savedIds().at(-1)).toEqual(["900", ...batch1, ...batch2]);
+    expect(manifest.getTracksFromManifestReleases.mock.calls).toEqual([
+      ["dj", batch1],
+      ["dj", batch2],
+    ]);
+    expect(albumUpsert.getAlbumsFromManifestReleases.mock.calls).toEqual([
+      ["dj", batch1],
+      ["dj", batch2],
+    ]);
+    expect(trackUpsert.upsertTracks).toHaveBeenCalledTimes(2);
+    expect(trackUpsert.upsertTracks.mock.calls[1][0]).toHaveLength(5);
+    expect(embeddingSync.syncIdentityEmbeddings).toHaveBeenCalledTimes(2);
+    // Batch 1 is in the manifest before it is ingested, and in Postgres
+    // before batch 2 is fetched.
+    expect(manifest.saveManifest.mock.invocationCallOrder[0]).toBeLessThan(
+      trackUpsert.upsertTracks.mock.invocationCallOrder[0],
+    );
+    expect(trackUpsert.upsertTracks.mock.invocationCallOrder[0]).toBeLessThan(
+      discogs.getReleaseDetails.mock.invocationCallOrder[25],
+    );
+    expect(body).toContain("--- Ingesting batch 1 of 2 ---");
+    expect(body.match(/--- Starting Auto-Ingest ---/g)).toHaveLength(1);
+    expect(body).toContain("Total IDs: 31 (added: 30, failed: 0)");
+    expect(body).toContain("✅ Auto-ingest complete!");
+    expect(body).toContain("🎉 All operations complete!");
+    expect(analyticsEvents.events.at(-1)?.properties).toMatchObject({
+      new_releases: 30,
+      removed_releases: 1,
+      error_count: 0,
+    });
+  });
+
+  it("keeps batch 1 in the manifest when batch 2 throws, and saves the rest on the way out", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page(ids(1, 30).map(Number)));
+    manifest.saveManifest
+      .mockImplementationOnce(() => {})
+      .mockImplementationOnce(() => {
+        throw new Error("disk full");
+      });
+
+    const body = await runSync();
+
+    expect(savedIds()).toEqual([ids(1, 25), ids(1, 30), ids(1, 30)]);
+    expect(body).toContain("Error: disk full");
+    expect(body).not.toContain("All operations complete");
+    // Batch 1 reached Postgres; batch 2 was never ingested.
+    expect(manifest.getTracksFromManifestReleases.mock.calls).toEqual([["dj", ids(1, 25)]]);
+  });
+
+  it("skips ingest for a batch where every fetch failed", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page(ids(1, 26).map(Number)));
+    discogs.getReleaseDetails.mockImplementation(async (id: string) => {
+      if (Number(id) <= 25) throw "nope";
+      return { id: Number(id) };
+    });
+
+    const body = await runSync();
+
+    expect(body).not.toContain("--- Ingesting batch");
+    expect(manifest.getTracksFromManifestReleases.mock.calls).toEqual([["dj", ["26"]]]);
+    expect(body).toContain("Error for release ID 1: nope");
+    expect(body).toContain("Total IDs: 1 (added: 1, failed: 25)");
+  });
+
+  it("starts the auto-ingest section even when only earlier batches downloaded", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page(ids(1, 26).map(Number)));
+    discogs.getReleaseDetails.mockImplementation(async (id: string) => {
+      if (id === "26") throw new Error("gone");
+      return { id: Number(id) };
+    });
+
+    const body = await runSync();
+
+    expect(manifest.getTracksFromManifestReleases).toHaveBeenCalledTimes(1);
+    expect(body).toContain("--- Starting Auto-Ingest ---");
+    expect(body).toContain("✅ Auto-ingest complete!");
+  });
+
+  it("reports an ingest failure in a batch and carries on with the next", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page(ids(1, 26).map(Number)));
+    trackUpsert.upsertTracks.mockRejectedValueOnce(new Error("db down"));
+
+    const body = await runSync();
+
+    expect(body).toContain("❌ Auto-ingest error: db down");
+    expect(trackUpsert.upsertTracks).toHaveBeenCalledTimes(2);
+    expect(body).not.toContain("✅ Auto-ingest complete!");
+    expect(body).toContain("All operations complete");
+  });
+
+  it("keeps syncing and saves the manifest after the client disconnects", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1, 2, 3]));
+    const res = await GET(new Request("http://localhost/api/discogs?username=dj") as never);
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+
+    await vi.runAllTimersAsync();
+
+    expect(discogs.getReleaseDetails).toHaveBeenCalledTimes(3);
+    expect(savedIds().at(-1)).toEqual(["1", "2", "3"]);
+    expect(trackUpsert.upsertTracks).toHaveBeenCalledTimes(1);
+    expect(analyticsEvents.events.at(-1)?.event).toBe("discogs_sync_completed");
+    expect(console.log).toHaveBeenCalledWith(
+      "[Discogs Sync] Client disconnected; sync for dj continues",
+    );
+    expect(console.log).toHaveBeenCalledWith("[Discogs Sync] Saved release ID: 3");
+  });
+
+  it("saves nothing when the collection can't be listed", async () => {
+    discogs.getCollectionPage.mockRejectedValue(new Error("HTTP 500"));
+
+    const body = await runSync();
+
+    expect(body).toContain("Error: HTTP 500");
+    expect(manifest.saveManifest).not.toHaveBeenCalled();
+  });
+
+  it("logs a manifest that can't be saved on the way out", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1]));
+    manifest.saveManifest.mockImplementation(() => {
+      throw new Error("read-only");
+    });
+
+    const body = await runSync();
+
+    expect(body).toContain("Error: read-only");
+    expect(manifest.saveManifest).toHaveBeenCalledTimes(2);
+    expect(console.error).toHaveBeenCalledWith(
+      "[Discogs Sync] Could not save manifest:",
+      expect.any(Error),
+    );
+  });
+
+  it("reads every collection page, stopping at an empty one", async () => {
+    discogs.getCollectionPage
+      .mockResolvedValueOnce({ ...page([1]), pagination: { page: 1, pages: 3 } })
+      .mockResolvedValueOnce({ pagination: { page: 2, pages: 3 } });
+
+    const body = await runSync();
+
+    expect(discogs.getCollectionPage).toHaveBeenCalledTimes(2);
+    expect(body).toContain("Page 2 - releases found: 0");
+    expect(savedIds().at(-1)).toEqual(["1"]);
+  });
+
+  it("deletes removed releases and keeps them out of every checkpoint", async () => {
+    const removed = ids(100, 111);
+    manifest.getManifestReleaseIds.mockReturnValue(["1", ...removed]);
+    discogs.getCollectionPage.mockResolvedValue(page([1, 2]));
+    cleanup.cleanupDiscogsReleases.mockResolvedValueOnce({
+      friendId: 4,
+      deletedTracksCount: 30,
+      deletedAlbumsCount: 12,
+    });
+
+    const body = await runSync();
+
+    expect(body).toContain("Detected 12 releases removed");
+    expect(body).toContain("Deleted local files 10/12...");
+    expect(body).toContain("✅ Deleted 30 tracks and 12 albums for removed releases");
+    expect(savedIds().every((saved) => !(saved as string[]).includes("100"))).toBe(true);
+    expect(savedIds().at(-1)).toEqual(["1", "2"]);
+  });
+
+  it("counts only files actually deleted, and reports a failed DB cleanup", async () => {
+    manifest.getManifestReleaseIds.mockReturnValue(["1", "100"]);
+    discogs.getCollectionPage.mockResolvedValue(page([1]));
+    manifest.deleteRelease.mockImplementation(() => false);
+    cleanup.cleanupDiscogsReleases.mockRejectedValueOnce("db gone");
+
+    const body = await runSync();
+
+    expect(body).toContain("⚠️  Error deleting releases: db gone");
+    expect(savedIds().at(-1)).toEqual(["1"]);
+  });
+
+  it("names an Error from the DB cleanup", async () => {
+    manifest.getManifestReleaseIds.mockReturnValue(["100"]);
+    discogs.getCollectionPage.mockResolvedValue(page([]));
+    cleanup.cleanupDiscogsReleases.mockRejectedValueOnce(new Error("db gone"));
+
+    expect(await runSync()).toContain("⚠️  Error deleting releases: db gone");
+  });
+
+  it.each([[new Error("bad album")], ["bad album"]])(
+    "reports an album ingest failure (%s) and still queues embeddings",
+    async (failure) => {
+      discogs.getCollectionPage.mockResolvedValue(page([1]));
+      albumUpsert.upsertAlbums.mockRejectedValueOnce(failure);
+
+      const body = await runSync();
+
+      expect(body).toContain("⚠️  Album ingest error: bad album");
+      expect(embeddingSync.syncIdentityEmbeddings).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("names a non-Error ingest failure", async () => {
+    discogs.getCollectionPage.mockResolvedValue(page([1]));
+    trackUpsert.upsertTracks.mockRejectedValueOnce("db down");
+
+    expect(await runSync()).toContain("❌ Auto-ingest error: db down");
+  });
+
+  it("names a non-Error sync failure", async () => {
+    discogs.getCollectionPage.mockRejectedValue("offline");
+
+    expect(await runSync()).toContain("Error: offline");
   });
 });
