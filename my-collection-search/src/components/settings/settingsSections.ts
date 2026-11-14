@@ -5,6 +5,7 @@
 export const settingsSectionIds = [
   "appearance",
   "libraries",
+  "ranking",
   "apple-music",
   "ai-metadata",
   "about",
@@ -18,7 +19,13 @@ export type SettingsGroup = { label: string; sections: SettingsSectionMeta[] };
 
 export const SETTINGS_GROUPS: SettingsGroup[] = [
   { label: "You", sections: [{ id: "appearance", label: "Appearance" }] },
-  { label: "Library", sections: [{ id: "libraries", label: "Libraries" }] },
+  {
+    label: "Library",
+    sections: [
+      { id: "libraries", label: "Libraries" },
+      { id: "ranking", label: "Ranking" },
+    ],
+  },
   {
     label: "Services",
     sections: [

@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
       library_friend_id,
       breakdown,
       ranker,
+      ranking_config,
     } = parsedBody.data;
 
     if (limit_identity < 1 || limit_identity > 1000) {
@@ -238,6 +239,7 @@ export async function POST(request: NextRequest) {
           seed: seedTracks.at(-1)!,
           ranker,
           libraryFriendId: library_friend_id ?? seedTracks[0].friendId,
+          config: ranking_config,
         })
       : result;
     const response = {

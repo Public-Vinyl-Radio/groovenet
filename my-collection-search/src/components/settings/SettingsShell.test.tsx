@@ -31,6 +31,10 @@ vi.mock("./LibrariesSettingsSection", () => ({
   ),
   LIBRARIES_INTRO: "The Discogs collections GrooveNet syncs.",
 }));
+vi.mock("./RankingSettingsSection", () => ({
+  default: () => "ranking section",
+  RANKING_INTRO: "How suggestions are ranked.",
+}));
 vi.mock("./settingsSummaries", () => ({
   useSettingsSummaries: () => ({
     appearance: "Mono · light on this device",
@@ -57,7 +61,7 @@ describe("SettingsShell on desktop", () => {
       ]),
     ).toEqual([
       ["You", ["Appearance"]],
-      ["Library", ["Libraries"]],
+      ["Library", ["Libraries", "Ranking"]],
       ["Services", ["Apple Music", "AI metadata"]],
       ["About", ["About GrooveNet"]],
     ]);
@@ -81,6 +85,12 @@ describe("SettingsShell on desktop", () => {
       heading.id,
     );
     expect(screen.getByText("apple music section")).toBeTruthy();
+  });
+
+  it("frames Ranking with its intro", () => {
+    renderWithProviders(<SettingsShell section="ranking" />);
+    expect(screen.getByText("ranking section")).toBeTruthy();
+    expect(screen.getByText("How suggestions are ranked.")).toBeTruthy();
   });
 
   it("opens Appearance beside the rail on /settings", () => {

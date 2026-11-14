@@ -7,6 +7,7 @@ type Props = {
   /** The thumb's accessible name: "Seek", "Volume". */
   label: string;
   value: number;
+  min?: number;
   max?: number;
   step?: number;
   /** Read out instead of the raw number, e.g. "0:36 of 4:02". */
@@ -18,6 +19,7 @@ type Props = {
   thumbH?: string;
   width?: string;
   flex?: string;
+  disabled?: boolean;
 };
 
 /**
@@ -28,6 +30,7 @@ type Props = {
 export default function RetroSlider({
   label,
   value,
+  min = 0,
   max = 100,
   step = 1,
   valueText,
@@ -36,6 +39,7 @@ export default function RetroSlider({
   thumbH = "22px",
   width,
   flex,
+  disabled,
 }: Props) {
   // The end event reports the controlled value, which a key press hasn't
   // re-rendered yet: commit the last value this slider reported instead.
@@ -45,7 +49,9 @@ export default function RetroSlider({
       width={width ?? "100%"}
       flex={flex}
       value={[value]}
+      min={min}
       max={max}
+      disabled={disabled}
       step={step}
       aria-label={[label]}
       getAriaValueText={valueText === undefined ? undefined : () => valueText}

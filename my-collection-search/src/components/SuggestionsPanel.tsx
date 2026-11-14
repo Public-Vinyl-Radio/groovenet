@@ -14,7 +14,10 @@ import {
 import { FiX } from "react-icons/fi";
 import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
 import RetroDialog from "@/components/ui/RetroDialog";
+import RankingProfilePicker from "@/components/RankingProfilePicker";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
+import { useRankingProfile } from "@/hooks/useRankingProfiles";
+import { suggestionFilterLabels } from "@/lib/ranking/configs";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
@@ -85,11 +88,22 @@ export default function SuggestionsPanel({
     100,
     { scope, libraryFriendId, enabled: ready },
   );
+  const ranking = useRankingProfile("suggestions");
+  const labels = suggestionFilterLabels(ranking.config);
+  const picker = (
+    <RankingProfilePicker
+      id="suggestions"
+      value={ranking.profile.id}
+      options={ranking.options}
+      onChange={ranking.choose}
+    />
+  );
   const ranked = rankSeed
     ? rankSuggestions(recs, {
         seed: rankSeed,
         playlist: base,
         seedMode: seedTrack ? "track" : "playlist",
+        config: ranking.config,
         filters: { compatibleKey, bpmWithinSixPercent },
       })
     : null;
@@ -213,18 +227,27 @@ export default function SuggestionsPanel({
   if (form !== "panel") {
     const shared = {
       onClose,
-      seedLine,
+      seedLine: (
+        <>
+          {seedLine}
+          {picker}
+        </>
+      ),
       chips: (
         <>
           <Chip pressed={!seedTrack} onClick={() => setMode(seedTrack ? "playlist" : "track")}>
             Whole playlist
           </Chip>
-          <Chip pressed={compatibleKey} onClick={() => setCompatibleKey((v) => !v)}>
-            Compatible key
-          </Chip>
-          <Chip pressed={bpmWithinSixPercent} onClick={() => setBpmWithinSixPercent((v) => !v)}>
-            BPM ±6%
-          </Chip>
+          {labels.compatibleKey && (
+            <Chip pressed={compatibleKey} onClick={() => setCompatibleKey((v) => !v)}>
+              {labels.compatibleKey}
+            </Chip>
+          )}
+          {labels.bpmWithinSixPercent && (
+            <Chip pressed={bpmWithinSixPercent} onClick={() => setBpmWithinSixPercent((v) => !v)}>
+              {labels.bpmWithinSixPercent}
+            </Chip>
+          )}
           {SCOPES.map((s) => (
             <Chip key={s.value} pressed={scope === s.value} onClick={() => setScope(s.value)}>
               {s.label}
@@ -286,26 +309,31 @@ export default function SuggestionsPanel({
         </SegmentGroup.Root>
         {seedLine}
         <Flex gap={2} wrap="wrap" align="center">
-          <Button
-            size="xs"
-            aria-pressed={compatibleKey}
-            variant={compatibleKey ? "solid" : "outline"}
-            colorPalette="neutral"
-            onClick={() => setCompatibleKey((v) => !v)}
-          >
-            Compatible key
-          </Button>
-          <Button
-            size="xs"
-            aria-pressed={bpmWithinSixPercent}
-            variant={bpmWithinSixPercent ? "solid" : "outline"}
-            colorPalette="neutral"
-            onClick={() => setBpmWithinSixPercent((v) => !v)}
-          >
-            BPM ±6%
-          </Button>
+          {labels.compatibleKey && (
+            <Button
+              size="xs"
+              aria-pressed={compatibleKey}
+              variant={compatibleKey ? "solid" : "outline"}
+              colorPalette="neutral"
+              onClick={() => setCompatibleKey((v) => !v)}
+            >
+              {labels.compatibleKey}
+            </Button>
+          )}
+          {labels.bpmWithinSixPercent && (
+            <Button
+              size="xs"
+              aria-pressed={bpmWithinSixPercent}
+              variant={bpmWithinSixPercent ? "solid" : "outline"}
+              colorPalette="neutral"
+              onClick={() => setBpmWithinSixPercent((v) => !v)}
+            >
+              {labels.bpmWithinSixPercent}
+            </Button>
+          )}
           <SuggestionScopeToggle value={scope} onChange={setScope} />
         </Flex>
+        {picker}
         {status}
         {empty}
         {list}

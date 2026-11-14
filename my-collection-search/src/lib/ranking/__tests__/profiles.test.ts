@@ -109,6 +109,10 @@ describe("stored profiles", () => {
     expect(copyName("Selector")).toBe("Selector copy");
     expect(copyName("x".repeat(80))).toHaveLength(80);
     expect(profileToDraft(RANKING_PRESETS.selector).name).toBe("Selector");
+    const entry = storedProfileEntry(row({ version: 9 }));
+    expect(profileToDraft(entry)).not.toHaveProperty("invalid");
+    expect(profileToDraft(entry)).not.toHaveProperty("id");
+    expect(profileToDraft({ ...entry, base: undefined })).not.toHaveProperty("base");
   });
 });
 

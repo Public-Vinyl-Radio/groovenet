@@ -124,12 +124,25 @@ export function draftToStored(draft: RankingProfileDraft): {
   };
 }
 
-/** A profile as a draft: what a copy starts from and what the editor edits. */
-export function profileToDraft(profile: RankingProfile, name = profile.name): RankingProfileDraft {
-  const { id: _id, kind: _kind, ...draft } = profile;
-  void _id;
-  void _kind;
-  return { ...draft, name };
+/**
+ * A profile as a draft: what a copy starts from and what the editor edits.
+ * Only the draft's own fields, so a listed entry's `invalid` never rides along.
+ */
+export function profileToDraft(
+  profile: RankingProfile | RankingProfileEntry,
+  name = profile.name,
+): RankingProfileDraft {
+  const { version, weights, base, usePrior, constraints, description, surfaces } = profile;
+  return {
+    version,
+    name,
+    description,
+    surfaces,
+    weights,
+    ...(base ? { base } : {}),
+    usePrior,
+    constraints,
+  };
 }
 
 /** The name a copy gets when none is given, kept within the 80-character limit. */

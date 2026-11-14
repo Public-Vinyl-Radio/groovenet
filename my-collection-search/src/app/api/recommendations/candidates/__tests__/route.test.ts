@@ -419,12 +419,44 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     expect(body.ranking).toMatchObject({ config: "17", fallback: true });
   });
 
+  it("scores a batch with an inline config, for an unsaved profile's preview", async () => {
+    const body = await (
+      await post({
+        breakdown: true,
+        ranker: "999",
+        ranking_config: { version: 1, id: "draft", weights: { identity_similarity: 2 } },
+      })
+    ).json();
+    expect(profileRepo.findById).not.toHaveBeenCalled();
+    expect(body.ranking.config).toBe("draft");
+    expect(body.candidates[0].ranking.score).toBe(1);
+  });
+
+  it("rejects an invalid inline config", async () => {
+    const res = await post({
+      breakdown: true,
+      ranking_config: { version: 1, id: "draft", weights: { identity_similarity: 1e6 } },
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("rejects a stored profile id that names nothing", async () => {
     const res = await get("&breakdown=true&ranker=999");
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Unknown ranker 999");
     const batch = await post({ breakdown: true, ranker: "999" });
     expect(batch.status).toBe(400);
+  });
+
+  it("is a 500 for any other failure", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    retriever.retrieveCandidates.mockRejectedValueOnce(new Error("db down"));
+    retriever.retrieveCandidatesForSeedTracks.mockRejectedValueOnce("db down");
+    const single = await get("&breakdown=true");
+    expect(single.status).toBe(500);
+    expect((await single.json()).message).toBe("db down");
+    expect((await post({ breakdown: true })).status).toBe(500);
+    spy.mockRestore();
   });
 
   it("leaves a batch response unchanged without the flag", async () => {

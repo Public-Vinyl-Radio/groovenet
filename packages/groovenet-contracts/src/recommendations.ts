@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { recommendationScopeSchema } from "./settings.js";
-import { candidateRankingSchema, rankingRefSchema, rankingSurfaceSchema } from "./ranking.js";
+import {
+  candidateRankingSchema,
+  rankingConfigSchema,
+  rankingRefSchema,
+  rankingSurfaceSchema,
+} from "./ranking.js";
 
 // Recommendation candidates retrieved from the identity and audio-vibe
 // embedding indexes (#1020).
@@ -67,6 +72,10 @@ export const recommendationsBatchBodySchema = z.object({
   }),
   ...scopeParams,
   ...rankingParams,
+  ranking_config: rankingConfigSchema.optional().meta({
+    description:
+      "A whole ranking config to score the breakdown with instead of `ranker`, for previewing an unsaved profile (#1192). Needs `breakdown`.",
+  }),
 });
 export type RecommendationsBatchBody = z.infer<typeof recommendationsBatchBodySchema>;
 

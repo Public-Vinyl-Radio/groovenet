@@ -41,6 +41,10 @@ vi.mock("@chakra-ui/react", async (importOriginal) => {
     },
   };
 });
+vi.mock("@/hooks/useRankingProfiles", async () => {
+  const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+  return rankingProfileMock.module;
+});
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 import RelatedTracksSection from "./RelatedTracksSection";
@@ -371,4 +375,52 @@ it("starts with five rows until the viewport is known", () => {
   candidates(tracks(25));
   renderWithProviders(<RelatedTracksSection track={seed} />);
   expect(screen.getByText("5 of 25")).toBeTruthy();
+});
+
+describe("ranking profile picker (#1192)", () => {
+  beforeEach(async () => {
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    rankingProfileMock.reset();
+  });
+
+  // 148 BPM, A minor (8A). Near: same key, 2 BPM off, a weak vibe. Far: the closest vibe,
+  // off tempo and clashing, so Beatmatcher hides it and Selector puts it first.
+  const near = {
+    ...tracks(1)[0],
+    track_id: "near",
+    title: "Suggestion near",
+    album: "N",
+    bpm: "150",
+    key: "A minor",
+    _simAudio: 0.5,
+  } as Track;
+  const far = {
+    ...tracks(1)[0],
+    track_id: "far",
+    title: "Suggestion far",
+    album: "F",
+    bpm: "120",
+    key: "F# major",
+    _simAudio: 0.95,
+  } as Track;
+
+  it("re-ranks the same seed when the profile changes, and labels the profile's own filters", async () => {
+    candidates([near, far]);
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    const picker = screen.getByLabelText("Ranking");
+    await user.selectOptions(picker, "beatmatcher");
+    expect(
+      suggestionRows().map((row) => row.textContent?.match(/Suggestion (near|far)/)?.[0]),
+    ).toEqual(["Suggestion near"]);
+    expect(screen.getByRole("button", { name: "BPM ±6% ½×/2×" })).toBeTruthy();
+
+    await user.selectOptions(picker, "selector");
+    expect(
+      suggestionRows().map((row) => row.textContent?.match(/Suggestion (near|far)/)?.[0]),
+    ).toEqual(["Suggestion far", "Suggestion near"]);
+    // Selector has no key or tempo constraint, so there is nothing to toggle.
+    expect(screen.queryByRole("button", { name: /Compatible key|BPM ±/ })).toBeNull();
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    expect(rankingProfileMock.state.choose).toHaveBeenLastCalledWith("related", "selector");
+  });
 });

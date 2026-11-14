@@ -3,7 +3,7 @@
  * opt-in `breakdown`. Additive: candidates keep their retrieval order and
  * set; each gains a `ranking` (score, constraints, per-signal breakdown).
  */
-import type { RecommendationsResponse } from "@groovenet/contracts";
+import type { RankingConfig, RecommendationsResponse } from "@groovenet/contracts";
 import {
   retrieveSeedMetadata,
   type CandidateTrack,
@@ -22,15 +22,15 @@ export async function attachRankingBreakdown<T extends { candidates: CandidateTr
     ranker?: string;
     /** Whose active profile applies when `ranker` is omitted. */
     libraryFriendId: number;
+    /** A whole config, scored instead of `ranker`: an unsaved profile's preview. */
+    config?: RankingConfig;
   },
 ): Promise<T & { ranking: NonNullable<RecommendationsResponse["ranking"]> }> {
   const surface = "recommendations" as const;
   // Resolved first: an unknown ranker is a 400 before any other work.
-  const ranker = await rankingProfileService.resolveRanker(
-    options.ranker,
-    options.libraryFriendId,
-    surface,
-  );
+  const ranker = options.config
+    ? { id: options.config.id, config: options.config, fallback: false }
+    : await rankingProfileService.resolveRanker(options.ranker, options.libraryFriendId, surface);
   const [seedMetadata, genreContext] = await Promise.all([
     retrieveSeedMetadata(options.seed),
     loadGenreOverlapContext(),

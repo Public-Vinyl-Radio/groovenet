@@ -15,7 +15,11 @@ import {
   storedRankingProfileIdSchema,
   toRankingConfig,
 } from "./ranking.js";
-import { recommendationsQuerySchema, recommendationsResponseSchema } from "./recommendations.js";
+import {
+  recommendationsBatchBodySchema,
+  recommendationsQuerySchema,
+  recommendationsResponseSchema,
+} from "./recommendations.js";
 
 const config = { version: 1, id: "x", weights: { bpm_distance: 1 } } as const;
 
@@ -211,6 +215,20 @@ describe("recommendations ranked by a profile", () => {
     ).toBe("17");
     expect(
       recommendationsQuerySchema.safeParse({ track_id: "t", friend_id: 1, ranker: "x y" }).success,
+    ).toBe(false);
+  });
+
+  it("takes a whole config to preview in a batch", () => {
+    const tracks = [{ track_id: "t", friend_id: 1 }];
+    expect(
+      recommendationsBatchBodySchema.parse({ tracks, breakdown: true, ranking_config: config })
+        .ranking_config,
+    ).toMatchObject({ id: "x", usePrior: false });
+    expect(
+      recommendationsBatchBodySchema.safeParse({
+        tracks,
+        ranking_config: { ...config, weights: { rating: 99 } },
+      }).success,
     ).toBe(false);
   });
 

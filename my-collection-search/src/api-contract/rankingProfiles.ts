@@ -19,8 +19,8 @@ import { PRESET_LIST, RANKING_PRESETS } from "@/lib/ranking/profiles";
 
 const error = z.object({ error: z.string() });
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
-const json = (name: string, example?: unknown) => ({
-  "application/json": { schema: ref(name), ...(example === undefined ? {} : { example }) },
+const json = (name: string, example: unknown) => ({
+  "application/json": { schema: ref(name), example },
 });
 const errorResponse = (description: string) => ({
   description,
