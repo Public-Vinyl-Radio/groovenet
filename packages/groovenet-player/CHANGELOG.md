@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.14](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.13...groovenet-player-v0.1.14) (2026-11-14)
+
+
+### Bug Fixes
+
+* **player:** retry a failed engine release instead of requiring a worker restart ([#1178](https://github.com/Public-Vinyl-Radio/groovenet/issues/1178)) ([5405f4b](https://github.com/Public-Vinyl-Radio/groovenet/commit/5405f4b140008650ea6d5bfd602d34c5830f0bab))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.13.0 to ^3.14.0
+    * @groovenet/contracts bumped from 1.9.0 to 1.10.0
+
 ## [0.1.13](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.1.12...groovenet-player-v0.1.13) (2026-11-11)
 
 
