@@ -38,6 +38,7 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
   });
   const ranked = rankSuggestions(data, {
     seed: track,
+    surface: "related",
     filters: { compatibleKey, bpmWithinSixPercent },
   });
   const layout = layoutSuggestions(ranked, {

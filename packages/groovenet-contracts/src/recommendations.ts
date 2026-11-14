@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { recommendationScopeSchema } from "./settings.js";
+import { candidateRankingSchema, rankingConfigIdSchema, rankingSurfaceSchema } from "./ranking.js";
 
 // Recommendation candidates retrieved from the identity and audio-vibe
 // embedding indexes (#1020).
@@ -23,6 +24,18 @@ const scopeParams = {
   }),
 };
 
+/** Opt-in ranking breakdown (#1191): additive, never reorders or filters. */
+const rankingParams = {
+  breakdown: z.boolean().optional().meta({
+    description:
+      "Attach each candidate's `ranking`: its score, hard-constraint result and per-signal breakdown. Off by default; the order and set of candidates never change.",
+  }),
+  ranker: rankingConfigIdSchema.optional().meta({
+    description:
+      "Built-in ranking config the breakdown uses: `default` (today's suggestion ranking) or the pre-scorer's `blend`, `mixable` and `strict`. Defaults to `default`.",
+  }),
+};
+
 /**
  * The wire query. Defaults (200 / 200 / 10, mode `combined`) and text coercion
  * belong to the route; the limits it enforces are 0-1000.
@@ -35,6 +48,7 @@ export const recommendationsQuerySchema = z.object({
   limit_audio: z.number().int().optional(),
   ivfflat_probes: z.number().int().optional(),
   ...scopeParams,
+  ...rankingParams,
 });
 export type RecommendationsQuery = z.infer<typeof recommendationsQuerySchema>;
 
@@ -52,6 +66,7 @@ export const recommendationsBatchBodySchema = z.object({
     description: "pgvector ivfflat probes; higher is more accurate and slower. Defaults to 10.",
   }),
   ...scopeParams,
+  ...rankingParams,
 });
 export type RecommendationsBatchBody = z.infer<typeof recommendationsBatchBodySchema>;
 
@@ -93,6 +108,8 @@ export const recommendationCandidateSchema = z.object({
   simIdentity: z.number().nullable(),
   simAudio: z.number().nullable(),
   metadata: recommendationCandidateMetadataSchema,
+  /** Present only when the request set `breakdown`. */
+  ranking: candidateRankingSchema.optional(),
 });
 export type RecommendationCandidate = z.infer<typeof recommendationCandidateSchema>;
 
@@ -117,6 +134,15 @@ export const recommendationsResponseSchema = z.object({
   libraryFriendId: z.number().int().nullable(),
   candidates: z.array(recommendationCandidateSchema),
   stats: recommendationStatsSchema,
+  /** Which config and seed the candidates' `ranking` used; present only with `breakdown`. */
+  ranking: z
+    .object({
+      config: rankingConfigIdSchema,
+      surface: rankingSurfaceSchema,
+      /** The track scored against: the seed, or a batch's last track. */
+      seed: z.object({ trackId: z.string(), friendId: z.number().int() }),
+    })
+    .optional(),
 });
 export type RecommendationsResponse = z.infer<typeof recommendationsResponseSchema>;
 

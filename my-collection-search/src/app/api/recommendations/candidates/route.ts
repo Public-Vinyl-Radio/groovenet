@@ -15,6 +15,9 @@
  * - scope (optional): library | all; omitted, the library's saved setting
  * - library_friend_id (optional): the library `scope=library` keeps to;
  *   defaults to the seed's library
+ * - breakdown (optional): attach each candidate's ranking breakdown (#1191);
+ *   never reorders or filters
+ * - ranker (optional, with breakdown): default | blend | mixable | strict
  *
  * Example:
  * GET /api/recommendations/candidates?track_id=123&friend_id=1&limit_identity=300&limit_audio=150
@@ -29,6 +32,7 @@ import {
 } from "@/lib/recommendation-candidate-retriever";
 import { analytics } from "@/lib/analytics/server";
 import { settingsService } from "@/server/services/settingsService";
+import { attachRankingBreakdown } from "@/server/services/recommendationRankingService";
 import {
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
@@ -59,6 +63,8 @@ export async function GET(request: NextRequest) {
       ivfflat_probes,
       scope: requestedScope,
       library_friend_id,
+      breakdown,
+      ranker,
     } = parsedQuery.data;
     const friendIdNum = friend_id;
     let limitIdentity = limit_identity;
@@ -118,8 +124,14 @@ export async function GET(request: NextRequest) {
     );
 
     // Add embeddings info to response
+    const ranked = breakdown
+      ? await attachRankingBreakdown(result, {
+          seed: { trackId: track_id, friendId: friendIdNum },
+          configId: ranker,
+        })
+      : result;
     const response = {
-      ...result,
+      ...ranked,
       seedEmbeddings: embeddings,
       scope,
       libraryFriendId,
@@ -158,6 +170,8 @@ export async function POST(request: NextRequest) {
       ivfflat_probes,
       scope: requestedScope,
       library_friend_id,
+      breakdown,
+      ranker,
     } = parsedBody.data;
 
     if (limit_identity < 1 || limit_identity > 1000) {
@@ -211,8 +225,12 @@ export async function POST(request: NextRequest) {
       { request },
     );
 
+    // A batch is a playlist: its candidates are scored against its last track.
+    const ranked = breakdown
+      ? await attachRankingBreakdown(result, { seed: seedTracks.at(-1)!, configId: ranker })
+      : result;
     const response = {
-      ...result,
+      ...ranked,
       seedEmbeddings: embeddings,
       scope,
       libraryFriendId,

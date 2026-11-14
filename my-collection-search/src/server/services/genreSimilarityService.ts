@@ -175,7 +175,7 @@ export function startGenreSimilarityRefresh(): void {
 
 /**
  * The pre-scorer's soft genre overlap context (#487): load once per
- * recommendation request and pass to `applyConstraintsAndBonuses`.
+ * recommendation request and pass to the ranker (`RankingContext.genreContext`).
  */
 export async function loadGenreOverlapContext(): Promise<GenreOverlapContext> {
   const { pairs, taxonomy } = await genreSimilarityRepository.loadOverlapData();

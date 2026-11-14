@@ -8,7 +8,8 @@ const withDbClient = vi.hoisted(() =>
   vi.fn((fn: (client: typeof mockClient) => unknown) => fn(mockClient)),
 );
 
-vi.mock("@/lib/serverDb", () => ({ withDbTransaction: withDbClient }));
+const dbQuery = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/serverDb", () => ({ withDbTransaction: withDbClient, dbQuery }));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -505,5 +506,22 @@ describe("findAudioSimilarByCentroid()", () => {
     });
 
     expect(result[0].distance).toBe(0.77);
+  });
+});
+
+describe("findTrackRow()", () => {
+  it("reads one live track in the candidates' shape, at distance 0", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ track_id: "t", friend_id: 3, distance: "0" }] });
+    const row = await makeRepo().findTrackRow({ trackId: "t", friendId: 3 });
+    expect(row).toEqual({ track_id: "t", friend_id: 3, distance: 0 });
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("t.deleted_at IS NULL");
+    expect(sql).toContain("0 AS distance");
+    expect(params).toEqual(["t", 3]);
+  });
+
+  it("returns null when the track is missing", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+    expect(await makeRepo().findTrackRow({ trackId: "t", friendId: 3 })).toBeNull();
   });
 });

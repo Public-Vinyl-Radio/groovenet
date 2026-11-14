@@ -6,8 +6,12 @@ const retriever = vi.hoisted(() => ({
   retrieveCandidatesForSeedTracks: vi.fn(),
   hasEmbeddings: vi.fn(),
   hasEmbeddingsForSeedTracks: vi.fn(),
+  retrieveSeedMetadata: vi.fn(),
 }));
 vi.mock("@/lib/recommendation-candidate-retriever", () => retriever);
+
+const genreContext = vi.hoisted(() => ({ loadGenreOverlapContext: vi.fn() }));
+vi.mock("@/server/services/genreSimilarityService", () => genreContext);
 
 // The real resolution rule, with the saved setting stubbed per test.
 const savedScope = vi.hoisted(() => ({ value: "library" as "library" | "all" }));
@@ -217,5 +221,135 @@ describe("/api/recommendations/candidates — library scope", () => {
       expect.any(Array),
       expect.objectContaining({ libraryFriendId: undefined }),
     );
+  });
+});
+
+describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => {
+  const seedMetadata = {
+    ...candidate("seed").metadata,
+    bpm: 124,
+    key: "8A",
+  };
+  const ranked = () => {
+    const base = result(3);
+    base.candidates[0] = { ...base.candidates[0], simIdentity: 0.5 };
+    base.candidates[1] = {
+      ...base.candidates[1],
+      simIdentity: 0.6,
+      metadata: { ...base.candidates[1].metadata, bpm: 124, key: "8A" } as never,
+    };
+    base.candidates[2] = {
+      ...base.candidates[2],
+      simIdentity: 0.9,
+      metadata: { ...base.candidates[2].metadata, bpm: 140, key: "3B" } as never,
+    };
+    return base;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    savedScope.value = "library";
+    retriever.hasEmbeddings.mockResolvedValue({ identity: true, audio: true });
+    retriever.hasEmbeddingsForSeedTracks.mockResolvedValue({ identity: true, audio: true });
+    retriever.retrieveCandidates.mockResolvedValue(ranked());
+    retriever.retrieveCandidatesForSeedTracks.mockResolvedValue(ranked());
+    retriever.retrieveSeedMetadata.mockResolvedValue(seedMetadata);
+    genreContext.loadGenreOverlapContext.mockResolvedValue({
+      similarity: new Map(),
+      parentOf: new Map(),
+    });
+  });
+
+  const get = (query = "") =>
+    GET(
+      new NextRequest(
+        `http://localhost/api/recommendations/candidates?track_id=seed&friend_id=1${query}`,
+      ),
+    );
+  const post = (body: Record<string, unknown>) =>
+    POST(
+      new NextRequest("http://localhost/api/recommendations/candidates", {
+        method: "POST",
+        body: JSON.stringify({
+          tracks: [
+            { track_id: "a", friend_id: 1 },
+            { track_id: "last", friend_id: 2 },
+          ],
+          ...body,
+        }),
+      }),
+    );
+
+  it("leaves the response exactly as before without the flag", async () => {
+    const body = await (await get()).json();
+    expect(body).not.toHaveProperty("ranking");
+    expect(body.candidates.every((c: object) => !("ranking" in c))).toBe(true);
+    expect(body.candidates).toEqual(ranked().candidates);
+    expect(retriever.retrieveSeedMetadata).not.toHaveBeenCalled();
+    expect(genreContext.loadGenreOverlapContext).not.toHaveBeenCalled();
+  });
+
+  it("adds each candidate's breakdown without reordering or filtering", async () => {
+    const res = await get("&breakdown=true");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith({ trackId: "seed", friendId: 1 });
+    expect(body.ranking).toEqual({
+      config: "default",
+      surface: "recommendations",
+      seed: { trackId: "seed", friendId: 1 },
+    });
+    expect(body.candidates.map((c: { trackId: string }) => c.trackId)).toEqual(["t0", "t1", "t2"]);
+    const [unknown, match, clash] = body.candidates.map(
+      (c: { ranking: Record<string, unknown> }) => c.ranking,
+    );
+    expect(unknown).toMatchObject({ score: 0.5, passed: true, failed: [], prior: null });
+    expect(match.score).toBeCloseTo(0.6 + 0.02 + 0.01, 12);
+    expect(match.signals.key_relation).toEqual({
+      value: 1,
+      weight: 0.02,
+      contribution: 0.02,
+      detail: "same",
+    });
+    expect(clash).toMatchObject({ passed: false, failed: ["bpm_window", "key_rule"] });
+  });
+
+  it("scores with a named config", async () => {
+    const body = await (await get("&breakdown=1&ranker=strict")).json();
+    expect(body.ranking.config).toBe("strict");
+    // No genres on the seed or the candidates: strict's genre floor rejects them all.
+    expect(
+      body.candidates.every((c: { ranking: { failed: string[] } }) =>
+        c.ranking.failed.includes("genre_floor"),
+      ),
+    ).toBe(true);
+  });
+
+  it("scores against nothing when the seed row is gone", async () => {
+    retriever.retrieveSeedMetadata.mockResolvedValue(null);
+    const body = await (await get("&breakdown=true")).json();
+    expect(body.candidates[1].ranking.signals.key_relation.value).toBeNull();
+    expect(body.candidates[1].ranking.score).toBe(0.6);
+  });
+
+  it("rejects an unknown config", async () => {
+    expect((await get("&breakdown=true&ranker=fastest")).status).toBe(400);
+  });
+
+  it("scores a batch against its last track", async () => {
+    const body = await (await post({ breakdown: true, ranker: "mixable" })).json();
+    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith({ trackId: "last", friendId: 2 });
+    expect(body.ranking).toEqual({
+      config: "mixable",
+      surface: "recommendations",
+      seed: { trackId: "last", friendId: 2 },
+    });
+    expect(body.candidates).toHaveLength(3);
+  });
+
+  it("leaves a batch response unchanged without the flag", async () => {
+    const body = await (await post({})).json();
+    expect(body).not.toHaveProperty("ranking");
+    expect(retriever.retrieveSeedMetadata).not.toHaveBeenCalled();
   });
 });

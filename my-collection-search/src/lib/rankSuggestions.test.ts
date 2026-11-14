@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { rankingConfigSchema } from "@groovenet/contracts";
 import type { Track } from "@/types/track";
 import {
   blendSuggestionSources,
@@ -249,5 +250,36 @@ describe("layoutSuggestions", () => {
       shown: 0,
       remaining: 3,
     });
+  });
+});
+
+describe("rankSuggestions with a ranking config (#1191)", () => {
+  const seed = track("seed", { bpm: "120", key: "8A" });
+  const candidates = [
+    track("similar", { _simIdentity: 0.9, key: "3B", star_rating: 1 } as Partial<Track>),
+    track("rated", { _simIdentity: 0.5, key: "3B", star_rating: 5 } as Partial<Track>),
+  ];
+
+  it("ranks by the config it is given instead of the default", () => {
+    const byRating = rankingConfigSchema.parse({
+      version: 1,
+      id: "by-rating",
+      weights: { identity_similarity: 0.1, rating: 1 },
+    });
+    expect(rankSuggestions(candidates, { seed }).tracks.map((t) => t.track_id)).toEqual([
+      "similar",
+      "rated",
+    ]);
+    expect(
+      rankSuggestions(candidates, { seed, config: byRating, surface: "related" }).tracks.map(
+        (t) => t.track_id,
+      ),
+    ).toEqual(["rated", "similar"]);
+  });
+
+  it("counts constraint failures as hidden by filters", () => {
+    const result = rankSuggestions(candidates, { seed, filters: { compatibleKey: true } });
+    expect(result.tracks).toEqual([]);
+    expect(result.hiddenByFilters).toBe(2);
   });
 });

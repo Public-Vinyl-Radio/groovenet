@@ -838,6 +838,8 @@ export class GroovenetClient {
     if (opts?.limit_identity != null) params.limit_identity = opts.limit_identity;
     if (opts?.limit_audio != null) params.limit_audio = opts.limit_audio;
     if (opts?.ivfflat_probes != null) params.ivfflat_probes = opts.ivfflat_probes;
+    if (opts?.breakdown) params.breakdown = "true";
+    if (opts?.ranker) params.ranker = opts.ranker;
     return this.request<RecommendationCandidatesResponse>(
       "GET",
       "/recommendations/candidates",

@@ -479,6 +479,37 @@ an invalid value the browser drops, so it fails silently.
   `.events`; don't mock the SDK.
 - Unhandled errors go to Sentry only (`capture_exceptions: false`).
 
+## Ranking
+
+One ranker scores every ranked surface (#1191, epic #1190). The suggestion panels
+and the track page's Related tracks run it in the browser, through `rankSuggestions`.
+`/api/recommendations/candidates?breakdown=true` runs it on the server.
+
+- **Contract:** `@groovenet/contracts` `ranking.ts`, implemented in
+  `src/lib/ranking/ranker.ts`, which is pure so it runs on both sides. A `Ranker` takes a
+  seed (a track, or a playlist scored against its last track), candidates with their
+  features and similarities, a context (`surface`, `friendId`, the genre overlap context)
+  and a `RankingConfig`. It returns one `CandidateRanking` per candidate, in input
+  order: `score`, `passed` and `failed` constraint ids, the `prior` it used, and each
+  signal's `value`, `weight` and `contribution`.
+  `score = (prior ?? best weighted base signal) + Σ weight × value`. Constraints never
+  change a score.
+- **Signals:** `SIGNAL_REGISTRY` in `src/lib/ranking/signals.ts`, keyed by
+  `RANKING_SIGNAL_IDS`. Each is computed once per candidate, normalised to [0, 1], or
+  null without data. Profiles key on these ids, so never rename one. To add a signal,
+  add its id to the end of `RANKING_SIGNAL_IDS` and a registry entry built on an
+  existing calculation, with tests for null and edge values. Registry order is
+  summation order.
+- **Configs** are JSON data validated by `rankingConfigSchema`, in
+  `src/lib/ranking/configs.ts`. `default` is today's suggestion ranking: the better of
+  identity and vibe similarity, then key +0.02/+0.01 and tempo up to +0.01, with the
+  ±6% and compatible-key toggles as constraints (`withSuggestionFilters`). `blend`,
+  `mixable` and `strict` are the pre-scorer's modes. `DEFAULT_CONFIG_BY_SURFACE` picks
+  one per surface until profiles (#1192) do.
+- **Golden tests:** `src/lib/ranking/__tests__/ranking.golden.test.ts` pins today's
+  ordering. A refactor must leave its snapshots untouched. A deliberate ranking change
+  updates them in its own commit and explains why in the PR.
+
 ## Embeddings
 
 - Identity and audio_vibe generation goes through `EmbeddingProvider`

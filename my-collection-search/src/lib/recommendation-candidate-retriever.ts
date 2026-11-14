@@ -14,6 +14,7 @@ import {
 } from "@/server/repositories/recommendationRepository";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { getServingModel } from "@/lib/embeddings/config";
+import { calculateEnergy, computeEraBucket } from "@/lib/ranking/features";
 
 /**
  * Options for candidate retrieval
@@ -139,42 +140,6 @@ function distanceToSimilarity(distance: number): number {
 }
 
 /**
- * Compute era bucket from year
- */
-function computeEraBucket(year: string | null): string | null {
-  if (!year) return null;
-
-  const yearNum = parseInt(year, 10);
-  if (isNaN(yearNum) || yearNum < 1900) return null;
-
-  if (yearNum >= 2020) return "2020s";
-  if (yearNum >= 2010) return "2010s";
-  if (yearNum >= 2000) return "2000s";
-  if (yearNum >= 1990) return "1990s";
-  if (yearNum >= 1980) return "1980s";
-  if (yearNum >= 1970) return "1970s";
-  if (yearNum >= 1960) return "1960s";
-  if (yearNum >= 1950) return "1950s";
-  return "pre-1950s";
-}
-
-/**
- * Calculate energy from danceability and aggressive mood
- */
-function calculateEnergy(
-  danceability: number | null,
-  moodAggressive: number | null,
-): number | null {
-  if (danceability === null && moodAggressive === null) return null;
-
-  const dance = danceability ?? 0.5;
-  const aggression = moodAggressive ?? 0.5;
-
-  // Simple energy calculation (can be refined)
-  return dance * 0.6 + aggression * 0.4;
-}
-
-/**
  * Parse tags from comma-separated string
  */
 function parseTags(localTags: string): string[] {
@@ -276,7 +241,7 @@ async function queryAudioSimilarByCentroid(
 /**
  * Convert query result to candidate track metadata
  */
-function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrackMetadata {
+export function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrackMetadata {
   return {
     bpm: row.bpm,
     key: row.key,
@@ -503,6 +468,14 @@ export async function retrieveCandidatesForSeedTracks(
       },
     },
   };
+}
+
+/** A seed track's own metadata, to score candidates against; null when it is missing or deleted. */
+export async function retrieveSeedMetadata(
+  seed: SeedTrackRef,
+): Promise<CandidateTrackMetadata | null> {
+  const row = await recommendationRepository.findTrackRow(seed);
+  return row ? buildCandidateMetadata(row) : null;
 }
 
 /**
