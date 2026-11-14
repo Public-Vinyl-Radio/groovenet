@@ -9,6 +9,112 @@ Reuses the #379/#382 harness and rules: the frozen 24 queries
 search, pooled and blinded judgments, and unjudged hits are **never** counted
 as irrelevant.
 
+## Result: no-go for both
+
+| Variant             | Decision  | Why                                                                                     |
+| ------------------- | --------- | --------------------------------------------------------------------------------------- |
+| `IL` lyric line     | **No-go** | Lost the blind side-by-side 2–6 (1–5 on seeds whose text it changes); hours to backfill |
+| `IG` file genre     | **No-go** | Lost 2–4; changes at most a couple of suggestions per seed                              |
+| `IGL` both          | No-go     | Not judged; neither part helped                                                         |
+| `CG` / `CL` / `CGL` | Not taken | Text search is rarely used on a 4,000-track collection; partial judgments only (below)  |
+
+Neither variant showed any benefit, and every judged signal leaned against
+them. The side-by-side was stopped early, so the counts are an incomplete
+sample, not a significant loss. What carries over: the `export-eval --lyrics`
+option and the summariser, if lyrics ever become a filter ("spanish vocals",
+"instrumental") rather than embedding text.
+
+### How the owner uses suggestions, and what that changed
+
+The plan was #379's frozen text queries. Partway through judging, the owner
+pointed out that they rarely search; they start from a track and follow its
+suggestions. So the decision moved to the identity embedding, judged the way
+it is used.
+
+**Playlist proxy** (200 playlist seeds, half with a summary): flat. Every
+variant is within about 0.01 MRR of its baseline, and recall@10 is under 0.02
+everywhere, too low to separate anything.
+
+| Run   | MRR all | MRR, seed has summary | MRR, other releases, seed has summary |
+| ----- | ------- | --------------------- | ------------------------------------- |
+| `I0`  | 0.076   | 0.051                 | 0.079                                 |
+| `IG`  | 0.079   | 0.054                 | 0.093                                 |
+| `IL`  | 0.076   | 0.047                 | 0.095                                 |
+| `IGL` | 0.076   | 0.049                 | 0.094                                 |
+| `C0`  | 0.065   | 0.038                 | 0.088                                 |
+| `CG`  | 0.064   | 0.039                 | 0.091                                 |
+| `CL`  | 0.068   | 0.047                 | 0.083                                 |
+| `CGL` | 0.070   | 0.051                 | 0.091                                 |
+
+**How much the suggestions move** (40 playlist seeds, mean tracks shared
+with `I0`'s list):
+
+| List                       | `IG`        | `IL`        | `IGL`       |
+| -------------------------- | ----------- | ----------- | ----------- |
+| Raw top 10                 | 9.6 (26/40) | 9.2 (21/40) | 9.1 (16/40) |
+| Top 10 from other releases | 9.3 (19/40) | 8.5 (10/40) | 8.6 (10/40) |
+| Top 10 from other artists  | 8.9 (12/40) | 8.0 (9/40)  | 7.9 (6/40)  |
+
+In brackets, seeds whose list is unchanged. About 7 of the raw top 10 are the
+seed's album mates, which share every metadata line and so never move; the
+app already folds them to one per release (`rankSuggestions`, #1029).
+
+**Blind side-by-side** (`side-by-side.mjs`): per seed, the top 10 under one
+track per release, as Related tracks and the Suggestions panel show it, for
+the variant and for `I0`, as lists A and B in seeded random order. The owner
+picked the list they would rather dig through.
+
+| Comparison   | Variant better | `I0` better | No difference | Identical lists | Not judged |
+| ------------ | -------------- | ----------- | ------------- | --------------- | ---------- |
+| `IL` vs `I0` | 2              | 6           | 3             | 8               | 21         |
+| `IG` vs `I0` | 2              | 4           | 2             | 10              | 22         |
+
+Sign test, ties dropped: p = 0.29 (`IL`) and 0.69 (`IG`). On seeds with a
+summary, where the lyric line changes the text, `IL` went 1–5 with 3 no
+difference. A first sheet without the per-release cap was abandoned after 9
+items, because album mates filled both lists.
+
+**Text queries** (partial, not used for the decision): 223 of the 505 pooled
+pairs judged, so precision is still a wide range. Paired worst-to-best change
+in precision@10 against the baseline, with hits both top 10s share cancelled:
+
+| Comparison    | Change           | Deciding pairs judged |
+| ------------- | ---------------- | --------------------- |
+| `IG` vs `I0`  | −0.067 to +0.058 | 28 of 58              |
+| `IL` vs `I0`  | −0.092 to +0.058 | 32 of 68              |
+| `IGL` vs `I0` | −0.108 to +0.079 | 39 of 84              |
+| `CG` vs `C0`  | −0.096 to +0.096 | 12 of 58              |
+| `CL` vs `C0`  | −0.142 to +0.138 | 39 of 106             |
+| `CGL` vs `C0` | −0.179 to +0.171 | 46 of 130             |
+
+The #379/#382 judgments could not be found, so nothing carried over. The
+owner also found the 24 queries unlike what they would type, and none of them
+asks about lyrics, which limits what they could show for `L` variants anyway.
+
+### Summary quality
+
+40 summaries reviewed against their lyrics by the owner, stratified 7/7/6
+per vocal presence × English/other:
+
+| Stratum               | Faithful | Minor | Hallucinated | Unreviewed |
+| --------------------- | -------- | ----- | ------------ | ---------- |
+| full lyrics / english | 7        | 0     | 0            | 0          |
+| full lyrics / other   | 5        | 0     | 0            | 2          |
+| hook-only / english   | 7        | 0     | 0            | 0          |
+| hook-only / other     | 6        | 0     | 1            | 0          |
+| sparse / english      | 6        | 0     | 0            | 0          |
+| sparse / other        | 6        | 0     | 0            | 0          |
+
+The one flag is a language call on a hook-only track with almost no text
+("not sure it's Portuguese"), not an invented theme. The summaries were fine;
+they just didn't make suggestions better.
+
+### Cost
+
+Local summaries: 2 h 9 min on an M4 Pro GPU for 2,399 lyric texts, about 2×
+that CPU-only, more on the homelab. Embeddings: 20,830 texts, 1.49M tokens,
+≈ $0.03, plus 202 tokens for the queries.
+
 ## Privacy
 
 - Raw lyrics go **only** to a local Ollama model. `summarize.mjs` refuses any
@@ -117,9 +223,8 @@ one rate for the whole sample.
 
 ## Reproduce
 
-Node 26+. `S` is the private #379/#382 data directory. Pass every earlier
-review sheet there (#379's, and #382's small- and large-model sheets) as a
-`--prior` / `--review`; the lines below show two.
+Node 26+. Earlier #379/#382 review sheets, where you still have them, go in
+as `--prior` (make-review) and `--review` (score-judgments); this run had none.
 
 ```bash
 node --test evaluations/1170/*.test.mjs
@@ -148,18 +253,28 @@ node evaluations/1170/score.mjs --snapshot eval-data/1170-friend-6.json --texts 
   --output eval-data/1170-scores.json \
   --run I0:I0:eval-data/1170-small:eval-data/1170-query-vectors.json   # …one --run per variant
 node evaluations/382/make-review.mjs --snapshot eval-data/1170-friend-6.json --scores eval-data/1170-scores.json \
-  --prior $S/379-review.json --prior $S/382-review.json \
-  --output eval-data/1170-review.json
+  --output eval-data/1170-review.json        # add --prior $S/... for any earlier sheets you have
 node evaluations/379/review.mjs --file eval-data/1170-review.json
-node evaluations/1170/score-judgments.mjs --review $S/379-review.json --review $S/382-review.json \
-  --review eval-data/1170-review.json \
+node evaluations/1170/score-judgments.mjs --review eval-data/1170-review.json \
   --scores eval-data/1170-scores.json --output eval-data/1170-precision.json
+# 6. Blind side-by-side of similar-track lists (the decision), then the tally
+node evaluations/1170/side-by-side.mjs --snapshot eval-data/1170-friend-6.json --texts eval-data/1170-texts.json \
+  --vectors eval-data/1170-small --compare IL:I0 --compare IG:I0 --variety-cap 1 \
+  --output eval-data/1170-side-by-side.json --key eval-data/1170-side-by-side-key.json
+node evaluations/1170/review-side-by-side.mjs --file eval-data/1170-side-by-side.json
+node evaluations/1170/side-by-side.mjs --tally eval-data/1170-side-by-side.json \
+  --key eval-data/1170-side-by-side-key.json
 ```
+
+The judge never opens the key file or `1170-scores.json`; both say which
+list or ranking came from which variant.
 
 Prior judgments are keyed by `(query, friend, track)`, so they carry over to
 the new snapshot; only pooled pairs nobody has judged go into the new sheet.
-Precision is reported as lower–upper bounds until every pooled hit is judged,
-and per-query comparisons against `I0`/`C0` use a seeded 95% bootstrap.
+Precision is reported as lower–upper bounds until every pooled hit is judged.
+Comparisons against `I0`/`C0` report a worst-to-best delta, and add a seeded
+95% bootstrap only once the sheet is complete: a bootstrap over lower bounds
+would count unjudged hits as misses.
 
 ## Status
 
@@ -172,5 +287,5 @@ and per-query comparisons against `I0`/`C0` use a seeded 95% bootstrap.
       `d0ffee14ff56345807884e838187259871d2e4b6fd973791625e0b6ea6f5d1a0`.
 - [x] Local model: `qwen3.5:9b-q4_K_M` installed and smoke-tested.
 - [x] Summaries (see above).
-- [ ] Summary quality review (40 tracks, human).
-- [ ] Retrieval results, go / no-go.
+- [x] Summary quality review: 37 faithful, 1 flagged, 2 unreviewed.
+- [x] Retrieval results, go / no-go: no-go for both (see the top).
