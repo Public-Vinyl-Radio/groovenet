@@ -348,6 +348,21 @@ an invalid value the browser drops, so it fails silently.
   through the same `saveTrack` path on tap. Unrated cards show nothing there: they rate from
   the card menu's Rating row, which sits right under the action tiles and which
   `TrackActionsMenu` recognises through `TrackCardContext`.
+- **Album cards** (`AlbumResult layout="card"`; #1121): one album card everywhere, the
+  Track card's shape (outline, `shadow-md`, `mb: 14px`, the 120/64px cover beside title,
+  artist, label · country (year), meta line, genre tags, hover rating, corner menu).
+  Grids use the full card **at every width, phones included** (one column), through
+  `AlbumCardGrid`: one column, two from `md`, 20px column gap, room for the shadow. The
+  Albums GRID, a genre's Albums tab and the artist page share it. `size="compact"` is only
+  for horizontal scrollers (Home's and the genre index's New arrivals on phones): a
+  vertical tile, cover edge to edge, then title and artist in the full card's type scaled
+  down and one meta line; the whole tile is one link (`aria-label="Open <title>"`) with no
+  link inside it (the artist is plain text), no menu and no rating, so it doesn't load the
+  card's action hooks. `size` takes a responsive value (`{ base: "compact", md: "full" }`)
+  instead of an `isMobile` branch. `meta` is the caller's slot: on compact it replaces the
+  mono `year · format` line (Home passes plays + the rating chip); on full it is its own
+  line under the meta line (the artist page's "Appears on"). `layout="row"` is the album
+  table, the Albums LIST view; there are no other album layouts.
 - **List header** (Tracks, Albums; #794): three rows, no toolbar box, every control a
   2px outline with mono capital labels (`components/layout/ListHeader.tsx`).
   1. Page row: `PageHeader` with `desktopActions` (SELECT, `ViewModeSwitch` LIST / GRID,

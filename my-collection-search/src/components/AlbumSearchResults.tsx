@@ -1,11 +1,12 @@
 "use client";
 import React, { useCallback, useEffect } from "react";
-import { Box, Flex, Grid, Spinner, Text, Button } from "@chakra-ui/react";
+import { Box, Flex, Spinner, Text, Button } from "@chakra-ui/react";
 import { useAlbumsInfiniteQuery } from "@/hooks/useAlbumsQuery";
 import { useAlbumsByRefs } from "@/hooks/useAlbum";
 import { useInfiniteScrollSentinel } from "@/hooks/useInfiniteScrollSentinel";
 import AlbumResult, { ALBUM_MISSING_TAGS, type AlbumMissingKey } from "./AlbumResult";
 import AlbumTable from "./AlbumTable";
+import AlbumCardGrid from "./AlbumCardGrid";
 import { useSearchParams } from "next/navigation";
 import { DEFAULT_ALBUM_SORT } from "./AlbumSortMenu";
 import type { GenreFilterRef } from "@/lib/trackFilterSpec";
@@ -139,16 +140,7 @@ export default function AlbumSearchResults({
         return layout === "row" ? (
           <AlbumTable>{results}</AlbumTable>
         ) : (
-          // Room for the cards' 6px hard shadow; each card carries a 14px mb.
-          <Grid
-            templateColumns={{ base: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }}
-            columnGap={5}
-            rowGap={{ base: 0, md: "6px" }}
-            pr="6px"
-            pb="6px"
-          >
-            {results}
-          </Grid>
+          <AlbumCardGrid>{results}</AlbumCardGrid>
         );
       })()}
 

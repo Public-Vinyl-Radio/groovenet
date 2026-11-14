@@ -7,6 +7,7 @@ import NextLink from "next/link";
 import { Box, Checkbox, Flex, Grid, Link, Skeleton, Stack, Text } from "@chakra-ui/react";
 import { GenreIndexCrate } from "@/components/genres/GenreCrate";
 import AlbumResult from "@/components/AlbumResult";
+import AlbumCardGrid, { ALBUM_CARD_MIN_H } from "@/components/AlbumCardGrid";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import { SearchField } from "@/components/layout/ListHeader";
@@ -291,7 +292,7 @@ export default function GenresPage() {
                   Couldn&apos;t load new arrivals: {arrivals.error.message}
                 </Text>
               ) : arrivals.isPending ? (
-                <Skeleton h="140px" />
+                <Skeleton h={{ base: "212px", md: ALBUM_CARD_MIN_H.md }} />
               ) : arrivals.albums.length === 0 ? (
                 <Text color="fg.muted">No albums in this collection yet.</Text>
               ) : (
@@ -307,15 +308,14 @@ export default function GenresPage() {
                       {summary}
                     </Text>
                   )}
-                  <Grid
+                  {/* A compact-card scroller on phones; full cards in the album grid from md. */}
+                  <AlbumCardGrid
                     templateColumns={{
-                      base: `repeat(${arrivals.albums.length}, 160px)`,
+                      base: `repeat(${arrivals.albums.length}, 140px)`,
                       md: "repeat(2, minmax(0, 1fr))",
-                      xl: "repeat(4, minmax(0, 1fr))",
                     }}
-                    gap={5}
+                    columnGap={{ base: "14px", md: 5 }}
                     overflowX={{ base: "auto", md: "visible" }}
-                    p="0 6px 6px 0"
                     aria-label="Recent albums"
                     tabIndex={0}
                   >
@@ -323,10 +323,11 @@ export default function GenresPage() {
                       <AlbumResult
                         key={`${album.release_id}:${album.friend_id}`}
                         albumRef={album}
-                        layout="discovery"
+                        layout="card"
+                        size={{ base: "compact", md: "full" }}
                       />
                     ))}
-                  </Grid>
+                  </AlbumCardGrid>
                 </>
               )}
             </Section>

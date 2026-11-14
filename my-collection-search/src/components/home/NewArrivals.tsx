@@ -7,6 +7,8 @@ import { Box, Flex, Link, Text } from "@chakra-ui/react";
 import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import type { HomeResponse } from "@/services/internalApi/home";
 import Artwork from "@/components/player/Artwork";
+import AlbumResult from "@/components/AlbumResult";
+import type { Album } from "@/types/track";
 import { useDisplayTimeZone } from "@/providers/DisplayTimeZoneProvider";
 import {
   addedLabel,
@@ -99,48 +101,38 @@ function ListRow({
   );
 }
 
-function Card({ item, friendId }: { item: Arrival; friendId: number }) {
+/** A phone scroller item: the compact album card, with plays and the rating as its meta. */
+function ScrollerItem({ item, friendId }: { item: Arrival; friendId: number }) {
+  const album: Album = {
+    release_id: item.release_id,
+    friend_id: friendId,
+    title: item.title,
+    artist: item.artist,
+    album_thumbnail: item.thumbnail ?? undefined,
+    album_rating: item.album_rating ?? undefined,
+    track_count: 0,
+  };
   return (
-    <Box as="li" flex="0 0 140px">
-      <Link
-        asChild
-        display="flex"
-        flexDirection="column"
-        alignItems="stretch"
-        w="140px"
-        h="100%"
-        overflow="hidden"
-        borderWidth="outline"
-        borderRadius="md"
-        borderColor="border.ink"
-        boxShadow="md"
-        color="fg"
-        textDecoration="none"
-        _hover={{ textDecoration: "none", bg: "bg.muted" }}
-      >
-        <NextLink href={arrivalHref(item.release_id, friendId)}>
-          <Box mx="-2px" mt="-2px">
-            <Artwork src={item.thumbnail} alt="" fill />
-          </Box>
-          <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
-            <Text as="span" fontSize="14px" lineHeight="18px" fontWeight="semibold" truncate>
-              {item.title}
+    <Box as="li" flex="0 0 140px" minW={0}>
+      <AlbumResult
+        album={album}
+        layout="card"
+        size="compact"
+        meta={
+          <Flex as="span" flex="1" align="center" justify="space-between" gap="4px" minW={0}>
+            <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="semibold">
+              {playsLabel(item.play_count)}
             </Text>
-            <Text as="span" fontSize="12px" lineHeight="16px" color="fg.muted" truncate>
-              {item.artist}
-            </Text>
-            <Flex as="span" mt="6px" align="center" justify="space-between" gap="4px">
-              <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="semibold">
-                {playsLabel(item.play_count)}
-              </Text>
-              <Chip rating={item.album_rating} compact />
-            </Flex>
+            <Chip rating={item.album_rating} compact />
           </Flex>
-        </NextLink>
-      </Link>
+        }
+      />
     </Box>
   );
 }
+
+/** The compact card's height with this meta line: 140px cover, title, artist, plays + chip. */
+const COMPACT_CARD_H = "216px";
 
 function Skeletons() {
   return (
@@ -150,7 +142,7 @@ function Skeletons() {
           <Box
             key={i}
             flex="0 0 140px"
-            h="212px"
+            h={COMPACT_CARD_H}
             bg="bg.muted"
             borderWidth="outline"
             borderRadius="md"
@@ -231,7 +223,7 @@ export function NewArrivals({ arrivals, friendId, loading, error, now }: Props) 
           p="12px"
         >
           {items.map((item) => (
-            <Card key={item.release_id} item={item} friendId={friendId} />
+            <ScrollerItem key={item.release_id} item={item} friendId={friendId} />
           ))}
         </Box>
         <Box

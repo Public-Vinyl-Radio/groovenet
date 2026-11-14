@@ -65,16 +65,32 @@ export type AlbumResultProps = {
   album?: Album;
   albumRef?: { release_id: string; friend_id: number };
   showEditFields?: boolean;
-  /** "card": outlined card; "row": album table row; "discovery": compact recent arrival (the cover card on phones); "cover": artwork grid card, one link. */
-  layout?: "card" | "row" | "discovery" | "cover";
+  /** "card": the album card (grids, scrollers); "row": the album table's row (the LIST view). */
+  layout?: "card" | "row";
+  /**
+   * The card's size: "full" (default) for grids at every width, "compact" (a
+   * vertical tile, one link) for horizontal scrollers only. Takes a responsive
+   * value, e.g. `{ base: "compact", md: "full" }`. Ignored by `row`.
+   */
+  size?: AlbumCardSize | Partial<Record<AlbumCardBreakpoint, AlbumCardSize>>;
+  /**
+   * The caller's meta. Compact: replaces the default `year · format` line.
+   * Full: its own line under the card's meta line (an artist page's "Appears on").
+   */
+  meta?: React.ReactNode;
   /** Active Missing filters, shown as tags. */
   missingTags?: AlbumMissingKey[];
 };
+
+export type AlbumCardSize = "full" | "compact";
+type AlbumCardBreakpoint = "base" | "sm" | "md" | "lg" | "xl" | "2xl";
 
 export default function AlbumResult({
   album,
   albumRef,
   layout = "card",
+  size = "full",
+  meta,
   missingTags = [],
 }: AlbumResultProps) {
   const releaseId = albumRef?.release_id ?? album?.release_id ?? "";
@@ -94,7 +110,36 @@ export default function AlbumResult({
     [album, albumFromStore, friendId, releaseId],
   );
 
-  const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
+  const sizeValues = typeof size === "string" ? { base: size } : size;
+  // A responsive value with no base is the full card below its first breakpoint.
+  const resolvedSize: AlbumCardSize =
+    useBreakpointValue({ base: "full", ...sizeValues }) === "compact" ? "compact" : "full";
+
+  if (!albumFromStore && !album) return null;
+  if (layout === "card" && resolvedSize === "compact") {
+    return <CompactAlbumCard album={resolvedAlbum} meta={meta} />;
+  }
+  return (
+    <FullAlbumResult
+      resolvedAlbum={resolvedAlbum}
+      layout={layout}
+      meta={meta}
+      missingTags={missingTags}
+    />
+  );
+}
+
+function FullAlbumResult({
+  resolvedAlbum,
+  layout,
+  meta,
+  missingTags,
+}: {
+  resolvedAlbum: Album;
+  layout: "card" | "row";
+  meta?: React.ReactNode;
+  missingTags: AlbumMissingKey[];
+}) {
   const artworkSrc = artworkOf(resolvedAlbum);
   const [rating, setRating] = useState(resolvedAlbum?.album_rating || 0);
 
@@ -109,11 +154,8 @@ export default function AlbumResult({
   const displayYear = resolvedAlbum?.year && resolvedAlbum.year !== "0" ? resolvedAlbum.year : "";
 
   React.useEffect(() => {
-    if (!resolvedAlbum) return;
     setRating(resolvedAlbum.album_rating || 0);
-  }, [resolvedAlbum, resolvedAlbum?.album_rating]);
-
-  if (!albumFromStore && !album) return null;
+  }, [resolvedAlbum, resolvedAlbum.album_rating]);
 
   const displayGenres = discogsGenreBadges(
     resolvedAlbum.effective_genres ?? resolvedAlbum.genres,
@@ -137,10 +179,10 @@ export default function AlbumResult({
     });
   };
 
-  const genreBadges = (size: "xs" | "sm") => (
+  const genreBadges = (badgeSize: "xs" | "sm") => (
     <>
-      <GenreBadgeList items={displayGenres} kind="discogs-genre" size={size} />
-      <GenreBadgeList items={displayStyles} kind="discogs-style" size={size} />
+      <GenreBadgeList items={displayGenres} kind="discogs-genre" size={badgeSize} />
+      <GenreBadgeList items={displayStyles} kind="discogs-style" size={badgeSize} />
     </>
   );
 
@@ -187,8 +229,8 @@ export default function AlbumResult({
     </Flex>
   );
 
-  const cover = (size: string | Record<string, string>) => (
-    <Cover src={artworkSrc} alt="" size={size} fill={layout === "cover"} />
+  const cover = (coverSize: string | Record<string, string>) => (
+    <Cover src={artworkSrc} alt="" size={coverSize} />
   );
 
   const libraryId = resolvedAlbum.library_identifier ? (
@@ -203,102 +245,6 @@ export default function AlbumResult({
       {resolvedAlbum.library_identifier}
     </Text>
   ) : null;
-
-  // Cover grids (artist, genre pages) and, on phones, the genre index's recent
-  // arrivals: the New arrivals card. The whole card is
-  // one link, so nothing inside it is a link and the card is the 44px target.
-  if (layout === "cover" || (layout === "discovery" && isMobile)) {
-    const meta = [displayYear, resolvedAlbum.format].filter(Boolean).join(" · ");
-    return (
-      <Link
-        asChild
-        data-testid="album-cover-card"
-        display="flex"
-        flexDirection="column"
-        alignItems="stretch"
-        minW={0}
-        overflow="hidden"
-        borderWidth="outline"
-        borderRadius="md"
-        borderColor="border.ink"
-        boxShadow="md"
-        color="fg"
-        textDecoration="none"
-        _hover={{ textDecoration: "none", bg: "bg.muted" }}
-      >
-        <NextLink href={albumHref} aria-label={`Open ${resolvedAlbum.title}`}>
-          <Box mx="-2px" mt="-2px">
-            {cover("100%")}
-          </Box>
-          <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
-            <Text
-              as="span"
-              fontSize="14px"
-              lineHeight="18px"
-              fontWeight="semibold"
-              truncate
-              title={resolvedAlbum.title}
-            >
-              {resolvedAlbum.title}
-            </Text>
-            <Text
-              as="span"
-              fontSize="12px"
-              lineHeight="16px"
-              color="fg.muted"
-              truncate
-              title={resolvedAlbum.artist}
-            >
-              {resolvedAlbum.artist}
-            </Text>
-            {meta && (
-              <Text as="span" fontFamily="mono" fontSize="10px" lineHeight="14px" mt="4px" truncate>
-                {meta}
-              </Text>
-            )}
-          </Flex>
-        </NextLink>
-      </Link>
-    );
-  }
-
-  // Desktop recent arrivals on the genre index: artwork beside the title.
-  if (layout === "discovery") {
-    return (
-      <Flex
-        data-testid="album-discovery-card"
-        borderWidth="outline"
-        borderRadius="md"
-        borderColor="border.ink"
-        boxShadow="sm"
-        p={3}
-        gap={2}
-        minW={0}
-      >
-        <Link asChild flexShrink={0} alignSelf="start" aria-label={`Open ${resolvedAlbum.title}`}>
-          <NextLink href={albumHref}>{cover("64px")}</NextLink>
-        </Link>
-        <Box minW={0}>
-          <Link asChild display="flex" fontWeight="semibold" title={resolvedAlbum.title}>
-            <NextLink href={albumHref}>
-              <Text truncate>{resolvedAlbum.title}</Text>
-            </NextLink>
-          </Link>
-          <Text fontSize="sm" color="fg.muted" truncate title={resolvedAlbum.artist}>
-            <ArtistLink
-              artist={resolvedAlbum.artist}
-              credits={resolvedAlbum.artists}
-              friendId={resolvedAlbum.friend_id}
-              stopPropagation
-            />
-          </Text>
-          <Flex gap={1} flexWrap="wrap" mt={1}>
-            <GenreBadgeList items={displayGenres} kind="discogs-genre" size="sm" />
-          </Flex>
-        </Box>
-      </Flex>
-    );
-  }
 
   if (layout === "row") {
     return (
@@ -380,10 +326,11 @@ export default function AlbumResult({
     );
   }
 
-  // Card: the shape of a track card (outline, shadow-md, mb 14px for stacking).
+  // Full card: the shape of a track card (outline, shadow-md, mb 14px for stacking).
   return (
     <Flex
       data-testid="album-card"
+      data-size="full"
       position="relative"
       borderWidth="outline"
       borderRadius="md"
@@ -490,11 +437,95 @@ export default function AlbumResult({
         >
           {cardGenreBadges}
         </Flex>
+        {meta !== undefined && (
+          <Flex data-testid="album-card-extra" mt={2} minW={0} gap={1.5} flexWrap="wrap">
+            {meta}
+          </Flex>
+        )}
       </Flex>
 
       <Box position="absolute" top={{ base: "4px", md: 2 }} right={{ base: "4px", md: 2 }}>
         {menu}
       </Box>
     </Flex>
+  );
+}
+
+/** The compact card: a vertical tile for horizontal scrollers. The whole tile is
+ * one link, so nothing inside it is a link and the tile is the 44px target. It
+ * carries no menu or rating, so it needs none of the full card's action hooks. */
+function CompactAlbumCard({ album, meta }: { album: Album; meta?: React.ReactNode }) {
+  const albumHref = `/albums/${album.release_id}?friend_id=${album.friend_id}`;
+  const displayYear = album.year && album.year !== "0" ? album.year : "";
+  const defaultMeta = [displayYear, album.format].filter(Boolean).join(" · ");
+  return (
+    <Link
+      asChild
+      data-testid="album-card"
+      data-size="compact"
+      display="flex"
+      flexDirection="column"
+      alignItems="stretch"
+      width="100%"
+      height="100%"
+      minW={0}
+      overflow="clip"
+      borderWidth="outline"
+      borderRadius="md"
+      borderColor="border.ink"
+      boxShadow="md"
+      color="fg"
+      textDecoration="none"
+      _hover={{ textDecoration: "none", bg: "bg.muted" }}
+    >
+      <NextLink href={albumHref} aria-label={`Open ${album.title}`}>
+        <Box mx="-2px" mt="-2px">
+          <Cover src={artworkOf(album)} alt="" size="100%" fill />
+        </Box>
+        <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
+          <Text
+            as="span"
+            fontFamily="heading"
+            fontSize="14px"
+            lineHeight="18px"
+            fontWeight="600"
+            {...ellipsis}
+            title={album.title}
+          >
+            {album.title}
+          </Text>
+          <Text
+            as="span"
+            fontSize="12px"
+            lineHeight="16px"
+            fontWeight="500"
+            {...ellipsis}
+            title={album.artist}
+          >
+            {album.artist}
+          </Text>
+          {meta !== undefined ? (
+            <Flex as="span" data-testid="album-card-meta" mt="6px" align="center" gap="4px">
+              {meta}
+            </Flex>
+          ) : (
+            defaultMeta && (
+              <Text
+                as="span"
+                data-testid="album-card-meta"
+                fontFamily="mono"
+                fontSize="10px"
+                lineHeight="14px"
+                mt="4px"
+                color="fg.muted"
+                {...ellipsis}
+              >
+                {defaultMeta}
+              </Text>
+            )
+          )}
+        </Flex>
+      </NextLink>
+    </Link>
   );
 }
