@@ -16,6 +16,7 @@ import {
   type ReasonCandidate,
   type ReasonSeed,
 } from "@/lib/suggestionReason";
+import type { TrackMenuAction } from "@/lib/analytics/events";
 import type { Track } from "@/types/track";
 
 export type SuggestionRowProps = {
@@ -28,6 +29,8 @@ export type SuggestionRowProps = {
   menu?: boolean;
   /** The kebab's Add to Playlist finished, into this playlist. */
   onAddedToPlaylist?: (playlistId: number) => void;
+  /** Told when the track is played (cover or menu), queued, or added ("+" or menu). */
+  onAction?: (action: TrackMenuAction) => void;
   /** Already added: the row shows ✓ ADDED and stays where it is. */
   added?: boolean;
   /** The phone sheet's form: no album in the byline, 44px cover. */
@@ -46,6 +49,7 @@ export default function SuggestionRow({
   onAdd,
   menu = false,
   onAddedToPlaylist,
+  onAction,
   added = false,
   compact = false,
 }: SuggestionRowProps) {
@@ -66,7 +70,12 @@ export default function SuggestionRow({
       _last={{ borderBottomWidth: 0 }}
       data-added={added || undefined}
     >
-      <ArtworkPlay track={track} size={compact ? "44px" : COVER} iconSize={5} />
+      <ArtworkPlay
+        track={track}
+        size={compact ? "44px" : COVER}
+        iconSize={5}
+        onPlay={() => onAction?.("played")}
+      />
       <Flex direction="column" gap="2px" flex={1} minW={0}>
         {/* The phone sheet is dense: the title is the way to the track, artist stays text. */}
         <TrackIdentity track={track} hideAlbum={compact} links={compact ? "title" : "all"} />
@@ -106,7 +115,10 @@ export default function SuggestionRow({
           h="44px"
           flexShrink={0}
           aria-label={`Add ${track.title} after ${seed.title}`}
-          onClick={() => onAdd(track)}
+          onClick={() => {
+            onAdd(track);
+            onAction?.("added_to_playlist");
+          }}
         >
           <FiPlus />
         </IconButton>
@@ -114,7 +126,12 @@ export default function SuggestionRow({
       {menu && (
         <Box flexShrink={0}>
           <TrackRowContext.Provider value={true}>
-            <TrackActionsMenu track={track} prominent onAddedToPlaylist={onAddedToPlaylist} />
+            <TrackActionsMenu
+              track={track}
+              prominent
+              onAction={onAction}
+              onAddedToPlaylist={onAddedToPlaylist}
+            />
           </TrackRowContext.Provider>
         </Box>
       )}

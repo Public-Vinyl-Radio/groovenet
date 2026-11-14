@@ -84,6 +84,9 @@ beforeEach(() => {
 /** A row's desktop kebab (the phone one is the first, hidden at this width). */
 const kebab = (row: HTMLElement) =>
   within(row).getAllByRole("button", { name: "Track actions", hidden: true })[1];
+const eventsNamed = (name: string) =>
+  analytics.events.filter((e) => e.event === name).map((e) => e.properties);
+const acted = () => eventsNamed("recommendation_acted_on");
 const suggestionRows = () =>
   screen.getAllByRole("listitem").filter((li) => li.textContent?.startsWith("Suggestion"));
 
@@ -216,12 +219,20 @@ describe("Track page suggestions", () => {
     expect(mocks.updatePlaylist).toHaveBeenCalledWith(3, {
       tracks: [{ track_id: "s1", friend_id: 4 }],
     });
-    expect(analytics.events).toContainEqual(
-      expect.objectContaining({
-        event: "recommendation_acted_on",
-        properties: { track_id: "s1", action: "added_to_playlist", rank: 2, sources: ["ai"] },
-      }),
-    );
+    expect(acted()).toEqual([
+      {
+        track_id: "s1",
+        action: "added_to_playlist",
+        rank: 2,
+        sources: [],
+        surface: "track_page",
+        seed_track_id: "seed",
+        from_fold: false,
+        sim_identity: null,
+        sim_audio: null,
+        key_relation: "adjacent",
+      },
+    ]);
     expect(within(suggestionRows()[0]).queryByRole("status")).toBeNull();
   });
   it("reports nothing when the playlist picker is cancelled", async () => {
@@ -244,6 +255,114 @@ describe("Track page suggestions", () => {
     expect(screen.getByText(`${initial} of 45`)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Show 20 more" }));
     expect(screen.getByText(`${initial + 20} of 45`)).toBeTruthy();
+  });
+});
+
+describe("Track page suggestion analytics", () => {
+  it("reports each list load once, with its filters, and again only when a filter changes it", async () => {
+    candidates([...tracks(2), { ...tracks(3)[2], key: "F minor" }]);
+    const { user, rerender } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    expect(eventsNamed("suggestions_shown")).toEqual([
+      {
+        surface: "track_page",
+        seed_track_id: "seed",
+        trigger: "load",
+        shown_count: 2,
+        scope: "library",
+        compatible_key: true,
+        bpm_within_6pct: true,
+        hidden_by_filters: 1,
+      },
+    ]);
+    rerender(<RelatedTracksSection track={seed} />);
+    expect(eventsNamed("suggestions_shown")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Compatible key" }));
+    expect(eventsNamed("suggestions_shown")[1]).toEqual(
+      expect.objectContaining({
+        trigger: "filter_change",
+        shown_count: 3,
+        compatible_key: false,
+        bpm_within_6pct: true,
+        hidden_by_filters: 0,
+      }),
+    );
+    rerender(<RelatedTracksSection track={{ ...seed, track_id: "other" }} />);
+    expect(eventsNamed("suggestions_shown")[2]).toEqual(
+      expect.objectContaining({ seed_track_id: "other", trigger: "load", compatible_key: false }),
+    );
+  });
+  it.each([
+    ["loading", { data: undefined, isLoading: true, error: null }],
+    ["failed", { data: undefined, isLoading: false, error: new Error("down") }],
+  ])("reports no list while %s", (_label, result) => {
+    mocks.recommendations.mockReturnValue(result);
+    renderWithProviders(<RelatedTracksSection track={seed} />);
+    expect(eventsNamed("suggestions_shown")).toEqual([]);
+  });
+  it("reports a play from the cover and a queue from the menu, with sources from the scores", async () => {
+    candidates([
+      { ...tracks(1)[0], local_audio_url: "/a.mp3", _simIdentity: 0.8, _simAudio: 0.6 } as Track,
+      { ...tracks(2)[1], key: null, _simIdentity: null, _simAudio: 0.5 } as Track,
+    ]);
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    await user.click(within(suggestionRows()[0]).getByRole("button", { name: "Play" }));
+    await chooseMenuItem(user, kebab(suggestionRows()[1]), /Add to Queue/);
+    await waitFor(() => expect(acted()).toHaveLength(2));
+    expect(acted()).toEqual([
+      expect.objectContaining({
+        track_id: "s0",
+        action: "played",
+        rank: 1,
+        sources: ["identity", "audio"],
+        sim_identity: 0.8,
+        sim_audio: 0.6,
+        key_relation: "adjacent",
+      }),
+      expect.objectContaining({
+        track_id: "s1",
+        action: "queued",
+        rank: 2,
+        sources: ["audio"],
+        sim_identity: null,
+        sim_audio: 0.5,
+        key_relation: "unknown",
+      }),
+    ]);
+  });
+  it("reports a fold opened, then a track from it as from_fold", async () => {
+    candidates(
+      ["a1", "a2", "b1"].map(
+        (id, i) =>
+          ({
+            ...tracks(1)[0],
+            track_id: id,
+            title: `Suggestion ${id}`,
+            album: id.startsWith("a") ? "One" : "Two",
+            local_audio_url: "/a.mp3",
+            _score: 1 - i / 10,
+            _simIdentity: 0.7,
+          }) as Track,
+      ),
+    );
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    await user.click(screen.getByRole("button", { name: "+1 more from One" }));
+    expect(eventsNamed("suggestions_expanded")).toEqual([
+      { surface: "track_page", seed_track_id: "seed", kind: "fold", depth: 3 },
+    ]);
+    await user.click(within(suggestionRows()[1]).getByRole("button", { name: "Play" }));
+    expect(acted()).toEqual([
+      expect.objectContaining({ track_id: "a2", rank: 2, from_fold: true, sources: ["identity"] }),
+    ]);
+  });
+  it("reports show more with the depth it reaches", async () => {
+    candidates(tracks(30));
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    await user.click(screen.getByRole("button", { name: "Show 10 more" }));
+    expect(eventsNamed("suggestions_expanded")).toEqual([
+      { surface: "track_page", seed_track_id: "seed", kind: "show_more", depth: 30 },
+    ]);
+    // Paging is not a new list.
+    expect(eventsNamed("suggestions_shown")).toHaveLength(1);
   });
 });
 

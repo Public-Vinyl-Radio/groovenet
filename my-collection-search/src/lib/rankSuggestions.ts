@@ -137,7 +137,14 @@ export function rankSuggestions<T extends SuggestionCandidate>(
 }
 
 export type SuggestionListItem<T extends SuggestionCandidate> =
-  | { kind: "track"; track: T; /** 1-based position among the rows on screen. */ rank: number }
+  | {
+      kind: "track";
+      track: T;
+      /** 1-based position among the rows on screen. */
+      rank: number;
+      /** Shown by expanding its release's fold, not ranked onto the page. */
+      fromFold: boolean;
+    }
   | { kind: "fold"; fold: FoldGroup<T> };
 
 export type SuggestionLayout<T extends SuggestionCandidate> = {
@@ -170,13 +177,13 @@ export function layoutSuggestions<T extends SuggestionCandidate>(
   const items: SuggestionListItem<T>[] = [];
   let rank = 0;
   visible.forEach((track, index) => {
-    items.push({ kind: "track", track, rank: ++rank });
+    items.push({ kind: "track", track, rank: ++rank, fromFold: false });
     const release = releaseOf(track);
     if (lastOfRelease.get(release) !== index) return;
     const fold = folds.get(release)!;
     if (expanded.includes(fold.key)) {
       for (const sibling of fold.tracks)
-        items.push({ kind: "track", track: sibling, rank: ++rank });
+        items.push({ kind: "track", track: sibling, rank: ++rank, fromFold: true });
     } else items.push({ kind: "fold", fold });
   });
   const expandedCount = ranked.folds

@@ -384,10 +384,13 @@ export function ArtworkPlay({
   track,
   size,
   iconSize,
+  onPlay,
 }: {
   track: Track;
   size: string | { base: string; md: string };
   iconSize: number;
+  /** Told once the track has been started. */
+  onPlay?: () => void;
 }) {
   const { replacePlaylist, currentTrack, isPlaying } = usePlaybackPlayer();
   const playing =
@@ -403,6 +406,7 @@ export function ArtworkPlay({
       onClick={(e: React.MouseEvent) => {
         e.stopPropagation();
         replacePlaylist([track], { autoplay: true, startIndex: 0 });
+        onPlay?.();
       }}
       onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
       position="relative"

@@ -180,6 +180,10 @@ describe("layoutSuggestions", () => {
     const layout = layoutSuggestions(ranked, { expanded: [keyA], limit: 20 });
     expect(labels(layout.items)).toEqual(["1:a1", "2:a2", "3:a3", "4:b1", "+1 B", "5:c1"]);
     expect(layout).toMatchObject({ shown: 5, total: 5, remaining: 0 });
+    // Only the tracks the fold revealed are marked as from it.
+    expect(
+      layout.items.flatMap((item) => (item.kind === "track" && item.fromFold ? [item.rank] : [])),
+    ).toEqual([2, 3]);
   });
 
   it("hides a fold until its release has a visible row, then shows it on the next page", () => {
