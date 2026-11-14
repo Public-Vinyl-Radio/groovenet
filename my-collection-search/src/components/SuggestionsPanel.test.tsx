@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
+import { setAnalyticsProvider } from "@/lib/analytics/client";
+import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+let analytics: MemoryAnalyticsProvider;
+const eventsNamed = (name: string) =>
+  analytics.events.filter((e) => e.event === name).map((e) => e.properties);
 
 const mocks = vi.hoisted(() => ({
   scope: {
@@ -51,6 +57,8 @@ let observed: IntersectionObserverCallback | null = null;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  analytics = new MemoryAnalyticsProvider();
+  setAnalyticsProvider(analytics);
   observed = null;
   mocks.scope = { scope: "library", libraryFriendId: 4, ready: true, setScope: vi.fn() };
   mocks.recommendations.mockReturnValue({
@@ -269,6 +277,96 @@ describe("SuggestionsPanel", () => {
     );
     await user.click(screen.getByText("After a track"));
     expect(onSeedChange).toHaveBeenCalledWith({ track_id: "p2", friend_id: 4 });
+  });
+});
+
+describe("SuggestionsPanel analytics", () => {
+  const seedP1 = { track_id: "p1", friend_id: 4 };
+
+  it("reports the list after a track once, and adds made with + against it", async () => {
+    const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
+    await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p1" }));
+    expect(eventsNamed("suggestions_shown")).toEqual([
+      {
+        surface: "suggestions_panel",
+        seed_track_id: "p1",
+        trigger: "load",
+        shown_count: 3,
+        scope: "library",
+        compatible_key: true,
+        bpm_within_6pct: true,
+        hidden_by_filters: 0,
+      },
+    ]);
+    expect(eventsNamed("recommendation_acted_on")).toEqual([
+      {
+        track_id: "r2",
+        action: "added_to_playlist",
+        rank: 2,
+        sources: ["identity"],
+        surface: "suggestions_panel",
+        seed_track_id: "p1",
+        from_fold: false,
+        sim_identity: 0.9,
+        sim_audio: null,
+        key_relation: "same",
+      },
+    ]);
+  });
+
+  it("reports a whole-playlist list with no seed, and adds don't make it a new list", async () => {
+    const { user } = renderWithProviders(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p3" }));
+    expect(eventsNamed("suggestions_shown")).toEqual([
+      expect.objectContaining({ seed_track_id: null, trigger: "load" }),
+    ]);
+    expect(eventsNamed("recommendation_acted_on")).toEqual([
+      expect.objectContaining({ track_id: "r1", seed_track_id: null }),
+    ]);
+  });
+
+  it("reports nothing until the list has loaded", () => {
+    mocks.recommendations.mockReturnValue({ data: undefined, isLoading: true });
+    renderWithProviders(<Harness initialSeed={seedP1} />);
+    expect(eventsNamed("suggestions_shown")).toEqual([]);
+  });
+
+  it("reports a play from the cover", async () => {
+    mocks.recommendations.mockReturnValue({
+      data: [{ ...rec("r1", { local_audio_url: "/a.mp3" }), _simAudio: 0.4 }],
+      isLoading: false,
+    });
+    const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
+    await user.click(screen.getByRole("button", { name: "Play" }));
+    expect(eventsNamed("recommendation_acted_on")).toEqual([
+      expect.objectContaining({
+        action: "played",
+        sources: ["identity", "audio"],
+        sim_audio: 0.4,
+      }),
+    ]);
+  });
+
+  it("reports scrolling to load more and opening a fold, with the depth reached", async () => {
+    mocks.recommendations.mockReturnValue({
+      data: [
+        ...Array.from({ length: 25 }, (_, i) => rec(`r${i + 1}`)),
+        rec("r90", { album: "Album r1", artist: "Artist r1" }),
+      ],
+      isLoading: false,
+    });
+    const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
+    act(() => observed?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as never));
+    await user.click(screen.getByRole("button", { name: "+1 more from Album r1" }));
+    expect(eventsNamed("suggestions_expanded")).toEqual([
+      { surface: "suggestions_panel", seed_track_id: "p1", kind: "show_more", depth: 25 },
+      { surface: "suggestions_panel", seed_track_id: "p1", kind: "fold", depth: 26 },
+    ]);
+    await user.click(screen.getByRole("button", { name: "Add Title r90 after Title p1" }));
+    expect(eventsNamed("recommendation_acted_on")).toEqual([
+      expect.objectContaining({ track_id: "r90", rank: 2, from_fold: true }),
+    ]);
+    expect(eventsNamed("suggestions_shown")).toHaveLength(1);
   });
 });
 

@@ -7,7 +7,11 @@ import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/S
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
-import { analytics } from "@/lib/analytics/client";
+import {
+  trackSuggestionAction,
+  trackSuggestionsExpanded,
+  useSuggestionsShown,
+} from "@/lib/analytics/suggestions";
 import { layoutSuggestions, rankSuggestions } from "@/lib/rankSuggestions";
 import type { Track } from "@/types/track";
 
@@ -41,6 +45,16 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
     limit: (isMobile ? 5 : PAGE_SIZE) + extra,
   });
   const { remaining } = layout;
+  const context = { surface: "track_page", seedTrackId: track.track_id } as const;
+  useSuggestionsShown(context, {
+    loaded: ready && !isLoading && !error,
+    listKey: `${keyOf(track)}|${scope}`,
+    scope,
+    compatibleKey,
+    bpmWithinSixPercent,
+    shownCount: layout.shown,
+    hiddenByFilters: ranked.hiddenByFilters,
+  });
 
   return (
     <Box as="section" aria-labelledby="suggestions-heading" mt={6}>
@@ -99,7 +113,14 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
                     key={`fold:${item.fold.key}`}
                     count={item.fold.tracks.length}
                     source={item.fold.release}
-                    onExpand={() => setExpanded((keys) => [...keys, item.fold.key])}
+                    onExpand={() => {
+                      setExpanded((keys) => [...keys, item.fold.key]);
+                      trackSuggestionsExpanded(
+                        context,
+                        "fold",
+                        layout.shown + item.fold.tracks.length,
+                      );
+                    }}
                   />
                 ) : (
                   <SuggestionRow
@@ -108,15 +129,10 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
                     track={item.track}
                     added={added.includes(keyOf(item.track))}
                     menu
-                    onAddedToPlaylist={() => {
-                      setAdded((keys) => [...keys, keyOf(item.track)]);
-                      analytics.track("recommendation_acted_on", {
-                        track_id: item.track.track_id,
-                        action: "added_to_playlist",
-                        rank: item.rank,
-                        sources: ["ai"],
-                      });
-                    }}
+                    onAddedToPlaylist={() => setAdded((keys) => [...keys, keyOf(item.track)])}
+                    onAction={(action) =>
+                      trackSuggestionAction(context, { seed: track, item, action })
+                    }
                   />
                 ),
               )}
@@ -127,7 +143,14 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
               mt={4}
               w={{ base: "full", md: "auto" }}
               minH="44px"
-              onClick={() => setExtra((n) => n + PAGE_SIZE)}
+              onClick={() => {
+                setExtra((n) => n + PAGE_SIZE);
+                trackSuggestionsExpanded(
+                  context,
+                  "show_more",
+                  layout.shown + Math.min(PAGE_SIZE, remaining),
+                );
+              }}
             >
               Show {Math.min(PAGE_SIZE, remaining)} more
             </Button>

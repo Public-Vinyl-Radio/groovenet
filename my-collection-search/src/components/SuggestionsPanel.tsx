@@ -18,6 +18,11 @@ import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import {
+  trackSuggestionAction,
+  trackSuggestionsExpanded,
+  useSuggestionsShown,
+} from "@/lib/analytics/suggestions";
 import { camelotOf } from "@/lib/mixCompat";
 import { layoutSuggestions, rankSuggestions } from "@/lib/rankSuggestions";
 import type { Track } from "@/types/track";
@@ -91,18 +96,41 @@ export default function SuggestionsPanel({
 
   const layout = ranked ? layoutSuggestions(ranked, { expanded, limit: visible }) : null;
 
+  const context = {
+    surface: "suggestions_panel",
+    seedTrackId: seedTrack?.track_id ?? null,
+  } as const;
   const sentinel = useRef<HTMLDivElement>(null);
-  const more = (layout?.remaining ?? 0) > 0;
+  const remaining = layout?.remaining ?? 0;
+  const more = remaining > 0;
   const shownCount = layout?.shown ?? 0;
+  // A whole-playlist list is a new load whenever the playlist it follows changes.
+  const listSeeds = seedTrack ? seedKey : base.map(keyOf).join(",");
+  useSuggestionsShown(context, {
+    loaded: ready && !isLoading && ranked !== null,
+    listKey: `${listSeeds}|${scope}`,
+    scope,
+    compatibleKey,
+    bpmWithinSixPercent,
+    shownCount,
+    hiddenByFilters: ranked?.hiddenByFilters ?? 0,
+  });
+  const { surface, seedTrackId } = context;
   useEffect(() => {
     const node = sentinel.current;
     if (!more || !node || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) setVisible((n) => n + PAGE);
+      if (!entries.some((e) => e.isIntersecting)) return;
+      setVisible((n) => n + PAGE);
+      trackSuggestionsExpanded(
+        { surface, seedTrackId },
+        "show_more",
+        shownCount + Math.min(PAGE, remaining),
+      );
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [more, shownCount]);
+  }, [more, shownCount, remaining, surface, seedTrackId]);
 
   const handleAdd = (track: Track) => {
     const index = seedTrack
@@ -150,7 +178,10 @@ export default function SuggestionsPanel({
                 count={item.fold.tracks.length}
                 source={item.fold.release}
                 compact={isSheet}
-                onExpand={() => setExpanded((keys) => [...keys, item.fold.key])}
+                onExpand={() => {
+                  setExpanded((keys) => [...keys, item.fold.key]);
+                  trackSuggestionsExpanded(context, "fold", shownCount + item.fold.tracks.length);
+                }}
               />
             ) : (
               <SuggestionRow
@@ -160,6 +191,9 @@ export default function SuggestionsPanel({
                 added={addedKeys.has(keyOf(item.track))}
                 compact={isSheet}
                 onAdd={handleAdd}
+                onAction={(action) =>
+                  trackSuggestionAction(context, { seed: rankSeed as Track, item, action })
+                }
                 menu
               />
             ),

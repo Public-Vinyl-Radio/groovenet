@@ -23,6 +23,12 @@ type ServerSource = { source: EventSource };
 /** What was done with a track from its actions menu, for events that care. */
 export type TrackMenuAction = "played" | "queued" | "added_to_playlist";
 
+/** Where a suggestion list is drawn. */
+export type SuggestionSurface = "track_page" | "suggestions_panel";
+
+/** Which similarity list found a suggestion: metadata identity or audio vibe. */
+export type SuggestionSource = "identity" | "audio";
+
 export type AnalyticsEvents = {
   // ── Client ────────────────────────────────────────────────────────────────
   playlist_imported: {
@@ -61,13 +67,41 @@ export type AnalyticsEvents = {
     track_count: number;
     sort_algorithm: "greedy" | "genetic" | "cohesive_blocks";
   };
-  // A related track put to use from a track's page. `rank` is its 1-based
-  // place in the list; `sources` are the lists that suggested it.
+  // Suggestions (#1185). `suggestions_shown` is the denominator: one per list
+  // load, and again when a filter changes the list (`trigger`). A whole-playlist
+  // list in the panel has no single seed, so `seed_track_id` is null there.
+  suggestions_shown: {
+    surface: SuggestionSurface;
+    seed_track_id: string | null;
+    trigger: "load" | "filter_change";
+    shown_count: number;
+    scope: "library" | "all";
+    compatible_key: boolean;
+    bpm_within_6pct: boolean;
+    hidden_by_filters: number;
+  };
+  // A suggestion put to use. `rank` is its 1-based place in the list;
+  // `sources` are the similarity lists that found it, from its scores;
+  // `from_fold` is a track shown by expanding a "+N more" group.
   recommendation_acted_on: {
     track_id: string;
     action: TrackMenuAction;
     rank: number;
-    sources: ("ai" | "similar" | "vibe")[];
+    sources: SuggestionSource[];
+    surface: SuggestionSurface;
+    seed_track_id: string | null;
+    from_fold: boolean;
+    sim_identity: number | null;
+    sim_audio: number | null;
+    key_relation: "same" | "adjacent" | "clash" | "unknown";
+  };
+  // "Show more" (or the panel's scroll-to-load) and a fold opened; `depth` is
+  // how many rows the list shows once it has expanded.
+  suggestions_expanded: {
+    surface: SuggestionSurface;
+    seed_track_id: string | null;
+    kind: "show_more" | "fold";
+    depth: number;
   };
   // `completed: false` is a session left before its last track.
   enrich_session_started: {
