@@ -8,6 +8,9 @@
  *
  * The top 10 is the app's: exact cosine, the seed itself excluded, tracks
  * from the seed's release kept (`recommendationRepository.findSimilar`).
+ * With `--other-releases` the seed's release is dropped first: about 7 of
+ * the app's 10 are album mates, identical under every variant, and the
+ * suggestions that matter are the ones past the album.
  *
  * The sheet holds track metadata only: no variant names, scores, AI notes,
  * lyrics or summaries. Which list is which lives in a separate key file the
@@ -15,7 +18,7 @@
  * recorded in the key and never shown.
  *
  *   node evaluations/1170/side-by-side.mjs --snapshot S --texts T --vectors DIR \
- *     --compare IL:I0 --compare IG:I0 --output SHEET --key KEY
+ *     --compare IL:I0 --compare IG:I0 [--other-releases] --output SHEET --key KEY
  *   node evaluations/1170/side-by-side.mjs --tally SHEET --key KEY
  */
 import { createHash } from "node:crypto";
@@ -44,11 +47,18 @@ export function pickSeeds(snapshot, hasSummary, withSummary = 30, withoutSummary
   ];
 }
 
-export function topK(candidates, index, k = 10) {
+/** `keep(j)` filters candidates before the cut, e.g. to drop the seed's release. */
+export function topK(candidates, index, k = 10, keep = () => true) {
   return rank(candidates[index], candidates, index)
-    .slice(0, k)
-    .map((r) => r.i);
+    .map((r) => r.i)
+    .filter(keep)
+    .slice(0, k);
 }
+
+/** Drops the seed's own release: album mates fill the top under every variant. */
+export const otherReleases = (tracks, index) => (j) =>
+  `${tracks[j].friend_id}:${tracks[j].release_id}` !==
+  `${tracks[index].friend_id}:${tracks[index].release_id}`;
 
 function describe(snapshot, albums, index) {
   const t = snapshot.tracks[index];
@@ -187,7 +197,16 @@ async function main() {
   const lists = Object.fromEntries(
     variants.map((v) => {
       const candidates = candidateVectors(texts.rows, v, vectors);
-      return [v, (index) => topK(candidates, index)];
+      return [
+        v,
+        (index) =>
+          topK(
+            candidates,
+            index,
+            10,
+            args.includes("--other-releases") ? otherReleases(snapshot.tracks, index) : undefined,
+          ),
+      ];
     }),
   );
   const seeds = pickSeeds(snapshot, hasSummary);

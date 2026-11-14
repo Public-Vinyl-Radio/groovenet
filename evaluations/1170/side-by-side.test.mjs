@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildSideBySide, pickSeeds, signTest, tallySideBySide, topK } from "./side-by-side.mjs";
+import {
+  buildSideBySide,
+  otherReleases,
+  pickSeeds,
+  signTest,
+  tallySideBySide,
+  topK,
+} from "./side-by-side.mjs";
 import { apply, display, save } from "./review-side-by-side.mjs";
 
 const track = (id, release) => ({
@@ -42,6 +49,9 @@ test("topK excludes the seed and keeps cosine order", () => {
   const v = (x, y) => Float32Array.from([x, y]);
   const candidates = [v(1, 0), v(0, 1), v(0.9, 0.1), v(0.5, 0.5)];
   assert.deepEqual(topK(candidates, 0, 2), [2, 3]);
+  // Track 2 shares the seed's release, so the cut reaches past it.
+  const tracks = ["r1", "r2", "r1", "r3"].map((release_id) => ({ friend_id: 6, release_id }));
+  assert.deepEqual(topK(candidates, 0, 2, otherReleases(tracks, 0)), [3, 1]);
 });
 
 test("the sheet is blind, ties are automatic, and the tally unblinds", () => {
