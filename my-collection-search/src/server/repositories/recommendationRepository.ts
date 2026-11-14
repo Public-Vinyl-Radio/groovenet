@@ -1,6 +1,6 @@
 import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { PoolClient } from "pg";
-import { withDbTransaction } from "@/lib/serverDb";
+import { dbQuery, withDbTransaction } from "@/lib/serverDb";
 import { trackGenreIdsSelectSql } from "@/server/repositories/trackGenreRepository";
 
 export type SeedTrackPair = {
@@ -144,6 +144,17 @@ async function withVectorScan<T>(
 }
 
 export class RecommendationRepository {
+  /** A seed's own row, in the candidates' shape (distance 0), for scoring against it; null when missing or deleted. */
+  async findTrackRow(seed: SeedTrackPair): Promise<RecommendationCandidateRow | null> {
+    const result = await dbQuery<RecommendationCandidateRowRaw>(
+      `SELECT ${CANDIDATE_COLUMNS}, 0 AS distance
+       FROM tracks t
+       WHERE t.track_id = $1 AND t.friend_id = $2 AND t.deleted_at IS NULL`,
+      [seed.trackId, seed.friendId],
+    );
+    return normalizeRows(result.rows)[0] ?? null;
+  }
+
   async findIdentitySimilar(
     params: SimilarityParams & { seedTrackId: string; seedFriendId: number },
   ): Promise<RecommendationCandidateRow[]> {

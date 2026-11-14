@@ -1267,6 +1267,28 @@ describe("GroovenetClient.getRecommendationCandidates", () => {
       }),
     );
   });
+
+  it("asks for the ranking breakdown with a named config", async () => {
+    const client = clientReturning({ candidates: [] });
+
+    await client.getRecommendationCandidates("seed", 1, { breakdown: true, ranker: "strict" });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: { track_id: "seed", friend_id: 1, breakdown: "true", ranker: "strict" },
+      }),
+    );
+  });
+
+  it("omits the breakdown when it is off", async () => {
+    const client = clientReturning({ candidates: [] });
+
+    await client.getRecommendationCandidates("seed", 1, { breakdown: false });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ params: { track_id: "seed", friend_id: 1 } }),
+    );
+  });
 });
 
 describe("GroovenetClient.findSimilarVibe", () => {

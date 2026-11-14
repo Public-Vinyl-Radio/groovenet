@@ -613,6 +613,7 @@ export const recommendationsQuerySchema = sharedRecommendationsQuerySchema.exten
   limit_audio: intFromInputSchema.optional().default(200),
   ivfflat_probes: intFromInputSchema.optional().default(10),
   ...recommendationScopeParams,
+  breakdown: booleanFlagSchema.optional().default(false),
 });
 
 export const recommendationSeedTrackSchema = sharedRecommendationSeedTrackSchema.extend({
@@ -625,6 +626,7 @@ export const recommendationsBatchBodySchema = sharedRecommendationsBatchBodySche
   limit_audio: intFromInputSchema.optional().default(200),
   ivfflat_probes: intFromInputSchema.optional().default(10),
   ...recommendationScopeParams,
+  breakdown: z.boolean().optional().default(false),
 });
 
 export {

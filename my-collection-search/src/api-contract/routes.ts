@@ -5261,6 +5261,26 @@ export const apiContractRoutes: ApiContractRoute[] = [
           description:
             "The library `scope=library` keeps to, and whose saved setting applies. Defaults to `friend_id`.",
         },
+        {
+          name: "breakdown",
+          in: "query",
+          required: false,
+          schema: { type: "boolean", default: false },
+          description:
+            "Attach each candidate's `ranking` (score, hard-constraint result, per-signal breakdown) and a top-level `ranking`. Never reorders or filters the candidates.",
+        },
+        {
+          name: "ranker",
+          in: "query",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["default", "blend", "mixable", "strict"],
+            default: "default",
+          },
+          description:
+            "Built-in ranking config for `breakdown`: `default` is today's suggestion ranking; `blend`, `mixable` and `strict` are the pre-scorer's modes.",
+        },
       ],
       responses: {
         "200": {

@@ -6,9 +6,11 @@ const {
   findAudioSimilar,
   findIdentitySimilarByCentroid,
   findAudioSimilarByCentroid,
+  findTrackRow,
   listEmbeddingTypesForTrack,
   listEmbeddingTypesForTrackPairs,
 } = vi.hoisted(() => ({
+  findTrackRow: vi.fn(),
   findIdentitySimilar: vi.fn(),
   findAudioSimilar: vi.fn(),
   findIdentitySimilarByCentroid: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("@/server/repositories/recommendationRepository", () => ({
     findAudioSimilar,
     findIdentitySimilarByCentroid,
     findAudioSimilarByCentroid,
+    findTrackRow,
   },
 }));
 
@@ -42,6 +45,7 @@ import {
   hasEmbeddingsForSeedTracks,
   retrieveCandidates,
   retrieveCandidatesForSeedTracks,
+  retrieveSeedMetadata,
 } from "../recommendation-candidate-retriever";
 
 function makeRow(overrides: Partial<RecommendationCandidateRow> = {}): RecommendationCandidateRow {
@@ -262,5 +266,26 @@ describe("recommendation candidate retriever", () => {
       audio: false,
     });
     expect(listEmbeddingTypesForTrackPairs).not.toHaveBeenCalled();
+  });
+});
+
+describe("retrieveSeedMetadata", () => {
+  beforeEach(() => findTrackRow.mockReset());
+
+  it("builds the seed's metadata the way candidates' is built", async () => {
+    findTrackRow.mockResolvedValueOnce(makeRow({ track_id: "seed", year: "2004", bpm: 122 }));
+    const metadata = await retrieveSeedMetadata({ trackId: "seed", friendId: 1 });
+    expect(findTrackRow).toHaveBeenCalledWith({ trackId: "seed", friendId: 1 });
+    expect(metadata).toMatchObject({
+      bpm: 122,
+      eraBucket: "2000s",
+      genreRefs: [{ id: "house-id", parentId: "electronic-id" }],
+      starRating: 4,
+    });
+  });
+
+  it("is null when the seed is missing", async () => {
+    findTrackRow.mockResolvedValueOnce(null);
+    expect(await retrieveSeedMetadata({ trackId: "gone", friendId: 1 })).toBeNull();
   });
 });

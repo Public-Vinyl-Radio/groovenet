@@ -1,5 +1,14 @@
+import type { RankingConfig, RankingSurface } from "@groovenet/contracts";
 import type { Track } from "@/types/track";
-import { describeMix, parseBpm } from "@/lib/mixCompat";
+import {
+  DEFAULT_CONFIG_BY_SURFACE,
+  DEFAULT_RANKING_CONFIG,
+  withSuggestionFilters,
+  type SuggestionFilterToggles,
+} from "@/lib/ranking/configs";
+import { rankingCandidateFromTrack, rankingTrackFromTrack } from "@/lib/ranking/features";
+import { defaultRanker, orderByRanking } from "@/lib/ranking/ranker";
+import { KEY_RELATION_VALUE } from "@/lib/ranking/signals";
 
 export type SuggestionCandidate = Track & {
   _score?: number;
@@ -9,7 +18,7 @@ export type SuggestionCandidate = Track & {
   distance?: number;
 };
 
-export type SuggestionFilters = { compatibleKey?: boolean; bpmWithinSixPercent?: boolean };
+export type SuggestionFilters = SuggestionFilterToggles;
 export type SuggestionSeedMode = "track" | "playlist";
 /** Folded release siblings: `key` is the release's identity, `release` its album title for display. */
 export type FoldGroup<T extends SuggestionCandidate> = {
@@ -23,11 +32,11 @@ export type RankedSuggestions<T extends SuggestionCandidate> = {
   hiddenByFilters: number;
 };
 
-/** Keep ranking adjustments together so callers share the same ordering. */
+/** Today's key and tempo boosts, read from the default ranking config. */
 export const SUGGESTION_RANK_WEIGHTS = {
-  sameKey: 0.02,
-  adjacentKey: 0.01,
-  closestBpm: 0.01,
+  sameKey: (DEFAULT_RANKING_CONFIG.weights.key_relation ?? 0) * KEY_RELATION_VALUE.same,
+  adjacentKey: (DEFAULT_RANKING_CONFIG.weights.key_relation ?? 0) * KEY_RELATION_VALUE.adjacent,
+  closestBpm: DEFAULT_RANKING_CONFIG.weights.bpm_distance ?? 0,
 } as const;
 
 const identity = (track: Pick<Track, "track_id" | "friend_id">) =>
@@ -70,51 +79,30 @@ export function rankSuggestions<T extends SuggestionCandidate>(
     filters?: SuggestionFilters;
     seedMode?: SuggestionSeedMode;
     varietyCap?: number;
+    /** The ranking config; omitted, the surface's default (today's ranking). */
+    config?: RankingConfig;
+    surface?: Extract<RankingSurface, "suggestions" | "related">;
   },
 ): RankedSuggestions<T> {
-  const { playlist = [], filters = {}, seedMode = "track", varietyCap = 1 } = options;
+  const {
+    playlist = [],
+    filters = {},
+    seedMode = "track",
+    varietyCap = 1,
+    surface = "suggestions",
+  } = options;
+  const config = options.config ?? DEFAULT_CONFIG_BY_SURFACE[surface];
   const seed = seedMode === "playlist" ? (playlist.at(-1) ?? options.seed) : options.seed;
   const excluded = new Set([identity(options.seed), ...playlist.map(identity)]);
   const eligible = candidates.filter((candidate) => !excluded.has(identity(candidate)));
-  const passes = (candidate: T) => {
-    const mix = describeMix(seed, candidate);
-    if (filters.compatibleKey && mix.keyRelation !== null && mix.keyRelation === "clash")
-      return false;
-    const baseBpm = parseBpm(seed.bpm);
-    const candidateBpm = parseBpm(candidate.bpm);
-    if (
-      filters.bpmWithinSixPercent &&
-      baseBpm !== null &&
-      candidateBpm !== null &&
-      Math.abs(candidateBpm - baseBpm) / baseBpm > 0.06
-    )
-      return false;
-    return true;
-  };
-  const filtered = eligible.filter(passes);
-  const hiddenByFilters = eligible.length - filtered.length;
-  const score = (candidate: T) => {
-    const base =
-      candidate._score ??
-      candidate._semanticScore ??
-      Math.max(candidate._simIdentity ?? 0, candidate._simAudio ?? 0);
-    const mix = describeMix(seed, candidate);
-    const keyBoost =
-      mix.keyRelation === "same"
-        ? SUGGESTION_RANK_WEIGHTS.sameKey
-        : mix.keyRelation === "adjacent"
-          ? SUGGESTION_RANK_WEIGHTS.adjacentKey
-          : 0;
-    const baseBpm = parseBpm(seed.bpm);
-    const candidateBpm = parseBpm(candidate.bpm);
-    const bpmBoost =
-      baseBpm && candidateBpm
-        ? Math.max(0, 1 - Math.abs(candidateBpm - baseBpm) / baseBpm) *
-          SUGGESTION_RANK_WEIGHTS.closestBpm
-        : 0;
-    return base + keyBoost + bpmBoost;
-  };
-  const sorted = [...filtered].sort((a, b) => score(b) - score(a));
+  const rankings = defaultRanker.rank({
+    seed: { track: rankingTrackFromTrack(seed) },
+    candidates: eligible.map(rankingCandidateFromTrack),
+    context: { surface, friendId: seed.friend_id },
+    config: withSuggestionFilters(config, filters),
+  });
+  const sorted = orderByRanking(eligible, rankings);
+  const hiddenByFilters = eligible.length - sorted.length;
   const counts = new Map<string, number>();
   const tracks: T[] = [];
   const folds = new Map<string, FoldGroup<T>>();
