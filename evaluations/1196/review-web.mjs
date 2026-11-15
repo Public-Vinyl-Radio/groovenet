@@ -175,7 +175,16 @@ async function main() {
   const server = createServer(
     handler({ sheet, file, media, preview, page: () => readFileSync(PAGE, "utf8") }),
   );
-  server.listen(Number(opt("--port", "8196")), "127.0.0.1", () => {
+  const port = Number(opt("--port", "8196"));
+  server.on("error", (error) => {
+    console.error(
+      error.code === "EADDRINUSE"
+        ? `Port ${port} is already in use: is the reviewer already running? Open http://127.0.0.1:${port}/, or pass --port N.`
+        : error.message,
+    );
+    process.exitCode = 1;
+  });
+  server.listen(port, "127.0.0.1", () => {
     const { port } = server.address();
     const withAudio = Object.values(media).filter((m) => m.audio).length;
     console.log(`#1196 review: http://127.0.0.1:${port}/`);
