@@ -5,13 +5,33 @@ Phase 6 of #1190. Compares the ranking profiles on the real collection:
 plus the internal **blend**, **mixable** and **strict** configs as reference
 points. Eval only: nothing here changes the app or a preset.
 
-## Result: Beatmatcher passes, Selector fails
+## Result: the metrics and the owner disagree
 
-| Claim                                                | Frozen set (34 + 5 seeds)                                                                                                        | Holdout (34 + 5)                                     | Decision                                |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------- |
-| **Beatmatcher** beats Selector on BPM and key        | **Pass.** ±6% (½×/2×) 100% vs 53%, mean \|ΔBPM\| 1.85 vs 8.66, compatible keys 100% vs 28%; every metric 33–0 or better per seed | **Pass.** 100% vs 59%, 1.83 vs 8.53, 100% vs 34%     | Keep as is                              |
-| **Selector** beats Beatmatcher on vibe and diversity | **Fail.** Vibe similarity 0.977 vs 0.980 (lost 5–25 per seed), distinct artists 9.46 vs 9.64 (3–12)                              | **Fail.** 0.979 vs 0.982 (4–26), 9.31 vs 9.62 (5–17) | Re-tune proposed below, **not applied** |
-| Default (baseline)                                   | Highest vibe similarity of the presets (0.984), but 4 starved seeds, 1 empty                                                     | Same pattern (0.986; 2 starved, 1 empty)             | No claim                                |
+The metrics say Beatmatcher does what it claims and Selector doesn't. The
+owner's blind review says the opposite: they would rather mix from
+Selector's lists (16–1) and build a set from them (14–3). **Neither preset is
+re-tuned here.** Selector stays as it is, and Beatmatcher's re-tune is a
+follow-up.
+
+| Question (18 of 20 seeds judged)      | Selector | Beatmatcher | No difference | Sign test |
+| ------------------------------------- | -------- | ----------- | ------------- | --------- |
+| Which would you mix from this track?  | **16**   | 1           | 1             | p < 0.001 |
+| Which makes the more interesting set? | **14**   | 3           | 1             | p = 0.013 |
+
+On 14 seeds the owner chose Selector for both. Their one note names the
+failure: on a seed where every Beatmatcher pick was the seed's exact tempo
+and key, two jazz-funk and hip-hop picks "feel out of place" in an
+Afro-Cuban list. The owner's own summary: genre has to match even when
+beatmatching, or the mix sounds off. Two seeds were skipped because the
+owner plans to remove those tracks from the library.
+
+### Metrics
+
+| Claim                                                | Frozen set (34 + 5 seeds)                                                                                                        | Holdout (34 + 5)                                     | Decision                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------ |
+| **Beatmatcher** beats Selector on BPM and key        | **Pass.** ±6% (½×/2×) 100% vs 53%, mean \|ΔBPM\| 1.85 vs 8.66, compatible keys 100% vs 28%; every metric 33–0 or better per seed | **Pass.** 100% vs 59%, 1.83 vs 8.53, 100% vs 34%     | Re-tune: follow-up (see below) |
+| **Selector** beats Beatmatcher on vibe and diversity | **Fail.** Vibe similarity 0.977 vs 0.980 (lost 5–25 per seed), distinct artists 9.46 vs 9.64 (3–12)                              | **Fail.** 0.979 vs 0.982 (4–26), 9.31 vs 9.62 (5–17) | Keep as is; change the claim   |
+| Default (baseline)                                   | Highest vibe similarity of the presets (0.984), but 4 starved seeds, 1 empty                                                     | Same pattern (0.986; 2 starved, 1 empty)             | No claim                       |
 
 **Why Selector fails: the vibe signal has almost no spread.** Similarity is
 `1 − d/2` of the cosine distance. Within a seed's audio top 200, the vibe
@@ -23,7 +43,7 @@ lists that share almost nothing with Default's (Jaccard 0.03). A strong genre
 pull likely also favours an artist's other releases, which would explain the
 lower artist count; this eval doesn't isolate that.
 
-### Proposed Selector re-tune (`proposals/selector-lean.json`)
+### A Selector re-tune was tried and is not recommended (`proposals/selector-lean.json`)
 
 Weights only, within the existing bounds: **vibe 10, identity 8, genre 0.05,
 era 0.01, energy 0.01, BPM 0.01**, still no constraints. Vibe ×10 gives it a
@@ -61,13 +81,13 @@ at its bound of 10 alone isn't enough (`vibe-x10`). `lean` is the lightest
 change that wins vibe outright while keeping more genre pull than
 Beatmatcher. `pure` would lose the "genre" half of Selector's description.
 
-**Why `profiles.ts` is unchanged:** the proposal clears the rules, but the
-diversity half rests on a mean, not a per-seed win. It also changes what
-Selector is: genre overlap drops by about 40%, and its lists move toward
-Default's. Whether a genre-led or a vibe-led Selector makes the better set is
-what the blind review asks. Applying it would update `presets.test.ts`,
-`ranking.golden.test.ts` (Default only, so unaffected) and ga-service's
-pinned orderings; that belongs in its own PR once the owner has judged.
+**Not applied, and not recommended after the review.** It clears the
+metric rules, but the diversity half rests on a mean, not a per-seed win.
+More importantly, it cuts the genre pull by about 40%, and the genre pull is
+what the owner valued in today's Selector. The vibe similarity metric
+doesn't capture what makes Selector's lists good, so the claim should change
+("vibe and genre first", judged by the owner), not the preset. If `lean` is
+ever revisited, it needs its own blind review against today's Selector.
 
 ### Ordering
 
@@ -147,10 +167,22 @@ its differences under ~1 BPM as noise.
   exported or draft profile against the frozen seeds without saving it. That
   is how a tuned profile can show it does what it says before it is shared.
 
+### Beatmatcher re-tune (follow-up, not done here)
+
+Beatmatcher wins every tempo and key metric, but the owner would mix from it
+on 1 seed of 18. Its similarity weight is decorative (0.5 × a ~0.003 spread,
+against up to 0.18 from tempo and 0.3 from key), so it takes any track from
+the retrieved pool that matches tempo and key, whatever its genre. The fix
+the review points to is a genre requirement or a much stronger genre and
+similarity pull: a `genre_floor` constraint, or genre weight of the order of
+Selector's. That should be tuned against a blind review, not only these
+metrics, so it is left for its own issue. Changing it moves
+`presets.test.ts` and ga-service's pinned orderings.
+
 ### Blind review
 
-Prepared, not judged: 20 seeds, 0 automatic ties. The owner fills it in (see
-below). Until then the verdict rests on the metrics alone.
+20 seeds, 0 automatic ties, 18 judged by the owner in the browser reviewer
+(`review-web.mjs`) with covers and audio; results above.
 
 ## Method
 
