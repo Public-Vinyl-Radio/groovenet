@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   fetchAiPromptSettings: vi.fn(),
   getCookieStatus: vi.fn(),
   fetchVersionInfo: vi.fn(),
+  fetchRankingProfiles: vi.fn(),
 }));
 
 vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: mocks.friend }) }));
@@ -29,6 +30,9 @@ vi.mock("@/services/internalApi/settings", () => ({
   fetchAiPromptSettings: mocks.fetchAiPromptSettings,
   updateAppearanceSettings: vi.fn(),
 }));
+vi.mock("@/services/internalApi/ranking", () => ({
+  fetchRankingProfiles: mocks.fetchRankingProfiles,
+}));
 vi.mock("@/services/internalApi/cookies", () => ({ getCookieStatus: mocks.getCookieStatus }));
 vi.mock("@/services/internalApi/system", () => ({
   fetchVersionInfo: mocks.fetchVersionInfo,
@@ -42,6 +46,7 @@ import {
   appearanceSummary,
   appleMusicSummary,
   librariesSummary,
+  rankingSummary,
   useSettingsSummaries,
 } from "./settingsSummaries";
 
@@ -73,6 +78,14 @@ describe("settings summaries", () => {
     expect(aiMetadataSummary(true)).toBe("Default prompt");
     expect(aboutSummary("0.3.15")).toBe("Version 0.3.15");
   });
+
+  it("names the ranking profile, and how many are in use", () => {
+    expect(rankingSummary(["Default", "Default", "Default"])).toBe("Default");
+    expect(rankingSummary(["Beatmatcher", "Selector", "Default"])).toBe(
+      "Beatmatcher · 3 profiles in use",
+    );
+    expect(rankingSummary(["Mine", "Default", "Default"])).toBe("Mine · 2 profiles in use");
+  });
 });
 
 describe("useSettingsSummaries", () => {
@@ -89,15 +102,25 @@ describe("useSettingsSummaries", () => {
     });
     mocks.getCookieStatus.mockResolvedValue({ exists: false });
     mocks.fetchVersionInfo.mockResolvedValue({ version: "0.3.15" });
+    mocks.fetchRankingProfiles.mockResolvedValue({
+      friend_id: 2,
+      profiles: [
+        { id: "default", name: "Default" },
+        { id: "selector", name: "Selector" },
+      ],
+      active: { suggestions: "selector", related: "gone", recommendations: "default" },
+    });
   });
 
   it("reads each row's value from the real settings", async () => {
     const { result } = renderSummaries();
     await waitFor(() => expect(result.current.about).toBe("Version 0.3.15"));
     await waitFor(() => expect(result.current["ai-metadata"]).toBe("Custom prompt"));
+    await waitFor(() => expect(result.current.ranking).toBeDefined());
     expect(result.current).toEqual({
       appearance: "Mono · light on this device",
       libraries: "4 libraries · default collector-2",
+      ranking: "Selector · 2 profiles in use",
       "apple-music": "No cookie file",
       "ai-metadata": "Custom prompt",
       about: "Version 0.3.15",
@@ -117,6 +140,7 @@ describe("useSettingsSummaries", () => {
     expect(result.current["apple-music"]).toBeUndefined();
     expect(result.current["ai-metadata"]).toBeUndefined();
     expect(result.current.about).toBeUndefined();
+    expect(result.current.ranking).toBeUndefined();
     // No library to ask about yet, so no prompt request.
     expect(mocks.fetchAiPromptSettings).not.toHaveBeenCalled();
   });

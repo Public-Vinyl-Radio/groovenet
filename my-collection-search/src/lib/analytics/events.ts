@@ -7,6 +7,7 @@
 // queries or file names. To tell things apart, send the ID; the name stays in
 // Postgres. Every new event follows this rule.
 
+import type { RankingPresetId, RankingSurface } from "@groovenet/contracts";
 import type { CleaningMethod, RecordActionType, SleeveType } from "@/lib/recordCare";
 
 /**
@@ -282,6 +283,19 @@ export type AnalyticsEvents = {
     mode: "identity" | "audio" | "combined";
     seed_count: number;
     result_count: number;
+  };
+
+  // Ranking profiles (#1192). `profile` and `from` are a preset id or
+  // `custom`: never a profile's name, and never a stored profile's id.
+  ranking_profile_chosen: ServerSource & {
+    profile: RankingPresetId | "custom";
+    surfaces: RankingSurface[];
+  };
+  ranking_profile_edited: ServerSource & {
+    action: "created" | "copied" | "updated" | "deleted";
+    profile: "custom";
+    /** What a copy started from; `custom` for everything else. */
+    from: RankingPresetId | "custom";
   };
 
   // Set derivation (#282).

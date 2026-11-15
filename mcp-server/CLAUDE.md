@@ -38,8 +38,12 @@ Tools, grouped:
   friend's collection, `DEFAULT_FRIEND_ID` unless `friend_id` or
   `all_friends`; compact summaries, not whole entities)
 - **friends** — `get_friends`, `add_friend`
-- **discovery** — `get_recommendations`, `find_similar_identity`,
+- **discovery** — `get_recommendations` (optional `profile`: ranked best first by
+  that ranking profile, constraint failures left out), `find_similar_identity`,
   `find_similar_vibe`, `get_similar_genres`
+- **ranking profiles** (#1192) — `list_ranking_profiles`, `set_ranking_profile`
+  (changes the app's active profile; `get_recommendations` with `profile` tries
+  one without changing anything)
 - **external** — `search_apple_music`, `search_youtube`
 - **records** — `log_record_action`, `list_record_care`,
   `get_record_care_summary`, `get_record_copies` (with history),

@@ -36,6 +36,7 @@ import {
   recordCareProgressResponseSchema,
 } from "./recordCareQueue";
 import { playerContracts } from "./players";
+import { rankingProfileContracts } from "./rankingProfiles";
 import {
   artistReconcileRequestSchema,
   artistReconcileResponseSchema,
@@ -3893,6 +3894,7 @@ const albumArtworkContracts: ApiContractRoute[] = [
 export const apiContractRoutes: ApiContractRoute[] = [
   ...artistReviewContracts,
   ...playerContracts,
+  ...rankingProfileContracts,
   ...genreMutationContracts,
   ...genreReconciliationContracts,
   {
@@ -5273,13 +5275,9 @@ export const apiContractRoutes: ApiContractRoute[] = [
           name: "ranker",
           in: "query",
           required: false,
-          schema: {
-            type: "string",
-            enum: ["default", "blend", "mixable", "strict"],
-            default: "default",
-          },
+          schema: { type: "string" },
           description:
-            "Built-in ranking config for `breakdown`: `default` is today's suggestion ranking; `blend`, `mixable` and `strict` are the pre-scorer's modes.",
+            "What `breakdown` ranks with: a preset (`default` is today's suggestion ranking, `beatmatcher`, `selector`), a pre-scorer mode (`blend`, `mixable`, `strict`) or a stored ranking profile's id (see `/api/ranking/profiles`). Omitted, the library's active `recommendations` profile. An unknown id is a 400; a stored profile that can't be read ranks as Default and the response says `ranking.fallback`.",
         },
       ],
       responses: {

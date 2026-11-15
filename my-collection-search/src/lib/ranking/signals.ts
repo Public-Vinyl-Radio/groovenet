@@ -27,7 +27,12 @@ export type SignalInput = {
   seed: RankingTrack;
   candidate: RankingCandidate;
   genreContext: GenreOverlapContext;
+  /** The config's BPM window allows half and double time (#1192). */
+  halfDouble?: boolean;
 };
+
+/** What a config tells the signals, beyond the two tracks. */
+export type SignalOptions = { halfDouble?: boolean };
 
 export type SignalDefinition = {
   id: RankingSignalId;
@@ -60,15 +65,32 @@ function keyRelation({ seed, candidate }: SignalInput): SignalValue {
   return { value: KEY_RELATION_VALUE[detail], detail };
 }
 
-/** 1 at the same tempo, falling linearly with the relative difference, 0 at double. */
-function bpmDistance({ seed, candidate }: SignalInput): SignalValue {
+/**
+ * 1 at the same tempo, falling linearly with the relative difference, 0 at
+ * double. With half and double time allowed, the candidate is compared at
+ * whichever of ×1, ×2 and ×½ is nearest, so a track at double time is as
+ * close as one at the same tempo.
+ */
+function bpmDistance({ seed, candidate, halfDouble }: SignalInput): SignalValue {
   const baseBpm = parseBpm(seed.bpm);
   const candidateBpm = parseBpm(candidate.bpm);
   if (!baseBpm || !candidateBpm) return { value: null };
-  return {
-    value: Math.max(0, 1 - Math.abs(candidateBpm - baseBpm) / baseBpm),
-    detail: `${baseBpm} → ${candidateBpm}`,
-  };
+  const closeness = (tempo: number) => Math.max(0, 1 - Math.abs(tempo - baseBpm) / baseBpm);
+  let value = closeness(candidateBpm);
+  let multiple = "";
+  if (halfDouble) {
+    for (const [factor, label] of [
+      [2, " (×2)"],
+      [0.5, " (×½)"],
+    ] as const) {
+      const scaled = closeness(candidateBpm * factor);
+      if (scaled > value) {
+        value = scaled;
+        multiple = label;
+      }
+    }
+  }
+  return { value, detail: `${baseBpm} → ${candidateBpm}${multiple}` };
 }
 
 function genreOverlap({ seed, candidate, genreContext }: SignalInput): SignalValue {
@@ -133,8 +155,9 @@ export function computeSignals(
   seed: RankingTrack,
   candidate: RankingCandidate,
   genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
+  options: SignalOptions = {},
 ): Record<RankingSignalId, SignalValue> {
-  const input = { seed, candidate, genreContext };
+  const input = { seed, candidate, genreContext, halfDouble: options.halfDouble };
   return Object.fromEntries(
     SIGNAL_REGISTRY.map((signal) => [signal.id, signal.compute(input)]),
   ) as Record<RankingSignalId, SignalValue>;

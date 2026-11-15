@@ -20,7 +20,7 @@ describe("settings sections", () => {
       SETTINGS_GROUPS.map((g) => [g.label, g.sections.map((s) => s.label)]).slice(0, 4),
     ).toEqual([
       ["You", ["Appearance"]],
-      ["Library", ["Libraries"]],
+      ["Library", ["Libraries", "Ranking"]],
       ["Services", ["Apple Music", "AI metadata"]],
       ["About", ["About GrooveNet"]],
     ]);

@@ -3,23 +3,34 @@
  * opt-in `breakdown`. Additive: candidates keep their retrieval order and
  * set; each gains a `ranking` (score, constraints, per-signal breakdown).
  */
-import type { RankingConfigId, RecommendationsResponse } from "@groovenet/contracts";
+import type { RankingConfig, RecommendationsResponse } from "@groovenet/contracts";
 import {
   retrieveSeedMetadata,
   type CandidateTrack,
   type SeedTrackRef,
 } from "@/lib/recommendation-candidate-retriever";
-import { RANKING_CONFIGS } from "@/lib/ranking/configs";
 import { rankingTrackFromMetadata } from "@/lib/ranking/features";
 import { defaultRanker } from "@/lib/ranking/ranker";
 import { loadGenreOverlapContext } from "@/server/services/genreSimilarityService";
+import { rankingProfileService } from "@/server/services/rankingProfileService";
 
 export async function attachRankingBreakdown<T extends { candidates: CandidateTrack[] }>(
   result: T,
-  options: { seed: SeedTrackRef; configId?: RankingConfigId },
+  options: {
+    seed: SeedTrackRef;
+    /** A preset, built-in config or stored profile id; omitted, the library's active profile. */
+    ranker?: string;
+    /** Whose active profile applies when `ranker` is omitted. */
+    libraryFriendId: number;
+    /** A whole config, scored instead of `ranker`: an unsaved profile's preview. */
+    config?: RankingConfig;
+  },
 ): Promise<T & { ranking: NonNullable<RecommendationsResponse["ranking"]> }> {
-  const configId = options.configId ?? "default";
   const surface = "recommendations" as const;
+  // Resolved first: an unknown ranker is a 400 before any other work.
+  const ranker = options.config
+    ? { id: options.config.id, config: options.config, fallback: false }
+    : await rankingProfileService.resolveRanker(options.ranker, options.libraryFriendId, surface);
   const [seedMetadata, genreContext] = await Promise.all([
     retrieveSeedMetadata(options.seed),
     loadGenreOverlapContext(),
@@ -32,7 +43,7 @@ export async function attachRankingBreakdown<T extends { candidates: CandidateTr
       vibe: candidate.simAudio,
     })),
     context: { surface, friendId: options.seed.friendId, genreContext },
-    config: RANKING_CONFIGS[configId],
+    config: ranker.config,
   });
   return {
     ...result,
@@ -41,8 +52,9 @@ export async function attachRankingBreakdown<T extends { candidates: CandidateTr
       ranking: rankings[index],
     })),
     ranking: {
-      config: configId,
+      config: ranker.id,
       surface,
+      ...(ranker.fallback ? { fallback: true } : {}),
       seed: { trackId: options.seed.trackId, friendId: options.seed.friendId },
     },
   };

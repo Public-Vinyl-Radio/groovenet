@@ -1,12 +1,7 @@
 // Core domain types for the Groovenet DJ collection system.
 // Track, album and friend entities are re-exported from @groovenet/contracts.
 
-import type {
-  AlbumEntity,
-  RankingConfigId,
-  TrackEntity,
-  TrackSearchMode,
-} from "@groovenet/contracts";
+import type { AlbumEntity, RankingRef, TrackEntity, TrackSearchMode } from "@groovenet/contracts";
 
 export type { AlbumEntity as Album, TrackEntity as Track, TrackSearchMode };
 
@@ -284,12 +279,26 @@ export interface RecommendationCandidatesQuery {
   ivfflat_probes?: number;
   /** Attach each candidate's `ranking` breakdown (#1191); never reorders or filters. */
   breakdown?: boolean;
-  /** The built-in ranking config the breakdown uses; defaults to `default`. */
-  ranker?: RankingConfigId;
+  /**
+   * What the breakdown ranks with: a preset, a built-in config or a stored
+   * profile's id (#1192); omitted, the library's active profile.
+   */
+  ranker?: RankingRef;
 }
 
 export type {
   CandidateRanking,
+  KeyRuleMode,
+  RankingActiveProfiles,
+  RankingActiveResponse,
+  RankingActiveUpdate,
+  RankingProfile,
+  RankingProfileDeleteResponse,
+  RankingProfileDraftInput,
+  RankingProfileEntry,
+  RankingProfilesResponse,
+  RankingPresetId,
+  RankingRef,
   RankingConfig,
   RankingConfigId,
   RankingConstraintId,

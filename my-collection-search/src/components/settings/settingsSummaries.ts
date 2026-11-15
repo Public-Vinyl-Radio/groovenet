@@ -8,6 +8,7 @@ import { useAppearanceSettingsQuery } from "@/hooks/useAppearanceSettings";
 import { useCookieStatus } from "@/hooks/useCookieManagement";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { useVersionInfo } from "@/hooks/useSystemInfo";
+import { useRankingProfilesQuery } from "@/hooks/useRankingProfiles";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUsername } from "@/providers/UsernameProvider";
 import { fetchAiPromptSettings } from "@/services/internalApi/settings";
@@ -39,6 +40,13 @@ export function aiMetadataSummary(isDefault: boolean): string {
   return isDefault ? "Default prompt" : "Custom prompt";
 }
 
+/** The profile Suggestions use, and a count when the other surfaces differ. */
+export function rankingSummary(names: string[]): string {
+  const [first, ...rest] = names;
+  const others = new Set(rest.filter((name) => name !== first)).size;
+  return others > 0 ? `${first} · ${others + 1} profiles in use` : first;
+}
+
 export function aboutSummary(version: string): string {
   return `Version ${version}`;
 }
@@ -55,6 +63,8 @@ export function useSettingsSummaries(): SettingsSummaries {
     enabled: !!friend,
   });
   const version = useVersionInfo();
+  const ranking = useRankingProfilesQuery();
+  const nameOf = (id: string) => ranking.data.profiles.find((p) => p.id === id)?.name ?? "Default";
 
   return {
     appearance: appearance.data
@@ -64,6 +74,15 @@ export function useSettingsSummaries(): SettingsSummaries {
         )
       : undefined,
     libraries: friendsLoading ? undefined : librariesSummary(friends.length, friend?.username),
+    ranking: ranking.isSuccess
+      ? rankingSummary(
+          [
+            ranking.data.active.suggestions,
+            ranking.data.active.related,
+            ranking.data.active.recommendations,
+          ].map(nameOf),
+        )
+      : undefined,
     "apple-music": cookies.data ? appleMusicSummary(cookies.data.exists) : undefined,
     "ai-metadata": aiPrompt.data ? aiMetadataSummary(aiPrompt.data.isDefault) : undefined,
     about: version.data ? aboutSummary(version.data.version) : undefined,

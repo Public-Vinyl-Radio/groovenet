@@ -17,6 +17,7 @@ import LibrariesSettingsSection, {
   AddLibraryProvider,
   LIBRARIES_INTRO,
 } from "./LibrariesSettingsSection";
+import RankingSettingsSection, { RANKING_INTRO } from "./RankingSettingsSection";
 import { SettingsDrillList, SettingsRail } from "./SettingsNav";
 import { useSettingsSummaries } from "./settingsSummaries";
 import {
@@ -29,6 +30,7 @@ import {
 const SECTION_CONTENT: Record<SettingsSectionId, () => React.ReactNode> = {
   appearance: () => <AppearanceSettingsSection />,
   libraries: () => <LibrariesSettingsSection />,
+  ranking: () => <RankingSettingsSection />,
   "apple-music": () => <AppleMusicSettingsSection />,
   "ai-metadata": () => <AiPromptSettingsSection />,
   about: () => <AboutSection />,
@@ -51,6 +53,7 @@ const SECTION_FRAMES: Partial<Record<SettingsSectionId, SectionFrame>> = {
     phoneAction: <AddLibraryHeaderButton />,
     Provider: AddLibraryProvider,
   },
+  ranking: { intro: RANKING_INTRO },
   "apple-music": { intro: APPLE_MUSIC_INTRO },
   "ai-metadata": { intro: AI_METADATA_INTRO },
 };

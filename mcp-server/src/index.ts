@@ -14,6 +14,8 @@ import {
   type TrackSearchQuery,
   type PlaylistOptimizerMode,
   type ArtistPageResponse,
+  type RankingRef,
+  type RankingSurface,
 } from "@groovenet/client";
 import dotenv from "dotenv";
 import { captureException, initSentry } from "./observability.js";
@@ -433,8 +435,51 @@ const tools = [
           type: "number",
           description: "Number of candidates from each index (default: 20)",
         },
+        profile: {
+          type: "string",
+          description:
+            "Rank the candidates with this ranking profile: a preset (`default`, `beatmatcher` for tempo and key first, `selector` for vibe and genre first) or a profile id from list_ranking_profiles. The list comes back best first, with candidates that break the profile's hard constraints (BPM window, key rule) left out. Omitted: the plain similarity union.",
+        },
       },
       required: ["track_id"],
+    },
+  },
+  {
+    name: "list_ranking_profiles",
+    description:
+      "List the ranking profiles (presets Default, Beatmatcher and Selector, then the library's own) and which one is active for suggestions, related tracks and recommendations. Pick one when building a playlist: pass its id as `profile` to get_recommendations, then order the picks with generate_ai_playlist.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        friend_id: {
+          type: "number",
+          description: "Library whose profiles to list (defaults to the configured default friend)",
+        },
+      },
+    },
+  },
+  {
+    name: "set_ranking_profile",
+    description:
+      "Choose the ranking profile a library uses in the app, for its suggestions, related tracks and recommendations. Changes what the DJ sees in the app; use get_recommendations with `profile` to try one without changing anything.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile: {
+          type: "string",
+          description: "Preset id or profile id from list_ranking_profiles",
+        },
+        friend_id: {
+          type: "number",
+          description: "Library (defaults to the configured default friend)",
+        },
+        surfaces: {
+          type: "array",
+          items: { type: "string", enum: ["suggestions", "related", "recommendations"] },
+          description: "Where to use it; omitted, every surface the profile applies to",
+        },
+      },
+      required: ["profile"],
     },
   },
   {
@@ -705,6 +750,9 @@ const tools = [
 ];
 
 interface ToolArgs {
+  // ranking profiles (#1192)
+  profile?: string;
+  surfaces?: string[];
   // tracks
   query?: string;
   mode?: TrackSearchMode;
@@ -1432,17 +1480,32 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
     }
 
     case "get_recommendations": {
+      const profile = typeof args.profile === "string" && args.profile ? args.profile : undefined;
       const result = await client.getRecommendationCandidates(
         args.track_id!,
         args.friend_id ?? DEFAULT_FRIEND_ID,
-        { limit_identity: args.limit ?? 20, limit_audio: args.limit ?? 20 },
+        {
+          limit_identity: args.limit ?? 20,
+          limit_audio: args.limit ?? 20,
+          ...(profile ? { breakdown: true, ranker: profile as RankingRef } : {}),
+        },
       );
 
       if (!result.candidates || result.candidates.length === 0) {
         return { content: [{ type: "text", text: "No recommendations found." }] };
       }
 
-      const list = result.candidates
+      // With a profile: its passing candidates, best first.
+      const candidates = profile
+        ? result.candidates
+            .filter((c) => c.ranking?.passed)
+            .sort((a, b) => (b.ranking?.score ?? 0) - (a.ranking?.score ?? 0))
+        : result.candidates;
+      const header = profile
+        ? `Ranked by ${result.ranking?.config ?? profile}${result.ranking?.fallback ? " (unreadable, ranked as Default)" : ""}: ${candidates.length} of ${result.candidates.length} pass its constraints`
+        : null;
+
+      const list = candidates
         .map((c) => {
           const identity = c.simIdentity != null ? ` id:${c.simIdentity.toFixed(3)}` : "";
           const audio = c.simAudio != null ? ` vibe:${c.simAudio.toFixed(3)}` : "";
@@ -1455,10 +1518,42 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
         content: [
           {
             type: "text",
-            text: `Recommendations (${result.candidates.length} candidates, identity:${stats.identityCount} vibe:${stats.audioCount} union:${stats.unionCount}):\n\n${list}`,
+            text: `Recommendations (${result.candidates.length} candidates, identity:${stats.identityCount} vibe:${stats.audioCount} union:${stats.unionCount}):\n${header ? `${header}\n` : ""}\n${list}`,
           },
         ],
       };
+    }
+
+    case "list_ranking_profiles": {
+      const result = await client.listRankingProfiles(args.friend_id ?? DEFAULT_FRIEND_ID);
+      const surfaces = ["suggestions", "related", "recommendations"] as const;
+      const lines = result.profiles.map((p) => {
+        const on = surfaces.filter((surface) => result.active[surface] === p.id);
+        const notes = [
+          p.kind,
+          ...(p.invalid ? ["unreadable, ranks as Default"] : []),
+          ...(on.length ? [`active on ${on.join(", ")}`] : []),
+        ];
+        return `• ${p.id}  ${p.name} (${notes.join("; ")})${p.description ? ` — ${p.description}` : ""}`;
+      });
+      return {
+        content: [{ type: "text", text: `Ranking profiles:\n\n${lines.join("\n")}` }],
+      };
+    }
+
+    case "set_ranking_profile": {
+      if (typeof args.profile !== "string" || !args.profile) {
+        throw new Error("profile is required");
+      }
+      const result = await client.setActiveRankingProfile(
+        args.friend_id ?? DEFAULT_FRIEND_ID,
+        args.profile,
+        args.surfaces as RankingSurface[] | undefined,
+      );
+      const on = Object.entries(result.active)
+        .map(([surface, id]) => `${surface}: ${id}`)
+        .join(", ");
+      return { content: [{ type: "text", text: `✓ Ranking profiles now ${on}` }] };
     }
 
     case "find_similar_identity": {

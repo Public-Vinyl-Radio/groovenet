@@ -17,7 +17,9 @@
  *   defaults to the seed's library
  * - breakdown (optional): attach each candidate's ranking breakdown (#1191);
  *   never reorders or filters
- * - ranker (optional, with breakdown): default | blend | mixable | strict
+ * - ranker (optional, with breakdown): a preset (default | beatmatcher |
+ *   selector), a built-in config (blend | mixable | strict) or a stored
+ *   profile id; omitted, the library's active `recommendations` profile
  *
  * Example:
  * GET /api/recommendations/candidates?track_id=123&friend_id=1&limit_identity=300&limit_audio=150
@@ -33,6 +35,7 @@ import {
 import { analytics } from "@/lib/analytics/server";
 import { settingsService } from "@/server/services/settingsService";
 import { attachRankingBreakdown } from "@/server/services/recommendationRankingService";
+import { RankingProfileError } from "@/server/services/rankingProfileService";
 import {
   recommendationsQuerySchema,
   recommendationsBatchBodySchema,
@@ -127,7 +130,8 @@ export async function GET(request: NextRequest) {
     const ranked = breakdown
       ? await attachRankingBreakdown(result, {
           seed: { trackId: track_id, friendId: friendIdNum },
-          configId: ranker,
+          ranker,
+          libraryFriendId: library_friend_id ?? friendIdNum,
         })
       : result;
     const response = {
@@ -139,6 +143,9 @@ export async function GET(request: NextRequest) {
     const validated = recommendationsResponseSchema.parse(response);
     return NextResponse.json(validated);
   } catch (error) {
+    if (error instanceof RankingProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("[Recommendation Candidates] Error:", error);
     return NextResponse.json(
       {
@@ -172,6 +179,7 @@ export async function POST(request: NextRequest) {
       library_friend_id,
       breakdown,
       ranker,
+      ranking_config,
     } = parsedBody.data;
 
     if (limit_identity < 1 || limit_identity > 1000) {
@@ -227,7 +235,12 @@ export async function POST(request: NextRequest) {
 
     // A batch is a playlist: its candidates are scored against its last track.
     const ranked = breakdown
-      ? await attachRankingBreakdown(result, { seed: seedTracks.at(-1)!, configId: ranker })
+      ? await attachRankingBreakdown(result, {
+          seed: seedTracks.at(-1)!,
+          ranker,
+          libraryFriendId: library_friend_id ?? seedTracks[0].friendId,
+          config: ranking_config,
+        })
       : result;
     const response = {
       ...ranked,
@@ -238,6 +251,9 @@ export async function POST(request: NextRequest) {
     const validated = recommendationsResponseSchema.parse(response);
     return NextResponse.json(validated);
   } catch (error) {
+    if (error instanceof RankingProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("[Recommendation Candidates POST] Error:", error);
     return NextResponse.json(
       {

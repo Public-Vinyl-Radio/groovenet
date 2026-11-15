@@ -504,9 +504,39 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   `src/lib/ranking/configs.ts`. `default` is today's suggestion ranking: the better of
   identity and vibe similarity, then key +0.02/+0.01 and tempo up to +0.01, with the
   ±6% and compatible-key toggles as constraints (`withSuggestionFilters`). `blend`,
-  `mixable` and `strict` are the pre-scorer's modes. `DEFAULT_CONFIG_BY_SURFACE` picks
-  one per surface until profiles (#1192) do.
-- **Golden tests:** `src/lib/ranking/__tests__/ranking.golden.test.ts` pins today's
+  `mixable` and `strict` are the pre-scorer's modes, kept as internal configs
+  (`ranker=strict` on the breakdown API), not presets. `DEFAULT_CONFIG_BY_SURFACE` is
+  the fallback when nothing is chosen.
+- **Constraints:** `bpm_window` (`ratio` or `bpm`, optional `half_double`, which the
+  tempo signal reads too, so ×2 and ×½ count as close), `key_rule` (`keyRuleForMode`
+  maps `same | adjacent | any` onto wheel ≤ 0, wheel ≤ 1 or none), `genre_floor`, and
+  `energy_range` (`max_drop`/`max_rise` from the seed's energy). Unknown data on either
+  side passes, except the genre floor.
+- **Profiles (#1192):** a profile is a `RankingConfig` plus `name`, `description`,
+  `surfaces` and `kind` (`rankingProfileSchema`, strict, bounded: the API, storage and
+  #1195's import all parse it). Presets live in code (`src/lib/ranking/profiles.ts`):
+  **Default** (`DEFAULT_RANKING_CONFIG` unchanged), **Beatmatcher** (tempo weight 3 and
+  key 0.3 over a 0.5 similarity base, ±6% with half and double time, adjacent keys) and
+  **Selector** (vibe 1, identity 0.8, genre 0.3, faint era/energy/tempo, no
+  constraints). They are read-only; tuning one means copying it. Their orderings are
+  pinned in `__tests__/presets.test.ts` on `presetFixture.ts`.
+- **Storage:** `ranking_profiles` (per friend, `config` jsonb plus `version`, at most 50)
+  and `ranking_profile_selections` (one preset id or profile id per friend and surface;
+  deleting a profile deletes its selections). `rankingProfileRepository` returns rows
+  unvalidated and `rankingProfileService` parses them. **An unreadable stored profile is
+  Default, never an error:** listed with `invalid: true` and Default's config, resolved
+  with `fallback`, and a choice naming a deleted, unknown or off-surface profile reads as
+  `default`. An invalid profile in a request is a 400.
+- **How the active profile reaches each surface:** the Suggestions panel and Related
+  tracks call `useRankingProfile(surface)`, which ranks with Default until the list
+  loads and passes the config to `rankSuggestions`; its picker saves the choice
+  (optimistically) per surface. The panels' toggles switch that profile's own key and
+  BPM constraints and are hidden when it has none (`suggestionFilterLabels`). The
+  breakdown API uses `ranker` (a preset, built-in config or stored id) or, omitted, the
+  library's active `recommendations` profile; POST also takes a whole `ranking_config`,
+  which the Settings → Ranking editor uses to preview an unsaved draft.
+  `ranking_profile_chosen`/`_edited` carry the preset id or `custom`, never a name.
+- **Golden tests:** `src/lib/ranking/__tests__/ranking.golden.test.ts` pins Default's
   ordering. A refactor must leave its snapshots untouched. A deliberate ranking change
   updates them in its own commit and explains why in the PR.
 

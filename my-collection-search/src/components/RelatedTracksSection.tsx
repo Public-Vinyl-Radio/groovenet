@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Box, Button, Flex, Spinner, Text, useBreakpointValue } from "@chakra-ui/react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
+import RankingProfilePicker from "@/components/RankingProfilePicker";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
+import { useRankingProfile } from "@/hooks/useRankingProfiles";
+import { suggestionFilterLabels } from "@/lib/ranking/configs";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
 import {
@@ -36,9 +39,12 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
     libraryFriendId,
     enabled: ready,
   });
+  const ranking = useRankingProfile("related");
+  const labels = suggestionFilterLabels(ranking.config);
   const ranked = rankSuggestions(data, {
     seed: track,
     surface: "related",
+    config: ranking.config,
     filters: { compatibleKey, bpmWithinSixPercent },
   });
   const layout = layoutSuggestions(ranked, {
@@ -64,25 +70,35 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
         Tracks that could follow this one
       </Text>
       <Flex gap={2} wrap="wrap" align="center" mb={3}>
-        <Button
-          size="xs"
-          aria-pressed={compatibleKey}
-          variant={compatibleKey ? "solid" : "outline"}
-          colorPalette="neutral"
-          onClick={() => setCompatibleKey((value) => !value)}
-        >
-          Compatible key
-        </Button>
-        <Button
-          size="xs"
-          aria-pressed={bpmWithinSixPercent}
-          variant={bpmWithinSixPercent ? "solid" : "outline"}
-          colorPalette="neutral"
-          onClick={() => setBpmWithinSixPercent((value) => !value)}
-        >
-          BPM ±6%
-        </Button>
+        {labels.compatibleKey && (
+          <Button
+            size="xs"
+            aria-pressed={compatibleKey}
+            variant={compatibleKey ? "solid" : "outline"}
+            colorPalette="neutral"
+            onClick={() => setCompatibleKey((value) => !value)}
+          >
+            {labels.compatibleKey}
+          </Button>
+        )}
+        {labels.bpmWithinSixPercent && (
+          <Button
+            size="xs"
+            aria-pressed={bpmWithinSixPercent}
+            variant={bpmWithinSixPercent ? "solid" : "outline"}
+            colorPalette="neutral"
+            onClick={() => setBpmWithinSixPercent((value) => !value)}
+          >
+            {labels.bpmWithinSixPercent}
+          </Button>
+        )}
         <SuggestionScopeToggle value={scope} onChange={setScope} />
+        <RankingProfilePicker
+          id="related"
+          value={ranking.profile.id}
+          options={ranking.options}
+          onChange={ranking.choose}
+        />
       </Flex>
       {!ready || isLoading ? (
         <Flex align="center" gap={3} py={4}>

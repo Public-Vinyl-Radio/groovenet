@@ -15,6 +15,11 @@ export const queryKeys = {
   aiPromptSettings: (friend_id?: number) => ["settings", "ai-prompt", friend_id ?? null] as const,
   recommendationSettings: (friend_id: number) =>
     ["settings", "recommendations", friend_id] as const,
+  /** Presets, a library's ranking profiles and the active one per surface (#1192). */
+  rankingProfiles: (friend_id: number) => ["ranking", "profiles", friend_id] as const,
+  /** The editor's breakdown preview: a seed scored with a (draft) config. */
+  rankingPreview: (seed: string, friend_id: number, config: unknown) =>
+    ["ranking", "preview", seed, friend_id, config] as const,
   version: () => ["system", "version"] as const,
   status: () => ["system", "status"] as const,
   storage: () => ["system", "storage"] as const,

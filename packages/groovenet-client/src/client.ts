@@ -85,6 +85,13 @@ import type {
   SimilarityQuery,
   RecommendationCandidatesResponse,
   RecommendationCandidatesQuery,
+  RankingActiveResponse,
+  RankingActiveUpdate,
+  RankingProfile,
+  RankingProfileDeleteResponse,
+  RankingProfileDraftInput,
+  RankingProfileEntry,
+  RankingProfilesResponse,
   AudioMetadataBackfillRequest,
   AudioMetadataBackfillRun,
   EmbeddedTagsBackfillRequest,
@@ -846,6 +853,69 @@ export class GroovenetClient {
       undefined,
       params,
     );
+  }
+
+  // ─── Ranking profiles (#1192) ──────────────────────────────────────────────
+
+  /** The presets, then the library's own profiles, and the profile active per surface. */
+  async listRankingProfiles(friendId: number): Promise<RankingProfilesResponse> {
+    return this.request<RankingProfilesResponse>("GET", "/ranking/profiles", undefined, {
+      friend_id: friendId,
+    });
+  }
+
+  /** A preset (`beatmatcher`) or a stored profile by id. */
+  async getRankingProfile(id: string): Promise<RankingProfileEntry> {
+    return this.request<RankingProfileEntry>("GET", `/ranking/profiles/${encodeURIComponent(id)}`);
+  }
+
+  async createRankingProfile(
+    friendId: number,
+    profile: RankingProfileDraftInput,
+  ): Promise<RankingProfile> {
+    return this.request<RankingProfile>("POST", "/ranking/profiles", {
+      friend_id: friendId,
+      profile,
+    });
+  }
+
+  /** Copy a preset or a profile into the library's own; named "<name> copy" unless `name` is given. */
+  async copyRankingProfile(id: string, friendId: number, name?: string): Promise<RankingProfile> {
+    return this.request<RankingProfile>(
+      "POST",
+      `/ranking/profiles/${encodeURIComponent(id)}/copy`,
+      name === undefined ? { friend_id: friendId } : { friend_id: friendId, name },
+    );
+  }
+
+  /** Replace a stored profile; presets are read-only. */
+  async updateRankingProfile(
+    id: string,
+    profile: RankingProfileDraftInput,
+  ): Promise<RankingProfile> {
+    return this.request<RankingProfile>("PUT", `/ranking/profiles/${encodeURIComponent(id)}`, {
+      profile,
+    });
+  }
+
+  async deleteRankingProfile(id: string): Promise<RankingProfileDeleteResponse> {
+    return this.request<RankingProfileDeleteResponse>(
+      "DELETE",
+      `/ranking/profiles/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /** Choose the profile a library ranks with, on `surfaces` or every surface it applies to. */
+  async setActiveRankingProfile(
+    friendId: number,
+    profileId: string,
+    surfaces?: RankingActiveUpdate["surfaces"],
+  ): Promise<RankingActiveResponse> {
+    return this.request<RankingActiveResponse>("PUT", "/ranking/active", {
+      friend_id: friendId,
+      profile_id: profileId,
+      ...(surfaces ? { surfaces } : {}),
+    });
   }
 
   async findSimilarVibe(

@@ -23,6 +23,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/hooks/useRankingProfiles", async () => {
+  const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+  return rankingProfileMock.module;
+});
 vi.mock("@/hooks/useSuggestionScope", () => ({ useSuggestionScope: () => mocks.scope }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({
   usePlaybackPlayer: () => ({ replacePlaylist: mocks.replacePlaylist }),
@@ -620,3 +624,35 @@ function Trigger() {
     </>
   );
 }
+
+describe("SuggestionsPanel ranking profile (#1192)", () => {
+  beforeEach(async () => {
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    rankingProfileMock.reset();
+  });
+
+  const shown = () =>
+    screen
+      .getAllByRole("button", { name: /^Add Title \w+ after Title p1$/ })
+      .map((b) => b.getAttribute("aria-label")?.split(" ")[2]);
+
+  it("switching Beatmatcher and Selector changes the suggestions for the same seed", async () => {
+    mocks.recommendations.mockReturnValue({
+      data: [
+        { ...t("near", { bpm: "121" }), _simIdentity: 0.4, _simAudio: 0.5 },
+        { ...t("far", { bpm: "100", key: "F# major" }), _simIdentity: 0.3, _simAudio: 0.95 },
+      ],
+      isLoading: false,
+    });
+    const { user } = renderWithProviders(
+      <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
+    );
+    const picker = screen.getByLabelText("Ranking");
+    await user.selectOptions(picker, "beatmatcher");
+    expect(shown()).toEqual(["near"]);
+    expect(screen.getByText(/1 hidden by filters/)).toBeTruthy();
+    await user.selectOptions(picker, "selector");
+    expect(shown()).toEqual(["far", "near"]);
+    expect(screen.queryByRole("button", { name: /BPM ±/ })).toBeNull();
+  });
+});
