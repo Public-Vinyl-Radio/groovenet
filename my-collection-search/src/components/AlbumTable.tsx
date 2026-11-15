@@ -3,8 +3,8 @@
 import React from "react";
 import { Box, Table } from "@chakra-ui/react";
 
-/** Cover (64px) plus its gap and the cell padding, so the "Album" heading sits over the title. */
-const ALBUM_HEADING_INSET = "96px";
+/** Cover (60px) plus its gap and the cell padding, so the "Album" heading sits over the title. */
+const ALBUM_HEADING_INSET = "92px";
 
 const heading = {
   textAlign: "left" as const,

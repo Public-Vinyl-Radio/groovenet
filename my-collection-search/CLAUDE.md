@@ -242,7 +242,10 @@ an invalid value the browser drops, so it fails silently.
   range, square ink thumb, named for keyboard and screen readers. Times and
   meta (`A1 · 134 BPM · 7A`) are mono. Phones: mini player, then a full-screen
   Now playing / queue; desktop: a bar docked full width under the sidebar, and
-  a 400px queue panel that sets `data-queue-panel` (`--queue-panel-w`). From xl
+  a 400px queue panel that sets `data-queue-panel` (`--queue-panel-w`). Player covers
+  (mini player, docked bar, Now playing) use the 1px `rule` border, set through
+  `--gn-cover-border-width` (`playerCoverBorder` in `houseStyle.ts`) on those surfaces' roots;
+  every other cover keeps 2px. From xl
   (1280px) it also sets `data-queue-docked` (`--queue-w`, which the shell's
   content padding makes room for); between md and xl it overlays the page with
   a scrim instead of squeezing it. Clearing the queue is one tap and an
@@ -303,7 +306,8 @@ an invalid value the browser drops, so it fails silently.
   migration map from the 18 audited looks).
 
 - **Track rows** (`TrackResult layout="row"`, `TRACK_ROW_HEIGHT` = 80, also the
-  virtualiser's `estimateSize`): three-line first cell (title, artist,
+  virtualiser's `estimateSize`; cover `LIST_ROW_COVER_SIZE` = 60px, shared with the
+  album row so LIST views match; the dense card keeps `TRACK_DENSE_CARD_COVER_SIZE`): three-line first cell (title, artist,
   `Album · Year`), then a Release cell that holds what must never clip (library
   ID as an `id` MetaTag, side/position, extras) and wraps instead of truncating. The
   key cell is `KeyChip`, a MetaTag that keeps its wheel dot. Header and rows share
@@ -333,7 +337,7 @@ an invalid value the browser drops, so it fails silently.
   `QueueList` does).
 - **Track cards** (`TrackResult`, the default `layout`; #722): the container is a 2px
   `border.ink` outline with `shadow-md`, so a grid of them needs `padding: 0 6px 6px 0`
-  and a 20px gap (14px between stacked cards; the card carries `mb: 14px`, a caller with
+  and a 20px gap (14px between stacked cards; the title is in the Body face; the card carries `mb: 14px`, a caller with
   a row gap tops it up). Artwork is 120px on desktop and 64px on a phone; the corner
   menu is an `xs` outline button on desktop and an absolutely positioned 44px target on a
   phone, where the title and artist rows reserve 32px for it. The meta line is plain text
@@ -349,7 +353,7 @@ an invalid value the browser drops, so it fails silently.
   the card menu's Rating row, which sits right under the action tiles and which
   `TrackActionsMenu` recognises through `TrackCardContext`.
 - **Album cards** (`AlbumResult layout="card"`; #1121): one album card everywhere, the
-  Track card's shape (outline, `shadow-md`, `mb: 14px`, the 120/64px cover beside title,
+  Track card's shape (title in the Body face; outline, `shadow-md`, `mb: 14px`, the 120/64px cover beside title,
   artist, label · country (year), meta line, genre tags, hover rating, corner menu).
   Grids use the full card **at every width, phones included** (one column), through
   `AlbumCardGrid`: one column, two from `md`, 20px column gap, room for the shadow. The
@@ -389,8 +393,11 @@ an invalid value the browser drops, so it fails silently.
   add a count query for it.
 - **Type:** three user-selectable roles, each with a curated list in the
   registry `src/app/fontChoices.ts`: **Display** (the `heading` token: page
-  titles, card headings), **Body** (`body`: UI text) and **Labels** (`label`:
-  buttons, tags, overlines, nav, IDs such as LP-342). Each role lists 2 to 6
+  titles, section headings), **Body** (`body`: UI text) and **Labels** (`label`:
+  buttons, tags, overlines, nav, IDs such as LP-342). **Display is for page titles
+  (`PageHeader.Title`) and section headings (`SectionHeading`) only**: anything repeated
+  in a list (card, row and tile titles) uses Body and gets its hierarchy from weight and
+  size, so a Display or Body choice never makes a grid read as headlines. Each role lists 2 to 6
   choices; the first (`default`) is the app's own face and the last is
   `system` (`system-ui` / `ui-monospace`, no file). Body also offers the mono
   faces (`plex-mono`, `jetbrains-mono`, `system-mono`); ids are unique per role. `fontRoleIds`,

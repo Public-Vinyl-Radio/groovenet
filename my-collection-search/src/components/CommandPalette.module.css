@@ -223,7 +223,35 @@
 }
 
 .itemLabel {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+/* One line each, ending in an ellipsis; the full text is in a title tooltip.
+   Scoped to the label so the preview pane still shows long titles in full. */
+.itemLabel > .itemTitle,
+.itemLabel > .itemMeta,
+.itemLabel > .itemMono {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemLabel > .itemTitle {
+  line-height: 20px;
+}
+
+.itemLabel > .itemMeta {
+  line-height: 16px;
+}
+
+.itemLabel > .itemMono {
+  line-height: 14px;
+}
+
+.rowCover {
+  flex-shrink: 0;
 }
 
 .itemMono {

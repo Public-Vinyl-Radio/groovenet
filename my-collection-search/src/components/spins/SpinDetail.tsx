@@ -47,6 +47,7 @@ type DetailProps = {
 };
 
 const titleStyle = {
+  fontFamily: "body",
   fontWeight: "semibold",
   truncate: true,
 } as const;

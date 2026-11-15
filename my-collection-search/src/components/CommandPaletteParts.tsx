@@ -49,23 +49,34 @@ export function albumMetaParts(album: Album): string[] {
 }
 
 function RowCover({ src }: { src: string | null }) {
-  return <Cover src={src ?? undefined} alt="" size="40px" aria-hidden="true" />;
+  return (
+    <span className={styles.rowCover} aria-hidden="true">
+      <Cover src={src ?? undefined} alt="" size="40px" aria-hidden="true" />
+    </span>
+  );
 }
 
 export function TrackRow({ track }: { track: Track }) {
   const parts = trackMetaParts(track);
   const genre = genresOf(track)[0];
   const meta = [...parts, genre].filter(Boolean).join(" · ");
+  const title = track.title || track.track_id;
+  const byline = `${track.artist}${track.album ? ` · ${track.album}` : ""}`;
   return (
     <>
       <RowCover src={artworkOf(track)} />
       <div className={styles.itemLabel}>
-        <span className={styles.itemTitle}>{track.title || track.track_id}</span>
-        <span className={styles.itemMeta}>
-          {track.artist}
-          {track.album ? ` · ${track.album}` : ""}
+        <span className={styles.itemTitle} title={title}>
+          {title}
         </span>
-        {meta && <span className={styles.itemMono}>{meta}</span>}
+        <span className={styles.itemMeta} title={byline}>
+          {byline}
+        </span>
+        {meta && (
+          <span className={styles.itemMono} title={meta}>
+            {meta}
+          </span>
+        )}
       </div>
       {track.local_audio_url && (
         <span className={styles.playable} role="img" aria-label="Has audio" title="Has audio">
@@ -82,9 +93,17 @@ export function AlbumRow({ album }: { album: Album }) {
     <>
       <RowCover src={artworkOf(album)} />
       <div className={styles.itemLabel}>
-        <span className={styles.itemTitle}>{album.title}</span>
-        <span className={styles.itemMeta}>{album.artist}</span>
-        {meta && <span className={styles.itemMono}>{meta}</span>}
+        <span className={styles.itemTitle} title={album.title}>
+          {album.title}
+        </span>
+        <span className={styles.itemMeta} title={album.artist}>
+          {album.artist}
+        </span>
+        {meta && (
+          <span className={styles.itemMono} title={meta}>
+            {meta}
+          </span>
+        )}
       </div>
     </>
   );
@@ -92,10 +111,15 @@ export function AlbumRow({ album }: { album: Album }) {
 
 export function ArtistRow({ artist }: { artist: ArtistListItem }) {
   const counts = artistCountsLabel(artist);
+  const byline = `Open Artist${counts ? ` · ${counts}` : ""}`;
   return (
     <div className={styles.itemLabel}>
-      <span className={styles.itemTitle}>{artist.name}</span>
-      <span className={styles.itemMeta}>Open Artist{counts ? ` · ${counts}` : ""}</span>
+      <span className={styles.itemTitle} title={artist.name}>
+        {artist.name}
+      </span>
+      <span className={styles.itemMeta} title={byline}>
+        {byline}
+      </span>
     </div>
   );
 }

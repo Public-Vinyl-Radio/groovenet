@@ -25,6 +25,11 @@ export const outlineWidth = "2px";
 /** Ruled dividers inside a bordered block. */
 export const ruleWidth = "1px";
 
+/** Player surfaces set this on their root: covers there use the thin `rule` border, not the 2px outline. */
+export const playerCoverBorder = {
+  "--gn-cover-border-width": "var(--chakra-border-widths-rule)",
+} as const;
+
 /** Shared cover treatment; CSS variables also let Storybook preview token changes. */
 export const coverTokens = {
   borderWidth: "var(--gn-cover-border-width, var(--chakra-border-widths-outline))",

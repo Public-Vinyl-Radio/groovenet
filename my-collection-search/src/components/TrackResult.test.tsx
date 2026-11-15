@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { cssOf } from "@/test/cssOf";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -35,7 +36,8 @@ import TrackResult, {
   TRACK_ROW_GRID_TEMPLATE,
   TRACK_ROW_HEIGHT,
   TRACK_CARD_COVER_SIZE,
-  TRACK_ROW_COVER_SIZE,
+  TRACK_DENSE_CARD_COVER_SIZE,
+  LIST_ROW_COVER_SIZE,
 } from "./TrackResult";
 
 afterEach(() => {
@@ -827,7 +829,26 @@ describe("TrackResult row layout (#685)", () => {
 
   it("exports the cover sizes the album lists share", () => {
     expect(TRACK_CARD_COVER_SIZE).toEqual({ base: "64px", md: "120px" });
-    expect(TRACK_ROW_COVER_SIZE).toEqual({ base: "60px", md: "80px" });
+    expect(TRACK_DENSE_CARD_COVER_SIZE).toEqual({ base: "60px", md: "80px" });
+    expect(LIST_ROW_COVER_SIZE).toBe("60px");
+  });
+
+  it("sizes the row cover with the shared list-row constant", () => {
+    renderWithProviders(<TrackResult track={track} layout="row" />);
+    const inner = screen
+      .getByTestId("track-result-row")
+      .querySelector("[data-cover-placeholder], img") as HTMLElement;
+    const widths: string[] = [];
+    for (let el: HTMLElement | null = inner; el; el = el.parentElement) {
+      widths.push(getComputedStyle(el).width);
+    }
+    expect(widths).toContain(LIST_ROW_COVER_SIZE);
+  });
+
+  it("sets card titles in the body face, not the display face", () => {
+    renderWithProviders(<TrackResult track={track} />);
+    const title = screen.getAllByText(track.title)[0] as HTMLElement;
+    expect(cssOf(title)).not.toMatch(/--chakra-fonts-heading/);
   });
 
   it("shares one grid with the header so the columns cannot drift", () => {
