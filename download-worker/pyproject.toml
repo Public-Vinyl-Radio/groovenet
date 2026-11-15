@@ -4,7 +4,7 @@ version = "1.0.0"
 requires-python = ">=3.12"
 dependencies = [
     "redis==8.1.0",
-    "yt-dlp==2026.10.21",
+    "yt-dlp==2026.10.26",
     "gamdl==3.9.1",
     "requests==2.34.2",
     "psycopg2-binary>=2.9.13,<2.10",
@@ -14,7 +14,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
+    "pytest>=9.2.0",
     "pytest-cov>=6.0",
     "pytest-mock>=3.17.0",
     "fakeredis>=2.40.0",
