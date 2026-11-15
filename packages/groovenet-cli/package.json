@@ -52,7 +52,7 @@
     "string-width": "8.3.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/react": "19.3.0",
     "@vitest/coverage-v8": "^5.0.3",
     "ink-testing-library": "4.0.0",
