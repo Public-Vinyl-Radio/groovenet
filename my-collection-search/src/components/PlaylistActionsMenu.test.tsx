@@ -31,6 +31,12 @@ async function openModal(props: Partial<React.ComponentProps<typeof PlaylistActi
 }
 
 describe("PlaylistActionsMenu phone modal (#751)", () => {
+  it("shows the ordering picker with the sort actions (#1193)", async () => {
+    await openModal({ orderingPicker: <label htmlFor="x">Order by picker</label> });
+    expect(screen.getByText("Order by picker")).toBeTruthy();
+    expect(screen.getByText("Sort")).toBeTruthy();
+  });
+
   it("shows the summary and title, and runs the tiles", async () => {
     const { user, h } = await openModal({ onDuplicate: vi.fn() });
     expect(screen.getByText("Late Night")).toBeTruthy();

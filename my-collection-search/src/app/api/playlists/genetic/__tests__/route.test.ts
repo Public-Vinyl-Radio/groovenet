@@ -12,7 +12,21 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
   embeddingsRepository: { findEmbeddingsForTracks },
 }));
 
+vi.mock("@/server/repositories/rankingProfileRepository", async () => {
+  const { FakeRankingProfileRepository } =
+    await import("@/server/repositories/__tests__/fakeRankingProfileRepository");
+  return { rankingProfileRepository: new FakeRankingProfileRepository() };
+});
+
 import { POST } from "../route";
+import { toRankingConfig } from "@groovenet/contracts";
+import { rankingProfileRepository } from "@/server/repositories/rankingProfileRepository";
+import type { FakeRankingProfileRepository } from "@/server/repositories/__tests__/fakeRankingProfileRepository";
+import { STRICT_RANKING_CONFIG } from "@/lib/ranking/configs";
+import { toOptimizerRanking } from "@/lib/ranking/ordering";
+import { draftToStored, profileToDraft, RANKING_PRESETS } from "@/lib/ranking/profiles";
+
+const repo = rankingProfileRepository as unknown as FakeRankingProfileRepository;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +57,7 @@ function makeGaResponse(body: unknown, status = 200) {
 }
 
 beforeEach(() => {
+  repo.reset();
   mockFetch.mockReset();
   getServingModel.mockReset();
   findEmbeddingsForTracks.mockReset();
@@ -298,5 +313,106 @@ describe("POST /api/playlists/genetic — GA service integration", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toMatch(/failed/i);
+  });
+});
+
+// ─── Ranking profile (#1193) ─────────────────────────────────────────────────
+
+describe("POST /api/playlists/genetic — ranking profile", () => {
+  const sent = () => JSON.parse(mockFetch.mock.calls[0][1].body);
+  const choose = (friendId: number, surface: string, selection: Record<string, unknown>) =>
+    repo.selections.push({
+      friend_id: friendId,
+      surface,
+      preset_id: null,
+      profile_id: null,
+      ...selection,
+    });
+  const preset = (id: keyof typeof RANKING_PRESETS) =>
+    toOptimizerRanking(toRankingConfig(RANKING_PRESETS[id]));
+
+  it("sends Default's request exactly as before profiles, and says Default ordered it", async () => {
+    const res = await POST(makeReq({ playlist: [makeTrack()], mode: "genetic" }));
+    expect(mockFetch.mock.calls[0][1].body).toBe(
+      JSON.stringify({
+        tracks: [{ track_id: "track-1", friend_id: 1, bpm: 120, embedding: "[0.1,0.2,0.3]" }],
+        mode: "genetic",
+      }),
+    );
+    expect((await res.json()).ranking).toEqual({ id: "default", name: "Default", fallback: false });
+  });
+
+  it("orders by the library's active playlists profile", async () => {
+    choose(1, "playlists", { preset_id: "beatmatcher" });
+    choose(1, "suggestions", { preset_id: "selector" });
+    const res = await POST(makeReq({ playlist: [makeTrack()], mode: "cohesive_blocks" }));
+    expect(sent()).toMatchObject({ mode: "cohesive_blocks", ranking: preset("beatmatcher") });
+    expect((await res.json()).ranking).toEqual({
+      id: "beatmatcher",
+      name: "Beatmatcher",
+      fallback: false,
+    });
+  });
+
+  it("ignores a choice made for another surface", async () => {
+    choose(1, "suggestions", { preset_id: "selector" });
+    await POST(makeReq({ playlist: [makeTrack()] }));
+    expect(sent()).not.toHaveProperty("ranking");
+  });
+
+  it("takes a per-request override and the library from friend_id", async () => {
+    choose(2, "playlists", { preset_id: "selector" });
+    await POST(makeReq({ playlist: [makeTrack()], friend_id: 2 }));
+    expect(sent().ranking).toEqual(preset("selector"));
+
+    mockFetch.mockClear();
+    const res = await POST(makeReq({ playlist: [makeTrack()], ranking: "beatmatcher" }));
+    expect(sent().ranking).toEqual(preset("beatmatcher"));
+    expect((await res.json()).ranking.name).toBe("Beatmatcher");
+  });
+
+  it("orders by a built-in config, named after its id", async () => {
+    const res = await POST(makeReq({ playlist: [makeTrack()], ranking: "strict" }));
+    expect(sent().ranking).toEqual(toOptimizerRanking(STRICT_RANKING_CONFIG));
+    expect((await res.json()).ranking).toEqual({ id: "strict", name: "Strict", fallback: false });
+  });
+
+  it("orders by a stored profile, and by Default when it can't be read", async () => {
+    const stored = await repo.insert(
+      1,
+      draftToStored(profileToDraft(RANKING_PRESETS.beatmatcher, "Peak time")),
+      50,
+    );
+    choose(1, "playlists", { profile_id: stored!.id });
+    let res = await POST(makeReq({ playlist: [makeTrack()] }));
+    expect(sent().ranking).toEqual(preset("beatmatcher"));
+    expect((await res.json()).ranking).toEqual({
+      id: String(stored!.id),
+      name: "Peak time",
+      fallback: false,
+    });
+
+    repo.rows[0].config = { weights: "loud" };
+    mockFetch.mockClear();
+    res = await POST(makeReq({ playlist: [makeTrack()] }));
+    expect(sent()).not.toHaveProperty("ranking");
+    expect((await res.json()).ranking).toEqual({ id: "default", name: "Default", fallback: true });
+  });
+
+  it("is Default when no track names a library", async () => {
+    const res = await POST(
+      makeReq({ playlist: [{ track_id: "a", bpm: 120 }], mode: "cohesive_blocks" }),
+    );
+    expect(sent()).not.toHaveProperty("ranking");
+    expect((await res.json()).ranking.id).toBe("default");
+  });
+
+  it("refuses a profile id that names nothing, and a malformed one", async () => {
+    let res = await POST(makeReq({ playlist: [makeTrack()], ranking: "999" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Unknown ranker 999/);
+    res = await POST(makeReq({ playlist: [makeTrack()], ranking: "loud" }));
+    expect(res.status).toBe(400);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

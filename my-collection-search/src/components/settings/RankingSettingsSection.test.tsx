@@ -76,7 +76,12 @@ beforeEach(() => {
   response = {
     friend_id: 6,
     profiles: [...PRESET_LIST, mine, broken],
-    active: { suggestions: "7", related: "beatmatcher", recommendations: "default" },
+    active: {
+      suggestions: "7",
+      related: "beatmatcher",
+      recommendations: "default",
+      playlists: "default",
+    },
   };
   mocks.list.mockImplementation(async () => response);
   mocks.copy.mockImplementation(async () => {

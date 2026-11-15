@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { liveSetSummarySchema } from "./liveSets.js";
+import { rankingAppliedSchema, rankingRefSchema } from "./ranking.js";
 
 export const playlistOptimizerModeSchema = z.enum(["genetic", "greedy", "cohesive_blocks"]);
 
@@ -121,8 +122,15 @@ export const playlistGeneticTrackSchema = z
   .passthrough();
 
 export const playlistGeneticRequestSchema = z.object({
-  playlist: z.array(playlistGeneticTrackSchema).min(1),
+  playlist: z.array(playlistGeneticTrackSchema).min(1).max(1000),
   mode: playlistOptimizerModeSchema.optional(),
+  /**
+   * The library whose active `playlists` ranking profile orders it (#1193).
+   * Omitted: the first track's `friend_id`.
+   */
+  friend_id: z.number().int().optional(),
+  /** Order by this profile instead of the active one: a preset, built-in config or stored id. */
+  ranking: rankingRefSchema.optional(),
 });
 
 export const playlistGeneticResultTrackSchema = z
@@ -132,6 +140,8 @@ export const playlistGeneticResultTrackSchema = z
 export const playlistGeneticResponseSchema = z
   .object({
     mode: playlistOptimizerModeSchema.optional(),
+    /** The ranking profile that ordered it (#1193). */
+    ranking: rankingAppliedSchema.optional(),
     result: z.union([
       z.array(playlistGeneticResultTrackSchema),
       z.record(z.string(), playlistGeneticResultTrackSchema),

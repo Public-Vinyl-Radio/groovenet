@@ -3,6 +3,7 @@ import {
   keyRuleForMode,
   keyRuleMode,
   MAX_RANKING_PROFILES_PER_FRIEND,
+  RANKING_SURFACES,
   rankingActiveUpdateSchema,
   rankingConfigSchema,
   rankingJsonSchemas,
@@ -178,14 +179,37 @@ describe("ranking profiles", () => {
     ).toBe(false);
   });
 
+  it("offers playlist ordering as a surface (#1193)", () => {
+    expect(RANKING_SURFACES).toEqual(["suggestions", "related", "recommendations", "playlists"]);
+    expect(rankingProfileDraftSchema.parse({ ...draft, surfaces: ["playlists"] }).surfaces).toEqual(
+      ["playlists"],
+    );
+    expect(
+      rankingProfileDraftSchema.safeParse({ ...draft, surfaces: [...RANKING_SURFACES] }).success,
+    ).toBe(true);
+    expect(
+      rankingActiveUpdateSchema.safeParse({
+        friend_id: 1,
+        profile_id: "selector",
+        surfaces: ["playlists"],
+      }).success,
+    ).toBe(true);
+  });
+
   it("lists profiles with an invalid flag and the active ones", () => {
     const profile = rankingProfileSchema.parse({ ...draft, id: "3", kind: "custom" });
     const parsed = rankingProfilesResponseSchema.parse({
       friend_id: 1,
       profiles: [{ ...profile, invalid: true }],
-      active: { suggestions: "3", related: "default", recommendations: "default" },
+      active: {
+        suggestions: "3",
+        related: "default",
+        recommendations: "default",
+        playlists: "beatmatcher",
+      },
     });
     expect(parsed.profiles[0].invalid).toBe(true);
+    expect(parsed.active.playlists).toBe("beatmatcher");
     expect(MAX_RANKING_PROFILES_PER_FRIEND).toBe(50);
   });
 

@@ -72,7 +72,9 @@ daemon's machine.
 objects: the handler hydrates them with `batchGetTracks` because the route reads
 BPM from the request body. An item with `id` but no `track_id` is rejected,
 never mapped — `id` is the numeric database ID, not the track ID. Server
-`details`/`invalid` come through in the error via `GroovenetClient`.
+`details`/`invalid` come through in the error via `GroovenetClient`. Its
+`profile` orders by a ranking profile instead of the library's active
+`playlists` one, and the reply says which profile ordered it (#1193).
 
 ## Build
 

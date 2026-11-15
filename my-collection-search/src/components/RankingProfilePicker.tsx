@@ -10,18 +10,26 @@ type Props = {
   onChange: (profileId: string) => void;
   /** Distinguishes two pickers on one page. */
   id: string;
+  /** The visible label; "Ranking" by default, "Order by" beside the optimisers. */
+  label?: string;
 };
 
 /**
  * Which ranking profile a suggestion list uses (#1192). Choosing one saves it
  * as the library's choice for that surface, and the list re-ranks at once.
  */
-export default function RankingProfilePicker({ value, options, onChange, id }: Props) {
+export default function RankingProfilePicker({
+  value,
+  options,
+  onChange,
+  id,
+  label = "Ranking",
+}: Props) {
   const selectId = `${id}-ranking-profile`;
   return (
     <HStack gap={2} w={{ base: "100%", md: "auto" }}>
       <Text asChild fontSize="12px" color="fg.muted" flexShrink={0}>
-        <label htmlFor={selectId}>Ranking</label>
+        <label htmlFor={selectId}>{label}</label>
       </Text>
       <NativeSelect.Root size="xs" w={{ base: "100%", md: "auto" }} minW="140px">
         <NativeSelect.Field

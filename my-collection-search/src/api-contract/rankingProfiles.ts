@@ -46,7 +46,12 @@ const stored = { ...RANKING_PRESETS.selector, id: "17", kind: "custom", name: "W
 const { id: _id, kind: _kind, ...draftExample } = stored;
 void _id;
 void _kind;
-const active = { suggestions: "beatmatcher", related: "default", recommendations: "17" };
+const active = {
+  suggestions: "beatmatcher",
+  related: "default",
+  recommendations: "17",
+  playlists: "beatmatcher",
+};
 
 export const rankingProfileContracts: ApiContractRoute[] = [
   {

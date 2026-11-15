@@ -13,7 +13,7 @@ import { PRESET_LIST, resolveProfile } from "@/lib/ranking/profiles";
 
 type Active = Partial<Record<RankingSurface, string>>;
 const listeners = new Set<() => void>();
-const state = { active: {} as Active, choose: vi.fn() };
+const state = { active: {} as Active, choose: vi.fn(), friendId: 1 };
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -23,6 +23,8 @@ export const rankingProfileMock = {
   state,
   reset() {
     state.active = {};
+    state.friendId = 1;
+    listeners.forEach((listener) => listener());
     state.choose.mockReset();
   },
   module: {
@@ -30,6 +32,7 @@ export const rankingProfileMock = {
       const active = useSyncExternalStore(subscribe, () => state.active);
       return {
         ...resolveProfile(active[surface], PRESET_LIST, surface),
+        friendId: state.friendId,
         options: PRESET_LIST,
         choose: (id: string) => {
           state.active = { ...state.active, [surface]: id };

@@ -189,6 +189,25 @@ describe("OpenAPI contract coverage", () => {
     );
   });
 
+  it("documents ordering by a ranking profile on the optimiser (#1193)", () => {
+    const doc = getOpenApiDocument();
+    const schemas = doc.components.schemas as Record<
+      string,
+      { properties?: Record<string, unknown> }
+    >;
+    expect(Object.keys(schemas.PlaylistGeneticRequest.properties ?? {})).toEqual(
+      expect.arrayContaining(["friend_id", "ranking"]),
+    );
+    expect(schemas.PlaylistGeneticResponse.properties).toHaveProperty("ranking");
+    const post = (
+      doc.paths["/api/playlists/genetic"] as Record<
+        string,
+        { requestBody?: { description?: string } }
+      >
+    ).post;
+    expect(post.requestBody?.description).toMatch(/playlists. ranking profile/);
+  });
+
   it("references shared track and album components", () => {
     const doc = getOpenApiDocument();
     const schemas = doc.components.schemas as Record<

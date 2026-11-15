@@ -48,7 +48,7 @@ describe("ranking profiles (integration)", () => {
     expect(stored).toMatchObject({
       friend_id: mine,
       name: "Peak",
-      surfaces: ["suggestions", "related", "recommendations"],
+      surfaces: ["suggestions", "related", "recommendations", "playlists"],
     });
     expect(stored!.config).toEqual(write().config);
     const updated = await repo.update(stored!.id, { ...write("Closing"), surfaces: ["related"] });
@@ -105,6 +105,23 @@ describe("ranking profiles (integration)", () => {
         [mine],
       ),
     ).rejects.toThrow(/check constraint/);
+  });
+
+  dbTest("stores a playlists choice and bounds the surface list at four (#1193)", async () => {
+    await repo.setSelections(mine, ["playlists"], { presetId: "beatmatcher" });
+    expect(await repo.listSelections(mine)).toContainEqual({
+      surface: "playlists",
+      preset_id: "beatmatcher",
+      profile_id: null,
+    });
+    const five = ["suggestions", "related", "recommendations", "playlists", "related"] as const;
+    await expect(repo.insert(mine, { ...write(), surfaces: [...five] }, 50)).rejects.toThrow(
+      /check constraint/,
+    );
+    await dbQuery(
+      `DELETE FROM ranking_profile_selections WHERE friend_id = $1 AND surface = 'playlists'`,
+      [mine],
+    );
   });
 
   dbTest("drops selections outside the profile's surfaces", async () => {

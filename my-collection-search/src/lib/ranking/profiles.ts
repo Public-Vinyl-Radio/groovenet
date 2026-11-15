@@ -184,6 +184,7 @@ export const DEFAULT_ACTIVE_PROFILES: RankingActiveProfiles = {
   suggestions: "default",
   related: "default",
   recommendations: "default",
+  playlists: "default",
 };
 
 /** What analytics may say about a profile: the preset id, or `custom`. Never a name. */

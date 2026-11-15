@@ -36,8 +36,11 @@ export const RANKING_CONSTRAINT_IDS = [
 export const rankingConstraintIdSchema = z.enum(RANKING_CONSTRAINT_IDS);
 export type RankingConstraintId = z.infer<typeof rankingConstraintIdSchema>;
 
-/** Where a ranking is shown. A profile can be chosen per surface (#1192). */
-export const RANKING_SURFACES = ["suggestions", "related", "recommendations"] as const;
+/**
+ * Where a ranking is used. A profile can be chosen per surface (#1192);
+ * `playlists` is the order the playlist optimiser builds (#1193).
+ */
+export const RANKING_SURFACES = ["suggestions", "related", "recommendations", "playlists"] as const;
 export const rankingSurfaceSchema = z.enum(RANKING_SURFACES);
 export type RankingSurface = z.infer<typeof rankingSurfaceSchema>;
 
@@ -160,6 +163,17 @@ export const candidateRankingSchema = z.object({
 });
 export type CandidateRanking = z.infer<typeof candidateRankingSchema>;
 
+/**
+ * The profile a ranked result came from, as a response reports it. `fallback`
+ * means the profile asked for couldn't be used, so Default stood in.
+ */
+export const rankingAppliedSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  fallback: z.boolean(),
+});
+export type RankingApplied = z.infer<typeof rankingAppliedSchema>;
+
 // ─── Key rule sugar ──────────────────────────────────────────────────────────
 
 /** The key rules a profile editor offers, as `key_rule` data: no second mechanism. */
@@ -270,6 +284,7 @@ export const rankingActiveProfilesSchema = z
     suggestions: z.string(),
     related: z.string(),
     recommendations: z.string(),
+    playlists: z.string(),
   })
   .strict();
 export type RankingActiveProfiles = z.infer<typeof rankingActiveProfilesSchema>;

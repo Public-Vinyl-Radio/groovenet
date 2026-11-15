@@ -3,6 +3,38 @@ import { NextResponse } from "next/server";
 import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { playlistGeneticBodySchema, playlistGeneticResponseSchema } from "@/api-contract/schemas";
+import { RANKING_CONFIG_IDS } from "@groovenet/contracts";
+import { optimizerRankingFor } from "@/lib/ranking/ordering";
+import { isPresetId } from "@/lib/ranking/profiles";
+import {
+  rankingProfileService,
+  RankingProfileError,
+  type ResolvedRanker,
+} from "@/server/services/rankingProfileService";
+
+/**
+ * The profile that orders the playlist (#1193): `ranking` when given, else the
+ * library's active `playlists` profile. No library to ask: Default.
+ */
+function resolveOrdering(
+  ref: string | undefined,
+  friendId: number | undefined,
+): Promise<ResolvedRanker> {
+  const named = ref ?? (friendId === undefined ? "default" : undefined);
+  return rankingProfileService.resolveRanker(named, friendId ?? 0, "playlists");
+}
+
+/** What the response says ordered it: Default when the profile fell back. */
+function appliedRanking(ranker: ResolvedRanker) {
+  if (ranker.fallback) return { id: "default", name: ranker.profile.name, fallback: true };
+  // A built-in config (`strict`) has no profile of its own; it is named after its id.
+  const builtIn =
+    (RANKING_CONFIG_IDS as readonly string[]).includes(ranker.id) && !isPresetId(ranker.id);
+  const name = builtIn
+    ? ranker.id.charAt(0).toUpperCase() + ranker.id.slice(1)
+    : ranker.profile.name;
+  return { id: ranker.id, name, fallback: false };
+}
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +51,12 @@ export async function POST(req: Request) {
 
     const inputTracks = parsedBody.data.playlist;
     const mode = parsedBody.data.mode ?? "genetic";
+    const friendId =
+      parsedBody.data.friend_id ??
+      inputTracks.find((track) => typeof track.friend_id === "number")?.friend_id;
+    const ranker = await resolveOrdering(parsedBody.data.ranking, friendId);
+    // Default sends no `ranking`, so its request is the one from before profiles.
+    const ranking = optimizerRankingFor(ranker);
     const invalid: Array<{ track_id?: string; reason: string }> = [];
 
     // Vectors come from `track_embeddings` at the audio_vibe serving model,
@@ -97,17 +135,24 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         tracks: normalizedTracks,
         mode,
+        ...(ranking ? { ranking } : {}),
       }),
     });
     const responseJson = await res.json();
     if (res.ok) {
-      const validated = playlistGeneticResponseSchema.safeParse(responseJson);
+      const validated = playlistGeneticResponseSchema.safeParse({
+        ...responseJson,
+        ranking: appliedRanking(ranker),
+      });
       if (validated.success) {
         return NextResponse.json(validated.data, { status: res.status });
       }
     }
     return NextResponse.json(responseJson, { status: res.status });
   } catch (error) {
+    if (error instanceof RankingProfileError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     if (serviceNotRunning(error)) {
       return NextResponse.json({ error: "Optimization service not running" }, { status: 503 });
     }

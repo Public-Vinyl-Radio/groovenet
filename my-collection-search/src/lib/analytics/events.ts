@@ -67,6 +67,8 @@ export type AnalyticsEvents = {
     playlist_id: number | undefined;
     track_count: number;
     sort_algorithm: "greedy" | "genetic" | "cohesive_blocks";
+    /** The ranking profile a server sort ordered by (#1193): a preset id or `custom`. */
+    profile?: RankingPresetId | "custom";
   };
   // Suggestions (#1185). `suggestions_shown` is the denominator: one per list
   // load, and again when a filter changes the list (`trigger`). A whole-playlist

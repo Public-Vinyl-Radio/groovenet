@@ -160,6 +160,9 @@ import type {
   RecordCareStackPullResponse,
   RecordCareStackResponse,
   PlaylistOptimizerMode,
+  OptimizedPlaylist,
+  RankingApplied,
+  RankingRef,
 } from "./types.js";
 
 export interface GroovenetClientConfig {
@@ -608,14 +611,35 @@ export class GroovenetClient {
   }
 
   async generatePlaylist(tracks: Track[], mode?: PlaylistOptimizerMode): Promise<Track[]> {
-    const result = await this.request<{ result: Track[] | Record<string, Track> }>(
-      "POST",
-      "/playlists/genetic",
-      { playlist: tracks, ...(mode ? { mode } : {}) },
-    );
+    return (await this.optimizePlaylist(tracks, { mode })).tracks;
+  }
+
+  /**
+   * Order tracks with the playlist optimiser. `profile` names the ranking
+   * profile to order by (a preset or stored id); omitted, the library's active
+   * `playlists` profile. `friendId` names that library (#1193).
+   */
+  async optimizePlaylist(
+    tracks: Track[],
+    options: { mode?: PlaylistOptimizerMode; profile?: RankingRef; friendId?: number } = {},
+  ): Promise<OptimizedPlaylist> {
+    const { mode, profile, friendId } = options;
+    const result = await this.request<{
+      result: Track[] | Record<string, Track>;
+      mode?: PlaylistOptimizerMode;
+      ranking?: RankingApplied;
+    }>("POST", "/playlists/genetic", {
+      playlist: tracks,
+      ...(mode ? { mode } : {}),
+      ...(friendId !== undefined ? { friend_id: friendId } : {}),
+      ...(profile ? { ranking: profile } : {}),
+    });
     const raw = result.result;
-    if (Array.isArray(raw)) return raw;
-    return Object.values(raw);
+    return {
+      tracks: Array.isArray(raw) ? raw : Object.values(raw),
+      mode: result.mode ?? null,
+      ranking: result.ranking ?? null,
+    };
   }
 
   // ── Genres / Friends ───────────────────────────────────────────────────────

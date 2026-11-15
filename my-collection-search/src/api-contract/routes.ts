@@ -354,6 +354,13 @@ const playlistGeneticRequestExample = {
   mode: "cohesive_blocks",
 };
 
+const playlistGeneticRankedRequestExample = {
+  playlist: playlistGeneticRequestExample.playlist,
+  mode: "genetic",
+  friend_id: 1,
+  ranking: "beatmatcher",
+};
+
 const trackSearchGetExample = {
   hits: [
     {
@@ -5044,6 +5051,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
     openapi: {
       requestBody: {
         required: true,
+        description:
+          "Orders by the library's active `playlists` ranking profile (#1193); `ranking` names a different one for this request. `friend_id` picks the library, else the first track's. The response's `ranking` says which profile ordered it, with `fallback` when an unreadable profile left it to Default.",
         content: {
           "application/json": {
             schema: { $ref: "#/components/schemas/PlaylistGeneticRequest" },
@@ -5051,6 +5060,10 @@ export const apiContractRoutes: ApiContractRoute[] = [
               geneticRequest: {
                 summary: "Three tracks, each supplying its embedding differently",
                 value: playlistGeneticRequestExample,
+              },
+              rankedRequest: {
+                summary: "Ordered by the Beatmatcher profile rather than the active one",
+                value: playlistGeneticRankedRequestExample,
               },
             },
           },
@@ -5062,11 +5075,25 @@ export const apiContractRoutes: ApiContractRoute[] = [
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/PlaylistGeneticResponse" },
+              examples: {
+                ordered: {
+                  summary: "Ordered by Beatmatcher",
+                  value: {
+                    mode: "genetic",
+                    result: [
+                      { track_id: "trk_099" },
+                      { track_id: "trk_001" },
+                      { track_id: "trk_143" },
+                    ],
+                    ranking: { id: "beatmatcher", name: "Beatmatcher", fallback: false },
+                  },
+                },
+              },
             },
           },
         },
         "400": {
-          description: "Invalid track data for optimization",
+          description: "Invalid track data for optimization, or a `ranking` that names no profile",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/PlaylistGeneticValidationError" },

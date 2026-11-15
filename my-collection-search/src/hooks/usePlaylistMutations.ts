@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
+import type { RankingApplied } from "@groovenet/contracts";
 import {
-  generateOptimizedPlaylist,
+  optimizePlaylist,
   type PlaylistOptimizerMode,
   updatePlaylist,
 } from "@/services/internalApi/playlists";
+import { isPresetId, profileAnalyticsId } from "@/lib/ranking/profiles";
 import type { Track } from "@/types/track";
 import { useTrackStore } from "@/stores/trackStore";
 import { toaster } from "@/components/ui/toaster";
@@ -22,16 +24,33 @@ export type SortPositionChange = {
   currentPosition: number;
 };
 
+export type PlaylistOrderingOptions = {
+  /** The ranking profile the optimiser orders by (#1193): the picker's choice. */
+  rankingProfileId?: string;
+  /** The library that profile belongs to. */
+  friendId?: number;
+};
+
+/** What analytics may say about the profile that ordered a playlist: its preset id, or `custom`. */
+const orderedByAnalyticsId = (ranking: RankingApplied) =>
+  profileAnalyticsId({ id: ranking.id, kind: isPresetId(ranking.id) ? "preset" : "custom" });
+
 /**
  * Hook for playlist mutation operations (sort, clear, reorder)
  * Works with query-based playlist data
  */
-export function usePlaylistMutations(playlistId?: number, onModified?: () => void) {
+export function usePlaylistMutations(
+  playlistId?: number,
+  onModified?: () => void,
+  ordering: PlaylistOrderingOptions = {},
+) {
   const queryClient = useQueryClient();
   const { getTrack } = useTrackStore();
   const [sortPositionChanges, setSortPositionChanges] = useState<
     Record<string, SortPositionChange>
   >({});
+  // The profile that ordered the playlist, until anything reorders it (#1193).
+  const [orderedBy, setOrderedBy] = useState<RankingApplied | null>(null);
 
   // Get current track refs (track_id + friend_id) from cache
   type TrackRef = { track_id: string; friend_id: number };
@@ -90,6 +109,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
 
   const clearSortPositionChanges = () => {
     setSortPositionChanges({});
+    setOrderedBy(null);
   };
 
   const getPositionChangeKey = (ref: TrackRef, index: number) =>
@@ -260,6 +280,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     console.log("Greedy sorted track refs:", sortedTrackRefs);
 
     setSortPositionChanges(buildPositionChanges(previousRefs, sortedTrackRefs));
+    setOrderedBy(null);
     updateTrackRefs(sortedTrackRefs);
     onModified?.(); // Mark as modified
 
@@ -275,7 +296,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     mutationFn: async (mode: PlaylistOptimizerMode) => {
       const trackRefs = getTrackIds();
       if (trackRefs.length === 0) {
-        return { mode, previousRefs: trackRefs, sortedTracks: [] };
+        return { mode, previousRefs: trackRefs, sortedTracks: [], ranking: null };
       }
       const previousRefs = [...trackRefs];
 
@@ -291,19 +312,23 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
         .filter(Boolean) as Track[];
 
       if (tracks.length === 0) {
-        return { mode, previousRefs, sortedTracks: [] };
+        return { mode, previousRefs, sortedTracks: [], ranking: null };
       }
 
-      const sortedTracks = await generateOptimizedPlaylist(tracks, mode);
-      return { mode, previousRefs, sortedTracks };
+      const { tracks: sortedTracks, ranking } = await optimizePlaylist(tracks, mode, {
+        ranking: ordering.rankingProfileId,
+        friendId: ordering.friendId,
+      });
+      return { mode, previousRefs, sortedTracks, ranking };
     },
-    onSuccess: ({ mode, previousRefs, sortedTracks }) => {
+    onSuccess: ({ mode, previousRefs, sortedTracks, ranking }) => {
       if (sortedTracks.length > 0) {
         const sortedTrackRefs = sortedTracks.map((track) => ({
           track_id: track.track_id,
           friend_id: track.friend_id!,
         }));
         setSortPositionChanges(buildPositionChanges(previousRefs, sortedTrackRefs));
+        setOrderedBy(ranking);
         updateTrackRefs(sortedTrackRefs);
         onModified?.(); // Mark as modified
 
@@ -311,6 +336,7 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
           playlist_id: playlistId,
           track_count: sortedTracks.length,
           sort_algorithm: mode,
+          ...(ranking ? { profile: orderedByAnalyticsId(ranking) } : {}),
         });
       }
     },
@@ -368,5 +394,6 @@ export function usePlaylistMutations(playlistId?: number, onModified?: () => voi
     isCohesiveBlocksSorting:
       optimizerMutation.isPending && optimizerMutation.variables === "cohesive_blocks",
     sortPositionChanges,
+    orderedBy,
   };
 }
