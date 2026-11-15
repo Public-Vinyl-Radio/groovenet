@@ -48,6 +48,7 @@ export function useRankingProfile(surface: RankingSurface) {
   const resolved = resolveProfile(data.active[surface], data.profiles, surface);
   return {
     ...resolved,
+    friendId,
     options: data.profiles.filter((p) => p.surfaces.includes(surface) && !p.invalid),
     choose: (profileId: string) =>
       friendId > 0 &&

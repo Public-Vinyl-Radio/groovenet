@@ -157,6 +157,30 @@ describe("playlist contracts", () => {
     ).toBe(true);
   });
 
+  it("takes a ranking profile and library for ordering, and reports the profile used (#1193)", () => {
+    const playlist = [{ track_id: "a" }];
+    expect(
+      playlistGeneticRequestSchema.parse({ playlist, friend_id: 3, ranking: "beatmatcher" }),
+    ).toEqual({ playlist, friend_id: 3, ranking: "beatmatcher" });
+    expect(playlistGeneticRequestSchema.safeParse({ playlist, ranking: "12" }).success).toBe(true);
+    expect(playlistGeneticRequestSchema.safeParse({ playlist, ranking: "loud" }).success).toBe(
+      false,
+    );
+    expect(playlistGeneticRequestSchema.safeParse({ playlist, friend_id: 1.5 }).success).toBe(
+      false,
+    );
+    const tooMany = Array.from({ length: 1001 }, (_, i) => ({ track_id: `t${i}` }));
+    expect(playlistGeneticRequestSchema.safeParse({ playlist: tooMany }).success).toBe(false);
+
+    const ranking = { id: "beatmatcher", name: "Beatmatcher", fallback: false };
+    expect(playlistGeneticResponseSchema.parse({ result: playlist, ranking }).ranking).toEqual(
+      ranking,
+    );
+    expect(
+      playlistGeneticResponseSchema.safeParse({ result: playlist, ranking: { id: "x" } }).success,
+    ).toBe(false);
+  });
+
   it("exports JSON Schema components with enum values", () => {
     expect(Object.keys(playlistJsonSchemas)).toContain("Playlist");
     expect(playlistJsonSchemas.PlaylistOptimizerMode.enum).toEqual([

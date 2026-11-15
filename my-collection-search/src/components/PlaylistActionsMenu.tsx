@@ -38,6 +38,8 @@ export interface PlaylistActionsMenuProps {
   playlistName?: string;
   /** The strip's catalogue line on phones: `tracks · total time`. */
   summary?: string;
+  /** The ranking profile picker for the optimisers (#1193), shown with Sort on phones. */
+  orderingPicker?: React.ReactNode;
 }
 
 export default function PlaylistActionsMenu({
@@ -58,6 +60,7 @@ export default function PlaylistActionsMenu({
   isCohesiveBlocksSorting,
   playlistName,
   summary = "",
+  orderingPicker,
 }: PlaylistActionsMenuProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -86,6 +89,7 @@ export default function PlaylistActionsMenu({
           onSave={onOpenSaveDialog}
           onDuplicate={onDuplicate}
           onRename={onRename}
+          sortHeader={orderingPicker}
           sort={[
             { label: "Greedy order", onClick: onSortGreedy },
             {

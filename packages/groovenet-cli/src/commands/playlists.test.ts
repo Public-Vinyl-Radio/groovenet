@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     setPlaylistTracks: vi.fn(),
     getPlaylistTracks: vi.fn(),
     batchGetTracks: vi.fn(),
+    optimizePlaylist: vi.fn(),
   },
   printTracks: vi.fn(),
   readTracksSource: vi.fn(),
@@ -436,5 +437,82 @@ describe("playlists show", () => {
     );
     expect(mocks.printError).toHaveBeenCalledWith(message);
     exit.mockRestore();
+  });
+});
+
+describe("playlists generate (#1193)", () => {
+  const run = async (...args: string[]) => {
+    const program = new Command().exitOverride();
+    addPlaylistsCommands(program);
+    await program.parseAsync(["node", "test", "playlists", "generate", "7", ...args]);
+  };
+  const ordered = [{ track_id: "b" }, { track_id: "a" }];
+  let log: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    log = vi.spyOn(console, "log").mockImplementation(() => {});
+    mocks.client.getPlaylistTracks.mockResolvedValue({
+      track_refs: [
+        { track_id: "a", friend_id: 1 },
+        { track_id: "b", friend_id: 1 },
+      ],
+    });
+    mocks.client.batchGetTracks.mockResolvedValue([{ track_id: "a" }, { track_id: "b" }]);
+    mocks.client.optimizePlaylist.mockResolvedValue({
+      tracks: ordered,
+      mode: "genetic",
+      ranking: { id: "beatmatcher", name: "Beatmatcher", fallback: false },
+    });
+  });
+  afterEach(() => log.mockRestore());
+
+  it("orders by the profile given and says which one ordered it", async () => {
+    await run("--profile", "beatmatcher");
+    expect(mocks.client.optimizePlaylist).toHaveBeenCalledWith(
+      [{ track_id: "a" }, { track_id: "b" }],
+      { profile: "beatmatcher" },
+    );
+    expect(log).toHaveBeenCalledWith("Optimized playlist (2 tracks, ordered by Beatmatcher):");
+    expect(mocks.printTracks).toHaveBeenCalledWith(ordered, false);
+  });
+
+  it("uses the active profile by default and keeps the JSON output to the tracks", async () => {
+    await run("--json");
+    expect(mocks.client.optimizePlaylist).toHaveBeenCalledWith(expect.any(Array), {});
+    expect(mocks.printJson).toHaveBeenCalledWith(ordered);
+  });
+
+  it("says when Default stood in, and says nothing of a profile an older server doesn't report", async () => {
+    mocks.client.optimizePlaylist.mockResolvedValueOnce({
+      tracks: ordered,
+      mode: "genetic",
+      ranking: { id: "default", name: "Default", fallback: true },
+    });
+    await run();
+    expect(log).toHaveBeenCalledWith(
+      "Optimized playlist (2 tracks, ordered by Default (the chosen profile couldn't be read)):",
+    );
+    mocks.client.optimizePlaylist.mockResolvedValueOnce({
+      tracks: ordered,
+      mode: null,
+      ranking: null,
+    });
+    await run();
+    expect(log).toHaveBeenLastCalledWith("Optimized playlist (2 tracks):");
+  });
+
+  it("reports an empty playlist and API failures, including non-Errors", async () => {
+    mocks.client.getPlaylistTracks.mockResolvedValueOnce({ track_refs: [] });
+    await run();
+    expect(mocks.printError).toHaveBeenCalledWith("Playlist is empty — nothing to generate from.");
+    expect(process.exitCode).toBe(1);
+    expect(mocks.client.optimizePlaylist).not.toHaveBeenCalled();
+
+    mocks.client.optimizePlaylist.mockRejectedValueOnce(new Error("API Error: Unknown ranker 99"));
+    await run("--profile", "99");
+    expect(mocks.printError).toHaveBeenLastCalledWith("API Error: Unknown ranker 99");
+    mocks.client.optimizePlaylist.mockRejectedValueOnce("boom");
+    await run();
+    expect(mocks.printError).toHaveBeenLastCalledWith("boom");
   });
 });

@@ -251,7 +251,12 @@ describe("PUT /api/ranking/active", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       friend_id: 1,
-      active: { suggestions: "beatmatcher", related: "default", recommendations: "default" },
+      active: {
+        suggestions: "beatmatcher",
+        related: "default",
+        recommendations: "default",
+        playlists: "default",
+      },
     });
     expect(tracked()).toEqual([
       [
@@ -265,7 +270,12 @@ describe("PUT /api/ranking/active", () => {
     await create({ friend_id: 1, profile: draft({ surfaces: ["related", "suggestions"] }) });
     events.reset();
     const body = await (await choose({ friend_id: 1, profile_id: "1" })).json();
-    expect(body.active).toEqual({ suggestions: "1", related: "1", recommendations: "default" });
+    expect(body.active).toEqual({
+      suggestions: "1",
+      related: "1",
+      recommendations: "default",
+      playlists: "default",
+    });
     expect(tracked()[0][1]).toEqual({
       profile: "custom",
       surfaces: ["related", "suggestions"],

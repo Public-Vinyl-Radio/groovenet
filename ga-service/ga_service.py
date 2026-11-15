@@ -3,7 +3,7 @@ import json
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 try:
     from pydantic import ConfigDict
@@ -17,6 +17,7 @@ from optimizer import (
     run_genetic_algorithm,
     run_greedy_algorithm,
 )
+from ranking import MAX_TRACKS, OrderingRanking
 from starlette.concurrency import run_in_threadpool
 
 app = FastAPI()
@@ -75,8 +76,10 @@ class Track(BaseModel):
 
 
 class OptimizeRequest(BaseModel):
-    tracks: list[Track]
+    tracks: list[Track] = Field(max_length=MAX_TRACKS)
     mode: Literal["genetic", "greedy", "cohesive_blocks"] = "genetic"
+    # The app's translation of a ranking profile (#1193). Omitted: today's scoring.
+    ranking: OrderingRanking | None = None
 
 
 def _model_to_dict(model: BaseModel):
@@ -85,13 +88,13 @@ def _model_to_dict(model: BaseModel):
     return model.dict()
 
 
-def run_optimizer(tracks, mode):
+def run_optimizer(tracks, mode, ranking=None):
     if mode == "genetic":
-        return run_genetic_algorithm(tracks)
+        return run_genetic_algorithm(tracks, ranking=ranking)
     if mode == "greedy":
-        return run_greedy_algorithm(tracks)
+        return run_greedy_algorithm(tracks, ranking=ranking)
     if mode == "cohesive_blocks":
-        return run_cohesive_blocks_optimizer(tracks)
+        return run_cohesive_blocks_optimizer(tracks, ranking=ranking)
     raise ValueError(f"Unsupported optimizer mode: {mode}")
 
 
@@ -99,11 +102,12 @@ def run_optimizer(tracks, mode):
 async def optimize(req: OptimizeRequest):
     # Convert Pydantic models to plain dicts
     tracks = [_model_to_dict(t) for t in req.tracks]
-    print(f"Optimize request mode={req.mode} tracks={len(tracks)}", flush=True)
+    ranked = "profile" if req.ranking is not None else "default"
+    print(f"Optimize request mode={req.mode} tracks={len(tracks)} ranking={ranked}", flush=True)
 
     # Offload CPU‐bound work to a thread
     try:
-        optimized = await run_in_threadpool(run_optimizer, tracks, req.mode)
+        optimized = await run_in_threadpool(run_optimizer, tracks, req.mode, req.ranking)
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as e:
         # For example, if your algorithm raises on malformed data
         raise HTTPException(status_code=400, detail=str(e))

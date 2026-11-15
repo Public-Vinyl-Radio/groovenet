@@ -102,6 +102,33 @@ describe("generate_ai_playlist over MCP stdio", { timeout: 15_000 }, () => {
     );
   });
 
+  it("orders by the profile given and says which one ordered it (#1193)", async () => {
+    geneticResponse = {
+      result: [stored[1], stored[0]],
+      ranking: { id: "beatmatcher", name: "Beatmatcher", fallback: false },
+    };
+    const result = await call({ playlist: [{ track_id: "t1" }], profile: "beatmatcher" });
+    assert.ok(!result.isError);
+    assert.match(result.content[0].text, /\(2 tracks, ordered by Beatmatcher\)/);
+    assert.equal(requests[1].url, "/api/playlists/genetic");
+    assert.equal(requests[1].body.ranking, "beatmatcher");
+    assert.equal(requests[1].body.mode, undefined);
+
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === "generate_ai_playlist");
+    assert.equal(tool.inputSchema.properties.profile.type, "string");
+  });
+
+  it("leaves the profile to the library's active one, and reports a fallback", async () => {
+    geneticResponse = {
+      result: [stored[0]],
+      ranking: { id: "default", name: "Default", fallback: true },
+    };
+    const result = await call({ playlist: [{ track_id: "t1" }], mode: "genetic" });
+    assert.match(result.content[0].text, /ordered by Default \(unreadable, ordered as Default\)/);
+    assert.equal("ranking" in requests[1].body, false);
+  });
+
   it("lets caller-supplied fields override stored ones", async () => {
     await call({ playlist: [{ track_id: "t1", bpm: 100 }] });
     assert.equal(requests[1].body.playlist[0].bpm, 100);

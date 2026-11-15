@@ -143,6 +143,7 @@ export const DEFAULT_CONFIG_BY_SURFACE: Record<RankingSurface, RankingConfig> = 
   suggestions: DEFAULT_RANKING_CONFIG,
   related: DEFAULT_RANKING_CONFIG,
   recommendations: DEFAULT_RANKING_CONFIG,
+  playlists: DEFAULT_RANKING_CONFIG,
 };
 
 export type SuggestionFilterToggles = { compatibleKey?: boolean; bpmWithinSixPercent?: boolean };

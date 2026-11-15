@@ -536,6 +536,27 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   library's active `recommendations` profile; POST also takes a whole `ranking_config`,
   which the Settings → Ranking editor uses to preview an unsaved draft.
   `ranking_profile_chosen`/`_edited` carry the preset id or `custom`, never a name.
+- **Playlist ordering (#1193):** the surface `playlists` is the order ga-service builds.
+  Every preset lists it. `POST /api/playlists/genetic` orders by the library's active
+  `playlists` profile (`friend_id`, else the first track's), or by `ranking` (a
+  `rankingRefSchema` ref) for one request; the response's `ranking` says which
+  profile ordered it, with `fallback`. The playlist page has an "Order by" picker beside
+  the actions (in the phone actions `RetroDialog`, with Sort) and says "Ordered by
+  Beatmatcher" after an optimise, until anything reorders the playlist.
+  `playlist_sorted` carries `profile` (preset id or `custom`). ga-service stays
+  storage-agnostic: `toOptimizerRanking` (`src/lib/ranking/ordering.ts`, pure, with the
+  mapping table) translates a config into ga-service's own terms: vibe and identity →
+  `embedding` (the larger when both are `max` base signals), `genre_overlap` →
+  `metadata`, `energy` + `danceability` → `energy`, `bpm_distance` → `bpm`,
+  `key_relation` → `key`; `era` and `rating` have no term; negatives count as 0;
+  scaled to sum to ga-service's 0.93. **Constraints are penalties in ordering**, since
+  they can't drop a track: each failed `bpm_window`, `key_rule` or `energy_range` costs
+  `CONSTRAINT_PENALTY` (1, more than the best transition earns); `genre_floor` has no
+  equivalent there. **Default sends no `ranking`**, so its request is the one from
+  before profiles (pinned in the route test). `orderingMetrics.ts` (BPM jumps, key
+  clashes, vibe distance) measures an ordering for #1196; ga-service's
+  `tests/fixtures/preset_orderings.json` pins Beatmatcher's and Selector's orderings
+  and metrics for both sides.
 - **Golden tests:** `src/lib/ranking/__tests__/ranking.golden.test.ts` pins Default's
   ordering. A refactor must leave its snapshots untouched. A deliberate ranking change
   updates them in its own commit and explains why in the PR.

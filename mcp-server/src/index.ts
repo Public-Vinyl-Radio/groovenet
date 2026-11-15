@@ -344,6 +344,11 @@ const tools = [
           enum: [...PLAYLIST_MODES],
           description: "Optimizer to use (server default: genetic)",
         },
+        profile: {
+          type: "string",
+          description:
+            "Order by this ranking profile: a preset (`beatmatcher` for smooth tempo and key, `selector` for the vibe) or a profile id from list_ranking_profiles. Omitted: the library's active playlists profile.",
+        },
       },
       required: ["playlist"],
     },
@@ -447,7 +452,7 @@ const tools = [
   {
     name: "list_ranking_profiles",
     description:
-      "List the ranking profiles (presets Default, Beatmatcher and Selector, then the library's own) and which one is active for suggestions, related tracks and recommendations. Pick one when building a playlist: pass its id as `profile` to get_recommendations, then order the picks with generate_ai_playlist.",
+      "List the ranking profiles (presets Default, Beatmatcher and Selector, then the library's own) and which one is active for suggestions, related tracks, recommendations and playlist ordering (playlists). Pick one when building a playlist: pass its id as `profile` to get_recommendations, then order the picks with generate_ai_playlist.",
     inputSchema: {
       type: "object",
       properties: {
@@ -461,7 +466,7 @@ const tools = [
   {
     name: "set_ranking_profile",
     description:
-      "Choose the ranking profile a library uses in the app, for its suggestions, related tracks and recommendations. Changes what the DJ sees in the app; use get_recommendations with `profile` to try one without changing anything.",
+      "Choose the ranking profile a library uses in the app, for its suggestions, related tracks, recommendations and playlist ordering. Changes what the DJ sees in the app; use get_recommendations with `profile` to try one without changing anything.",
     inputSchema: {
       type: "object",
       properties: {
@@ -475,7 +480,10 @@ const tools = [
         },
         surfaces: {
           type: "array",
-          items: { type: "string", enum: ["suggestions", "related", "recommendations"] },
+          items: {
+            type: "string",
+            enum: ["suggestions", "related", "recommendations", "playlists"],
+          },
           description: "Where to use it; omitted, every surface the profile applies to",
         },
       },
@@ -1372,17 +1380,24 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
       if (mode !== undefined && !PLAYLIST_MODES.includes(mode as PlaylistOptimizerMode)) {
         throw new Error(`mode must be one of ${PLAYLIST_MODES.join(", ")}`);
       }
-      const tracks = await client.generatePlaylist(
-        seeds,
-        mode as PlaylistOptimizerMode | undefined,
-      );
+      const profile = typeof args.profile === "string" && args.profile ? args.profile : undefined;
+      const { tracks, ranking } = await client.optimizePlaylist(seeds, {
+        ...(mode ? { mode: mode as PlaylistOptimizerMode } : {}),
+        ...(profile ? { profile: profile as RankingRef } : {}),
+      });
+      const orderedBy = ranking
+        ? `, ordered by ${ranking.name}${ranking.fallback ? " (unreadable, ordered as Default)" : ""}`
+        : "";
       const list = tracks
         .map((t, i) => `${i + 1}. ${t.title} - ${t.artist} (${t.bpm ?? "?"} BPM, ${t.key ?? "?"})`)
         .join("\n");
 
       return {
         content: [
-          { type: "text", text: `✓ AI-generated playlist (${tracks.length} tracks):\n\n${list}` },
+          {
+            type: "text",
+            text: `✓ AI-generated playlist (${tracks.length} tracks${orderedBy}):\n\n${list}`,
+          },
         ],
       };
     }

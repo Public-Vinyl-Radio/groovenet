@@ -272,26 +272,37 @@ export function addPlaylistsCommands(program: Command): void {
     .description(
       "Generate an optimized playlist from an existing playlist using the genetic algorithm",
     )
+    .option(
+      "--profile <id>",
+      "Ranking profile to order by: a preset (beatmatcher, selector) or a stored profile id. Default: the library's active playlists profile",
+    )
     .option("--json", "Output as JSON")
-    .action(async (id: string, opts: { json?: boolean }) => {
+    .action(async (id: string, opts: { json?: boolean; profile?: string }) => {
       try {
         const client = makeClient();
         const { track_refs } = await client.getPlaylistTracks(id);
         if (track_refs.length === 0) {
           printError("Playlist is empty — nothing to generate from.");
-          process.exit(1);
+          process.exitCode = 1;
+          return;
         }
         const seedTracks = await client.batchGetTracks(track_refs);
-        const optimized = await client.generatePlaylist(seedTracks);
+        const optimized = await client.optimizePlaylist(seedTracks, {
+          ...(opts.profile ? { profile: opts.profile } : {}),
+        });
         if (opts.json) {
-          printJson(optimized);
+          printJson(optimized.tracks);
         } else {
-          console.log(`Optimized playlist (${optimized.length} tracks):`);
-          printTracks(optimized, false);
+          const by = optimized.ranking ? `, ordered by ${optimized.ranking.name}` : "";
+          const fallback = optimized.ranking?.fallback
+            ? " (the chosen profile couldn't be read)"
+            : "";
+          console.log(`Optimized playlist (${optimized.tracks.length} tracks${by}${fallback}):`);
+          printTracks(optimized.tracks, false);
         }
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }

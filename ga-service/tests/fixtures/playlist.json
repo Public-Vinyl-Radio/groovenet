@@ -1,0 +1,15 @@
+{
+  "description": "Two vibe families (warm/dub vs bright/disco) cut across by two tempo-and-key groups (~100 BPM in 8A/9A, ~125 BPM in 2B/3B). An ordering that follows tempo and key crosses the vibe families; one that follows the vibe crosses the tempos. Shared by the pinned-ordering tests and by the app's ranking translation test (#1193).",
+  "tracks": [
+    {"track_id": "w1", "title": "Warm 100 8A", "artist": "Ana", "album": "Dub One", "genres": ["Reggae"], "styles": ["Dub"], "local_tags": "warm, deep", "bpm": 100, "key": "8A", "danceability": 0.42, "mood_relaxed": 0.7, "embedding": "[0.95, 0.10, 0.05, 0.02]"},
+    {"track_id": "b1", "title": "Bright 124 2B", "artist": "Ben", "album": "Disco One", "genres": ["Funk / Soul"], "styles": ["Disco"], "local_tags": "bright, peak", "bpm": 124, "key": "2B", "danceability": 0.85, "mood_happy": 0.8, "embedding": "[0.05, 0.96, 0.10, 0.03]"},
+    {"track_id": "w2", "title": "Warm 126 3B", "artist": "Cleo", "album": "Dub Two", "genres": ["Reggae"], "styles": ["Dub", "Steppers"], "local_tags": "warm, rolling", "bpm": 126, "key": "3B", "danceability": 0.6, "mood_relaxed": 0.5, "embedding": "[0.90, 0.18, 0.08, 0.05]"},
+    {"track_id": "b2", "title": "Bright 98 9A", "artist": "Dee", "album": "Disco Two", "genres": ["Funk / Soul"], "styles": ["Boogie", "Disco"], "local_tags": "bright", "bpm": 98, "key": "9A", "danceability": 0.7, "mood_happy": 0.7, "embedding": "[0.12, 0.92, 0.05, 0.10]"},
+    {"track_id": "w3", "title": "Warm 101 9A", "artist": "Eli", "album": "Dub Three", "genres": ["Reggae"], "styles": ["Dub"], "local_tags": "warm, smoky", "bpm": 101, "key": "9A", "danceability": 0.45, "mood_relaxed": 0.65, "embedding": "[0.93, 0.05, 0.12, 0.04]"},
+    {"track_id": "b3", "title": "Bright 125 3B", "artist": "Fay", "album": "Disco Three", "genres": ["Funk / Soul"], "styles": ["Disco"], "local_tags": "bright, peak", "bpm": 125, "key": "3B", "danceability": 0.9, "mood_happy": 0.85, "embedding": "[0.08, 0.94, 0.12, 0.02]"},
+    {"track_id": "w4", "title": "Warm 124 2B", "artist": "Gus", "album": "Dub Four", "genres": ["Reggae"], "styles": ["Steppers"], "local_tags": "warm", "bpm": 124, "key": "2B", "danceability": 0.62, "mood_relaxed": 0.45, "embedding": "[0.91, 0.12, 0.02, 0.10]"},
+    {"track_id": "b4", "title": "Bright 99 8A", "artist": "Hal", "album": "Disco Four", "genres": ["Funk / Soul"], "styles": ["Boogie"], "local_tags": "bright, sunny", "bpm": 99, "key": "8A", "danceability": 0.72, "mood_happy": 0.75, "embedding": "[0.10, 0.90, 0.02, 0.12]"},
+    {"track_id": "w5", "title": "Warm 102 8A", "artist": "Ana", "album": "Dub Five", "genres": ["Reggae"], "styles": ["Dub"], "local_tags": "warm, deep", "bpm": 102, "key": "8A", "danceability": 0.44, "mood_relaxed": 0.68, "embedding": "[0.94, 0.08, 0.10, 0.06]"},
+    {"track_id": "b5", "title": "Bright 127 2B", "artist": "Ivy", "album": "Disco Five", "genres": ["Funk / Soul"], "styles": ["Disco"], "local_tags": "bright", "bpm": 127, "key": "2B", "danceability": 0.88, "mood_happy": 0.9, "embedding": "[0.06, 0.95, 0.08, 0.05]"}
+  ]
+}

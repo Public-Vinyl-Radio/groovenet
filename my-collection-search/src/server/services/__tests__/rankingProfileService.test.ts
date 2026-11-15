@@ -34,6 +34,7 @@ describe("list", () => {
       suggestions: "default",
       related: "default",
       recommendations: "default",
+      playlists: "default",
     });
   });
 
@@ -67,6 +68,7 @@ describe("list", () => {
       suggestions: "default",
       related: "default",
       recommendations: "selector",
+      playlists: "default",
     });
   });
 });
@@ -141,6 +143,7 @@ describe("setActive", () => {
       suggestions: "beatmatcher",
       related: "beatmatcher",
       recommendations: "beatmatcher",
+      playlists: "beatmatcher",
     });
     expect(result.profile.id).toBe("beatmatcher");
   });

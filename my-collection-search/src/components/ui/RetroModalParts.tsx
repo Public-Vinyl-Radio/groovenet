@@ -136,11 +136,14 @@ export function Group({
   actions,
   danger,
   onDone,
+  header,
 }: {
   label: string;
   actions: ModalAction[];
   danger?: boolean;
   onDone: () => void;
+  /** A control that sets up the group's actions, under the label (the ordering picker). */
+  header?: React.ReactNode;
 }) {
   if (actions.length === 0) return null;
   return (
@@ -155,6 +158,7 @@ export function Group({
       <Text {...overline} color={danger ? "danger.fg" : "fg.muted"}>
         {label}
       </Text>
+      {header}
       <Box display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
         {actions.map((action) => (
           <ActionButton key={action.label} action={action} danger={danger} onDone={onDone} />

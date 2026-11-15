@@ -52,12 +52,13 @@ import { listTopSpinTracks } from "@/services/internalApi/spins";
 import SettingsRow from "./SettingsRow";
 
 export const RANKING_INTRO =
-  "How suggestions and recommendations are ranked. Presets are read-only: copy one to tune it.";
+  "How suggestions and recommendations are ranked, and how playlists are ordered. Presets are read-only: copy one to tune it.";
 
 const SURFACE_LABELS: Record<RankingSurface, string> = {
   suggestions: "Suggestions",
   related: "Related tracks",
   recommendations: "Recommendations",
+  playlists: "Playlist order",
 };
 
 const KEY_MODES = [

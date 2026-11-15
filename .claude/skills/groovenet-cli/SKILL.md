@@ -110,11 +110,13 @@ download finished.
 groovenet playlists list [--json]
 groovenet playlists show <id> [--json]
 groovenet playlists create <name>
-groovenet playlists generate <id> [--json]
+groovenet playlists generate <id> [--profile <id>] [--json]
 ```
 
 `generate` reorders an existing playlist for smooth transitions using BPM and
-key compatibility. It needs the playlist to exist first, and its tracks need
+key compatibility, weighted by the library's active playlists ranking profile;
+`--profile beatmatcher` (tempo and key) or `--profile selector` (vibe) picks
+another for that run. It needs the playlist to exist first, and its tracks need
 BPM and embeddings — tracks missing either are reported as rejected rather than
 silently dropped.
 

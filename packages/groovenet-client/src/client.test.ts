@@ -969,6 +969,37 @@ describe("GroovenetClient playlist endpoints", () => {
     });
   });
 
+  it("optimizePlaylist sends the ranking profile and library, and reports what ordered it (#1193)", async () => {
+    const ranking = { id: "beatmatcher", name: "Beatmatcher", fallback: false };
+    const client = clientReturning({ result: [{ track_id: "t1" }], mode: "greedy", ranking });
+
+    await expect(
+      client.optimizePlaylist([], { mode: "greedy", profile: "beatmatcher", friendId: 2 }),
+    ).resolves.toEqual({ tracks: [{ track_id: "t1" }], mode: "greedy", ranking });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/playlists/genetic",
+      data: { playlist: [], mode: "greedy", friend_id: 2, ranking: "beatmatcher" },
+      params: undefined,
+    });
+  });
+
+  it("optimizePlaylist sends only the tracks by default, and tolerates an older server", async () => {
+    const client = clientReturning({ result: { "0": { track_id: "t1" } } });
+
+    await expect(client.optimizePlaylist([])).resolves.toEqual({
+      tracks: [{ track_id: "t1" }],
+      mode: null,
+      ranking: null,
+    });
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "POST",
+      url: "/playlists/genetic",
+      data: { playlist: [] },
+      params: undefined,
+    });
+  });
+
   it("generatePlaylist flattens a keyed-object result into an array", async () => {
     const client = clientReturning({
       result: { "0": { track_id: "t2" }, "1": { track_id: "t1" } },

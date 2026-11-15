@@ -135,7 +135,7 @@ is closed; #606 owns them (its album half is migrated).
 | PUT | `/api/playlists/{id}/set` | live sets | contracts |  |
 | POST | `/api/playlists/{id}/spins` | playlists | contracts |  |
 | GET | `/api/playlists/{id}/tracks` | playlists | contracts |  |
-| POST | `/api/playlists/genetic` | playlists | contracts |  |
+| POST | `/api/playlists/genetic` | playlists | contracts | Orders by the active `playlists` ranking profile; `ranking` overrides it (#1193). |
 | POST | `/api/providers/apple-music/search` | providers & Discogs | contracts |  |
 | GET | `/api/providers/discogs/release-lookup` | providers & Discogs | contracts |  |
 | POST | `/api/providers/openai/track-metadata` | providers & Discogs | contracts |  |

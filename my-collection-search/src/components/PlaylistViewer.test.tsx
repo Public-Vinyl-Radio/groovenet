@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   saved: (() => {}) as () => void,
   markChanged: (() => {}) as () => void,
   liveSet: { set: null as unknown, loading: false, create: vi.fn() },
+  ordering: null as unknown,
+  orderedBy: null as null | { id: string; name: string; fallback: boolean },
 }));
 
 const refs = [
@@ -45,8 +47,9 @@ vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
 }));
 vi.mock("@/hooks/usePlaylistMutations", () => ({
-  usePlaylistMutations: (_id: unknown, onChange: () => void) => {
+  usePlaylistMutations: (_id: unknown, onChange: () => void, ordering: unknown) => {
     mocks.markChanged = onChange;
+    mocks.ordering = ordering;
     return {
       moveTrack: vi.fn(),
       insertTrack: mocks.insertTrack,
@@ -57,9 +60,14 @@ vi.mock("@/hooks/usePlaylistMutations", () => ({
       isGeneticSorting: mocks.sorting,
       isCohesiveBlocksSorting: false,
       sortPositionChanges: {},
+      orderedBy: mocks.orderedBy,
     };
   },
 }));
+vi.mock("@/hooks/useRankingProfiles", async () => {
+  const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+  return rankingProfileMock.module;
+});
 vi.mock("@/hooks/usePlaylistActions", () => ({
   usePlaylistActions: () => ({
     exportPlaylist: vi.fn(),
@@ -92,11 +100,14 @@ vi.mock("@/components/PlaylistActionsMenu", () => ({
   default: ({
     onOpenRecommendations,
     onCreateSet,
+    orderingPicker,
   }: {
     onOpenRecommendations: () => void;
     onCreateSet?: () => void;
+    orderingPicker?: React.ReactNode;
   }) => (
     <>
+      <div data-testid="menu-ordering">{orderingPicker}</div>
       <button data-testid="actions-menu" onClick={onOpenRecommendations}>
         Recommendations
       </button>
@@ -138,8 +149,10 @@ vi.mock("@/components/NamePlaylistDialog", () => ({ default: () => null }));
 
 import PlaylistViewer from "./PlaylistViewer";
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  (await import("@/test/rankingProfileMock")).rankingProfileMock.reset();
+  mocks.orderedBy = null;
   localStorage.clear();
   setViewportWidth(1280);
   mocks.player = { playlist: [], currentTrackIndex: null };
@@ -390,4 +403,54 @@ it("disables palette optimisation while sorting", () => {
   } finally {
     mocks.sorting = false;
   }
+});
+
+describe("PlaylistViewer ordering by ranking profile (#1193)", () => {
+  it("puts an Order by picker beside the actions, and in the phone menu", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    const pickers = screen.getAllByLabelText("Order by") as HTMLSelectElement[];
+    expect(pickers.map((picker) => picker.id).sort()).toEqual([
+      "playlist-order-desktop-ranking-profile",
+      "playlist-order-phone-ranking-profile",
+    ]);
+    expect(pickers[0].value).toBe("default");
+    expect(
+      within(screen.getAllByTestId("menu-ordering")[0]).getByLabelText("Order by"),
+    ).toBeTruthy();
+    expect(mocks.ordering).toEqual({ rankingProfileId: "default", friendId: 1 });
+  });
+
+  it("names no library before one is chosen", async () => {
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    rankingProfileMock.state.friendId = 0;
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(mocks.ordering).toEqual({ rankingProfileId: "default", friendId: undefined });
+  });
+
+  it("orders by the profile chosen, saved for the playlists surface", async () => {
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    const [picker] = await screen.findAllByLabelText("Order by");
+    fireEvent.change(picker, { target: { value: "beatmatcher" } });
+    expect(rankingProfileMock.state.choose).toHaveBeenCalledWith("playlists", "beatmatcher");
+    expect(mocks.ordering).toEqual({ rankingProfileId: "beatmatcher", friendId: 1 });
+  });
+
+  it("says which profile ordered it after an optimise, and when Default stood in", async () => {
+    const { rerender } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.queryByRole("status")).toBeNull();
+
+    mocks.orderedBy = { id: "beatmatcher", name: "Beatmatcher", fallback: false };
+    rerender(<PlaylistViewer playlistId={1} />);
+    expect(screen.getByRole("status").textContent).toBe("Ordered by Beatmatcher");
+
+    mocks.orderedBy = { id: "default", name: "Default", fallback: true };
+    rerender(<PlaylistViewer playlistId={1} />);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Ordered by Default (the chosen profile couldn't be read)",
+    );
+  });
 });

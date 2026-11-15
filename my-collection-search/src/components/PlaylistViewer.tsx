@@ -3,7 +3,7 @@
 import { usePaletteScope } from "@/providers/CommandPaletteProvider";
 
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Box, EmptyState, Flex, VStack, Skeleton, Button } from "@chakra-ui/react";
+import { Box, EmptyState, Flex, VStack, Skeleton, Button, Text } from "@chakra-ui/react";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones, FiSave } from "react-icons/fi";
@@ -35,6 +35,8 @@ import { queryKeys } from "@/lib/queryKeys";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
 import { useLiveSet } from "@/hooks/useLiveSet";
 import PageHeader from "@/components/layout/PageHeader";
+import RankingProfilePicker from "@/components/RankingProfilePicker";
+import { useRankingProfile } from "@/hooks/useRankingProfiles";
 
 const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const { playlistCounts } = useSearchResults({});
@@ -62,6 +64,9 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     tracksPlaylist.length > 0,
   );
 
+  // The ranking profile the optimisers order by (#1193).
+  const ordering = useRankingProfile("playlists");
+
   // New mutation and action hooks
   const {
     moveTrack,
@@ -73,7 +78,11 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     isGeneticSorting,
     isCohesiveBlocksSorting,
     sortPositionChanges,
-  } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true));
+    orderedBy,
+  } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true), {
+    rankingProfileId: ordering.profile.id,
+    friendId: ordering.friendId > 0 ? ordering.friendId : undefined,
+  });
 
   const { replacePlaylist, playlist: queue, currentTrackIndex: queueIndex } = usePlaybackPlayer();
   const { viewMode, setViewMode, layout } = useTrackViewMode();
@@ -408,8 +417,19 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         : [],
   });
 
+  const orderingPicker = (where: "desktop" | "phone") => (
+    <RankingProfilePicker
+      id={`playlist-order-${where}`}
+      label="Order by"
+      value={ordering.profile.id}
+      options={ordering.options}
+      onChange={ordering.choose}
+    />
+  );
+
   const actionsMenu = (
     <PlaylistActionsMenu
+      orderingPicker={orderingPicker("phone")}
       disabled={tracksPlaylist.length === 0}
       onSortGreedy={() => {
         console.log("sort greed");
@@ -474,6 +494,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         desktop={
           <>
             <ViewModeSwitch value={viewMode} onChange={setViewMode} />
+            {tracksPlaylist.length > 0 && orderingPicker("desktop")}
             {actionsMenu}
           </>
         }
@@ -539,6 +560,12 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       {header}
       <Flex direction={{ base: "column", xl: "row" }} align="flex-start" gap={4} w="100%">
         <Box flex="1" minW={{ xl: "560px" }} w="100%">
+          {orderedBy && (
+            <Text role="status" fontSize="13px" lineHeight="20px" color="fg.muted" mb={2}>
+              Ordered by {orderedBy.name}
+              {orderedBy.fallback && " (the chosen profile couldn't be read)"}
+            </Text>
+          )}
           {hasUnsavedChanges && (
             <Flex
               display={{ base: "none", md: "flex" }}

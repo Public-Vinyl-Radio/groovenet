@@ -45,7 +45,7 @@ describe("presets", () => {
     expect(PRESET_LIST.map((p) => p.id)).toEqual(["default", "beatmatcher", "selector"]);
     for (const preset of PRESET_LIST) {
       expect(preset.kind).toBe("preset");
-      expect(preset.surfaces).toEqual(["suggestions", "related", "recommendations"]);
+      expect(preset.surfaces).toEqual(["suggestions", "related", "recommendations", "playlists"]);
       expect(rankingProfileSchema.parse(JSON.parse(JSON.stringify(preset)))).toEqual(preset);
     }
     expect(toRankingConfig(RANKING_PRESETS.beatmatcher)).toEqual(BEATMATCHER_RANKING_CONFIG);

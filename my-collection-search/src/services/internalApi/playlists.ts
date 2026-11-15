@@ -10,6 +10,7 @@ import type {
   PlaylistOptimizerMode,
   PlaylistTrackInput,
   PlaylistUpdate,
+  RankingApplied,
 } from "@groovenet/contracts";
 
 export type PlaylistTrackPayload = PlaylistTrackInput;
@@ -83,20 +84,38 @@ export async function deleteLiveSet(playlistId: number): Promise<void> {
   await http(`/api/playlists/${encodeURIComponent(String(playlistId))}/set`, { method: "DELETE" });
 }
 
-export async function generateOptimizedPlaylist(
+export type OptimizedPlaylist = {
+  tracks: Track[];
+  /** The ranking profile that ordered it (#1193); absent from an older server. */
+  ranking: RankingApplied | null;
+};
+
+/**
+ * Order a playlist on the server. `ranking` names the profile to order by (a
+ * preset or stored id); omitted, the server uses the library's active
+ * `playlists` profile. `friendId` names that library.
+ */
+export async function optimizePlaylist(
   playlist: Track[],
   mode: PlaylistOptimizerMode = "genetic",
-): Promise<Track[]> {
+  options: { ranking?: string; friendId?: number } = {},
+): Promise<OptimizedPlaylist> {
   try {
     const data = await http<PlaylistGeneticResponse>("/api/playlists/genetic", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playlist, mode }),
+      body: JSON.stringify({
+        playlist,
+        mode,
+        ...(options.friendId !== undefined ? { friend_id: options.friendId } : {}),
+        ...(options.ranking !== undefined ? { ranking: options.ranking } : {}),
+      }),
     });
 
-    return Array.isArray(data.result)
+    const tracks = Array.isArray(data.result)
       ? (data.result as Track[])
       : (Object.values(data.result || {}) as Track[]);
+    return { tracks, ranking: data.ranking ?? null };
   } catch (error) {
     const err = error as Error & {
       data?: {
@@ -115,6 +134,13 @@ export async function generateOptimizedPlaylist(
     }
     throw error;
   }
+}
+
+export async function generateOptimizedPlaylist(
+  playlist: Track[],
+  mode: PlaylistOptimizerMode = "genetic",
+): Promise<Track[]> {
+  return (await optimizePlaylist(playlist, mode)).tracks;
 }
 
 export async function generateGeneticPlaylist(playlist: Track[]): Promise<Track[]> {

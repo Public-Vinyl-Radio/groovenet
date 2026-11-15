@@ -1,0 +1,102 @@
+{
+  "description": "The Beatmatcher and Selector presets as the app translates them (toOptimizerRanking), the orderings ga-service builds from them on playlist.json (genetic with seed 7), and those orderings' metrics. Pinned by ga-service's tests/test_ranking.py and the app's src/lib/ranking/__tests__/ordering.test.ts (#1193).",
+  "rankings": {
+    "beatmatcher": {
+      "version": 1,
+      "weights": {
+        "metadata": 0.011923076923076925,
+        "embedding": 0.11923076923076924,
+        "energy": 0.011923076923076925,
+        "bpm": 0.7153846153846154,
+        "key": 0.07153846153846154,
+        "same_artist": 0.2,
+        "same_album": 0.12
+      },
+      "constraints": {
+        "bpm_window": {
+          "unit": "ratio",
+          "max": 0.06,
+          "half_double": true
+        },
+        "key_rule": {
+          "metric": "wheel",
+          "max": 1
+        },
+        "energy_range": null
+      },
+      "constraint_penalty": 1
+    },
+    "selector": {
+      "version": 1,
+      "weights": {
+        "metadata": 0.20071942446043164,
+        "embedding": 0.6690647482014388,
+        "energy": 0.0535251798561151,
+        "bpm": 0.006690647482014388,
+        "key": 0,
+        "same_artist": 0.2,
+        "same_album": 0.12
+      },
+      "constraints": {
+        "bpm_window": null,
+        "key_rule": null,
+        "energy_range": null
+      },
+      "constraint_penalty": 1
+    }
+  },
+  "orderings": {
+    "beatmatcher": {
+      "genetic": ["w1", "b4", "b2", "w3", "w5", "w4", "b1", "b3", "b5", "w2"],
+      "greedy": ["w1", "w3", "w5", "b4", "b2", "b5", "b3", "b1", "w4", "w2"],
+      "cohesive_blocks": ["w1", "w3", "w2", "w4", "w5", "b4", "b2", "b5", "b3", "b1"]
+    },
+    "selector": {
+      "genetic": ["b5", "b3", "b1", "b2", "b4", "w5", "w4", "w2", "w3", "w1"],
+      "greedy": ["w1", "w3", "w5", "w2", "w4", "b2", "b5", "b3", "b1", "b4"],
+      "cohesive_blocks": ["w5", "w3", "w4", "w2", "w1", "b4", "b2", "b5", "b3", "b1"]
+    }
+  },
+  "metrics": {
+    "beatmatcher": {
+      "genetic": {
+        "transitions": 9,
+        "bpm_jumps": 32.0,
+        "key_clashes": 1,
+        "vibe_distance": 3.153052646207426
+      },
+      "greedy": {
+        "transitions": 9,
+        "bpm_jumps": 40.0,
+        "key_clashes": 1,
+        "vibe_distance": 1.631418047947748
+      },
+      "cohesive_blocks": {
+        "transitions": 9,
+        "bpm_jumps": 86.0,
+        "key_clashes": 3,
+        "vibe_distance": 0.8326627241421811
+      }
+    },
+    "selector": {
+      "genetic": {
+        "transitions": 9,
+        "bpm_jumps": 83.0,
+        "key_clashes": 3,
+        "vibe_distance": 0.8356245452041907
+      },
+      "greedy": {
+        "transitions": 9,
+        "bpm_jumps": 111.0,
+        "key_clashes": 4,
+        "vibe_distance": 0.7670283668597794
+      },
+      "cohesive_blocks": {
+        "transitions": 9,
+        "bpm_jumps": 86.0,
+        "key_clashes": 3,
+        "vibe_distance": 0.8149084270869603
+      }
+    }
+  }
+}
