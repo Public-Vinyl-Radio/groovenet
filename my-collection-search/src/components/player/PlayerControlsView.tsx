@@ -8,6 +8,7 @@ import type { IconType } from "react-icons";
 import type { Track } from "@/types/track";
 import ProgressSlider from "@/components/player/ProgressSlider";
 import Artwork from "@/components/player/Artwork";
+import { playerCoverBorder } from "@/app/houseStyle";
 import ArtistLink from "@/components/ArtistLink";
 import AlbumLink from "@/components/AlbumLink";
 import { TrackTitleLink } from "@/components/TrackIdentity";
@@ -114,7 +115,7 @@ export default function PlayerControlsView({
     // The mini player (phones): progress line, then art + text (opens Now
     // playing), the square play key and next. Stop and clear live in the queue.
     return (
-      <Box>
+      <Box css={playerCoverBorder}>
         <MiniProgressLine />
         <Flex
           align="center"
@@ -170,6 +171,7 @@ export default function PlayerControlsView({
   // The docked desktop bar: track | transport + seek | output, volume, queue.
   return (
     <Grid
+      css={playerCoverBorder}
       templateColumns={{
         base: "minmax(0, 1fr) minmax(260px, 2fr) minmax(0, 1fr)",
         xl: "minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr)",

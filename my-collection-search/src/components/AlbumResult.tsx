@@ -14,7 +14,7 @@ import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
 import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
 import ArtistLink from "@/components/ArtistLink";
-import { RatingStars, TRACK_CARD_COVER_SIZE, TRACK_ROW_COVER_SIZE } from "@/components/TrackResult";
+import { RatingStars, TRACK_CARD_COVER_SIZE, LIST_ROW_COVER_SIZE } from "@/components/TrackResult";
 
 /**
  * The Missing checks that show as a tag on a result while their filter is on:
@@ -257,7 +257,7 @@ function FullAlbumResult({
         {/* The table is fixed-layout, so a long title ellipsizes in its column. */}
         <Table.Cell {...cell} overflow="hidden">
           <Flex align="center" gap={4} minW={0}>
-            {cover(TRACK_ROW_COVER_SIZE)}
+            {cover(LIST_ROW_COVER_SIZE)}
             <Flex direction="column" gap="2px" minW={0}>
               <Link
                 as={NextLink}
@@ -353,7 +353,6 @@ function FullAlbumResult({
           as={NextLink}
           href={albumHref}
           title={resolvedAlbum.title}
-          fontFamily="heading"
           fontSize={{ base: "16px", md: "20px" }}
           lineHeight={{ base: "22px", md: "28px" }}
           fontWeight="600"
@@ -485,7 +484,6 @@ function CompactAlbumCard({ album, meta }: { album: Album; meta?: React.ReactNod
         <Flex as="span" direction="column" gap="2px" p="8px" minW={0}>
           <Text
             as="span"
-            fontFamily="heading"
             fontSize="14px"
             lineHeight="18px"
             fontWeight="600"

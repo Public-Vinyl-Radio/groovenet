@@ -57,7 +57,7 @@ function formatSeconds(seconds: number): string {
 // rating) and is the only part allowed to clip when a row doesn't have full width.
 // That guarantees the "more actions" menu is never pushed off-screen by a narrow
 // container; the Rate/Genre/Key columns degrade instead.
-export const TRACK_ROW_EDGE_WIDTH = "44px";
+export const TRACK_ROW_EDGE_WIDTH = "60px";
 /**
  * The full grid every `layout="row"` track shares with `TrackListHeader`, so columns never drift apart.
  * Track, Release, Time, BPM / Key, Genre, Rating.
@@ -94,9 +94,11 @@ export const trackRowGridCss = {
 };
 /** Three lines (title, artist, album) plus padding; also the virtualiser's `estimateSize`. */
 export const TRACK_ROW_HEIGHT = 80;
-/** Cover sizes of the track card and row; `AlbumResult` imports them so the two lists stay matched. */
+/** Cover sizes of the track card and the dense card; `AlbumResult` imports the card size. */
 export const TRACK_CARD_COVER_SIZE = { base: "64px", md: "120px" };
-export const TRACK_ROW_COVER_SIZE = { base: "60px", md: "80px" };
+export const TRACK_DENSE_CARD_COVER_SIZE = { base: "60px", md: "80px" };
+/** The LIST view cover, shared by the track row and the album row so the two lists match. */
+export const LIST_ROW_COVER_SIZE = "60px";
 
 export type TrackResultProps = {
   track: Track | (Track & { camelot_key?: string });
@@ -791,7 +793,7 @@ export default function TrackResult({
             </Checkbox.Root>
           </Box>
         )}
-        <ArtworkPlay track={track} size={TRACK_ROW_COVER_SIZE} iconSize={6} />
+        <ArtworkPlay track={track} size={TRACK_DENSE_CARD_COVER_SIZE} iconSize={6} />
         <Flex direction="column" flex={1} minW={0} gap={1}>
           <Flex alignItems="center" gap={1.5} minW={0}>
             <TrackTitleLink
@@ -927,7 +929,7 @@ export default function TrackResult({
               </Checkbox.Root>
             </Box>
           ) : (
-            <ArtworkPlay track={track} size="44px" iconSize={5} />
+            <ArtworkPlay track={track} size={LIST_ROW_COVER_SIZE} iconSize={5} />
           )}
         </Box>
 
@@ -1138,7 +1140,6 @@ export default function TrackResult({
                 track={track}
                 title={track.title}
                 display="block"
-                fontFamily="heading"
                 fontSize={{ base: "16px", md: "20px" }}
                 lineHeight={{ base: "22px", md: "28px" }}
                 fontWeight="600"

@@ -36,7 +36,7 @@ export interface FontRole {
 export const fontRoles = {
   display: {
     label: "Display",
-    description: "Page titles and card headings.",
+    description: "Page titles and section headings.",
     variable: "--gn-font-heading",
     fallback: sansFallback,
     choices: [

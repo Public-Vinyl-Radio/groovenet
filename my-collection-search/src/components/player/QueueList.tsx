@@ -8,6 +8,7 @@ import { LuGripVertical, LuMusic } from "react-icons/lu";
 import type { Track } from "@/types/track";
 import { camelotOf } from "@/lib/mixCompat";
 import Artwork from "@/components/player/Artwork";
+import { playerCoverBorder } from "@/app/houseStyle";
 import TrackIdentity from "@/components/TrackIdentity";
 import { artworkAlt, artworkOf, trackDurationLabel } from "@/components/player/trackMeta";
 
@@ -261,6 +262,7 @@ export default function QueueList({
           </Box>
           <Flex
             data-testid="queue-now-playing"
+            css={playerCoverBorder}
             aria-current="true"
             align="center"
             gap="12px"

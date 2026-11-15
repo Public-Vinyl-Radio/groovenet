@@ -5,6 +5,7 @@ import { screen, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PlayerControlsView from "@/components/player/PlayerControlsView";
 import { PlaylistPlayerProvider } from "@/providers/PlaylistPlayerProvider";
+import { cssOf } from "@/test/cssOf";
 import { sampleTrack } from "@/stories/fixtures/track";
 import { FiVolume2 } from "react-icons/fi";
 
@@ -32,16 +33,20 @@ const baseProps = {
   onSeek: noopAsync,
 };
 
-function cssOf(el: Element) {
-  const classes = [...el.classList];
-  return Array.from(document.styleSheets)
-    .flatMap((sheet) => Array.from(sheet.cssRules))
-    .map((rule) => rule.cssText)
-    .filter((text) => classes.some((c) => text.includes(`.${c}`)))
-    .join("\n");
-}
+const RULE_BORDER = /--gn-cover-border-width:\s*var\(--chakra-border-widths-rule\)/;
 
 describe("PlayerControlsView — mini player", () => {
+  it("gives its cover the 1px rule border through the cover hook", () => {
+    renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
+    let el: HTMLElement | null = screen.getByRole("button", { name: "Open now playing" });
+    let found = false;
+    while (el && !found) {
+      found = RULE_BORDER.test(cssOf(el));
+      el = el.parentElement;
+    }
+    expect(found).toBe(true);
+  });
+
   it("makes the play key a 48px square, solid with a hard shadow", () => {
     renderWithProviders(<PlayerControlsView {...baseProps} compact onQueueToggle={noop} />);
     const css = cssOf(screen.getByRole("button", { name: "Play" }));
@@ -123,6 +128,17 @@ describe("PlayerControlsView — docked desktop bar", () => {
         />
       </PlaylistPlayerProvider>,
     );
+
+  it("gives its cover the 1px rule border through the cover hook", () => {
+    renderBar();
+    let el: HTMLElement | null = screen.getByRole("img", { hidden: true }) as HTMLElement;
+    let found = false;
+    while (el && !found) {
+      found = RULE_BORDER.test(cssOf(el));
+      el = el.parentElement;
+    }
+    expect(found).toBe(true);
+  });
 
   it("links the title, artist and cover of the playing track", () => {
     renderBar({ currentTrack: { ...sampleTrack, track_id: "t9", friend_id: 4, release_id: "77" } });

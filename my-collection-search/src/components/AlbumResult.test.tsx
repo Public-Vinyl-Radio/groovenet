@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import React from "react";
+import { cssOf } from "@/test/cssOf";
 const playerMocks = vi.hoisted(() => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }));
 vi.mock("@/providers/PlaybackTargetProvider", () => ({ usePlaybackPlayer: () => playerMocks }));
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 import type { Album } from "@/types/track";
-import { TRACK_CARD_COVER_SIZE, TRACK_ROW_COVER_SIZE } from "@/components/TrackResult";
+import { LIST_ROW_COVER_SIZE, TRACK_CARD_COVER_SIZE } from "@/components/TrackResult";
 
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
@@ -300,7 +301,7 @@ describe("AlbumResult card", () => {
 });
 
 describe("AlbumResult row", () => {
-  it("sizes the cover like a track row", () => {
+  it("sizes the cover with the shared list-row constant", () => {
     renderWithProviders(
       <AlbumTable>
         <AlbumResult album={full} layout="row" />
@@ -309,7 +310,7 @@ describe("AlbumResult row", () => {
     const cover = screen.getByTestId("album-row").querySelector("[data-cover-placeholder], img")
       ?.parentElement as HTMLElement;
     expect(cover).toBeTruthy();
-    expect(getComputedStyle(cover).width).toBe(TRACK_ROW_COVER_SIZE.base);
+    expect(getComputedStyle(cover).width).toBe(LIST_ROW_COVER_SIZE);
   });
 
   it("keeps every genre tag", () => {
@@ -471,4 +472,15 @@ it.each([
   await user.click(screen.getAllByRole("button", { name: "Album actions" })[0]);
   const dialog = await screen.findByRole("dialog");
   expect(dialog.querySelector("img")?.getAttribute("src")).toBe(expected);
+});
+
+describe("AlbumResult card titles", () => {
+  it.each([["full" as const], ["compact" as const]])(
+    "sets the %s title in the body face",
+    (size) => {
+      renderWithProviders(<AlbumResult album={full} size={size} />);
+      const title = screen.getAllByText(full.title)[0] as HTMLElement;
+      expect(cssOf(title)).not.toMatch(/--chakra-fonts-heading/);
+    },
+  );
 });

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ownCssOf } from "@/test/cssOf";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
@@ -121,7 +122,8 @@ describe("SpinDetailPanel content", () => {
     renderPanel(select(spin({ provenance: "automatic" }), "9:2"));
 
     expect(screen.getByText("LP-342 · SIDE A3")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "Song A3" })).toBeTruthy();
+    const heading = screen.getByRole("heading", { level: 2, name: "Song A3" });
+    expect(ownCssOf(heading)).toMatch(/font-family:\s*var\(--chakra-fonts-body\)/);
     expect(screen.getByText("Tame Impala · Innerspeaker")).toBeTruthy();
     expect(fact("SOURCE")).toBe("Vinyl");
     expect(fact("LOGGED BY")).toBe("Auto-detected");
