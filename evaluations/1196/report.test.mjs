@@ -164,6 +164,7 @@ test("the report renders verdicts, tables and overlap", () => {
   assert.match(md, /Beatmatcher beats Selector on BPM and key fit \| \*\*pass\*\*/);
   assert.match(md, /\| beatmatcher \(½×\/2×\) \| 3 \| 1 \|/);
   assert.match(md, /\| selector \(proposal\) \|/);
+  assert.match(md, /vibe similarity ✓ \| 0\.800 \| 0\.500 \|/);
   assert.match(md, /## Overlap/);
   assert.match(md, /\| greedy \| beatmatcher \|/);
   assert.match(md, /beatmatcher lower bpm_jump_hd than selector/);

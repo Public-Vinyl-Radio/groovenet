@@ -241,7 +241,10 @@ export function renderReport(summary) {
   ];
   for (const v of summary.verdicts)
     v.tests.forEach((t, i) => {
-      const value = t.path.includes("within") || t.path.startsWith("key.") ? pct : f;
+      const value =
+        t.path.includes("within") || t.path.startsWith("key.")
+          ? pct
+          : (v) => f(v, t.path.endsWith("similarity") || t.path === "vibe.mean" ? 3 : 2);
       lines.push(
         `| ${i ? "" : v.claim} | ${i ? "" : pass(v.pass)} | ${t.label} ${t.pass ? "✓" : "✗"} | ${value(t.a)} | ${value(t.b)} | ${t.seeds} | ${t.wins}–${t.losses}–${t.ties} | ${p(t.sign_test_p)} |`,
       );
