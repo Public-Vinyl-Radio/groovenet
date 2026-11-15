@@ -247,6 +247,29 @@ Two questions per seed:
 1. **Which would you mix from this track?**
 2. **Which makes the more interesting set?**
 
+**In the browser (recommended):** covers, and each pick to listen to. The
+worktree has no audio files, so audio streams read-only from production's
+`/api/audio`. A track with no file gets Apple's 30-second preview, looked up
+by its Apple Music id only when you press play. The server listens on
+127.0.0.1, saves to the same sheet after every answer, and never reads the
+key.
+
+```bash
+node evaluations/1196/review-web.mjs --file eval-data/1196/review.json \
+  --audio-base https://groovenet.home.arpa      # then open http://127.0.0.1:8196/
+```
+
+Per seed: play the seed and any pick (▶; space pauses, ←/→ seek 10 s, the
+25/50/75% buttons or "start at 30%" skip intros), choose A, B or No
+difference for each question, and Save & next. If production audio won't
+play, open `https://groovenet.home.arpa` once in the browser to trust its
+certificate. A sheet built before tracks carried ids needs
+`node evaluations/1196/side-by-side.mjs --upgrade` first. It rebuilds the
+sheet from the same results and seeds, refuses unless that matches the key
+and every item exactly, keeps your answers, and backs up the old file.
+
+**In the terminal:**
+
 ```bash
 # 1. Build the sheet and its key (refuses to overwrite)
 node evaluations/1196/side-by-side.mjs --results eval-data/1196/results.json \

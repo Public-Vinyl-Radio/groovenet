@@ -18,8 +18,9 @@
  *   node evaluations/1196/side-by-side.mjs --results eval-data/1196/results.json \
  *     --output eval-data/1196/review.json --key eval-data/1196/review-key.json \
  *     [--compare beatmatcher:selector] [--sample 20]
+ *   node evaluations/1196/side-by-side.mjs --upgrade    # add track ids to an older sheet, keeping answers
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { rng } from "../1170/score-judgments.mjs";
 import { signTest } from "../1170/side-by-side.mjs";
 import { trackKey } from "./metrics.mjs";
@@ -42,9 +43,14 @@ export function sampleSeeds(keys, n, randomSeed = 1196) {
   return out.slice(0, n);
 }
 
-/** Only what a suggestion row shows: never a score, a signal or a profile. */
+/**
+ * Only what a suggestion row shows, plus the track's id so the web reviewer
+ * can load its cover and audio: never a score, a signal or a profile.
+ */
 export function describe(t) {
   return {
+    track_id: t.track_id ?? null,
+    friend_id: t.friend_id ?? null,
     title: t.title ?? "",
     artist: t.artist ?? "",
     album: t.album ?? "",
@@ -113,6 +119,14 @@ export function buildSideBySide(
   };
 }
 
+/** Replace a sheet with a private atomic rename. */
+export function save(file, sheet) {
+  if (sheet?.kind !== KIND) throw new Error("Not a #1196 side-by-side sheet");
+  const tmp = `${file}.tmp-${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(sheet, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+  renameSync(tmp, file);
+}
+
 /** Unblind a completed (or partly completed) sheet. */
 export function tallySideBySide(sheet, key) {
   if (sheet?.kind !== KIND || key?.kind !== `${KIND}-key`)
@@ -141,6 +155,40 @@ export function tallySideBySide(sheet, key) {
   };
 }
 
+/**
+ * A sheet built before tracks carried ids, rebuilt with them. The rebuild
+ * must reproduce the sheet's key exactly and every item's tracks in order,
+ * so the blinding is unchanged; answers and notes are carried across.
+ */
+export function upgradeSheet(sheet, key, results, options = {}) {
+  if (sheet?.kind !== KIND || key?.kind !== `${KIND}-key`)
+    throw new Error("Not a #1196 side-by-side sheet and key");
+  const [a, b] = key.compare;
+  const rebuilt = buildSideBySide(results, {
+    a,
+    b,
+    sample: sheet.items.length + key.auto_ties.length,
+    ...options,
+  });
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  if (!same(rebuilt.key.items, key.items) || !same(rebuilt.key.auto_ties, key.auto_ties))
+    throw new Error("The rebuilt sheet's key differs from the stored key; not upgrading");
+  const strip = (tracks) => tracks.map(({ track_id, friend_id, ...rest }) => rest);
+  const byId = new Map(sheet.items.map((item) => [item.id, item]));
+  for (const item of rebuilt.sheet.items) {
+    const old = byId.get(item.id);
+    if (
+      !old ||
+      !same(strip([item.seed]), strip([old.seed])) ||
+      !same(strip(item.a), strip(old.a)) ||
+      !same(strip(item.b), strip(old.b))
+    )
+      throw new Error(`Item ${item.id} differs from the stored sheet; not upgrading`);
+    Object.assign(item, { mix: old.mix, set: old.set, note: old.note });
+  }
+  return rebuilt.sheet;
+}
+
 function main() {
   const args = process.argv.slice(2);
   const opt = (name, fallback) => {
@@ -149,6 +197,22 @@ function main() {
   };
   const [a, b] = opt("--compare", "beatmatcher:selector").split(":");
   const results = JSON.parse(readFileSync(opt("--results", "eval-data/1196/results.json"), "utf8"));
+  if (args.includes("--upgrade")) {
+    // Adds track ids to an existing sheet, keeping its answers; the old file is kept as a backup.
+    const file = opt("--output", "eval-data/1196/review.json");
+    const old = readFileSync(file, "utf8");
+    const key = JSON.parse(readFileSync(opt("--key", "eval-data/1196/review-key.json"), "utf8"));
+    const upgraded = upgradeSheet(JSON.parse(old), key, results);
+    writeFileSync(`${file}.backup-${Date.now()}`, old, { flag: "wx", mode: 0o600 });
+    save(file, upgraded);
+    console.log(
+      JSON.stringify({
+        upgraded: upgraded.items.length,
+        answered: upgraded.items.filter((i) => i.mix && i.set).length,
+      }),
+    );
+    return;
+  }
   const { sheet, key } = buildSideBySide(results, { a, b, sample: Number(opt("--sample", "20")) });
   const write = (file, value) =>
     writeFileSync(file, JSON.stringify(value, null, 2) + "\n", { flag: "wx", mode: 0o600 });

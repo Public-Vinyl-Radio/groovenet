@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildSideBySide, describe, sampleSeeds, tallySideBySide } from "./side-by-side.mjs";
+import {
+  buildSideBySide,
+  describe,
+  sampleSeeds,
+  save as saveSheet,
+  tallySideBySide,
+  upgradeSheet,
+} from "./side-by-side.mjs";
 import { apply, display, save } from "./review.mjs";
 
 const pick = (id) => ({
@@ -25,7 +32,7 @@ const seed = (key, beat, sel, kind = "track") => ({
   kind,
   ...(kind === "playlist" ? { name: "Friday", size: 12 } : {}),
   seed: {
-    track_id: key,
+    track_id: key.split(":")[1],
     friend_id: 6,
     title: `Seed ${key.at(-1)}`,
     artist: "S",
@@ -89,7 +96,10 @@ test("the sheet is blind: no profile, score or signal leaks into it", () => {
   };
   const sides = Object.values(buildSideBySide(many, { sample: 30 }).key.items).map((k) => k.a);
   assert.ok(sides.includes("beatmatcher") && sides.includes("selector"));
+  assert.ok(item.a[0].track_id, "tracks carry ids for covers and audio");
   assert.deepEqual(describe({}), {
+    track_id: null,
+    friend_id: null,
     title: "",
     artist: "",
     album: "",
@@ -170,4 +180,40 @@ test("save replaces the sheet atomically and refuses anything else", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("an older sheet without ids upgrades with its answers, and only if it matches", () => {
+  const { sheet, key } = buildSideBySide(results, { sample: 10 });
+  const strip = (t) => {
+    const { track_id, friend_id, ...rest } = t;
+    return rest;
+  };
+  const old = structuredClone(sheet);
+  for (const item of old.items) {
+    item.seed = strip(item.seed);
+    item.a = item.a.map(strip);
+    item.b = item.b.map(strip);
+  }
+  Object.assign(old.items[0], { mix: "a", set: "b", note: "kept" });
+  const up = upgradeSheet(old, key, results, { sample: 10 });
+  assert.deepEqual([up.items[0].mix, up.items[0].set, up.items[0].note], ["a", "b", "kept"]);
+  assert.ok(up.items.every((i) => i.seed.track_id && i.a.every((t) => t.track_id)));
+  const moved = structuredClone(old);
+  moved.items[0].a.reverse();
+  if (moved.items[0].a.length > 1)
+    assert.throws(
+      () => upgradeSheet(moved, key, results, { sample: 10 }),
+      /differs from the stored sheet/,
+    );
+  const seedChanged = structuredClone(old);
+  seedChanged.items[0].seed.title = "other";
+  assert.throws(() => upgradeSheet(seedChanged, key, results, { sample: 10 }), /differs/);
+  const missing = { ...old, items: old.items.slice(1) };
+  assert.throws(() => upgradeSheet(missing, key, results, { sample: 10 }), /differs/);
+  const otherKey = structuredClone(key);
+  const first = Object.keys(otherKey.items)[0];
+  otherKey.items[first].a = otherKey.items[first].a === "beatmatcher" ? "selector" : "beatmatcher";
+  assert.throws(() => upgradeSheet(old, otherKey, results, { sample: 10 }), /key differs/);
+  assert.throws(() => upgradeSheet({ kind: "x" }, key, results), /Not a #1196/);
+  assert.equal(typeof saveSheet, "function");
 });

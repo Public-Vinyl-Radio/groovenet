@@ -9,10 +9,12 @@
  * an optional note: "a b b keeps the groove, a is all 7A". s skip,
  * p previous, q quit.
  */
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { KIND, QUESTIONS } from "./side-by-side.mjs";
+import { KIND, QUESTIONS, save } from "./side-by-side.mjs";
+
+export { save };
 
 const ANSWERS = { a: "a", b: "b", "=": "same" };
 const LABEL = { a: "A", b: "B", same: "no difference" };
@@ -65,13 +67,6 @@ export function apply(items, index, input) {
   items[index].set = set;
   items[index].note = rest.join(" ");
   return { index: next, saved: true };
-}
-
-export function save(file, sheet) {
-  if (sheet?.kind !== KIND) throw new Error("Not a #1196 side-by-side sheet");
-  const tmp = `${file}.tmp-${process.pid}`;
-  writeFileSync(tmp, JSON.stringify(sheet, null, 2) + "\n", { flag: "wx", mode: 0o600 });
-  renameSync(tmp, file);
 }
 
 async function main() {
