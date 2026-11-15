@@ -16,6 +16,14 @@ import { rankingProfileRepository } from "@/server/repositories/rankingProfileRe
 import * as profiles from "../profiles/route";
 import * as profile from "../profiles/[id]/route";
 import * as copy from "../profiles/[id]/copy/route";
+import { exportRankingProfileFile } from "@groovenet/contracts";
+import * as exporting from "../profiles/[id]/export/route";
+import * as importing from "../profiles/import/route";
+import * as useFriend from "../profiles/[id]/use-friend/route";
+const friendLookup = vi.hoisted(() => vi.fn());
+vi.mock("@/server/repositories/friendRepository", () => ({
+  friendRepository: { findById: friendLookup },
+}));
 import * as active from "../active/route";
 
 const repo = rankingProfileRepository as unknown as FakeRankingProfileRepository;
@@ -302,5 +310,172 @@ describe("PUT /api/ranking/active", () => {
 
   it("is a 404 for a missing profile", async () => {
     expect((await choose({ friend_id: 1, profile_id: "44" })).status).toBe(404);
+  });
+});
+
+describe("profile sharing", () => {
+  const file = () => exportRankingProfileFile(RANKING_PRESETS.beatmatcher);
+  const importFile = (value: unknown) =>
+    importing.POST(
+      request("/profiles/import", "POST", {
+        friend_id: 1,
+        file: typeof value === "string" ? value : JSON.stringify(value),
+      }),
+    );
+  it("exports presets and stored profiles and round trips byte-identically", async () => {
+    for (const id of ["beatmatcher", "1"]) {
+      if (id === "1") await create();
+      const result = await exporting.GET(request("/export"), params(id));
+      expect(result.status).toBe(200);
+      const text = await result.text();
+      const imported = await importFile(text);
+      expect(imported.status).toBe(201);
+      const { profile, warnings } = await imported.json();
+      expect(profile.origin).toBe("file");
+      expect(warnings).toEqual([]);
+      expect(await (await exporting.GET(request("/export"), params(profile.id))).text()).toBe(text);
+    }
+    expect(tracked().some(([event]) => event === "ranking_profile_exported")).toBe(true);
+    expect(tracked().some(([event]) => event === "ranking_profile_imported")).toBe(true);
+  });
+  it("imports unknown signals with warnings", async () => {
+    const response = await importFile({ ...file(), weights: { future: 1 } });
+    expect(response.status).toBe(201);
+    expect((await response.json()).warnings).toEqual(["Dropped unknown signal: future"]);
+  });
+  it.each([
+    ["huge", () => ({ ...file(), weights: { rating: 1e300 } }), "rating"],
+    ["extra", () => ({ ...file(), library_id: 1 }), "library_id"],
+    [
+      "deep",
+      () => ({
+        ...file(),
+        constraints: { a: { a: { a: { a: { a: { a: { a: { a: {} } } } } } } } },
+      }),
+      "deeply",
+    ],
+    ["strings", () => ({ ...file(), name: "x".repeat(81) }), "name"],
+    ["types", () => ({ ...file(), weights: "wrong" }), "weights"],
+    ["constructor", () => ({ ...file(), constructor: 1 }), "constructor"],
+    ["proto", () => '{"version":1,"__proto__":{}}', "__proto__"],
+    ["future", () => ({ ...file(), version: 2 }), "Future"],
+    ["invalid JSON", () => "{", "Invalid JSON"],
+    ["size", () => " ".repeat(33000), "file"],
+  ])("hostile %s is 400 naming the problem", async (_label, input, problem) => {
+    const response = await importFile(input());
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain(problem);
+  });
+  it("bounds the stream, even without Content-Length", async () => {
+    const res = await importing.POST(request("/import", "POST", " ".repeat(70000)));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain("Body exceeds");
+    await expect(
+      importing.readRankingImportBody(
+        new Request(url("/import"), { method: "POST", headers: { "content-length": "70000" } }),
+      ),
+    ).rejects.toThrow("Body exceeds");
+    await expect(
+      importing.readRankingImportBody(new Request(url("/import"), { method: "POST" })),
+    ).rejects.toThrow("Missing JSON");
+  });
+  it("returns a 400 if the request stream fails with a non-Error value", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error("broken stream");
+      },
+    });
+    const init = { method: "POST", body: stream, duplex: "half" as const };
+    const response = await importing.POST(new NextRequest(url("/import"), init));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("Invalid ranking file");
+  });
+  it("rejects malformed envelopes", async () => {
+    for (const body of [
+      "{",
+      { friend_id: "1", file: "{}" },
+      { friend_id: 1, file: "{}", extra: 1 },
+    ])
+      expect((await importing.POST(request("/import", "POST", body))).status).toBe(400);
+  });
+  it("reports service errors for all sharing routes", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    repo.listByFriend = vi.fn().mockRejectedValue(new Error("down"));
+    // create fails through insert, independently of list.
+    const insert = vi.spyOn(repo, "insert").mockRejectedValue(new Error("down"));
+    expect((await importFile(file())).status).toBe(500);
+    insert.mockRestore();
+    // Reset the fake instance method after the deliberate failure.
+    delete (repo as unknown as Record<string, unknown>).listByFriend;
+    expect((await exporting.GET(request("/export"), params("999"))).status).toBe(404);
+    await create();
+    repo.rows[0].config = {};
+    expect((await exporting.GET(request("/export"), params("1"))).status).toBe(400);
+    spy.mockRestore();
+  });
+  it("copies a registered friend's profile, activates the independent copy, and retains provenance", async () => {
+    friendLookup.mockResolvedValue({ id: 2, username: "friend" });
+    const source = await (
+      await create({ friend_id: 2, profile: draft({ author: "original" }) })
+    ).json();
+    const response = await useFriend.POST(
+      request("/use-friend", "POST", { friend_id: 1, source_friend_id: 2 }),
+      params(source.id),
+    );
+    expect(response.status).toBe(201);
+    const copied = await response.json();
+    expect(copied).toMatchObject({ author: "original", origin: "friend" });
+    expect(copied.id).not.toBe(source.id);
+    repo.rows[0].name = "Changed";
+    const listed = await (await profiles.GET(request("/profiles?friend_id=1"))).json();
+    expect(listed.profiles.at(-1).name).toBe("Peak time");
+    expect(listed.active.playlists).toBe(copied.id);
+    expect(tracked().at(-1)).toEqual([
+      "ranking_profile_used_from_friend",
+      { profile: "custom", signal_count: Object.keys(copied.weights).length, source: "web" },
+    ]);
+  });
+  it("uses friend handle when the source has no author", async () => {
+    friendLookup.mockResolvedValue({ id: 2, username: "friend" });
+    await create({ friend_id: 2, profile: draft() });
+    const response = await useFriend.POST(
+      request("/use-friend", "POST", { friend_id: 1, source_friend_id: 2 }),
+      params("1"),
+    );
+    expect((await response.json()).author).toBe("friend");
+  });
+  it("returns 404 for a non-friend, wrong source scope, missing profile or preset", async () => {
+    await create();
+    for (const [id, source, friend] of [
+      ["1", 2, { id: 2, username: "friend" }],
+      ["1", 1, null],
+      ["999", 2, { id: 2 }],
+      ["default", 2, { id: 2 }],
+    ] as const) {
+      friendLookup.mockResolvedValue(friend);
+      expect(
+        (
+          await useFriend.POST(
+            request("/use", "POST", { friend_id: 2, source_friend_id: source }),
+            params(id),
+          )
+        ).status,
+      ).toBe(404);
+    }
+  });
+  it("rejects unreadable source and bad friend-copy requests", async () => {
+    friendLookup.mockResolvedValue({ id: 1, username: "friend" });
+    await create();
+    repo.rows[0].config = {};
+    expect(
+      (
+        await useFriend.POST(
+          request("/use", "POST", { friend_id: 2, source_friend_id: 1 }),
+          params("1"),
+        )
+      ).status,
+    ).toBe(400);
+    expect((await useFriend.POST(request("/use", "POST", "{"), params("1"))).status).toBe(400);
+    expect((await useFriend.POST(request("/use", "POST", {}), params("1"))).status).toBe(400);
   });
 });

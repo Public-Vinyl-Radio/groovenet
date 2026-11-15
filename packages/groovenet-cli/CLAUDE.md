@@ -555,3 +555,22 @@ open stack through `listRecordCareStacks`, and logs through
 required; `clean --stack N --sleeve T` logs cleaned and sleeved in one session.
 The web hint `CHORES_CLI_STACK_COMMAND` (`records clean --stack`) must keep
 working.
+
+## Ranking profile files (#1195)
+
+`ranking-profiles` is an alias of `profiles`. Export a preset or custom profile:
+
+```bash
+groovenet ranking-profiles export beatmatcher -o beatmatcher.json
+groovenet ranking-profiles export 17
+groovenet ranking-profiles import beatmatcher.json --friend-id 6
+```
+
+Export prints portable JSON to stdout unless `-o` is set. Import uses the shared,
+strict contracts parser before sending the original file to the server. Files are
+limited to 32 KiB and contain ranking settings, no collection data. Unknown signals
+are dropped with warnings on stderr; other unknown fields and future versions fail.
+Import prints the stored profile as JSON; `--friend-id` defaults to the configured
+library. Use `groovenet profiles use <new-id>` to activate it. The web catalogue at
+`/ranking-profiles` also copies profiles from registered friends; these are independent
+copies and later source edits never propagate.

@@ -231,6 +231,7 @@ const uniqueSurfaces = (surfaces: readonly string[]) => new Set(surfaces).size =
 
 /** What a profile adds to a config: who it's for, and where it can be chosen. */
 const rankingProfileMeta = {
+  author: z.string().min(1).max(64).optional(),
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(500).default(""),
   /** The surfaces it can be chosen for. */
@@ -274,7 +275,11 @@ export function toRankingConfig(profile: RankingProfile): RankingConfig {
  * and ranks as Default until it is saved again or deleted.
  */
 export const rankingProfileEntrySchema = rankingProfileSchema
-  .extend({ invalid: z.boolean().optional() })
+  .extend({
+    invalid: z.boolean().optional(),
+    origin: z.enum(["file", "friend"]).optional(),
+    source_handle: z.string().max(64).optional(),
+  })
   .strict();
 export type RankingProfileEntry = z.infer<typeof rankingProfileEntrySchema>;
 
@@ -339,7 +344,160 @@ export const rankingProfileDeleteResponseSchema = z.object({
 });
 export type RankingProfileDeleteResponse = z.infer<typeof rankingProfileDeleteResponseSchema>;
 
+// Portable files deliberately have neither local ids nor collection data.
+export const MAX_RANKING_FILE_BYTES = 32 * 1024;
+export const rankingProfileFileSchema = rankingProfileDraftSchema
+  .extend({
+    format: z.literal("groovenet-ranking-profile"),
+  })
+  .strict();
+export type RankingProfileFile = z.infer<typeof rankingProfileFileSchema>;
+
+export class RankingImportError extends Error {}
+
+/** Bound traversal before Zod, including parsed objects JSON cannot represent. */
+function inspectRankingInput(value: unknown, depth = 0, path = "$", budget = { nodes: 0 }): void {
+  if (depth > 8) throw new RankingImportError(`Object too deeply nested at ${path}`);
+  if (++budget.nodes > 2048) throw new RankingImportError("Too many fields in ranking file");
+  if (typeof value === "number" && !Number.isFinite(value))
+    throw new RankingImportError(`Non-finite number at ${path}`);
+  if (typeof value === "string" && value.length > 1000)
+    throw new RankingImportError(`String too long at ${path}`);
+  if (value && typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== Array.prototype && proto !== null)
+      throw new RankingImportError(`Invalid object prototype at ${path}`);
+    for (const key of Object.keys(value)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype")
+        throw new RankingImportError(`Forbidden field ${path}.${key}`);
+      inspectRankingInput(
+        (value as Record<string, unknown>)[key],
+        depth + 1,
+        `${path}.${key}`,
+        budget,
+      );
+    }
+  }
+}
+
+/** Each step migrates vN to vN+1; no historical file versions exist yet. */
+export type RankingFileMigration = (
+  file: Readonly<Record<string, unknown>>,
+) => Record<string, unknown>;
+export function migrateRankingFile(
+  file: Record<string, unknown>,
+  steps: Readonly<Record<number, RankingFileMigration>> = {},
+): Record<string, unknown> {
+  let current = file;
+  const version = current.version;
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 0)
+    throw new RankingImportError("Invalid schema version");
+  if (version > 1)
+    throw new RankingImportError(`Future schema version ${version}; supported version is 1`);
+  for (let v = version; v < 1; v++) {
+    const step = steps[v];
+    if (!step) throw new RankingImportError(`No migration for schema version ${v}`);
+    current = step(current);
+    if (current.version !== v + 1)
+      throw new RankingImportError(`Invalid migration for version ${v}`);
+  }
+  return current;
+}
+
+/** Pure parser shared by HTTP and CLI. Only signal ids are forward compatible. */
+export function parseRankingProfileFile(input: unknown): {
+  file: RankingProfileFile;
+  warnings: string[];
+} {
+  let value: unknown = input;
+  if (typeof input === "string") {
+    if (new TextEncoder().encode(input).length > MAX_RANKING_FILE_BYTES)
+      throw new RankingImportError(`Ranking file exceeds ${MAX_RANKING_FILE_BYTES} bytes`);
+    try {
+      value = JSON.parse(input);
+    } catch {
+      throw new RankingImportError("Invalid JSON in ranking file");
+    }
+  }
+  inspectRankingInput(value);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new RankingImportError("Ranking file must be an object");
+  const migrated = migrateRankingFile(value as Record<string, unknown>);
+  const warnings: string[] = [];
+  const known = (signal: string) => {
+    if ((RANKING_SIGNAL_IDS as readonly string[]).includes(signal)) return true;
+    warnings.push(`Dropped unknown signal: ${signal}`);
+    return false;
+  };
+  const cleaned = { ...migrated };
+  if (cleaned.weights && typeof cleaned.weights === "object" && !Array.isArray(cleaned.weights))
+    cleaned.weights = Object.fromEntries(
+      Object.entries(cleaned.weights).filter(([key]) => known(key)),
+    );
+  if (cleaned.base && typeof cleaned.base === "object" && !Array.isArray(cleaned.base)) {
+    const base = cleaned.base as Record<string, unknown>;
+    cleaned.base = {
+      ...base,
+      ...(Array.isArray(base.signals)
+        ? {
+            signals: base.signals.filter((id: unknown) => typeof id !== "string" || known(id)),
+          }
+        : {}),
+    };
+  }
+  const result = rankingProfileFileSchema.safeParse(cleaned);
+  if (!result.success)
+    throw new RankingImportError(
+      result.error.issues
+        .map((issue) => `${issue.path.join(".") || "$"}: ${issue.message}`)
+        .join("; "),
+    );
+  return { file: result.data, warnings: [...new Set(warnings)] };
+}
+
+/** Fixed field order makes export → import → export byte-identical. */
+export function exportRankingProfileFile(profile: RankingProfile): RankingProfileFile {
+  const { name, description, author, version, surfaces, weights, base, usePrior, constraints } =
+    profile;
+  return rankingProfileFileSchema.parse({
+    format: "groovenet-ranking-profile",
+    version,
+    name,
+    description,
+    ...(author === undefined ? {} : { author }),
+    surfaces,
+    weights: Object.fromEntries(Object.entries(weights).sort(([a], [b]) => a.localeCompare(b))),
+    ...(base ? { base } : {}),
+    usePrior,
+    constraints,
+  });
+}
+
+export const rankingProfileImportSchema = z
+  .object({
+    friend_id: z.number().int().positive(),
+    // Raw file text allows size checks before parsing and warnings for unknown signals.
+    file: z.string().max(MAX_RANKING_FILE_BYTES),
+  })
+  .strict();
+export const rankingProfileImportResponseSchema = z.object({
+  profile: rankingProfileEntrySchema,
+  warnings: z.array(z.string()),
+});
+export type RankingProfileImportResponse = z.infer<typeof rankingProfileImportResponseSchema>;
+export const rankingProfileFriendCopySchema = z
+  .object({
+    friend_id: z.number().int().positive(),
+    source_friend_id: z.number().int().positive(),
+  })
+  .strict();
+export type RankingProfileFriendCopy = z.infer<typeof rankingProfileFriendCopySchema>;
+
 export const rankingJsonSchemas = {
+  RankingProfileFile: z.toJSONSchema(rankingProfileFileSchema),
+  RankingProfileImportRequest: z.toJSONSchema(rankingProfileImportSchema),
+  RankingProfileImportResponse: z.toJSONSchema(rankingProfileImportResponseSchema),
+  RankingProfileFriendCopyRequest: z.toJSONSchema(rankingProfileFriendCopySchema),
   RankingConfig: z.toJSONSchema(rankingConfigSchema, { io: "input" }),
   RankingProfile: z.toJSONSchema(rankingProfileEntrySchema),
   RankingProfileDraft: z.toJSONSchema(rankingProfileDraftSchema, { io: "input" }),

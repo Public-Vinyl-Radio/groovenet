@@ -18,6 +18,9 @@ describe("ranking profile contracts (#1192)", () => {
       "delete /api/ranking/profiles/{id}",
       "post /api/ranking/profiles/{id}/copy",
       "put /api/ranking/active",
+      "get /api/ranking/profiles/{id}/export",
+      "post /api/ranking/profiles/import",
+      "post /api/ranking/profiles/{id}/use-friend",
     ]);
   });
 

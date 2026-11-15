@@ -16,6 +16,9 @@ export type RankingProfileWrite = {
   surfaces: RankingSurface[];
   version: number;
   config: unknown;
+  author?: string;
+  source_handle?: string;
+  origin?: "file" | "friend";
 };
 
 export type RankingSelectionRow = {
@@ -27,7 +30,8 @@ export type RankingSelectionRow = {
 /** A selection names a preset or a stored profile, never both. */
 export type RankingSelection = { presetId: string } | { profileId: number };
 
-const COLUMNS = "id, friend_id, name, description, surfaces, version, config";
+const COLUMNS =
+  "id, friend_id, name, description, surfaces, version, config, author, origin, source_handle";
 
 export class RankingProfileRepository {
   async listByFriend(friendId: number): Promise<RankingProfileRow[]> {
@@ -54,8 +58,8 @@ export class RankingProfileRepository {
   ): Promise<RankingProfileRow | null> {
     const { rows } = await dbQuery<RankingProfileRow>(
       `
-      INSERT INTO ranking_profiles (friend_id, name, description, surfaces, version, config)
-      SELECT $1, $2, $3, $4::text[], $5, $6::jsonb
+      INSERT INTO ranking_profiles (friend_id, name, description, surfaces, version, config, author, origin, source_handle)
+      SELECT $1, $2, $3, $4::text[], $5, $6::jsonb, $8, $9, $10
       WHERE (SELECT count(*) FROM ranking_profiles WHERE friend_id = $1) < $7
       RETURNING ${COLUMNS}
       `,
@@ -67,6 +71,9 @@ export class RankingProfileRepository {
         profile.version,
         JSON.stringify(profile.config),
         limit,
+        profile.author ?? null,
+        profile.origin ?? null,
+        profile.source_handle ?? null,
       ],
     );
     return rows[0] ?? null;
@@ -77,7 +84,7 @@ export class RankingProfileRepository {
       `
       UPDATE ranking_profiles
       SET name = $2, description = $3, surfaces = $4::text[], version = $5,
-          config = $6::jsonb, updated_at = current_timestamp
+          config = $6::jsonb, author = $7, updated_at = current_timestamp
       WHERE id = $1
       RETURNING ${COLUMNS}
       `,
@@ -88,6 +95,7 @@ export class RankingProfileRepository {
         profile.surfaces,
         profile.version,
         JSON.stringify(profile.config),
+        profile.author ?? null,
       ],
     );
     return rows[0] ?? null;

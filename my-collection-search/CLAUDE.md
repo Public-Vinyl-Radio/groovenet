@@ -557,6 +557,23 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   clashes, vibe distance) measures an ordering for #1196; ga-service's
   `tests/fixtures/preset_orderings.json` pins Beatmatcher's and Selector's orderings
   and metrics for both sides.
+- **Sharing (#1195):** `/ranking-profiles` lists presets, own and imported profiles, links
+  from Settings → Ranking, and uses `RetroDialog` for file imports. Portable files use
+  `rankingProfileFileSchema` in contracts: format `groovenet-ranking-profile`, version 1,
+  draft settings and optional author, with no local ids or collection data.
+  `parseRankingProfileFile` is pure and shared with the CLI: 32 KiB UTF-8 limit,
+  depth/node limits, forbidden prototype keys, finite bounded numbers and strict fields.
+  Only unknown signal ids (weights and base) are dropped with warnings. Migration steps
+  are pure vN→vN+1 functions; no historical production format exists yet.
+  Import streams are bounded before JSON parsing. Exports have deterministic field order.
+  `ranking_profiles.author`, `origin` and `source_handle` preserve attribution separately
+  from ranking config; source handles never enter exported files. Friend sharing reuses
+  the server-wide friends registry: source membership and profile ownership are both
+  checked, with 404 for a non-friend or wrong source. Copies become active independently;
+  no live link survives. Unreadable stored rows still fall back to Default.
+  Export/import/use-friend routes have shared Zod and OpenAPI contracts. Server analytics
+  `ranking_profile_exported`, `_imported`, `_used_from_friend` carry only analytics ids
+  (`custom` or preset) and signal/warning counts, never text or library ids.
 - **Golden tests:** `src/lib/ranking/__tests__/ranking.golden.test.ts` pins Default's
   ordering. A refactor must leave its snapshots untouched. A deliberate ranking change
   updates them in its own commit and explains why in the PR.

@@ -16,6 +16,7 @@ import {
   type RankingProfilesResponse,
   type RankingSurface,
 } from "@groovenet/contracts";
+import { friendRepository } from "@/server/repositories/friendRepository";
 import { RANKING_CONFIGS } from "@/lib/ranking/configs";
 import {
   copyName,
@@ -100,10 +101,19 @@ export class RankingProfileService {
     return storedProfileEntry(row);
   }
 
-  async create(friendId: number, draft: RankingProfileDraft): Promise<RankingProfileEntry> {
+  async create(
+    friendId: number,
+    draft: RankingProfileDraft,
+    origin?: "file" | "friend",
+    sourceHandle?: string,
+  ): Promise<RankingProfileEntry> {
     let row;
     try {
-      row = await this.repo.insert(friendId, draftToStored(draft), MAX_RANKING_PROFILES_PER_FRIEND);
+      row = await this.repo.insert(
+        friendId,
+        { ...draftToStored(draft), origin, source_handle: sourceHandle },
+        MAX_RANKING_PROFILES_PER_FRIEND,
+      );
     } catch (error) {
       if (isMissingFriend(error)) {
         throw new RankingProfileError(`Library ${friendId} does not exist`, 404);
@@ -123,6 +133,35 @@ export class RankingProfileService {
   async copy(id: string, friendId: number, name?: string): Promise<RankingProfileEntry> {
     const source = await this.get(id);
     return this.create(friendId, profileToDraft(source, name ?? copyName(source.name)));
+  }
+
+  /** Same server sharing uses the existing friends registry, under server-wide API auth.
+   * Check membership AND ownership: an arbitrary profile id must not bypass the source scope.
+   * The copy has no link back to the source row.
+   */
+  async useFriend(
+    id: string,
+    friendId: number,
+    sourceFriendId: number,
+  ): Promise<RankingProfileEntry> {
+    const friend = await friendRepository.findById(sourceFriendId);
+    const numeric = storedId(id);
+    const row = numeric === null ? null : await this.repo.findById(numeric);
+    if (!friend || !row || row.friend_id !== sourceFriendId)
+      throw new RankingProfileError("Friend ranking profile not found", 404);
+    const profile = storedProfileEntry(row);
+    if (profile.invalid) throw new RankingProfileError("Friend profile can't be read", 400);
+    const copied = await this.create(
+      friendId,
+      {
+        ...profileToDraft(profile),
+        author: profile.author ?? friend.username.slice(0, 64),
+      },
+      "friend",
+      friend.username.slice(0, 64),
+    );
+    await this.setActive(friendId, copied.id);
+    return copied;
   }
 
   async update(id: string, draft: RankingProfileDraft): Promise<RankingProfileEntry> {

@@ -510,3 +510,5 @@ export type {
   ArtistReconcileResponse,
   ArtistReviewItem,
 } from "@groovenet/contracts";
+
+export type { RankingProfileFile, RankingProfileImportResponse } from "@groovenet/contracts";

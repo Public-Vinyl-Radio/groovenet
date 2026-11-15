@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -145,6 +146,7 @@ export default function RankingSettingsSection() {
 
   return (
     <Flex direction="column" gap={6}>
+      <Link href="/ranking-profiles">Browse, export and import ranking profiles</Link>
       {isError ? (
         <Text color="fg.error" fontSize="sm">
           Could not load your profiles. Ranking uses Default.
