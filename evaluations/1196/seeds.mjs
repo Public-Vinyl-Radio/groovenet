@@ -14,12 +14,17 @@
  * `minPlaylistTracks` tracks that have a BPM and a vibe embedding (what the
  * optimiser needs), at random.
  *
+ * A holdout set (`--random-seed N --exclude seeds.json`) uses the same rule
+ * with another random seed and none of the excluded set's tracks or
+ * playlists, to check a proposal on seeds it wasn't tuned on.
+ *
  * The output holds ids, BPM bands and top-level genre names only, so it can
  * be committed. Its SHA-256 is `SEEDS_SHA256`; `loadSeeds` refuses a file
  * that doesn't match.
  *
  *   node evaluations/1196/seeds.mjs --output evaluations/1196/seeds.json \
- *     [--catalogue-out eval-data/1196/catalogue.json]
+ *     [--catalogue-out eval-data/1196/catalogue.json] \
+ *     [--random-seed 2196 --exclude evaluations/1196/seeds.json]   # a holdout set
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -93,10 +98,13 @@ export function missingOf(track) {
  * `catalogue`: `{ tracks: [{ track_id, friend_id, bpm, key, has_identity,
  * has_vibe, roots }], playlists: [{ playlist_id, friend_id, usable }] }`.
  */
-export function selectSeeds(catalogue, rule = RULE) {
+export function selectSeeds(catalogue, rule = RULE, exclude = null) {
   const random = rng(rule.random_seed);
+  const taken = new Set((exclude?.tracks ?? []).map((t) => `${t.friend_id}:${t.track_id}`));
+  const takenPlaylists = new Set((exclude?.playlists ?? []).map((p) => p.playlist_id));
   const tracks = catalogue.tracks
     .filter((t) => t.friend_id === rule.friend_id && (t.has_identity || t.has_vibe))
+    .filter((t) => !taken.has(`${t.friend_id}:${t.track_id}`))
     .sort(byId)
     .map((t) => ({ ...t, genre: primaryGenre(t.roots), missing: missingOf(t) }));
 
@@ -141,6 +149,7 @@ export function selectSeeds(catalogue, rule = RULE) {
       .filter(
         (p) =>
           p.friend_id === rule.friend_id &&
+          !takenPlaylists.has(p.playlist_id) &&
           p.usable >= rule.min_playlist_tracks &&
           p.usable <= rule.max_playlist_tracks,
       )
@@ -155,6 +164,7 @@ export function selectSeeds(catalogue, rule = RULE) {
     schema_version: 1,
     rule: { ...rule, bpm_bands: rule.bpm_bands.map(bandLabel) },
     catalogue_sha256: sha256(canonical(catalogue)),
+    ...(exclude ? { disjoint_from: exclude.sha256 ?? null } : {}),
     tracks: [
       ...picked.map(({ track, band, genre }) => ({
         track_id: track.track_id,
@@ -263,7 +273,11 @@ function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const { project } = worktreeEnv(root);
   const catalogue = psqlJson(project, catalogueSql(RULE.friend_id));
-  const seeds = selectSeeds(catalogue);
+  const rule = opt("--random-seed") ? { ...RULE, random_seed: Number(opt("--random-seed")) } : RULE;
+  const exclude = opt("--exclude")
+    ? { ...loadSeeds(opt("--exclude")), sha256: SEEDS_SHA256 }
+    : null;
+  const seeds = selectSeeds(catalogue, rule, exclude);
   if (opt("--catalogue-out")) {
     mkdirSync(dirname(opt("--catalogue-out")), { recursive: true });
     writeFileSync(opt("--catalogue-out"), canonical(catalogue) + "\n", { mode: 0o600 });

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "x",
+  "base": { "combine": "max", "signals": ["identity_similarity", "vibe_similarity"] },
+  "usePrior": true,
+  "constraints": {},
+  "weights": { "identity_similarity": 8, "vibe_similarity": 10, "genre_overlap": 0.02 }
+}

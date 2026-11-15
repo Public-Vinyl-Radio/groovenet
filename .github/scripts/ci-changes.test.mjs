@@ -106,6 +106,16 @@ test("the site's palette export and the app's palettes and fonts check each othe
   assert.equal(classify(["site/src/data/roadmap.yml"]).web, false);
 });
 
+test("app modules the profile evaluation imports rerun its tests", () => {
+  for (const path of [
+    "my-collection-search/src/lib/ranking/orderingMetrics.ts",
+    "my-collection-search/src/lib/mixCompat.ts",
+    "my-collection-search/src/lib/playlistOrder.ts",
+  ])
+    assert.equal(classify([path]).cli, true, path);
+  assert.equal(classify(["my-collection-search/src/lib/ranking/ranker.ts"]).cli, false);
+});
+
 test("workspace manifests affect installation and npm toolchain checks retain coverage", () => {
   assert.equal(classify(["packages/groovenet-cli/package.json"]).webapp, true);
   assert.equal(classify(["package-lock.json"]).client, true);

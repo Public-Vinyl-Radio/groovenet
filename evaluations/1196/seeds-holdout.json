@@ -1,0 +1,339 @@
+{
+  "kind": "1196-seeds",
+  "schema_version": 1,
+  "rule": {
+    "friend_id": 6,
+    "random_seed": 2196,
+    "bpm_bands": [
+      "0-90",
+      "90-105",
+      "105-120",
+      "120-135",
+      "135+"
+    ],
+    "per_band": 6,
+    "top_genres": 6,
+    "missing": 4,
+    "playlists": 5,
+    "min_playlist_tracks": 10,
+    "max_playlist_tracks": 100
+  },
+  "catalogue_sha256": "7df088e9c15fb96ee09876f60b55cdbf154de4f8fffe47424a406f9d676b40d7",
+  "disjoint_from": "a6ce1f66113a9cad070b97485534a3ad43c6c7f69becba55743ec472ac306be2",
+  "tracks": [
+    {
+      "track_id": "15977282-A4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Latin"
+      }
+    },
+    {
+      "track_id": "10920153-B4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Rock"
+      }
+    },
+    {
+      "track_id": "779168-B3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Funk / Soul"
+      }
+    },
+    {
+      "track_id": "12926619-D12",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Electronic"
+      }
+    },
+    {
+      "track_id": "18319342-A2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Folk, World, & Country"
+      }
+    },
+    {
+      "track_id": "352679-B2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "0-90",
+        "genre": "Jazz"
+      }
+    },
+    {
+      "track_id": "18802660-B4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "Rock"
+      }
+    },
+    {
+      "track_id": "379791-B4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "Funk / Soul"
+      }
+    },
+    {
+      "track_id": "34956911-C2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "Electronic"
+      }
+    },
+    {
+      "track_id": "1153244-D3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "Folk, World, & Country"
+      }
+    },
+    {
+      "track_id": "5428796-A3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "Jazz"
+      }
+    },
+    {
+      "track_id": "35607334-A3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "90-105",
+        "genre": "other"
+      }
+    },
+    {
+      "track_id": "31176067-A2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "Funk / Soul"
+      }
+    },
+    {
+      "track_id": "14422173-A6",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "Electronic"
+      }
+    },
+    {
+      "track_id": "12103598-A5",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "Folk, World, & Country"
+      }
+    },
+    {
+      "track_id": "1976172-A",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "Jazz"
+      }
+    },
+    {
+      "track_id": "1979157-D1",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "other"
+      }
+    },
+    {
+      "track_id": "31305114-B4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "105-120",
+        "genre": "Latin"
+      }
+    },
+    {
+      "track_id": "31973513-B2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "Electronic"
+      }
+    },
+    {
+      "track_id": "5633992-B2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "Folk, World, & Country"
+      }
+    },
+    {
+      "track_id": "352679-A2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "Jazz"
+      }
+    },
+    {
+      "track_id": "37653630-C2",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "other"
+      }
+    },
+    {
+      "track_id": "38278164-A3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "Latin"
+      }
+    },
+    {
+      "track_id": "12926619-D10",
+      "friend_id": 6,
+      "stratum": {
+        "band": "120-135",
+        "genre": "Rock"
+      }
+    },
+    {
+      "track_id": "6549215-B5",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "Folk, World, & Country"
+      }
+    },
+    {
+      "track_id": "31930465-B1",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "Jazz"
+      }
+    },
+    {
+      "track_id": "31828724-B4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "other"
+      }
+    },
+    {
+      "track_id": "34269208-B3",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "Latin"
+      }
+    },
+    {
+      "track_id": "7065476-A4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "Rock"
+      }
+    },
+    {
+      "track_id": "22474430-C4",
+      "friend_id": 6,
+      "stratum": {
+        "band": "135+",
+        "genre": "Funk / Soul"
+      }
+    },
+    {
+      "track_id": "3216273-B3",
+      "friend_id": 6,
+      "stratum": {
+        "band": null,
+        "genre": "Funk / Soul",
+        "missing": [
+          "bpm",
+          "key",
+          "vibe"
+        ]
+      }
+    },
+    {
+      "track_id": "12656039-A4",
+      "friend_id": 6,
+      "stratum": {
+        "band": null,
+        "genre": "Folk, World, & Country",
+        "missing": [
+          "bpm",
+          "key",
+          "vibe"
+        ]
+      }
+    },
+    {
+      "track_id": "5996578-",
+      "friend_id": 6,
+      "stratum": {
+        "band": null,
+        "genre": "other",
+        "missing": [
+          "bpm",
+          "key",
+          "vibe"
+        ]
+      }
+    },
+    {
+      "track_id": "11329557-14",
+      "friend_id": 6,
+      "stratum": {
+        "band": null,
+        "genre": "Rock",
+        "missing": [
+          "bpm",
+          "key",
+          "vibe"
+        ]
+      }
+    }
+  ],
+  "playlists": [
+    {
+      "playlist_id": 51,
+      "friend_id": 6
+    },
+    {
+      "playlist_id": 54,
+      "friend_id": 6
+    },
+    {
+      "playlist_id": 88,
+      "friend_id": 6
+    },
+    {
+      "playlist_id": 159,
+      "friend_id": 6
+    },
+    {
+      "playlist_id": 169,
+      "friend_id": 6
+    }
+  ]
+}

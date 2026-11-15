@@ -180,6 +180,7 @@ export function summarize(results, vectors = {}) {
     const rows = perSeed[id];
     profiles[id] = {
       half_double: !!results.profiles.find((p) => p.id === id).half_double,
+      proposal: results.profiles.find((p) => p.id === id).source === "config",
       seeds: rows.length,
       starved: rows.filter((r) => r.starved).length,
       empty: rows.filter((r) => r.picks === 0).length,
@@ -257,7 +258,7 @@ export function renderReport(summary) {
   for (const id of ids) {
     const m = summary.profiles[id].metrics;
     lines.push(
-      `| ${id}${summary.profiles[id].half_double ? " (½×/2×)" : ""} | ${summary.profiles[id].starved} | ${summary.profiles[id].empty} | ${f(m["bpm.mean_abs"].mean, 1)} | ${f(m["bpm.mean_abs_hd"].mean, 1)} | ${pct(m["bpm.within"].mean)} | ${pct(m["bpm.within_hd"].mean)} | ${pct(m["key.compatible"].mean)} | ${pct(m["key.clash"].mean)} | ${f(m["genre.mean"].mean)} | ${f(m["vibe.mean"].mean, 3)} | ${f(m["identity.mean"].mean, 3)} | ${f(m.artists.mean, 1)} | ${f(m.releases.mean, 1)} |`,
+      `| ${id}${summary.profiles[id].proposal ? " (proposal)" : ""}${summary.profiles[id].half_double ? " (½×/2×)" : ""} | ${summary.profiles[id].starved} | ${summary.profiles[id].empty} | ${f(m["bpm.mean_abs"].mean, 1)} | ${f(m["bpm.mean_abs_hd"].mean, 1)} | ${pct(m["bpm.within"].mean)} | ${pct(m["bpm.within_hd"].mean)} | ${pct(m["key.compatible"].mean)} | ${pct(m["key.clash"].mean)} | ${f(m["genre.mean"].mean)} | ${f(m["vibe.mean"].mean, 3)} | ${f(m["identity.mean"].mean, 3)} | ${f(m.artists.mean, 1)} | ${f(m.releases.mean, 1)} |`,
     );
   }
   lines.push(

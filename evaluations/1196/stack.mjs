@@ -75,9 +75,9 @@ export function psqlJson(project, sql, run = execFileSync) {
 }
 
 /** JSON over HTTP against the local app; a non-2xx is an error naming the path. */
-export async function api(base, path, body, fetchImpl = fetch) {
+export async function api(base, path, body, { method, fetchImpl = fetch } = {}) {
   const res = await fetchImpl(`${base}${path}`, {
-    method: body === undefined ? "GET" : "POST",
+    method: method ?? (body === undefined ? "GET" : "POST"),
     headers: { "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });

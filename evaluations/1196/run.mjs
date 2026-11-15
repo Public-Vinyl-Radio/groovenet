@@ -19,9 +19,12 @@
  * Orderings: each playlist seed's own tracks that have a BPM and a vibe
  * vector, as `/api/tracks/batch` returns them to the playlist page, ordered
  * by `POST /api/playlists/genetic` with each profile as `ranking`. Needs the
- * `optimize` stack profile. Inline configs are listed lists-only.
+ * `optimize` stack profile. That route takes only a stored profile's id, so an
+ * inline config is stored as a temporary profile in this worktree's library
+ * for the ordering runs and deleted afterwards.
  *
- *   node evaluations/1196/run.mjs [--out-dir eval-data/1196] [--seeds evaluations/1196/seeds.json]
+ *   node evaluations/1196/run.mjs [--out-dir eval-data/1196] [--seeds evaluations/1196/seeds.json
+ *     --seeds-sha256 HASH]
  *     [--profiles default,beatmatcher,...] [--config name=file.json ...]
  *     [--modes greedy,genetic,cohesive_blocks] [--genetic-runs 3] [--no-ordering]
  */
@@ -78,6 +81,36 @@ SELECT coalesce(json_object_agg(sf || ':' || st || '|' || pf || ':' || pt, json_
 FROM (SELECT DISTINCT * FROM pairs) d`;
 }
 
+/** The seed's fields the metrics and the review sheet read. */
+export function seedOf(track) {
+  return {
+    track_id: track.track_id,
+    friend_id: track.friend_id,
+    title: track.title ?? "",
+    artist: track.artist ?? "",
+    album: track.album ?? "",
+    year: track.year ?? null,
+    styles: track.styles ?? [],
+    bpm: track.bpm ?? null,
+    key: track.key ?? null,
+  };
+}
+
+/** An inline config as a profile draft the optimiser route can name; temporary. */
+export function profileDraft(profile) {
+  const { weights, base, usePrior, constraints } = profile.config;
+  return {
+    version: 1,
+    name: `eval-1196 ${profile.id}`.slice(0, 80),
+    description: "Temporary #1196 evaluation profile; deleted after the run.",
+    surfaces: ["playlists"],
+    weights,
+    ...(base ? { base } : {}),
+    usePrior,
+    constraints,
+  };
+}
+
 /** The tracks the optimiser can order: a BPM and a vibe vector, in playlist order. */
 export function orderingPool(tracks) {
   return tracks.filter((t) => Number(t.bpm) > 0 && Array.isArray(t._vectors?.default));
@@ -91,6 +124,8 @@ function parseArgs(argv) {
   return {
     outDir: opt("--out-dir", "eval-data/1196"),
     seeds: opt("--seeds", "evaluations/1196/seeds.json"),
+    // A holdout set (seeds.mjs --random-seed) is checked against its own hash.
+    seedsSha256: opt("--seeds-sha256", SEEDS_SHA256),
     profiles: opt("--profiles", PROFILES.join(",")).split(",").filter(Boolean),
     configs: argv.flatMap((a, i) => (a === "--config" ? [argv[i + 1]] : [])),
     modes: opt("--modes", MODES.join(",")).split(",").filter(Boolean),
@@ -105,7 +140,7 @@ async function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const env = worktreeEnv(root);
   const base = assertLocalUrl(args.base ?? env.appUrl);
-  const seeds = loadSeeds(args.seeds, SEEDS_SHA256);
+  const seeds = loadSeeds(args.seeds, args.seedsSha256);
   const friend = seeds.rule.friend_id;
   mkdirSync(join(args.outDir, "raw"), { recursive: true, mode: 0o700 });
 
@@ -145,7 +180,13 @@ async function main() {
       const tracks = [...pl.tracks]
         .sort((a, b) => a.position - b.position)
         .map(({ track_id, friend_id }) => ({ track_id, friend_id }));
-      return { key: `playlist:${p.playlist_id}`, kind: "playlist", tracks };
+      return {
+        key: `playlist:${p.playlist_id}`,
+        kind: "playlist",
+        name: pl.name,
+        size: tracks.length,
+        tracks,
+      };
     }),
   ];
 
@@ -162,7 +203,7 @@ async function main() {
   const results = {
     kind: "1196-results",
     schema_version: 1,
-    seeds_sha256: SEEDS_SHA256,
+    seeds_sha256: args.seedsSha256,
     generated_at: new Date().toISOString(),
     profiles: profiles.map(({ id, half_double, source }) => ({ id, half_double, source })),
     seeds: [],
@@ -179,12 +220,8 @@ async function main() {
       key: s.key,
       kind: s.kind,
       ...(s.stratum ? { stratum: s.stratum } : {}),
-      seed: {
-        track_id: last.track_id,
-        friend_id: last.friend_id,
-        bpm: last.bpm ?? null,
-        key: last.key ?? null,
-      },
+      ...(s.kind === "playlist" ? { name: s.name, size: s.size } : {}),
+      seed: seedOf(last),
       lists: {},
     };
     for (const profile of profiles) {
@@ -207,7 +244,24 @@ async function main() {
   results.sims = psqlJson(env.project, similaritySql(pairs)) ?? {};
 
   const vectors = {};
-  if (args.ordering) {
+  // Inline configs, stored for the optimiser route to name, and always removed.
+  const stored = new Map();
+  try {
+    if (args.ordering)
+      for (const profile of profiles.filter((p) => p.config)) {
+        const created = await api(base, "/api/ranking/profiles", {
+          friend_id: friend,
+          profile: profileDraft(profile),
+        });
+        stored.set(profile.id, created.id);
+      }
+    if (args.ordering) await runOrderings();
+  } finally {
+    for (const id of stored.values())
+      await api(base, `/api/ranking/profiles/${id}`, undefined, { method: "DELETE" });
+  }
+
+  async function runOrderings() {
     for (const s of seedList.filter((x) => x.kind === "playlist")) {
       const pool = orderingPool(s.tracks.map((t) => full.get(trackKey(t))).filter(Boolean));
       const body = pool.map(({ _vectors, ...t }) => t);
@@ -216,7 +270,8 @@ async function main() {
         results.tracks[trackKey(t)] = { bpm: t.bpm, key: t.key };
       }
       const runs = {};
-      for (const profile of profiles.filter((p) => !p.config)) {
+      for (const profile of profiles) {
+        const ref = profile.config ? stored.get(profile.id) : profile.id;
         runs[profile.id] = {};
         for (const mode of args.modes) {
           const times = mode === "genetic" ? args.geneticRuns : 1;
@@ -226,12 +281,12 @@ async function main() {
               playlist: body,
               mode,
               friend_id: friend,
-              ranking: profile.id,
+              ranking: ref,
             });
             const order = (Array.isArray(res.result) ? res.result : Object.values(res.result)).map(
               trackKey,
             );
-            if (res.ranking && res.ranking.id !== profile.id)
+            if (res.ranking && res.ranking.id !== ref)
               throw new Error(`${profile.id} ordered as ${res.ranking.id}`);
             runs[profile.id][mode].push(order);
           }
