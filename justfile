@@ -948,6 +948,13 @@ sync-album-covers:
     "{{album_covers_remote_path}}" \
     "{{album_covers_local_dir}}"
 
+# Needs `just worktree-services add optimize`; extra args go to run.mjs
+# (`--config name=file.json`). Writes eval-data/1196/report.md and summary.json.
+# Compare ranking profiles on this worktree's stack (#1196)
+eval-profiles *args:
+  {{mise_exec}} node evaluations/1196/run.mjs --out-dir eval-data/1196 {{args}}
+  {{mise_exec}} node evaluations/1196/report.mjs --out-dir eval-data/1196
+
 # Silent Docker deployment and two-engine lifecycle regressions (no speakers).
 server-players-smoke:
   {{buildkit_env}} docker build -t groovenet-owntone:693-test packages/groovenet-player/owntone

@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Suggestions review</title>
+    <style>
+      :root {
+        --ground: #f4f1ea;
+        --surface: #fffdf8;
+        --ink: #1b1a17;
+        --muted: #6b665c;
+        --rule: #d9d3c6;
+        --accent: #c2410c;
+        --accent-subtle: #fbe6d8;
+        --shadow: #1b1a17;
+        --mono: ui-monospace, "SF Mono", Menlo, monospace;
+        --body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #141311;
+          --surface: #1e1c19;
+          --ink: #f1ece2;
+          --muted: #a39d90;
+          --rule: #3a3631;
+          --accent: #fb923c;
+          --accent-subtle: #3b2416;
+          --shadow: #000;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font: 15px/1.4 var(--body);
+        padding-bottom: 112px;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .wrap {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .label {
+        font: 600 11px/16px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 16px;
+        border-bottom: 2px solid var(--ink);
+        padding-bottom: 12px;
+      }
+      header h1 {
+        font-size: 22px;
+        margin: 0;
+      }
+      .dots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        flex-basis: 100%;
+      }
+      .dot {
+        width: 28px;
+        height: 24px;
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        font: 600 10px/1 var(--mono);
+        padding: 0;
+      }
+      .dot.done {
+        background: var(--ink);
+        color: var(--surface);
+      }
+      .dot.current {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .block {
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        box-shadow: 4px 4px 0 var(--shadow);
+      }
+      .seed {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        padding: 14px;
+        margin: 16px 0;
+      }
+      .seed img,
+      .seed .ph {
+        width: 96px;
+        height: 96px;
+        flex: none;
+      }
+      .seed h2 {
+        margin: 2px 0;
+        font-size: 20px;
+      }
+      .cover {
+        object-fit: cover;
+        background: var(--rule);
+        display: block;
+      }
+      .ph {
+        background: var(--rule);
+      }
+      .lists {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      @media (max-width: 860px) {
+        .lists {
+          grid-template-columns: 1fr;
+        }
+      }
+      .list h3 {
+        margin: 0;
+        padding: 8px 12px;
+        border-bottom: 2px solid var(--ink);
+        font: 700 14px/20px var(--mono);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 36px 48px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 12px;
+        border-top: 1px solid var(--rule);
+      }
+      .row:first-of-type {
+        border-top: 0;
+      }
+      .row.playing {
+        background: var(--accent-subtle);
+      }
+      .row img,
+      .row .ph {
+        width: 48px;
+        height: 48px;
+      }
+      .play {
+        flex: none;
+        width: 36px;
+        height: 36px;
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        padding: 0;
+        font-size: 13px;
+        line-height: 1;
+      }
+      .play.on {
+        background: var(--ink);
+        color: var(--surface);
+      }
+      .play:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .t {
+        min-width: 0;
+      }
+      .t > b,
+      .t > span {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .t > span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .meta {
+        font: 12px/16px var(--mono);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .tag {
+        display: inline-block;
+        font: 600 10px/16px var(--mono);
+        text-transform: uppercase;
+        border: 1px solid var(--rule);
+        padding: 0 4px;
+        margin: 2px 4px 0 0;
+        color: var(--muted);
+      }
+      .tag.both {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .empty {
+        padding: 16px 12px;
+        color: var(--muted);
+      }
+      .answers {
+        margin: 24px 0;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+      .q {
+        display: grid;
+        gap: 6px;
+      }
+      .q strong {
+        font-size: 16px;
+      }
+      .seg {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .seg button {
+        min-width: 112px;
+        min-height: 40px;
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        padding: 6px 14px;
+        font: 600 13px var(--mono);
+        text-transform: uppercase;
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--surface);
+      }
+      textarea {
+        width: 100%;
+        min-height: 56px;
+        font: inherit;
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        color: var(--ink);
+        padding: 8px;
+      }
+      .nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .btn {
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        padding: 8px 14px;
+        font: 600 13px var(--mono);
+        text-transform: uppercase;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--ink);
+        box-shadow: 3px 3px 0 var(--shadow);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+        box-shadow: none;
+      }
+      .status {
+        color: var(--muted);
+        font: 12px var(--mono);
+      }
+      .player[hidden] {
+        display: none;
+      }
+      .player {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--surface);
+        border-top: 2px solid var(--ink);
+        padding: 10px 16px;
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+      .player img,
+      .player .ph {
+        width: 48px;
+        height: 48px;
+      }
+      .pl-top {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        min-width: 0;
+      }
+      .pl-top .t {
+        flex: 1;
+      }
+      .pl-ctl {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 6px;
+        flex-wrap: wrap;
+      }
+      .pl-ctl input[type="range"] {
+        flex: 1;
+        min-width: 160px;
+        accent-color: var(--accent);
+      }
+      .small {
+        border: 2px solid var(--ink);
+        background: var(--surface);
+        padding: 2px 8px;
+        font: 600 11px/18px var(--mono);
+      }
+      .src {
+        font: 11px var(--mono);
+        color: var(--muted);
+      }
+      .err {
+        color: var(--accent);
+      }
+      a {
+        color: inherit;
+      }
+      @media (max-width: 560px) {
+        .seed img,
+        .seed .ph {
+          width: 64px;
+          height: 64px;
+        }
+        .row {
+          grid-template-columns: 36px 40px 1fr;
+        }
+        .row img,
+        .row .ph {
+          width: 40px;
+          height: 40px;
+        }
+        .meta {
+          grid-column: 3;
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Suggestions review</h1>
+        <span class="label" id="progress"></span>
+        <div class="dots" id="dots" aria-label="Seeds"></div>
+      </header>
+      <main id="main"><p class="status">Loading…</p></main>
+    </div>
+    <div class="player" id="player" hidden>
+      <div id="pl-cover"></div>
+      <div>
+        <div class="pl-top">
+          <button class="play" id="pl-toggle" aria-label="Play or pause">▶</button>
+          <div class="t"><b id="pl-title"></b><span id="pl-sub"></span></div>
+          <span class="src" id="pl-src"></span>
+        </div>
+        <div class="pl-ctl">
+          <span class="meta" id="pl-time">0:00</span>
+          <input type="range" id="pl-seek" min="0" max="1000" value="0" aria-label="Seek" />
+          <button class="small" data-jump="0.25">25%</button>
+          <button class="small" data-jump="0.5">50%</button>
+          <button class="small" data-jump="0.75">75%</button>
+          <label class="src"><input type="checkbox" id="skip-intro" /> start at 30%</label>
+        </div>
+      </div>
+    </div>
+    <audio id="audio" preload="none"></audio>
+    <script>
+      const LABEL = { a: "A", b: "B", same: "No difference" };
+      const state = { items: [], media: {}, questions: {}, index: 0, draft: null, playing: null };
+      const $ = (id) => document.getElementById(id);
+      const audio = $("audio");
+      const keyOf = (t) => `${t.friend_id}:${t.track_id}`;
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
+      const fmt = (s) =>
+        Number.isFinite(s)
+          ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
+          : "–:––";
+      const store = {
+        get: (k) => {
+          try {
+            return localStorage.getItem(k);
+          } catch {
+            return null;
+          }
+        },
+        set: (k, v) => {
+          try {
+            localStorage.setItem(k, v);
+          } catch {}
+        },
+      };
+
+      function cover(t, size) {
+        const m = state.media[keyOf(t)];
+        return m?.cover
+          ? `<img class="cover" src="${esc(m.cover)}" alt="" width="${size}" height="${size}" loading="lazy" />`
+          : `<div class="ph"></div>`;
+      }
+      const meta = (t) => [t.bpm ? `${t.bpm} BPM` : "no BPM", t.key ?? "no key"].join(" · ");
+      const sub = (t) =>
+        [t.artist, [t.album, t.year].filter(Boolean).join(", ")].filter(Boolean).join(" — ");
+      const playable = (t) => {
+        const m = state.media[keyOf(t)];
+        return !!(m?.audio || m?.apple);
+      };
+
+      function row(t, where) {
+        const id = `${where}`;
+        const tags = [
+          ...(t.styles ?? []).map((s) => `<span class="tag">${esc(s)}</span>`),
+          t.in_both ? `<span class="tag both">In both</span>` : "",
+        ].join("");
+        return `<div class="row" data-row="${id}">
+          <button class="play" data-play="${id}" ${playable(t) ? "" : "disabled"} aria-label="Play ${esc(t.title)}">▶</button>
+          ${cover(t, 48)}
+          <div class="t"><b title="${esc(t.title)}">${esc(t.title)}</b><span title="${esc(sub(t))}">${esc(sub(t))}</span><div>${tags}</div></div>
+          <div class="meta">${esc(meta(t))}</div>
+        </div>`;
+      }
+
+      function trackAt(where) {
+        const item = state.items[state.index];
+        if (where === "seed") return { t: item.seed, label: "Seed" };
+        const [side, n] = where.split(":");
+        return { t: item[side][Number(n)], label: `List ${side.toUpperCase()} · ${Number(n) + 1}` };
+      }
+
+      function render() {
+        const item = state.items[state.index];
+        const answered = state.items.filter((i) => i.mix && i.set).length;
+        $("progress").textContent =
+          `Seed ${state.index + 1} of ${state.items.length} · ${answered} answered`;
+        $("dots").innerHTML = state.items
+          .map(
+            (it, i) =>
+              `<button class="dot ${it.mix && it.set ? "done" : ""} ${i === state.index ? "current" : ""}" data-go="${i}" aria-label="Seed ${i + 1}${it.mix && it.set ? ", answered" : ""}">${i + 1}</button>`,
+          )
+          .join("");
+        const d = state.draft;
+        const seed = item.seed;
+        const playlist =
+          seed.playlist !== undefined
+            ? `<div class="label">Playlist “${esc(seed.playlist)}” · ${esc(seed.tracks)} tracks · ending on</div>`
+            : `<div class="label">Seed track</div>`;
+        const list = (side) =>
+          `<section class="block list"><h3>List ${side.toUpperCase()}</h3>${
+            item[side].length
+              ? item[side].map((t, n) => row(t, `${side}:${n}`)).join("")
+              : `<div class="empty">No suggestions</div>`
+          }</section>`;
+        const seg = (q) =>
+          `<div class="seg" role="group" aria-label="${esc(state.questions[q])}">${[
+            "a",
+            "b",
+            "same",
+          ]
+            .map(
+              (v) =>
+                `<button data-q="${q}" data-v="${v}" aria-pressed="${d[q] === v}">${LABEL[v]}</button>`,
+            )
+            .join("")}</div>`;
+        $("main").innerHTML = `
+          <section class="block seed">
+            <button class="play" data-play="seed" ${playable(seed) ? "" : "disabled"} aria-label="Play seed">▶</button>
+            ${cover(seed, 96)}
+            <div class="t">${playlist}<h2>${esc(seed.title)}</h2><span>${esc(sub(seed))}</span>
+              <div class="meta" style="text-align:left">${esc(meta(seed))}</div>
+              <div>${(seed.styles ?? []).map((s) => `<span class="tag">${esc(s)}</span>`).join("")}</div></div>
+          </section>
+          <div class="lists">${list("a")}${list("b")}</div>
+          <section class="block answers">
+            <div class="q"><strong>1. ${esc(state.questions.mix)}</strong>${seg("mix")}</div>
+            <div class="q"><strong>2. ${esc(state.questions.set)}</strong>${seg("set")}</div>
+            <label class="q"><span class="label">Note (optional)</span><textarea id="note" placeholder="What decided it?">${esc(d.note)}</textarea></label>
+            <div class="nav">
+              <button class="btn" id="prev" ${state.index === 0 ? "disabled" : ""}>← Previous</button>
+              <button class="btn primary" id="save" ${d.mix && d.set ? "" : "disabled"}>Save &amp; next →</button>
+              <button class="btn" id="next" ${state.index === state.items.length - 1 ? "disabled" : ""}>Skip →</button>
+              <span class="status" id="saved">${item.mix && item.set ? `Saved: mix ${LABEL[item.mix]}, set ${LABEL[item.set]}` : "Not answered yet"}</span>
+            </div>
+          </section>`;
+        markPlaying();
+      }
+
+      function go(i) {
+        state.index = Math.max(0, Math.min(state.items.length - 1, i));
+        const it = state.items[state.index];
+        state.draft = { mix: it.mix, set: it.set, note: it.note ?? "" };
+        store.set("1196-index", String(state.index));
+        render();
+        window.scrollTo({ top: 0 });
+      }
+
+      function markPlaying() {
+        document
+          .querySelectorAll("[data-row]")
+          .forEach((el) =>
+            el.classList.toggle(
+              "playing",
+              state.playing?.index === state.index && el.dataset.row === state.playing.where,
+            ),
+          );
+        document.querySelectorAll("[data-play]").forEach((el) => {
+          const on =
+            state.playing?.index === state.index &&
+            el.dataset.play === state.playing.where &&
+            !audio.paused;
+          el.classList.toggle("on", on);
+          el.textContent = on ? "❚❚" : "▶";
+        });
+        $("pl-toggle").textContent = audio.paused ? "▶" : "❚❚";
+      }
+
+      async function play(where) {
+        if (state.playing?.index === state.index && state.playing.where === where) {
+          audio.paused ? audio.play() : audio.pause();
+          return;
+        }
+        const { t, label } = trackAt(where);
+        const m = state.media[keyOf(t)] ?? {};
+        state.playing = { index: state.index, where, t, m, triedApple: false };
+        $("player").hidden = false;
+        $("pl-cover").innerHTML = m.cover
+          ? `<img class="cover" src="${esc(m.cover)}" alt="" width="48" height="48" />`
+          : `<div class="ph"></div>`;
+        $("pl-title").textContent = t.title;
+        $("pl-sub").textContent = `${label} · ${sub(t)} · ${meta(t)}`;
+        if (m.audio) load(m.audio, "Full track");
+        else await apple();
+      }
+
+      function load(src, source) {
+        $("pl-src").textContent = source;
+        $("pl-src").classList.remove("err");
+        audio.src = src;
+        audio.play().catch(() => {});
+      }
+
+      async function apple() {
+        const p = state.playing;
+        if (!p || p.triedApple || !p.m.apple) return noAudio();
+        p.triedApple = true;
+        $("pl-src").textContent = "Finding a preview…";
+        try {
+          const res = await fetch(`/api/preview?track=${encodeURIComponent(keyOf(p.t))}`);
+          const { url } = await res.json();
+          if (state.playing !== p) return;
+          url ? load(url, "Apple preview (30 s)") : noAudio();
+        } catch {
+          noAudio();
+        }
+      }
+
+      function noAudio() {
+        const links = state.playing?.m.links ?? {};
+        const out = [
+          links.apple &&
+            `<a href="${esc(links.apple)}" target="_blank" rel="noopener">Apple Music</a>`,
+          links.youtube &&
+            `<a href="${esc(links.youtube)}" target="_blank" rel="noopener">YouTube</a>`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        $("pl-src").innerHTML = `<span class="err">No audio</span>${out ? ` · ${out}` : ""}`;
+        $("pl-src").classList.add("err");
+      }
+
+      audio.addEventListener("error", () => {
+        const p = state.playing;
+        if (!p) return;
+        if (!p.triedApple && p.m.apple) apple();
+        else {
+          noAudio();
+          if (p.m.audio && audio.src === p.m.audio)
+            $("pl-src").innerHTML +=
+              ` · <a href="${esc(new URL(p.m.audio).origin)}" target="_blank" rel="noopener">open production once to trust its certificate</a>`;
+        }
+      });
+      audio.addEventListener("loadedmetadata", () => {
+        if ($("skip-intro").checked && audio.duration > 60 && audio.currentTime < 1)
+          audio.currentTime = audio.duration * 0.3;
+      });
+      audio.addEventListener("timeupdate", () => {
+        $("pl-time").textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
+        if (audio.duration)
+          $("pl-seek").value = String(Math.round((audio.currentTime / audio.duration) * 1000));
+      });
+      ["play", "pause", "ended"].forEach((e) => audio.addEventListener(e, markPlaying));
+      $("pl-seek").addEventListener("input", (e) => {
+        if (audio.duration) audio.currentTime = (Number(e.target.value) / 1000) * audio.duration;
+      });
+      $("pl-toggle").addEventListener("click", () => (audio.paused ? audio.play() : audio.pause()));
+      document.querySelectorAll("[data-jump]").forEach((b) =>
+        b.addEventListener("click", () => {
+          if (audio.duration) audio.currentTime = audio.duration * Number(b.dataset.jump);
+        }),
+      );
+      $("skip-intro").checked = store.get("1196-skip-intro") === "1";
+      $("skip-intro").addEventListener("change", (e) =>
+        store.set("1196-skip-intro", e.target.checked ? "1" : "0"),
+      );
+
+      document.addEventListener("click", async (e) => {
+        const el = e.target.closest("button");
+        if (!el) return;
+        if (el.dataset.play) return play(el.dataset.play);
+        if (el.dataset.go) return go(Number(el.dataset.go));
+        if (el.dataset.q) {
+          state.draft[el.dataset.q] = el.dataset.v;
+          state.draft.note = $("note").value;
+          return render();
+        }
+        if (el.id === "prev") return go(state.index - 1);
+        if (el.id === "next") return go(state.index + 1);
+        if (el.id === "save") {
+          const item = state.items[state.index];
+          const body = {
+            id: item.id,
+            mix: state.draft.mix,
+            set: state.draft.set,
+            note: $("note").value,
+          };
+          el.disabled = true;
+          $("saved").textContent = "Saving…";
+          const res = await fetch("/api/answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const out = await res.json();
+          if (!res.ok) {
+            $("saved").textContent = `Not saved: ${out.error}`;
+            el.disabled = false;
+            return;
+          }
+          Object.assign(item, { mix: body.mix, set: body.set, note: body.note.trim() });
+          const next = state.items.findIndex((it, i) => i > state.index && !(it.mix && it.set));
+          if (out.answered === state.items.length) {
+            go(state.index);
+            $("saved").textContent = "All seeds answered. You can still revisit any of them.";
+          } else go(next >= 0 ? next : state.items.findIndex((it) => !(it.mix && it.set)));
+        }
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.target.closest("textarea, input")) return;
+        if (e.code === "Space" && state.playing) {
+          e.preventDefault();
+          audio.paused ? audio.play() : audio.pause();
+        }
+        if (e.key === "ArrowRight" && audio.duration)
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+        if (e.key === "ArrowLeft" && audio.duration)
+          audio.currentTime = Math.max(0, audio.currentTime - 10);
+      });
+
+      fetch("/api/sheet")
+        .then((r) => r.json())
+        .then((data) => {
+          Object.assign(state, { items: data.items, media: data.media, questions: data.questions });
+          const saved = Number(store.get("1196-index"));
+          const first = state.items.findIndex((it) => !(it.mix && it.set));
+          go(
+            Number.isInteger(saved) && saved >= 0 && saved < state.items.length
+              ? saved
+              : Math.max(0, first),
+          );
+        })
+        .catch((err) => {
+          $("main").innerHTML =
+            `<p class="status err">Couldn't load the sheet: ${esc(err.message)}</p>`;
+        });
+    </script>
+  </body>
+</html>
