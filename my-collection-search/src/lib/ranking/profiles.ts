@@ -73,6 +73,9 @@ export type StoredRankingProfile = {
   surfaces: unknown;
   version: number;
   config: unknown;
+  author?: string | null;
+  source_handle?: string | null;
+  origin?: "file" | "friend" | null;
 };
 
 /** A stored row as a profile, or null when it doesn't parse. */
@@ -81,6 +84,7 @@ export function parseStoredProfile(row: StoredRankingProfile): RankingProfile | 
     row.config && typeof row.config === "object" && !Array.isArray(row.config) ? row.config : {};
   const parsed = rankingProfileSchema.safeParse({
     ...config,
+    ...(row.author == null ? {} : { author: row.author }),
     version: row.version,
     id: String(row.id),
     name: row.name,
@@ -94,7 +98,12 @@ export function parseStoredProfile(row: StoredRankingProfile): RankingProfile | 
 /** A stored row for listing: parsed, or Default's config under its own name, marked invalid. */
 export function storedProfileEntry(row: StoredRankingProfile): RankingProfileEntry {
   const parsed = parseStoredProfile(row);
-  if (parsed) return parsed;
+  if (parsed)
+    return {
+      ...parsed,
+      ...(row.origin == null ? {} : { origin: row.origin }),
+      ...(row.source_handle == null ? {} : { source_handle: row.source_handle }),
+    };
   const name = typeof row.name === "string" && row.name.trim() ? row.name.trim() : "Unreadable";
   return {
     ...DEFAULT_PROFILE,
@@ -112,12 +121,14 @@ export function draftToStored(draft: RankingProfileDraft): {
   description: string;
   surfaces: RankingSurface[];
   version: number;
+  author?: string;
   config: Pick<RankingConfig, "weights" | "base" | "usePrior" | "constraints">;
 } {
   const { name, description, surfaces, version, weights, base, usePrior, constraints } = draft;
   return {
     name,
     description,
+    ...(draft.author === undefined ? {} : { author: draft.author }),
     surfaces,
     version,
     config: { weights, ...(base ? { base } : {}), usePrior, constraints },
@@ -136,6 +147,7 @@ export function profileToDraft(
   return {
     version,
     name,
+    ...(profile.author === undefined ? {} : { author: profile.author }),
     description,
     surfaces,
     weights,

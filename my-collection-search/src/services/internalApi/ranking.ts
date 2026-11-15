@@ -1,3 +1,4 @@
+import type { RankingProfileFile, RankingProfileImportResponse } from "@groovenet/contracts";
 import type {
   RankingActiveResponse,
   RankingActiveUpdate,
@@ -63,4 +64,24 @@ export function fetchRankingPreview(
     breakdown: true,
     ranking_config: config,
   });
+}
+
+export function exportRankingProfile(id: string): Promise<RankingProfileFile> {
+  return http(`${profileUrl(id)}/export`, { cache: "no-store" });
+}
+export function importRankingProfile(
+  friendId: number,
+  file: string,
+): Promise<RankingProfileImportResponse> {
+  return http("/api/ranking/profiles/import", json("POST", { friend_id: friendId, file }));
+}
+export function useFriendRankingProfile(
+  id: string,
+  friendId: number,
+  sourceFriendId: number,
+): Promise<RankingProfile> {
+  return http(
+    `${profileUrl(id)}/use-friend`,
+    json("POST", { friend_id: friendId, source_friend_id: sourceFriendId }),
+  );
 }

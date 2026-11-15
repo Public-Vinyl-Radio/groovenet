@@ -289,6 +289,12 @@ export type AnalyticsEvents = {
 
   // Ranking profiles (#1192). `profile` and `from` are a preset id or
   // `custom`: never a profile's name, and never a stored profile's id.
+  ranking_profile_exported: ServerSource & {
+    profile: RankingPresetId | "custom";
+    signal_count: number;
+  };
+  ranking_profile_imported: ServerSource & { profile: "custom"; warning_count: number };
+  ranking_profile_used_from_friend: ServerSource & { profile: "custom"; signal_count: number };
   ranking_profile_chosen: ServerSource & {
     profile: RankingPresetId | "custom";
     surfaces: RankingSurface[];

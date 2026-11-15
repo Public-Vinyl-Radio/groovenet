@@ -93,3 +93,24 @@ describe("ranking profile methods (#1192)", () => {
     });
   });
 });
+
+it("sends exact sharing requests", async () => {
+  await client().exportRankingProfile("a/b");
+  await client().importRankingProfile(3, "raw file");
+  await client().useFriendRankingProfile("a/b", 3, 4);
+  expect(requestMock.mock.calls.map(([config]) => config)).toEqual([
+    { method: "GET", url: "/ranking/profiles/a%2Fb/export", data: undefined, params: undefined },
+    {
+      method: "POST",
+      url: "/ranking/profiles/import",
+      data: { friend_id: 3, file: "raw file" },
+      params: undefined,
+    },
+    {
+      method: "POST",
+      url: "/ranking/profiles/a%2Fb/use-friend",
+      data: { friend_id: 3, source_friend_id: 4 },
+      params: undefined,
+    },
+  ]);
+});

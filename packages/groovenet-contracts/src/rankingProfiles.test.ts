@@ -215,6 +215,10 @@ describe("ranking profiles", () => {
 
   it("publishes JSON schemas for every request and response", () => {
     expect(Object.keys(rankingJsonSchemas)).toEqual([
+      "RankingProfileFile",
+      "RankingProfileImportRequest",
+      "RankingProfileImportResponse",
+      "RankingProfileFriendCopyRequest",
       "RankingConfig",
       "RankingProfile",
       "RankingProfileDraft",

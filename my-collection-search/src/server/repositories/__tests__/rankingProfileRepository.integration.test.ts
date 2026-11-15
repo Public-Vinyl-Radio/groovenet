@@ -1,3 +1,4 @@
+import { exportRankingProfileFile, parseRankingProfileFile } from "@groovenet/contracts";
 /**
  * Ranking profiles against a real Postgres (#1192): the per-library limit in
  * one statement, the surface CHECKs, one profile per selection, and deleting a
@@ -56,6 +57,27 @@ describe("ranking profiles (integration)", () => {
     expect(await repo.listByFriend(mine)).toHaveLength(1);
     expect(await repo.listByFriend(theirs)).toEqual([]);
   });
+
+  dbTest(
+    "round trips through JSONB byte-identically and stores independent friend provenance",
+    async () => {
+      const exported = exportRankingProfileFile(RANKING_PRESETS.beatmatcher);
+      const { format: _format, ...draft } = parseRankingProfileFile(JSON.stringify(exported)).file;
+      void _format;
+      const imported = await service.create(mine, { ...draft, author: "original" }, "file");
+      expect(JSON.stringify(exportRankingProfileFile(await service.get(imported.id)))).toBe(
+        JSON.stringify(
+          exportRankingProfileFile({ ...RANKING_PRESETS.beatmatcher, author: "original" }),
+        ),
+      );
+      const copied = await service.useFriend(imported.id, theirs, mine);
+      expect(copied).toMatchObject({ origin: "friend", source_handle: MINE, author: "original" });
+      await service.update(imported.id, { ...draft, name: "Changed" });
+      expect((await service.get(copied.id)).name).toBe("Beatmatcher");
+      await service.remove(imported.id);
+      await service.remove(copied.id);
+    },
+  );
 
   dbTest("refuses past the per-library limit", async () => {
     await repo.insert(theirs, write(), 2);

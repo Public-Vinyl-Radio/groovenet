@@ -47,6 +47,9 @@ describe("RankingProfileRepository", () => {
       1,
       '{"weights":{"bpm_distance":1}}',
       50,
+      null,
+      null,
+      null,
     ]);
     expect(await repo.insert(1, write, 50)).toBeNull();
   });
@@ -85,4 +88,13 @@ describe("RankingProfileRepository", () => {
     await repo.setSelections(1, ["related"], { profileId: 3 });
     expect(dbQuery.mock.calls[2][1]).toEqual([1, ["related"], null, 3]);
   });
+});
+
+it("persists provenance and author independently of config", async () => {
+  const imported = { ...write, author: "dj", origin: "file" as const, source_handle: "source" };
+  dbQuery.mockResolvedValue({ rows: [{ ...row, ...imported }] });
+  expect(await repo.insert(1, imported, 50)).toMatchObject({ author: "dj", origin: "file" });
+  expect(dbQuery.mock.calls[0][1].slice(-3)).toEqual(["dj", "file", "source"]);
+  await repo.update(3, imported);
+  expect(dbQuery.mock.calls[1][1].at(-1)).toBe("dj");
 });

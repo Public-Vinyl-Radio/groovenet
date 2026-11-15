@@ -1,3 +1,5 @@
+import { readFile, writeFile, stat } from "node:fs/promises";
+import { MAX_RANKING_FILE_BYTES, parseRankingProfileFile } from "@groovenet/contracts";
 /**
  * `groovenet profiles` (#1192): list, show, copy a preset into your own
  * profiles, choose the one each surface ranks with, and delete. Presets are
@@ -131,6 +133,34 @@ export async function runDelete(client: ProfilesClient, id: string, json: boolea
   io.log(json ? JSON.stringify(result, null, 2) : `✓ Deleted profile ${result.id}.`);
 }
 
+export async function runExport(
+  client: Pick<GroovenetClient, "exportRankingProfile">,
+  id: string,
+  output: string | undefined,
+  io: Io,
+) {
+  const file = await client.exportRankingProfile(id);
+  const text = JSON.stringify(file, null, 2) + "\n";
+  if (output) await writeFile(output, text);
+  else io.log(text.trimEnd());
+}
+
+export async function runImport(
+  client: Pick<GroovenetClient, "importRankingProfile">,
+  path: string,
+  friendId: number,
+  io: Io & { warn: (line: string) => void },
+) {
+  if ((await stat(path)).size > MAX_RANKING_FILE_BYTES)
+    throw new Error(`Ranking file exceeds ${MAX_RANKING_FILE_BYTES} bytes`);
+  const text = await readFile(path, "utf8");
+  // Validate locally but send the original so the server returns the same warnings.
+  parseRankingProfileFile(text);
+  const result = await client.importRankingProfile(friendId, text);
+  result.warnings.forEach((warning) => io.warn(warning));
+  io.log(JSON.stringify(result.profile, null, 2));
+}
+
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
   return new GroovenetClient({
@@ -158,12 +188,37 @@ function handle<A extends unknown[]>(action: (...args: A) => Promise<void>) {
 export function addProfilesCommands(program: Command): void {
   const profiles = program
     .command("profiles")
+    .alias("ranking-profiles")
     .description("Ranking profiles: how suggestions and recommendations are ranked");
   const friend = [
     "--friend-id <id>",
     "Library (default: default_friend_id)",
     boundedIntOption(1),
   ] as const;
+
+  profiles
+    .command("export <id>")
+    .description("Export a portable JSON ranking profile")
+    .option("-o, --output <file>", "Write to file instead of stdout")
+    .action(
+      handle(async (id: string, opts: { output?: string }) =>
+        runExport(makeClient(), id, opts.output, io),
+      ),
+    );
+
+  profiles
+    .command("import <file>")
+    .description("Import a portable JSON ranking profile; warnings go to stderr")
+    .option(...friend)
+    .option("--json", "Output as JSON")
+    .action(
+      handle(async (path: string, opts: { friendId?: number }) =>
+        runImport(makeClient(), path, friendIdOf(opts), {
+          ...io,
+          warn: (line) => console.error(line),
+        }),
+      ),
+    );
 
   profiles
     .command("list")

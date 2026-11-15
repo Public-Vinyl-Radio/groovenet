@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  exportRankingProfile,
+  importRankingProfile,
+  useFriendRankingProfile,
   copyRankingProfile,
   createRankingProfile,
   deleteRankingProfile,
@@ -60,4 +63,15 @@ describe("ranking internal API", () => {
       },
     ]);
   });
+});
+
+it("sends sharing requests with escaped ids", async () => {
+  await exportRankingProfile("a/b");
+  await importRankingProfile(3, "file");
+  await useFriendRankingProfile("a/b", 3, 4);
+  expect(calls()).toEqual([
+    ["/api/ranking/profiles/a%2Fb/export", "GET", undefined],
+    ["/api/ranking/profiles/import", "POST", { friend_id: 3, file: "file" }],
+    ["/api/ranking/profiles/a%2Fb/use-friend", "POST", { friend_id: 3, source_friend_id: 4 }],
+  ]);
 });

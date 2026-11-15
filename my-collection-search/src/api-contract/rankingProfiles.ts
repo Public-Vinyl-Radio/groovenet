@@ -1,3 +1,10 @@
+import {
+  rankingProfileFileSchema,
+  rankingProfileImportSchema,
+  rankingProfileImportResponseSchema,
+  rankingProfileFriendCopySchema,
+  exportRankingProfileFile,
+} from "@groovenet/contracts";
 import { z } from "zod";
 import type { ApiContractRoute } from "./routes";
 import {
@@ -216,6 +223,80 @@ export const rankingProfileContracts: ApiContractRoute[] = [
           "Invalid request, a surface the profile doesn't apply to, or a profile that can't be read",
         ),
         "404": errorResponse("Profile or library not found"),
+      },
+    },
+  },
+  {
+    operationId: "exportRankingProfile",
+    method: "get",
+    path: "/api/ranking/profiles/{id}/export",
+    summary: "Export a portable ranking profile without collection data",
+    tags: ["Ranking"],
+    successSchema: rankingProfileFileSchema,
+    errorSchema: error,
+    openapi: {
+      parameters: [idParam],
+      responses: {
+        "200": {
+          description: "Portable file",
+          content: json("RankingProfileFile", exportRankingProfileFile(RANKING_PRESETS.selector)),
+        },
+        "400": errorResponse("Unreadable profile"),
+        "404": errorResponse("Profile not found"),
+      },
+    },
+  },
+  {
+    operationId: "importRankingProfile",
+    method: "post",
+    path: "/api/ranking/profiles/import",
+    summary: "Import a portable file, dropping unknown signals with warnings",
+    tags: ["Ranking"],
+    bodySchema: rankingProfileImportSchema,
+    successSchema: rankingProfileImportResponseSchema,
+    errorSchema: error,
+    openapi: {
+      requestBody: {
+        required: true,
+        content: json("RankingProfileImportRequest", {
+          friend_id: 1,
+          file: JSON.stringify(exportRankingProfileFile(RANKING_PRESETS.selector)),
+        }),
+      },
+      responses: {
+        "201": {
+          description: "Imported profile and warnings",
+          content: json("RankingProfileImportResponse", { profile: stored, warnings: [] }),
+        },
+        "400": errorResponse("Invalid, oversized or hostile file; error names the problem"),
+        "404": errorResponse("Library not found"),
+        "409": errorResponse("Profile limit reached"),
+      },
+    },
+  },
+  {
+    operationId: "useFriendRankingProfile",
+    method: "post",
+    path: "/api/ranking/profiles/{id}/use-friend",
+    summary: "Copy a registered friend's profile and use it; later edits do not propagate",
+    tags: ["Ranking"],
+    bodySchema: rankingProfileFriendCopySchema,
+    successSchema: rankingProfileEntrySchema,
+    errorSchema: error,
+    openapi: {
+      parameters: [idParam],
+      requestBody: {
+        required: true,
+        content: json("RankingProfileFriendCopyRequest", { friend_id: 1, source_friend_id: 2 }),
+      },
+      responses: {
+        "201": {
+          description: "Independent copy, now active",
+          content: json("RankingProfile", stored),
+        },
+        "400": errorResponse("Invalid request or unreadable profile"),
+        "404": errorResponse("Friend or profile not found in that library"),
+        "409": errorResponse("Profile limit reached"),
       },
     },
   },

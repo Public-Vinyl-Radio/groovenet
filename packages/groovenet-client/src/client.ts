@@ -1,3 +1,4 @@
+import type { RankingProfileFile, RankingProfileImportResponse } from "@groovenet/contracts";
 import type {
   ArtistSplitProposal,
   ArtistReviewAction,
@@ -877,6 +878,28 @@ export class GroovenetClient {
       undefined,
       params,
     );
+  }
+
+  async exportRankingProfile(id: string): Promise<RankingProfileFile> {
+    return this.request("GET", `/ranking/profiles/${encodeURIComponent(id)}/export`);
+  }
+
+  async importRankingProfile(
+    friendId: number,
+    file: string,
+  ): Promise<RankingProfileImportResponse> {
+    return this.request("POST", "/ranking/profiles/import", { friend_id: friendId, file });
+  }
+
+  async useFriendRankingProfile(
+    id: string,
+    friendId: number,
+    sourceFriendId: number,
+  ): Promise<RankingProfileEntry> {
+    return this.request("POST", `/ranking/profiles/${encodeURIComponent(id)}/use-friend`, {
+      friend_id: friendId,
+      source_friend_id: sourceFriendId,
+    });
   }
 
   // ─── Ranking profiles (#1192) ──────────────────────────────────────────────

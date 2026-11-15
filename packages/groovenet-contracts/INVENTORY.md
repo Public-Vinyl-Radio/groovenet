@@ -148,6 +148,9 @@ is closed; #606 owns them (its album half is migrated).
 | PUT | `/api/ranking/profiles/{id}` | ranking | contracts |  |
 | DELETE | `/api/ranking/profiles/{id}` | ranking | contracts |  |
 | POST | `/api/ranking/profiles/{id}/copy` | ranking | contracts |  |
+| GET | `/api/ranking/profiles/{id}/export` | ranking | contracts | Portable file, no collection data (#1195). |
+| POST | `/api/ranking/profiles/import` | ranking | contracts | Bounded, strict import with signal warnings (#1195). |
+| POST | `/api/ranking/profiles/{id}/use-friend` | ranking | contracts | Independent copy from a registered friend (#1195). |
 | PUT | `/api/ranking/active` | ranking | contracts |  |
 | POST | `/api/record-actions` | record care | contracts |  |
 | DELETE | `/api/record-actions/{id}` | record care | contracts |  |
