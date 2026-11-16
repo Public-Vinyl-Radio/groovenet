@@ -13,6 +13,39 @@ const HOUSE: GenreRef = { id: "house", parentId: "electronic" };
 const TECHNO: GenreRef = { id: "techno", parentId: "electronic" };
 const SALSA: GenreRef = { id: "salsa", parentId: "latin" };
 
+describe("calculateCamelotDistance, stored key spellings (#1211)", () => {
+  it("ignores case", () => {
+    expect(calculateCamelotDistance("C major", "C Major")).toBe(0);
+    expect(calculateCamelotDistance("c MAJOR", "a minor")).toBe(0.5);
+  });
+
+  it("reads sharps and flats, and enharmonics as the same key", () => {
+    expect(calculateCamelotDistance("F# minor", "F# minor")).toBe(0);
+    expect(calculateCamelotDistance("Ab minor", "G# minor")).toBe(0);
+    expect(calculateCamelotDistance("Bb major", "F major")).toBe(1);
+    // Db major is 3B, not 1B.
+    expect(calculateCamelotDistance("Db major", "C# major")).toBe(0);
+    expect(calculateCamelotDistance("Db major", "Ab major")).toBe(1);
+    expect(calculateCamelotDistance("Db major", "B major")).toBe(2);
+  });
+
+  it("counts relative major/minor as 0.5 and a mode change as +0.5", () => {
+    expect(calculateCamelotDistance("C major", "A minor")).toBe(0.5);
+    expect(calculateCamelotDistance("C major", "E minor")).toBe(1.5);
+    expect(calculateCamelotDistance("C major", "A major")).toBe(3);
+  });
+
+  it("reads Camelot codes too", () => {
+    expect(calculateCamelotDistance("8B", "8A")).toBe(0.5);
+  });
+
+  it("is null for an unknown key on either side", () => {
+    expect(calculateCamelotDistance("H major", "C major")).toBeNull();
+    expect(calculateCamelotDistance("C major", "nonsense")).toBeNull();
+    expect(calculateCamelotDistance("", "C major")).toBeNull();
+  });
+});
+
 describe("calculateCamelotDistance", () => {
   it("returns 0 for same key", () => {
     expect(calculateCamelotDistance("C Major", "C Major")).toBeCloseTo(0, 3);
