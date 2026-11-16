@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import type { Track } from "@/types/track";
 import { rankSuggestions, type SuggestionCandidate } from "@/lib/rankSuggestions";
+import { MIXABLE_RANKING_CONFIG, STRICT_RANKING_CONFIG } from "@/lib/ranking/configs";
 
 /** Deterministic PRNG (mulberry32), so the fixture is the same on every run. */
 function prng(seed: number) {
@@ -189,5 +190,20 @@ describe("suggestion ranking golden ordering", () => {
   it("candidates with only one similarity score", () => {
     const one = pool().filter((c) => (c._simIdentity == null) !== (c._simAudio == null));
     expect(summary(rankSuggestions(one, { seed, filters: both }))).toMatchSnapshot();
+  });
+
+  // The internal configs carry a `camelot` key rule (#1211): stored spellings
+  // such as "C major" once passed it unchecked.
+  it.each([
+    ["mixable", MIXABLE_RANKING_CONFIG],
+    ["strict", STRICT_RANKING_CONFIG],
+  ])("%s config, stored-format keys", (_name, config) => {
+    const house = [{ id: "house", parent_id: null }] as Candidate["track_genres"];
+    const stored = track("seed", { bpm: "124", key: "C major", track_genres: house });
+    // Every other candidate shares the seed's genre, so strict's genre floor leaves some.
+    const candidates = pool().map((c, i) => (i % 2 ? c : { ...c, track_genres: house }));
+    expect(
+      summary(rankSuggestions(candidates, { seed: stored, config, filters: both })),
+    ).toMatchSnapshot();
   });
 });

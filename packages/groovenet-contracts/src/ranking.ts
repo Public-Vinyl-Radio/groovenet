@@ -92,7 +92,10 @@ export const rankingConstraintsSchema = z
     /** Reject when both tempos are known and further apart than `max`. */
     bpm_window: bpmWindowSchema.nullable().optional(),
     /**
-     * Reject when both keys are known and further apart than `max`.
+     * Reject when both keys are known and further apart than `max`. A key
+     * that is missing or not recognised on either side passes, under both
+     * metrics. Keys are read case-insensitively with enharmonic spellings
+     * (`C major`, `F# minor`, `Db major` = 3B).
      * `wheel` counts steps round the Camelot wheel, relative major/minor
      * as one (same = 0, adjacent = 1); `camelot` is the pre-scorer's
      * distance, relative major/minor 0.5 and a mode change +0.5.

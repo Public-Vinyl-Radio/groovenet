@@ -186,6 +186,29 @@ describe("constraints", () => {
     expect(scoreCandidate(majorSeed, { key: "E Minor" }, c).failed).toEqual(["key_rule"]);
   });
 
+  it("key_rule on the pre-scorer's metric reads stored key spellings (#1211)", () => {
+    const c = config({ constraints: { key_rule: { metric: "camelot", max: 1 } } });
+    const rejects = (seedKey: string | null, key: string | null) =>
+      scoreCandidate({ key: seedKey }, { key }, c).failed;
+    // Case: the stored spelling is lower case.
+    expect(rejects("C major", "C Major")).toEqual([]);
+    expect(rejects("C major", "A major")).toEqual(["key_rule"]);
+    // Sharps and flats, and enharmonics (Db major = 3B).
+    expect(rejects("F# minor", "F# Minor")).toEqual([]);
+    expect(rejects("F# minor", "C minor")).toEqual(["key_rule"]);
+    expect(rejects("Bb major", "F major")).toEqual([]);
+    expect(rejects("Bb major", "E major")).toEqual(["key_rule"]);
+    expect(rejects("Db major", "Ab major")).toEqual([]);
+    expect(rejects("Db major", "C major")).toEqual(["key_rule"]);
+    // Relative major/minor.
+    expect(rejects("C major", "A minor")).toEqual([]);
+    // Unknown or missing on either side passes.
+    expect(rejects("C major", "nonsense")).toEqual([]);
+    expect(rejects("nonsense", "C major")).toEqual([]);
+    expect(rejects(null, "C major")).toEqual([]);
+    expect(rejects("C major", null)).toEqual([]);
+  });
+
   it("genre_floor rejects below the floor and when either side has no genres", () => {
     const c = config({ constraints: { genre_floor: { min: MIN_GENRE_OVERLAP } } });
     expect(failed(c, { genres: [{ id: "house", parentId: null }] })).toEqual([]);

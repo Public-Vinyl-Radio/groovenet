@@ -62,6 +62,14 @@ describe("getCamelotCode", () => {
     ["B Minor", "10A"],
     ["Unknown Key", ""],
     [null, ""],
+    // Pinned on purpose (#1211): this feeds the audio vibe embedding text, so
+    // changing it moves every audio_vibe vector. Stored spellings ("C major")
+    // and the wrong "Db Major" -> 1B stay until the embedding template is
+    // versioned (#407).
+    ["C major", ""],
+    ["F# minor", ""],
+    ["Bb major", ""],
+    ["Db Major", "1B"],
   ])("getCamelotCode(%s) === %s", (input, expected) => {
     expect(getCamelotCode(input as never)).toBe(expected);
   });

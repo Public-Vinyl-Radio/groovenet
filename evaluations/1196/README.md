@@ -141,7 +141,7 @@ its differences under ~1 BPM as noise.
   more, but nothing in the app shows them.
 - **Bug: the Camelot-metric key rule never fires on this collection.** Keys
   are stored as `C major`; the pre-scorer's `getCamelotCode` maps only
-  `C Major`, so `calculateCamelotDistance` returns null and the
+  `C Major`, so `calculateCamelotDistance` (now `camelotCodeDistance`) returns null and the
   `key_rule { metric: "camelot" }` constraint passes every candidate. That is
   why mixable and strict hold tempo (96%, 100% within ±6%) but not key (52%,
   45% compatible). The presets use the `wheel` metric (`camelotOf`, which
