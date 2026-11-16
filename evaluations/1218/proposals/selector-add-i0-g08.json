@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "id": "x",
+  "usePrior": true,
+  "constraints": {},
+  "weights": {
+    "identity_similarity": 0,
+    "vibe_similarity": 1,
+    "genre_overlap": 0.8,
+    "era": 0.13,
+    "energy": 0.21,
+    "bpm_distance": 0.01
+  }
+}

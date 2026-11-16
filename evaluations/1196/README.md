@@ -1,5 +1,11 @@
 # #1196 — do the ranking presets do what they claim?
 
+> **Since #1218** the similarity signals are ranked within the candidate pool
+> and Beatmatcher and Selector are re-tuned for it. The numbers below are
+> `main` before that change; `evaluations/1218/README.md` has the before →
+> after tables, the re-tune and its blind review. The `proposals/` here were
+> tuned on the raw scale; `configs.mjs` still loads them, now on ranks.
+
 Phase 6 of #1190. Compares the ranking profiles on the real collection:
 **Default** (today's behaviour, the baseline), **Beatmatcher** and **Selector**,
 plus the internal **blend**, **mixable** and **strict** configs as reference
