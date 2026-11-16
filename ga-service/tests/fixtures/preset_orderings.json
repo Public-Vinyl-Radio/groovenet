@@ -4,11 +4,11 @@
     "beatmatcher": {
       "version": 2,
       "weights": {
-        "metadata": 0.011923076923076925,
-        "embedding": 0.11923076923076924,
-        "energy": 0.011923076923076925,
-        "bpm": 0.7153846153846154,
-        "key": 0.07153846153846154,
+        "metadata": 0.013098591549295777,
+        "embedding": 0.039295774647887326,
+        "energy": 0.013098591549295777,
+        "bpm": 0.7859154929577465,
+        "key": 0.07859154929577465,
         "same_artist": 0.2,
         "same_album": 0.12
       },
@@ -29,10 +29,10 @@
     "selector": {
       "version": 2,
       "weights": {
-        "metadata": 0.20071942446043164,
-        "embedding": 0.6690647482014388,
-        "energy": 0.0535251798561151,
-        "bpm": 0.006690647482014388,
+        "metadata": 0.5531598513011152,
+        "embedding": 0.34572490706319703,
+        "energy": 0.027657992565055762,
+        "bpm": 0.0034572490706319702,
         "key": 0,
         "same_artist": 0.2,
         "same_album": 0.12
@@ -47,23 +47,23 @@
   },
   "orderings": {
     "beatmatcher": {
-      "genetic": ["w1", "b4", "b2", "w3", "w5", "w4", "w2", "b3", "b1", "b5"],
+      "genetic": ["w5", "w3", "w1", "b4", "b2", "b5", "b3", "b1", "w4", "w2"],
       "greedy": ["w1", "w3", "w5", "b4", "b2", "b5", "b3", "b1", "w4", "w2"],
       "cohesive_blocks": ["w1", "w3", "w2", "w4", "w5", "b4", "b2", "b5", "b3", "b1"]
     },
     "selector": {
-      "genetic": ["b5", "b1", "b3", "b2", "b4", "w2", "w5", "w3", "w1", "w4"],
-      "greedy": ["w1", "w3", "w5", "w4", "w2", "b2", "b4", "b5", "b1", "b3"],
-      "cohesive_blocks": ["w5", "w3", "w1", "w4", "w2", "b4", "b2", "b5", "b1", "b3"]
+      "genetic": ["b3", "b5", "b1", "b2", "b4", "w4", "w2", "w1", "w5", "w3"],
+      "greedy": ["w1", "w5", "w3", "w2", "w4", "b2", "b5", "b1", "b3", "b4"],
+      "cohesive_blocks": ["w5", "w3", "w1", "w2", "w4", "b4", "b2", "b5", "b1", "b3"]
     }
   },
   "metrics": {
     "beatmatcher": {
       "genetic": {
         "transitions": 9,
-        "bpm_jumps": 35.0,
+        "bpm_jumps": 38.0,
         "key_clashes": 1,
-        "vibe_distance": 2.3213196683625714
+        "vibe_distance": 1.6176224115637319
       },
       "greedy": {
         "transitions": 9,
@@ -81,21 +81,21 @@
     "selector": {
       "genetic": {
         "transitions": 9,
-        "bpm_jumps": 109.0,
-        "key_clashes": 4,
-        "vibe_distance": 0.7181168517569961
+        "bpm_jumps": 88.0,
+        "key_clashes": 3,
+        "vibe_distance": 0.7742693973060452
       },
       "greedy": {
         "transitions": 9,
-        "bpm_jumps": 87.0,
-        "key_clashes": 3,
-        "vibe_distance": 0.6973610504253519
+        "bpm_jumps": 115.0,
+        "key_clashes": 4,
+        "vibe_distance": 0.7703970298764468
       },
       "cohesive_blocks": {
         "transitions": 9,
         "bpm_jumps": 89.0,
         "key_clashes": 3,
-        "vibe_distance": 0.7142359648362445
+        "vibe_distance": 0.7724116440244898
       }
     }
   }
