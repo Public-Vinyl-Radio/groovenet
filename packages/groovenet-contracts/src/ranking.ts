@@ -459,12 +459,11 @@ export function parseRankingProfileFile(input: unknown): {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new RankingImportError("Ranking file must be an object");
   const migrated = migrateRankingFile(value as Record<string, unknown>);
-  const warnings: string[] = [];
+  // The steps the file took, by the version each started from.
   const from = (value as Record<string, unknown>).version as number;
-  for (let v = from; v < RANKING_SCHEMA_VERSION; v++) {
-    const warning = RANKING_FILE_MIGRATION_WARNINGS[v];
-    if (warning) warnings.push(warning);
-  }
+  const warnings: string[] = Object.entries(RANKING_FILE_MIGRATION_WARNINGS)
+    .filter(([version]) => Number(version) >= from)
+    .map(([, warning]) => warning);
   const known = (signal: string) => {
     if ((RANKING_SIGNAL_IDS as readonly string[]).includes(signal)) return true;
     warnings.push(`Dropped unknown signal: ${signal}`);
