@@ -262,7 +262,7 @@ describe("rankSuggestions with a ranking config (#1191)", () => {
 
   it("ranks by the config it is given instead of the default", () => {
     const byRating = rankingConfigSchema.parse({
-      version: 1,
+      version: 2,
       id: "by-rating",
       weights: { identity_similarity: 0.1, rating: 1 },
     });

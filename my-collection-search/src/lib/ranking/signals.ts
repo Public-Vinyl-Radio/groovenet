@@ -1,7 +1,9 @@
 /**
  * The signal registry (#1191): every signal the ranker computes, once per
  * candidate, normalised to [0, 1] (higher is a closer match) or null when
- * either side lacks the data. Profiles (#1192) key their weights on the ids
+ * either side lacks the data. The similarity signals are normalised within
+ * the candidate pool (#1218, see `poolRank`); every other signal has a fixed
+ * scale. Profiles (#1192) key their weights on the ids
  * in `RANKING_SIGNAL_IDS` (`@groovenet/contracts`), so an id is never renamed.
  *
  * Every signal reuses an existing calculation: `describeMix`/`parseBpm` for
@@ -39,6 +41,12 @@ export type SignalDefinition = {
   /** Short label for a "why" line or a profile editor's slider. */
   label: string;
   compute: (input: SignalInput) => SignalValue;
+  /**
+   * `pool`: the computed value is a raw score whose scale means nothing on
+   * its own, so the ranker replaces it with its rank within the request's
+   * candidates (`poolRank`), keeping the raw value as the detail (#1218).
+   */
+  scale?: "pool";
 };
 
 export type KeyRelationDetail = "same" | "adjacent" | "relative" | "clash";
@@ -131,8 +139,14 @@ export const SIGNAL_REGISTRY: readonly SignalDefinition[] = [
     id: "identity_similarity",
     label: "Identity",
     compute: ({ candidate }) => similarity(candidate.identity),
+    scale: "pool",
   },
-  { id: "vibe_similarity", label: "Vibe", compute: ({ candidate }) => similarity(candidate.vibe) },
+  {
+    id: "vibe_similarity",
+    label: "Vibe",
+    compute: ({ candidate }) => similarity(candidate.vibe),
+    scale: "pool",
+  },
   { id: "key_relation", label: "Key", compute: keyRelation },
   { id: "bpm_distance", label: "BPM", compute: bpmDistance },
   { id: "genre_overlap", label: "Genre", compute: genreOverlap },
@@ -150,7 +164,10 @@ export const SIGNAL_REGISTRY: readonly SignalDefinition[] = [
   { id: "rating", label: "Rating", compute: rating },
 ];
 
-/** Every signal's value for one candidate, computed once. */
+/**
+ * Every signal's value for one candidate, computed once. Raw: the similarity
+ * signals are as retrieved here; `computePoolSignals` normalises them.
+ */
 export function computeSignals(
   seed: RankingTrack,
   candidate: RankingCandidate,
@@ -160,5 +177,65 @@ export function computeSignals(
   const input = { seed, candidate, genreContext, halfDouble: options.halfDouble };
   return Object.fromEntries(
     SIGNAL_REGISTRY.map((signal) => [signal.id, signal.compute(input)]),
-  ) as Record<RankingSignalId, SignalValue>;
+  ) as SignalValues;
+}
+
+export type SignalValues = Record<RankingSignalId, SignalValue>;
+
+/**
+ * Rank-normalise a pool's raw values (#1218): each value becomes the share of
+ * the pool's *other* values it is at least as high as, so the pool spans
+ * [0, 1] evenly whatever the raw scale. The best is 1 and the worst 0; tied
+ * values share the higher rank (all equal, or a pool of one, is 1, as each
+ * is as close as any); null stays null and isn't counted.
+ *
+ * Why ranks and not min–max: retrieval similarities (`1 − d/2` of cosine
+ * distance) bunch within ~0.006 with long tails, so min–max lets one
+ * outlier (a near-duplicate pressing, a stray far track) squeeze the rest
+ * into a sliver, and its spread varies by seed. Ranks give every seed's pool
+ * the same even spread, so a weight of 1 means "best to worst in the pool",
+ * as on the [0, 1] signals beside it. The #1218 eval compares the two.
+ */
+export function poolRank(values: readonly (number | null)[]): (number | null)[] {
+  const present = values
+    .map((value, index) => ({ value, index }))
+    .filter((entry): entry is { value: number; index: number } => entry.value !== null)
+    .sort((a, b) => a.value - b.value);
+  const out: (number | null)[] = values.map(() => null);
+  const others = present.length - 1;
+  let end = present.length - 1;
+  // Walk from the top so a tie group knows its last (highest) position.
+  for (let i = present.length - 1; i >= 0; i -= 1) {
+    if (i < present.length - 1 && present[i].value !== present[i + 1].value) end = i;
+    out[present[i].index] = others === 0 ? 1 : end / others;
+  }
+  return out;
+}
+
+const POOL_SIGNALS = SIGNAL_REGISTRY.filter((signal) => signal.scale === "pool").map(
+  (signal) => signal.id,
+);
+
+/**
+ * Every candidate's signals, with the pool-scaled ones normalised across
+ * these candidates: once per request, over every candidate scored together
+ * (before constraints, so a filter toggle never rescales the rest). The raw
+ * value is kept as the detail.
+ */
+export function computePoolSignals(
+  seed: RankingTrack,
+  candidates: readonly RankingCandidate[],
+  genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
+  options: SignalOptions = {},
+): SignalValues[] {
+  const all = candidates.map((candidate) => computeSignals(seed, candidate, genreContext, options));
+  for (const id of POOL_SIGNALS) {
+    const ranked = poolRank(all.map((signals) => signals[id].value));
+    all.forEach((signals, index) => {
+      const raw = signals[id].value;
+      signals[id] =
+        raw === null ? { value: null } : { value: ranked[index], detail: `raw ${raw.toFixed(4)}` };
+    });
+  }
+  return all;
 }

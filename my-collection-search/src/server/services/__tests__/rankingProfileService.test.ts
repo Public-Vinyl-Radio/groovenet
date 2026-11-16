@@ -47,7 +47,7 @@ describe("list", () => {
       name: "Broken",
       description: "",
       surfaces: ["suggestions"],
-      version: 1,
+      version: 2,
       config: { weights: { plays: 3 } },
     });
     const { profiles } = await service.list(1);

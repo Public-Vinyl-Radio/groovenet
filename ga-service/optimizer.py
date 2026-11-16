@@ -7,7 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 from keys import _parse_key
-from ranking import LEGACY_WEIGHTS, failed_constraints
+from ranking import LEGACY_WEIGHTS, failed_constraints, pool_rank
 
 
 def _parse_embedding(value):
@@ -353,15 +353,39 @@ def _position_score_from_energy(energy, index, total):
     return _clamp(1.0 - abs(energy - target))
 
 
+def _embedding_scores(features, pooled):
+    """
+    The embedding term of every pair, (cos + 1) / 2, and 0 where either
+    track has no embedding. `pooled` (ranking version 2, #1218) replaces
+    each known pair's value with its rank among the request's pairs
+    (`pool_rank`), so the term spans [0, 1] like the others.
+    """
+    n = len(features)
+    scores = [[0.0] * n for _ in range(n)]
+    pairs = []
+    raw = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            embedding = _dot_similarity(features[i]["embedding"], features[j]["embedding"])
+            if embedding:
+                pairs.append((i, j))
+                raw.append((embedding + 1.0) / 2.0)
+    values = pool_rank(raw) if pooled else raw
+    for (i, j), value in zip(pairs, values):
+        scores[i][j] = scores[j][i] = value
+    return scores
+
+
 def _build_score_matrices(features, ranking=None):
     """
     Pairwise metadata similarity and transition scores. Without `ranking`,
     `LEGACY_WEIGHTS` and no constraints: today's scores, to the bit. With it,
-    the profile's weights, and each failed constraint costs
-    `ranking.constraint_penalty`.
+    the profile's weights (and from version 2 the pool-ranked embedding
+    term), and each failed constraint costs `ranking.constraint_penalty`.
     """
     n = len(features)
     weights = LEGACY_WEIGHTS if ranking is None else ranking.weights
+    embeddings = _embedding_scores(features, ranking is not None and ranking.version >= 2)
     metadata_scores = [[0.0] * n for _ in range(n)]
     transition_scores = [[0.0] * n for _ in range(n)]
 
@@ -374,8 +398,7 @@ def _build_score_matrices(features, ranking=None):
                 features[i]["metadata"],
                 features[j]["metadata"],
             )
-            embedding = _dot_similarity(features[i]["embedding"], features[j]["embedding"])
-            embedding = (embedding + 1.0) / 2.0 if embedding else 0.0
+            embedding = embeddings[i][j]
             energy = 1.0 - abs(features[i]["energy"] - features[j]["energy"])
             bpm = bpm_compatibility(features[i]["bpm"], features[j]["bpm"])
             key = key_compatibility(features[i]["key"], features[j]["key"])

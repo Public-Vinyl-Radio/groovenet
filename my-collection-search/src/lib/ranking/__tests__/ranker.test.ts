@@ -13,7 +13,7 @@ import { defaultRanker, orderByRanking, resolveSeed, scoreCandidate } from "../r
 import type { RankingCandidate, RankingTrack } from "../features";
 
 const config = (overrides: Partial<RankingConfig>): RankingConfig =>
-  rankingConfigSchema.parse({ version: 1, id: "test", weights: {}, ...overrides });
+  rankingConfigSchema.parse({ version: 2, id: "test", weights: {}, ...overrides });
 
 const sum = (ranking: ReturnType<typeof scoreCandidate>) =>
   (ranking.prior ?? 0) +
@@ -22,19 +22,31 @@ const sum = (ranking: ReturnType<typeof scoreCandidate>) =>
 describe("default config scoring", () => {
   const seed: RankingTrack = { bpm: "124", key: "8A" };
 
-  it("is the better similarity plus the key and tempo boosts", () => {
-    const ranking = scoreCandidate(
-      seed,
-      { identity: 0.6, vibe: 0.8, key: "8A", bpm: 124 },
-      DEFAULT_RANKING_CONFIG,
-    );
-    expect(ranking.score).toBeCloseTo(0.8 + 0.02 + 0.01, 12);
+  it("is the better similarity, by rank in the pool, plus the key and tempo boosts", () => {
+    const [ranking] = defaultRanker.rank({
+      seed: { track: seed },
+      candidates: [
+        { identity: 0.6, vibe: 0.8, key: "8A", bpm: 124 },
+        { identity: 0.9, vibe: 0.7 },
+        { identity: 0.3, vibe: 0.4 },
+      ],
+      context: { surface: "suggestions" },
+      config: DEFAULT_RANKING_CONFIG,
+    });
+    // Vibe 0.8 is the pool's best (1); identity 0.6 is its middle (0.5).
+    expect(ranking.score).toBeCloseTo(1 + 0.02 + 0.01, 12);
     expect(ranking.prior).toBeNull();
-    expect(ranking.signals.vibe_similarity).toEqual({ value: 0.8, weight: 1, contribution: 0.8 });
+    expect(ranking.signals.vibe_similarity).toEqual({
+      value: 1,
+      weight: 1,
+      contribution: 1,
+      detail: "raw 0.8000",
+    });
     expect(ranking.signals.identity_similarity).toEqual({
-      value: 0.6,
+      value: 0.5,
       weight: 1,
       contribution: 0,
+      detail: "raw 0.6000",
     });
     expect(ranking.signals.key_relation).toMatchObject({ contribution: 0.02, detail: "same" });
     expect(ranking.signals.bpm_distance).toMatchObject({ contribution: 0.01 });
@@ -64,7 +76,8 @@ describe("default config scoring", () => {
       { ...DEFAULT_RANKING_CONFIG, usePrior: false },
     );
     expect(ranking.prior).toBeNull();
-    expect(ranking.score).toBe(0.9);
+    // Alone, it is its pool's closest identity match.
+    expect(ranking.score).toBe(1);
   });
 
   it("lists every signal with its weight, 0 when unweighted", () => {
@@ -114,23 +127,35 @@ describe("breakdown sums", () => {
   });
 
   it("adds every weighted signal when there is no base", () => {
-    const ranking = scoreCandidate(seed, candidates[0], weighted);
-    expect(ranking.signals.identity_similarity?.contribution).toBeCloseTo(0.28, 12);
-    expect(ranking.signals.vibe_similarity?.contribution).toBeCloseTo(0.18, 12);
+    const [ranking] = defaultRanker.rank({
+      seed: { track: seed },
+      candidates,
+      context: { surface: "recommendations" },
+      config: weighted,
+    });
+    // The only identity score is the best (1); vibe 0.3 is below 0.9 (0).
+    expect(ranking.signals.identity_similarity?.contribution).toBeCloseTo(0.4, 12);
+    expect(ranking.signals.vibe_similarity?.contribution).toBe(0);
     expect(ranking.signals.genre_overlap?.contribution).toBeCloseTo(0.3, 12);
   });
 
   it("weights a base signal before taking the best", () => {
-    const ranking = scoreCandidate(
-      {},
-      { identity: 0.9, vibe: 0.6 },
-      config({
+    const [ranking] = defaultRanker.rank({
+      seed: { track: {} },
+      candidates: [
+        { identity: 0.9, vibe: 0.6 },
+        { identity: 0.1, vibe: 0.9 },
+      ],
+      context: { surface: "recommendations" },
+      config: config({
         weights: { identity_similarity: 0.5, vibe_similarity: 1 },
         base: { combine: "max", signals: ["identity_similarity", "vibe_similarity"] },
       }),
-    );
-    expect(ranking.score).toBe(0.6);
-    expect(ranking.signals.vibe_similarity?.contribution).toBe(0.6);
+    });
+    // Identity 1 × 0.5 beats vibe 0 × 1.
+    expect(ranking.score).toBe(0.5);
+    expect(ranking.signals.identity_similarity?.contribution).toBe(0.5);
+    expect(ranking.signals.vibe_similarity?.contribution).toBe(0);
   });
 });
 
@@ -228,7 +253,7 @@ describe("constraints", () => {
     const ranking = scoreCandidate(seed, { bpm: 130, key: "3A", identity: 0.5 }, c);
     expect(ranking.failed).toEqual(["bpm_window", "key_rule", "genre_floor"]);
     expect(ranking.passed).toBe(false);
-    expect(ranking.score).toBe(0.5);
+    expect(ranking.score).toBe(1);
   });
 });
 
@@ -362,7 +387,7 @@ describe("defaultRanker", () => {
       context: { surface: "recommendations" },
       config: DEFAULT_RANKING_CONFIG,
     });
-    expect(rankings.map((r) => r.score)).toEqual([0.1, 0.9]);
+    expect(rankings.map((r) => r.score)).toEqual([0, 1]);
   });
 
   it("scores a playlist seed against its last track", () => {
@@ -383,8 +408,81 @@ describe("defaultRanker", () => {
       context: { surface: "suggestions" },
       config: DEFAULT_RANKING_CONFIG,
     });
-    expect(ranking.score).toBe(0.3);
+    expect(ranking.score).toBe(1);
     expect(ranking.signals.key_relation?.value).toBeNull();
+  });
+});
+
+describe("pool-normalised similarity (#1218)", () => {
+  const rank = (candidates: RankingCandidate[], rankingConfig = DEFAULT_RANKING_CONFIG) =>
+    defaultRanker.rank({
+      seed: { track: { bpm: 124, key: "8A" } },
+      candidates,
+      context: { surface: "suggestions" },
+      config: rankingConfig,
+    });
+  const vibe = (rankings: ReturnType<typeof rank>) =>
+    rankings.map((r) => r.signals.vibe_similarity?.value);
+
+  it("spreads a bunched pool over [0, 1] by rank", () => {
+    expect(vibe(rank([{ vibe: 0.9871 }, { vibe: 0.9902 }, { vibe: 0.9866 }]))).toEqual([0.5, 1, 0]);
+  });
+
+  it("gives tied candidates the higher rank", () => {
+    expect(vibe(rank([{ vibe: 0.5 }, { vibe: 0.9 }, { vibe: 0.5 }, { vibe: 0.1 }]))).toEqual([
+      2 / 3,
+      1,
+      2 / 3,
+      0,
+    ]);
+  });
+
+  it("scores a single candidate and an all-equal pool as the pool's best", () => {
+    expect(vibe(rank([{ vibe: 0.42 }]))).toEqual([1]);
+    expect(vibe(rank([{ vibe: 0.7 }, { vibe: 0.7 }, { vibe: 0.7 }]))).toEqual([1, 1, 1]);
+  });
+
+  it("leaves a missing similarity null and ranks only the ones present", () => {
+    const rankings = rank([{ vibe: 0.2 }, { vibe: null }, {}, { vibe: 0.8 }]);
+    expect(vibe(rankings)).toEqual([0, null, null, 1]);
+    expect(rankings[1].signals.vibe_similarity?.detail).toBeUndefined();
+    expect(rankings[1].score).toBe(0);
+  });
+
+  it("handles a pool with no similarities, and an empty pool", () => {
+    const rankings = rank([{ key: "8A" }, { key: "9A" }]);
+    expect(vibe(rankings)).toEqual([null, null]);
+    expect(rankings.map((r) => r.score)).toEqual([0.02, 0.01]);
+    expect(rank([])).toEqual([]);
+  });
+
+  it("lets an identity-only candidate compete with vibe candidates under the max base", () => {
+    // Raw, vibe (~0.99) always beat identity (~0.8): now each index's best scores 1.
+    const rankings = rank([
+      { identity: 0.82 },
+      { identity: 0.75, vibe: 0.986 },
+      { vibe: 0.992 },
+      { identity: 0.7, vibe: 0.988 },
+    ]);
+    expect(rankings.map((r) => r.score)).toEqual([1, 0.5, 1, 0.5]);
+  });
+
+  it("ranks over every candidate, so a filter never rescales the rest", () => {
+    const candidates: RankingCandidate[] = [
+      { vibe: 0.9, bpm: 200 },
+      { vibe: 0.5, bpm: 124 },
+      { vibe: 0.1, bpm: 124 },
+    ];
+    const filtered = rank(candidates);
+    const open = rank(candidates, withSuggestionFilters(DEFAULT_RANKING_CONFIG, {}));
+    expect(filtered[0].passed).toBe(false);
+    expect(vibe(filtered)).toEqual(vibe(open));
+  });
+
+  it("leaves a prior raw: it isn't a pool signal", () => {
+    const [ranking] = rank([{ prior: 0.37, vibe: 0.99 }]);
+    expect(ranking.prior).toBe(0.37);
+    expect(ranking.score).toBe(0.37);
   });
 });
 
@@ -411,7 +509,7 @@ describe("config validation", () => {
   });
 
   it("defaults constraints and the prior", () => {
-    const parsed = rankingConfigSchema.parse({ version: 1, id: "x", weights: {} });
+    const parsed = rankingConfigSchema.parse({ version: 2, id: "x", weights: {} });
     expect(parsed.constraints).toEqual({});
     expect(parsed.usePrior).toBe(false);
   });
@@ -420,7 +518,8 @@ describe("config validation", () => {
     ["an unknown signal", { weights: { tempo: 1 } }],
     ["an out-of-range weight", { weights: { rating: 11 } }],
     ["a non-finite weight", { weights: { rating: Infinity } }],
-    ["an unknown version", { version: 2 }],
+    ["an unknown version", { version: 3 }],
+    ["a v1 config (raw similarity, before #1218)", { version: 1 }],
     ["an extra field", { script: "rm -rf /" }],
     ["an unknown base signal", { base: { combine: "max", signals: ["tempo"] } }],
     ["a negative window", { constraints: { bpm_window: { unit: "ratio", max: -1 } } }],
@@ -428,7 +527,7 @@ describe("config validation", () => {
     ["a genre floor above 1", { constraints: { genre_floor: { min: 2 } } }],
   ])("rejects %s", (_label, overrides) => {
     expect(
-      rankingConfigSchema.safeParse({ version: 1, id: "x", weights: {}, ...overrides }).success,
+      rankingConfigSchema.safeParse({ version: 2, id: "x", weights: {}, ...overrides }).success,
     ).toBe(false);
   });
 });

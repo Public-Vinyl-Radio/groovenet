@@ -503,13 +503,24 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   change a score.
 - **Signals:** `SIGNAL_REGISTRY` in `src/lib/ranking/signals.ts`, keyed by
   `RANKING_SIGNAL_IDS`. Each is computed once per candidate, normalised to [0, 1], or
-  null without data. Profiles key on these ids, so never rename one. To add a signal,
+  null without data. Profiles key on these ids, so never rename one.
+  **Identity and vibe similarity are ranked within the pool (#1218):**
+  `computePoolSignals` runs once per `rank()` call, over every candidate ranked
+  together (before constraints, so a filter toggle never rescales the rest), and
+  replaces each raw `1 − d/2` with `poolRank`: the share of the other candidates it is
+  at least as similar as (best 1, worst 0, ties share the higher rank, a pool of one
+  is 1, null stays null). The raw value is the breakdown's `detail` (`raw 0.9871`).
+  Raw, vibe bunched within ~0.006 in a pool, so every other weight swamped it and the
+  `max(identity, vibe)` base always picked vibe. Rank, not min–max: a near-duplicate
+  pressing at the top of a pool squeezed min–max's median identity candidate to 0.09
+  (`evaluations/1218/README.md`). `scoreCandidate` on its own is a pool of one. To add a signal,
   add its id to the end of `RANKING_SIGNAL_IDS` and a registry entry built on an
   existing calculation, with tests for null and edge values. Registry order is
   summation order.
-- **Configs** are JSON data validated by `rankingConfigSchema`, in
+- **Configs** are JSON data validated by `rankingConfigSchema` (`version` 2 since
+  #1218; a v1 weight scaled a raw similarity), in
   `src/lib/ranking/configs.ts`. `default` is today's suggestion ranking: the better of
-  identity and vibe similarity, then key +0.02/+0.01 and tempo up to +0.01, with the
+  identity and vibe similarity by pool rank, then key +0.02/+0.01 and tempo up to +0.01, with the
   ±6% and compatible-key toggles as constraints (`withSuggestionFilters`). `blend`,
   `mixable` and `strict` are the pre-scorer's modes, kept as internal configs
   (`ranker=strict` on the breakdown API), not presets. `DEFAULT_CONFIG_BY_SURFACE` is
@@ -553,7 +564,8 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   `playlist_sorted` carries `profile` (preset id or `custom`). ga-service stays
   storage-agnostic: `toOptimizerRanking` (`src/lib/ranking/ordering.ts`, pure, with the
   mapping table) translates a config into ga-service's own terms: vibe and identity →
-  `embedding` (the larger when both are `max` base signals), `genre_overlap` →
+  `embedding` (the larger when both are `max` base signals; `ranking.version` 2 ranks
+  ga-service's embedding term over the request's track pairs, #1218), `genre_overlap` →
   `metadata`, `energy` + `danceability` → `energy`, `bpm_distance` → `bpm`,
   `key_relation` → `key`; `era` and `rating` have no term; negatives count as 0;
   scaled to sum to ga-service's 0.93. **Constraints are penalties in ordering**, since
@@ -566,12 +578,15 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   and metrics for both sides.
 - **Sharing (#1195):** `/ranking-profiles` lists presets, own and imported profiles, links
   from Settings → Ranking, and uses `RetroDialog` for file imports. Portable files use
-  `rankingProfileFileSchema` in contracts: format `groovenet-ranking-profile`, version 1,
+  `rankingProfileFileSchema` in contracts: format `groovenet-ranking-profile`, version 2,
   draft settings and optional author, with no local ids or collection data.
   `parseRankingProfileFile` is pure and shared with the CLI: 32 KiB UTF-8 limit,
   depth/node limits, forbidden prototype keys, finite bounded numbers and strict fields.
   Only unknown signal ids (weights and base) are dropped with warnings. Migration steps
-  are pure vN→vN+1 functions; no historical production format exists yet.
+  are pure vN→vN+1 functions (`RANKING_FILE_MIGRATIONS`). 1 → 2 (#1218) keeps the
+  weights and warns (`RANKING_FILE_MIGRATION_WARNINGS`): no rescaling reproduces a
+  raw-similarity ranking on ranks. Stored rows took the same step in migration
+  `1794800000000_ranking-profiles-pool-similarity`.
   Import streams are bounded before JSON parsing. Exports have deterministic field order.
   `ranking_profiles.author`, `origin` and `source_handle` preserve attribution separately
   from ranking config; source handles never enter exported files. Friend sharing reuses

@@ -14,6 +14,13 @@
  * | `bpm`           | `bpm_distance`                                              |
  * | `key`           | `key_relation`                                              |
  *
+ * The embedding term is ranked within the request (#1218), version 2 of
+ * `ranking`: each pair's `(cos + 1) / 2` becomes its rank among every pair
+ * of the playlist's tracks, as the ranker ranks its similarity signals
+ * within a candidate pool. Raw, a playlist's pairs span only a few
+ * hundredths, so the embedding weight did almost nothing beside the [0, 1]
+ * genre, energy, BPM and key terms. Default's legacy request is unchanged.
+ *
  * `era` and `rating` describe a track, not a transition, so they have no term.
  * Negative weights count as 0: a profile can ignore a term, not ask for clashes.
  * The weights are then scaled so they add up to the optimiser's own total
@@ -44,7 +51,8 @@ import {
   type RankingSignalId,
 } from "@groovenet/contracts";
 
-export const OPTIMIZER_RANKING_VERSION = 1;
+/** 2: the embedding term is pool-ranked (#1218). ga-service still accepts 1, the raw term. */
+export const OPTIMIZER_RANKING_VERSION = 2;
 
 /** ga-service's constants, which every request without `ranking` scores with. */
 export const LEGACY_TRANSITION_WEIGHTS = {

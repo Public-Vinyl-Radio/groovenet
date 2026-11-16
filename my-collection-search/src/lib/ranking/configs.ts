@@ -22,7 +22,7 @@ const define = (config: RankingConfigInput): RankingConfig => rankingConfigSchem
  * them off.
  */
 export const DEFAULT_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "default",
   weights: {
     identity_similarity: 1,
@@ -52,7 +52,7 @@ const modeWeights = {
 };
 
 export const BLEND_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "blend",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -61,7 +61,7 @@ export const BLEND_RANKING_CONFIG = define({
 });
 
 export const MIXABLE_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "mixable",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -73,7 +73,7 @@ export const MIXABLE_RANKING_CONFIG = define({
 });
 
 export const STRICT_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "strict",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -92,7 +92,7 @@ export const STRICT_RANKING_CONFIG = define({
  * base, which mostly breaks ties. Genre and energy are faint pulls.
  */
 export const BEATMATCHER_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "beatmatcher",
   weights: {
     identity_similarity: 0.5,
@@ -116,7 +116,7 @@ export const BEATMATCHER_RANKING_CONFIG = define({
  * tempo barely registers and key not at all. No hard constraints.
  */
 export const SELECTOR_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "selector",
   weights: {
     identity_similarity: 0.8,

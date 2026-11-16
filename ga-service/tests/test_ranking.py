@@ -14,6 +14,8 @@ from ga_service import OptimizeRequest, optimize, run_optimizer, validation_exce
 from keys import camelot_code, camelot_distance, wheel_distance
 from metrics import bpm_jump_total, key_clash_count, ordering_metrics, vibe_distance_total
 from optimizer import (
+    _build_score_matrices,
+    _embedding_scores,
     _prepare_track_features,
     run_cohesive_blocks_optimizer,
     run_genetic_algorithm,
@@ -21,7 +23,7 @@ from optimizer import (
     transition_score,
 )
 from pydantic import ValidationError
-from ranking import LEGACY_WEIGHTS, MAX_TRACKS, OrderingRanking, failed_constraints
+from ranking import LEGACY_WEIGHTS, MAX_TRACKS, OrderingRanking, failed_constraints, pool_rank
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PLAYLIST = json.loads((FIXTURES / "playlist.json").read_text())["tracks"]
@@ -102,6 +104,56 @@ def test_legacy_weights_without_constraints_score_as_no_ranking():
     assert _ids(run_greedy_algorithm(_tracks(), _legacy_ranking())) == _ids(run_greedy_algorithm(_tracks()))
 
 
+# ─── Pool-ranked embedding term (#1218) ─────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        ([], []),
+        ([0.9], [1.0]),
+        ([None, None], [None, None]),
+        ([0.5, 0.5, 0.5], [1.0, 1.0, 1.0]),
+        ([0.2, 0.9, 0.5], [0.0, 1.0, 0.5]),
+        # Ties share the higher rank; None isn't counted.
+        ([0.1, 0.5, 0.5, None, 0.9], [0.0, 2 / 3, 2 / 3, None, 1.0]),
+        ([None, 0.3], [None, 1.0]),
+    ],
+)
+def test_pool_rank_matches_the_apps(values, expected):
+    ranked = pool_rank(values)
+    assert [v is None for v in ranked] == [v is None for v in expected]
+    assert [v for v in ranked if v is not None] == pytest.approx([v for v in expected if v is not None])
+
+
+def _vector_tracks(*vectors):
+    return [{"track_id": str(i), "embedding": json.dumps(v) if v else None} for i, v in enumerate(vectors)]
+
+
+def test_version_2_ranks_the_embedding_term_and_version_1_keeps_it_raw():
+    features = _prepare_track_features(_vector_tracks([1, 0], [0.99, 0.14], [0.9, 0.44], None))
+    raw = _embedding_scores(features, pooled=False)
+    pooled = _embedding_scores(features, pooled=True)
+    # Three known pairs: (0, 1) closest, then (1, 2), then (0, 2).
+    assert raw[0][1] == pytest.approx((0.99 / (0.99**2 + 0.14**2) ** 0.5 + 1) / 2)
+    assert pooled[0][1] == pooled[1][0] == 1.0
+    assert pooled[1][2] == 0.5
+    assert pooled[0][2] == 0.0
+    # A track without an embedding scores 0, as before, and isn't ranked.
+    assert pooled[0][3] == raw[0][3] == pooled[3][2] == 0.0
+    assert pooled[0][0] == 0.0
+
+    v1 = _legacy_ranking()
+    v2 = v1.model_copy(update={"version": 2})
+    _, scores_v1 = _build_score_matrices(features, v1)
+    _, legacy = _build_score_matrices(features)
+    _, scores_v2 = _build_score_matrices(features, v2)
+    assert scores_v1 == legacy
+    w = LEGACY_WEIGHTS.embedding
+    assert scores_v2[0][1] - scores_v1[0][1] == pytest.approx(w * (pooled[0][1] - raw[0][1]))
+    assert scores_v2[0][3] == scores_v1[0][3]
+
+
 def test_each_failed_constraint_costs_the_penalty():
     a, b = PLAYLIST[0], PLAYLIST[1]  # 100 BPM 8A → 124 BPM 2B
     plain = transition_score(a, b)
@@ -174,7 +226,8 @@ def test_energy_range_from_the_previous_track_and_unknown_passes():
 @pytest.mark.parametrize(
     "change",
     [
-        {"version": 2},
+        {"version": 3},
+        {"version": 0},
         {"surprise": True},
         {"weights": {**LEGACY_WEIGHTS.model_dump(), "bpm": 11}},
         {"weights": {**LEGACY_WEIGHTS.model_dump(), "bpm": -0.1}},

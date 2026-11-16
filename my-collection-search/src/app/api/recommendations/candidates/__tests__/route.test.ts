@@ -313,8 +313,10 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     const [unknown, match, clash] = body.candidates.map(
       (c: { ranking: Record<string, unknown> }) => c.ranking,
     );
-    expect(unknown).toMatchObject({ score: 0.5, passed: true, failed: [], prior: null });
-    expect(match.score).toBeCloseTo(0.6 + 0.02 + 0.01, 12);
+    // Identity 0.5 / 0.6 / 0.9 rank 0 / 0.5 / 1 within the pool (#1218).
+    expect(unknown).toMatchObject({ score: 0, passed: true, failed: [], prior: null });
+    expect(unknown.signals.identity_similarity).toMatchObject({ value: 0, detail: "raw 0.5000" });
+    expect(match.score).toBeCloseTo(0.5 + 0.02 + 0.01, 12);
     expect(match.signals.key_relation).toEqual({
       value: 1,
       weight: 0.02,
@@ -339,7 +341,7 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     retriever.retrieveSeedMetadata.mockResolvedValue(null);
     const body = await (await get("&breakdown=true")).json();
     expect(body.candidates[1].ranking.signals.key_relation.value).toBeNull();
-    expect(body.candidates[1].ranking.score).toBe(0.6);
+    expect(body.candidates[1].ranking.score).toBe(0.5);
   });
 
   it("rejects an unknown config", async () => {
@@ -363,7 +365,7 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     name: "Mine",
     description: "",
     surfaces: ["recommendations"],
-    version: 1,
+    version: 2,
     config,
   });
 
@@ -399,7 +401,7 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     const body = await (await get("&breakdown=true&ranker=17")).json();
     expect(profileRepo.findById).toHaveBeenCalledWith(17);
     expect(body.ranking.config).toBe("17");
-    expect(body.candidates[0].ranking.score).toBe(1);
+    expect(body.candidates[2].ranking.score).toBe(2);
   });
 
   it("falls back to Default for a stored profile that can't be read", async () => {
@@ -408,7 +410,7 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ranking).toMatchObject({ config: "17", fallback: true });
-    expect(body.candidates[1].ranking.score).toBeCloseTo(0.63, 12);
+    expect(body.candidates[1].ranking.score).toBeCloseTo(0.53, 12);
   });
 
   it("falls back to Default when the active stored profile is gone", async () => {
@@ -424,18 +426,18 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
       await post({
         breakdown: true,
         ranker: "999",
-        ranking_config: { version: 1, id: "draft", weights: { identity_similarity: 2 } },
+        ranking_config: { version: 2, id: "draft", weights: { identity_similarity: 2 } },
       })
     ).json();
     expect(profileRepo.findById).not.toHaveBeenCalled();
     expect(body.ranking.config).toBe("draft");
-    expect(body.candidates[0].ranking.score).toBe(1);
+    expect(body.candidates[2].ranking.score).toBe(2);
   });
 
   it("rejects an invalid inline config", async () => {
     const res = await post({
       breakdown: true,
-      ranking_config: { version: 1, id: "draft", weights: { identity_similarity: 1e6 } },
+      ranking_config: { version: 2, id: "draft", weights: { identity_similarity: 1e6 } },
     });
     expect(res.status).toBe(400);
   });

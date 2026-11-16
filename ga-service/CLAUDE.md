@@ -42,7 +42,7 @@ profile and translates it (`toOptimizerRanking` in
 
 ```json
 "ranking": {
-  "version": 1,
+  "version": 2,
   "weights": { "metadata": 0.01, "embedding": 0.12, "energy": 0.01, "bpm": 0.72,
                "key": 0.07, "same_artist": 0.2, "same_album": 0.12 },
   "constraints": { "bpm_window": { "unit": "ratio", "max": 0.06, "half_double": true },
@@ -58,6 +58,13 @@ schema. A malformed payload is a 422 naming the field.
 - **Weights** replace the constants of the one transition scorer,
   `weighted_transition_score`; every mode reads them. `same_artist` and
   `same_album` are subtracted.
+- **`version` 2 ranks the embedding term within the request** (#1218):
+  `_embedding_scores` replaces each pair's `(cos + 1) / 2` with its `pool_rank`
+  among the request's track pairs (best 1, worst 0, ties share the higher rank),
+  as the app ranks its similarity signals within a candidate pool. Raw, a
+  playlist's pairs span only a few hundredths, so the embedding weight barely
+  counted. A track without an embedding scores 0 and isn't ranked. Version 1
+  keeps the raw term; the app sends 2.
 - **Constraints are penalties**, because ordering can't drop a track: each
   constraint a transition A → B fails (A as the seed, as in the app's ranker;
   unknown data passes) subtracts `constraint_penalty`. The energy range is on

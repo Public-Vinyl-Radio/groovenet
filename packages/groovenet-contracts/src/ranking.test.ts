@@ -14,14 +14,14 @@ import {
 
 describe("ranking config", () => {
   it("parses a minimal config with defaults", () => {
-    expect(rankingConfigSchema.parse({ version: 1, id: "mine", weights: { rating: 0.1 } })).toEqual(
-      { version: 1, id: "mine", weights: { rating: 0.1 }, usePrior: false, constraints: {} },
+    expect(rankingConfigSchema.parse({ version: 2, id: "mine", weights: { rating: 0.1 } })).toEqual(
+      { version: 2, id: "mine", weights: { rating: 0.1 }, usePrior: false, constraints: {} },
     );
   });
 
   it("accepts every constraint and a max base", () => {
     const config = {
-      version: 1,
+      version: 2,
       id: "full",
       weights: { identity_similarity: 1, vibe_similarity: 1, key_relation: 0.02 },
       base: { combine: "max", signals: ["identity_similarity", "vibe_similarity"] },
@@ -36,10 +36,10 @@ describe("ranking config", () => {
   });
 
   it.each([
-    { version: 1, id: "", weights: {} },
-    { version: 1, id: "x", weights: { unknown_signal: 1 } },
-    { version: 1, id: "x", weights: { rating: 100 } },
-    { version: 1, id: "x", weights: {}, extra: true },
+    { version: 2, id: "", weights: {} },
+    { version: 2, id: "x", weights: { unknown_signal: 1 } },
+    { version: 2, id: "x", weights: { rating: 100 } },
+    { version: 2, id: "x", weights: {}, extra: true },
     { version: 3, id: "x", weights: {} },
   ])("rejects an invalid config %#", (config) => {
     expect(rankingConfigSchema.safeParse(config).success).toBe(false);

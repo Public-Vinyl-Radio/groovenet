@@ -24,7 +24,7 @@ const calls = () =>
     init?.method ?? "GET",
     init?.body ? JSON.parse(init.body) : undefined,
   ]);
-const draft = { version: 1 as const, name: "Mine", surfaces: ["related" as const], weights: {} };
+const draft = { version: 2 as const, name: "Mine", surfaces: ["related" as const], weights: {} };
 
 describe("ranking internal API", () => {
   it("sends every profile request", async () => {
@@ -49,7 +49,7 @@ describe("ranking internal API", () => {
   });
 
   it("previews a seed with a whole config", async () => {
-    const config = { version: 1 as const, id: "7", weights: {}, usePrior: false, constraints: {} };
+    const config = { version: 2 as const, id: "7", weights: {}, usePrior: false, constraints: {} };
     await fetchRankingPreview({ track_id: "t", friend_id: 4 }, config, 10);
     expect(calls()[0]).toEqual([
       "/api/recommendations/candidates",

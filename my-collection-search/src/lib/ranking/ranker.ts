@@ -4,7 +4,11 @@
  *
  *   score = (prior ?? best weighted base signal) + Σ weight × value
  *
- * over the other signals, in registry order. Hard constraints never change a
+ * over the other signals, in registry order. The similarity signals are
+ * normalised within the candidates ranked together (#1218, `poolRank`), so
+ * the base is the better of identity and vibe *by rank*: the pool's closest
+ * identity match scores as its closest vibe match, and a candidate only one
+ * index found competes on that index's rank alone. Hard constraints never change a
  * score; they mark the candidate failed and say which. The one exception is
  * `bpm_window.half_double`, which the tempo signal reads too (#1192).
  */
@@ -24,7 +28,12 @@ import {
   type GenreOverlapContext,
 } from "@/lib/recommendation-pre-scorer";
 import type { RankingCandidate, RankingTrack } from "./features";
-import { computeSignals, SIGNAL_REGISTRY, type SignalValue } from "./signals";
+import {
+  computePoolSignals,
+  SIGNAL_REGISTRY,
+  type SignalValue,
+  type SignalValues,
+} from "./signals";
 
 /** A single track, or a playlist ranked against its last track. */
 export type RankingSeed = { track: RankingTrack } | { playlist: RankingTrack[] };
@@ -111,16 +120,27 @@ function failedConstraints(
   return failed;
 }
 
-/** Score one candidate against a resolved seed. */
+const signalOptions = (config: RankingConfig) => ({
+  halfDouble: config.constraints.bpm_window?.half_double === true,
+});
+
+/**
+ * Score one candidate against a resolved seed. `signals` are its values
+ * within the pool it is ranked in (`computePoolSignals`); omitted, it is a
+ * pool of one, where any similarity is the pool's best (1).
+ */
 export function scoreCandidate(
   seed: RankingTrack,
   candidate: RankingCandidate,
   config: RankingConfig,
   genreContext: GenreOverlapContext = EMPTY_GENRE_OVERLAP_CONTEXT,
+  signals: SignalValues = computePoolSignals(
+    seed,
+    [candidate],
+    genreContext,
+    signalOptions(config),
+  )[0],
 ): CandidateRanking {
-  const signals = computeSignals(seed, candidate, genreContext, {
-    halfDouble: config.constraints.bpm_window?.half_double === true,
-  });
   const weightOf = (id: RankingSignalId) => config.weights[id] ?? 0;
   const baseIds = new Set(config.base?.signals ?? []);
   const prior = config.usePrior ? (candidate.prior ?? null) : null;
@@ -160,8 +180,11 @@ export function scoreCandidate(
 export const defaultRanker: Ranker = {
   rank({ seed, candidates, context, config }) {
     const resolved = resolveSeed(seed) ?? {};
-    return candidates.map((candidate) =>
-      scoreCandidate(resolved, candidate, config, context.genreContext),
+    const genreContext = context.genreContext ?? EMPTY_GENRE_OVERLAP_CONTEXT;
+    // Once per request, over every candidate: the pool the similarities are ranked in.
+    const pool = computePoolSignals(resolved, candidates, genreContext, signalOptions(config));
+    return candidates.map((candidate, index) =>
+      scoreCandidate(resolved, candidate, config, genreContext, pool[index]),
     );
   },
 };

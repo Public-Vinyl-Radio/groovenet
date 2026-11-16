@@ -100,7 +100,7 @@ export function seedOf(track) {
 export function profileDraft(profile) {
   const { weights, base, usePrior, constraints } = profile.config;
   return {
-    version: 1,
+    version: profile.config.version,
     name: `eval-1196 ${profile.id}`.slice(0, 80),
     description: "Temporary #1196 evaluation profile; deleted after the run.",
     surfaces: ["playlists"],
