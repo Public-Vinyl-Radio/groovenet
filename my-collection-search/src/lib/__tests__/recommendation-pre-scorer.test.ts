@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateGenreOverlap,
-  calculateCamelotDistance,
+  camelotCodeDistance,
   buildGenreOverlapContext,
   GENRE_SIMILARITY_MAX_SCORE,
   RELATED_GENRE_MAX_CREDIT,
@@ -13,72 +13,26 @@ const HOUSE: GenreRef = { id: "house", parentId: "electronic" };
 const TECHNO: GenreRef = { id: "techno", parentId: "electronic" };
 const SALSA: GenreRef = { id: "salsa", parentId: "latin" };
 
-describe("calculateCamelotDistance, stored key spellings (#1211)", () => {
-  it("ignores case", () => {
-    expect(calculateCamelotDistance("C major", "C Major")).toBe(0);
-    expect(calculateCamelotDistance("c MAJOR", "a minor")).toBe(0.5);
+describe("camelotCodeDistance", () => {
+  it.each([
+    ["8B", "8B", 0],
+    ["8B", "8A", 0.5],
+    ["8B", "9B", 1],
+    ["8B", "9A", 1.5],
+    ["12B", "1B", 1],
+    ["8B", "11B", 3],
+  ])("%s to %s is %s", (a, b, expected) => {
+    expect(camelotCodeDistance(a, b)).toBe(expected);
   });
 
-  it("reads sharps and flats, and enharmonics as the same key", () => {
-    expect(calculateCamelotDistance("F# minor", "F# minor")).toBe(0);
-    expect(calculateCamelotDistance("Ab minor", "G# minor")).toBe(0);
-    expect(calculateCamelotDistance("Bb major", "F major")).toBe(1);
-    // Db major is 3B, not 1B.
-    expect(calculateCamelotDistance("Db major", "C# major")).toBe(0);
-    expect(calculateCamelotDistance("Db major", "Ab major")).toBe(1);
-    expect(calculateCamelotDistance("Db major", "B major")).toBe(2);
-  });
-
-  it("counts relative major/minor as 0.5 and a mode change as +0.5", () => {
-    expect(calculateCamelotDistance("C major", "A minor")).toBe(0.5);
-    expect(calculateCamelotDistance("C major", "E minor")).toBe(1.5);
-    expect(calculateCamelotDistance("C major", "A major")).toBe(3);
-  });
-
-  it("reads Camelot codes too", () => {
-    expect(calculateCamelotDistance("8B", "8A")).toBe(0.5);
-  });
-
-  it("is null for an unknown key on either side", () => {
-    expect(calculateCamelotDistance("H major", "C major")).toBeNull();
-    expect(calculateCamelotDistance("C major", "nonsense")).toBeNull();
-    expect(calculateCamelotDistance("", "C major")).toBeNull();
+  it("is null for a missing or invalid code on either side", () => {
+    expect(camelotCodeDistance(null, "8B")).toBeNull();
+    expect(camelotCodeDistance("8B", null)).toBeNull();
+    expect(camelotCodeDistance("", "8B")).toBeNull();
+    expect(camelotCodeDistance("H major", "8B")).toBeNull();
   });
 });
 
-describe("calculateCamelotDistance", () => {
-  it("returns 0 for same key", () => {
-    expect(calculateCamelotDistance("C Major", "C Major")).toBeCloseTo(0, 3);
-  });
-
-  it("returns 0.5 for relative major/minor", () => {
-    expect(calculateCamelotDistance("C Major", "A Minor")).toBeCloseTo(0.5, 3);
-  });
-
-  it("returns 1 for adjacent same type", () => {
-    expect(calculateCamelotDistance("C Major", "G Major")).toBeCloseTo(1, 3);
-  });
-
-  it("returns 1.5 for adjacent different type", () => {
-    expect(calculateCamelotDistance("C Major", "E Minor")).toBeCloseTo(1.5, 3);
-  });
-
-  it("handles wrap-around (12 → 1)", () => {
-    expect(calculateCamelotDistance("E Major", "B Major")).toBeCloseTo(1, 3);
-  });
-
-  it("returns null for null keys", () => {
-    expect(calculateCamelotDistance(null, "C Major")).toBeNull();
-    expect(calculateCamelotDistance("C Major", null)).toBeNull();
-  });
-});
-
-// Latin
-//  ├─ Cumbia ─ Digital Cumbia
-//  ├─ Chicha (related to Cumbia: sibling + co-occurrence)
-//  ├─ Porro  (related to Cumbia: sibling only)
-//  └─ Salsa  (sibling, but not in Cumbia's stored top N)
-// Rock (unrelated root)
 const LATIN: GenreRef = { id: "latin", parentId: null };
 const CUMBIA: GenreRef = { id: "cumbia", parentId: "latin" };
 const DIGITAL_CUMBIA: GenreRef = { id: "digital-cumbia", parentId: "cumbia" };

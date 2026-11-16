@@ -6,7 +6,6 @@
  */
 
 import type { GenreRef } from "./recommendation-candidate-retriever";
-import { camelotOf } from "./mixCompat";
 import { DEFAULT_GENRE_SIMILARITY_WEIGHTS } from "./genres/genreSimilarity";
 
 /**
@@ -25,9 +24,10 @@ function parseCamelotCode(camelot: string): { position: number; type: string } |
 }
 
 /**
- * Calculate Camelot distance (wheel positions + type difference)
- * Returns null if either key is unrecognised or missing; the key rule treats
- * that as a pass, as the `wheel` metric does.
+ * Camelot distance (wheel positions + type difference) between two Camelot
+ * codes such as "8A". Callers parse stored key spellings first, with
+ * `camelotOf` (#1211). Returns null if either code is missing or invalid; the
+ * key rule treats that as a pass, as the `wheel` metric does.
  *
  * Distance logic:
  * - Same code: distance = 0
@@ -36,14 +36,10 @@ function parseCamelotCode(camelot: string): { position: number; type: string } |
  * - Adjacent positions, different type: distance = 1.5
  * - etc.
  */
-export function calculateCamelotDistance(key1: string | null, key2: string | null): number | null {
-  if (!key1 || !key2) return null;
-
-  // `camelotOf` reads stored spellings (`C major`, `F# minor`, `Db major`) in
-  // any case, with enharmonics; an unrecognised key is null (#1211).
-  const camelot1 = camelotOf(key1);
-  const camelot2 = camelotOf(key2);
-
+export function camelotCodeDistance(
+  camelot1: string | null,
+  camelot2: string | null,
+): number | null {
   if (!camelot1 || !camelot2) return null;
 
   const parsed1 = parseCamelotCode(camelot1);

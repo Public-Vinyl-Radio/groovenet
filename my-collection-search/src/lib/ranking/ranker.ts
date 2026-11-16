@@ -19,7 +19,7 @@ import type {
 import { camelotDistance } from "@/lib/playlistOrder";
 import { camelotOf, parseBpm } from "@/lib/mixCompat";
 import {
-  calculateCamelotDistance,
+  camelotCodeDistance,
   EMPTY_GENRE_OVERLAP_CONTEXT,
   type GenreOverlapContext,
 } from "@/lib/recommendation-pre-scorer";
@@ -84,12 +84,10 @@ function failedConstraints(
 
   if (key_rule) {
     let distance: number | null = null;
-    if (key_rule.metric === "wheel") {
-      const a = camelotOf(seed.key);
-      const b = camelotOf(candidate.key);
-      if (a && b) distance = camelotDistance(a, b);
-    } else {
-      distance = calculateCamelotDistance(seed.key ?? null, candidate.key ?? null);
+    const a = camelotOf(seed.key);
+    const b = camelotOf(candidate.key);
+    if (a && b) {
+      distance = key_rule.metric === "wheel" ? camelotDistance(a, b) : camelotCodeDistance(a, b);
     }
     if (distance !== null && distance > key_rule.max) failed.push("key_rule");
   }
