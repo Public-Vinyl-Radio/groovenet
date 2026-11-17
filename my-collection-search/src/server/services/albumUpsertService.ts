@@ -1,4 +1,5 @@
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
+import { withDbTransaction } from "@/lib/serverDb";
 import type { DiscogsRelease } from "@groovenet/contracts";
 import type { Album } from "@/types/track";
 import { albumRepository, type AlbumUpsertInput } from "@/server/repositories/albumRepository";
@@ -52,10 +53,11 @@ export function discogsReleaseToAlbum(release: DiscogsRelease, friendId: number)
 }
 
 /**
- * Upsert a single album to PostgreSQL
+ * Upsert a single album to PostgreSQL. `db` must be the caller's transaction
+ * client: the credit import runs on it too, never on a second connection (#1223).
  */
 export async function upsertAlbum(
-  db: Queryable,
+  db: PoolClient,
   album: AlbumToUpsert,
   options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
 ): Promise<Album> {
@@ -64,15 +66,17 @@ export async function upsertAlbum(
     album.release_id,
     album.friend_id,
     album.artist_credits ?? importArtistCredits(undefined, album.artist),
+    db,
   );
   return row;
 }
 
 /**
- * Upsert multiple albums to PostgreSQL
+ * Upsert multiple albums to PostgreSQL. Given a pool, each album gets its own
+ * transaction (row and credits commit together); given a client, it is used as is.
  */
 export async function upsertAlbums(
-  db: Queryable,
+  db: Queryable | Pool,
   albums: AlbumToUpsert[],
   options?: { preserveManualFields?: boolean; preserveSourceTaxonomy?: boolean },
 ): Promise<Album[]> {
@@ -80,7 +84,10 @@ export async function upsertAlbums(
 
   for (const album of albums) {
     try {
-      const upserted = await upsertAlbum(db, album, options);
+      const upserted =
+        typeof (db as Pool).connect === "function"
+          ? await withDbTransaction((client) => upsertAlbum(client, album, options))
+          : await upsertAlbum(db as PoolClient, album, options);
       upsertedAlbums.push(upserted);
     } catch (error) {
       console.error(

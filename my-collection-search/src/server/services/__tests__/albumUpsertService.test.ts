@@ -9,9 +9,14 @@ import {
 import type { DiscogsRelease } from "@groovenet/contracts";
 import type { Album } from "@/types/track";
 
-vi.mock("@/server/repositories/artistImportRepository", () => ({
-  artistImportRepository: { importAlbumCredits: vi.fn(), importTrackCredits: vi.fn() },
+const { importAlbumCredits, transaction } = vi.hoisted(() => ({
+  importAlbumCredits: vi.fn(),
+  transaction: vi.fn(),
 }));
+vi.mock("@/server/repositories/artistImportRepository", () => ({
+  artistImportRepository: { importAlbumCredits, importTrackCredits: vi.fn() },
+}));
+vi.mock("@/lib/serverDb", () => ({ withDbTransaction: transaction }));
 
 // ─── mocks ────────────────────────────────────────────────────────────────────
 
@@ -221,6 +226,24 @@ describe("upsertAlbum()", () => {
     expect(result).toBe(saved);
   });
 
+  it("imports credits on the caller's connection, not a second one (#1223)", async () => {
+    const db = { query: vi.fn() };
+    albumRepo.upsertAlbumRecord.mockResolvedValue(makeAlbum());
+
+    await upsertAlbum(
+      db as any,
+      {
+        release_id: "9",
+        friend_id: 3,
+        title: "T",
+        artist: "Artist",
+        track_count: 0,
+      } as any,
+    );
+
+    expect(importAlbumCredits).toHaveBeenCalledWith("9", 3, expect.any(Array), db);
+  });
+
   it("forwards options to albumRepository.upsertAlbumRecord", async () => {
     const db = { query: vi.fn() };
     const input = { release_id: "456", friend_id: 2, title: "B", artist: "Artist", track_count: 0 };
@@ -236,6 +259,21 @@ describe("upsertAlbum()", () => {
 // ─── upsertAlbums ─────────────────────────────────────────────────────────────
 
 describe("upsertAlbums()", () => {
+  it("gives each album its own transaction when handed a pool", async () => {
+    const client = { query: vi.fn() };
+    const pool = { query: vi.fn(), connect: vi.fn() };
+    transaction.mockImplementation((fn) => fn(client));
+    albumRepo.upsertAlbumRecord.mockResolvedValue(makeAlbum());
+
+    const result = await upsertAlbums(pool as any, [
+      { release_id: "1", friend_id: 1, title: "A", artist: "Artist", track_count: 0 } as any,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(albumRepo.upsertAlbumRecord).toHaveBeenCalledWith(client, expect.anything(), undefined);
+    expect(importAlbumCredits).toHaveBeenCalledWith("1", 1, expect.any(Array), client);
+  });
+
   it("returns empty array when given no albums", async () => {
     const db = { query: vi.fn() };
 

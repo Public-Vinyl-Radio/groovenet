@@ -5,14 +5,29 @@ import { normaliseArtistName } from "@/lib/artists/normalization";
 import { freeArtistSlug } from "@/server/artists/artistSlug";
 import type { ImportArtistCredit } from "@/lib/artists/importCredits";
 
+/**
+ * Pass `client` when the caller already holds a transaction: the import then
+ * runs on that connection. Opening a second transaction there would wait on
+ * the row locks the caller holds, and Postgres cannot see that deadlock (#1223).
+ * Without one, the import opens its own transaction. Within a caller's
+ * transaction the advisory lock below is held until that transaction ends.
+ */
+function inTransaction<T>(
+  client: PoolClient | undefined,
+  fn: (db: PoolClient) => Promise<T>,
+): Promise<T> {
+  return client ? fn(client) : withDbTransaction(fn);
+}
+
 /** Import only owns automatic credits. Manual credits are the review tool's override. */
 export class ArtistImportRepository {
   async importAlbumCredits(
     releaseId: string,
     friendId: number,
     credits: ImportArtistCredit[],
+    client?: PoolClient,
   ): Promise<void> {
-    await withDbTransaction(async (db) => {
+    await inTransaction(client, async (db) => {
       const { rows } = await db.query<{ id: number }>(
         "SELECT id FROM albums WHERE release_id = $1 AND friend_id = $2 FOR UPDATE",
         [releaseId, friendId],
@@ -26,8 +41,9 @@ export class ArtistImportRepository {
     trackId: string,
     friendId: number,
     credits: ImportArtistCredit[],
+    client?: PoolClient,
   ): Promise<void> {
-    await withDbTransaction(async (db) => {
+    await inTransaction(client, async (db) => {
       await db.query("SELECT id FROM tracks WHERE track_id = $1 AND friend_id = $2 FOR UPDATE", [
         trackId,
         friendId,

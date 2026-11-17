@@ -14,6 +14,20 @@ beforeEach(() => {
 });
 
 describe("artist import persistence", () => {
+  it("runs on the caller's client without opening a transaction (#1223)", async () => {
+    const client = { query: vi.fn().mockResolvedValue({ rows: [{ id: 5 }] }) };
+    query.mockResolvedValue({ rows: [] });
+    await repo.importAlbumCredits("release", 2, [], client as never);
+    await repo.importTrackCredits("track", 3, [], client as never);
+    expect(transaction).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("FROM albums"), [
+      "release",
+      2,
+    ]);
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("FROM tracks"), ["track", 3]);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("creates an identity, alias and ordered album credit", async () => {
     query
       .mockResolvedValueOnce({ rows: [{ id: 5 }] }) // album lock

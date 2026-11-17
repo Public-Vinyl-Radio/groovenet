@@ -63,12 +63,15 @@ beforeEach(() => {
 describe("artist credits through the import services", () => {
   it("credits real track artists under a Various compilation", async () => {
     const payload = release();
-    await upsertAlbum({ query: vi.fn() }, discogsReleaseToAlbum(payload, 6));
+    await upsertAlbum({ query: vi.fn() } as never, discogsReleaseToAlbum(payload, 6));
     const { errors } = await upsertTracks(extractTracksFromAlbum(payload, "alice"));
     expect(errors).toEqual([]);
-    expect(importAlbumCredits).toHaveBeenCalledWith("26715224", 6, [
-      expect.objectContaining({ name: "Various", is_placeholder: true }),
-    ]);
+    expect(importAlbumCredits).toHaveBeenCalledWith(
+      "26715224",
+      6,
+      [expect.objectContaining({ name: "Various", is_placeholder: true })],
+      expect.anything(),
+    );
     expect(importTrackCredits).toHaveBeenNthCalledWith(1, "26715224-A1", 6, [
       expect.objectContaining({ name: "Los Mirlos", discogs_artist_id: "101" }),
     ]);
@@ -102,13 +105,16 @@ describe("artist credits through the import services", () => {
     );
     const legacyAlbum = { ...album };
     delete legacyAlbum.artist_credits;
-    await upsertAlbum({ query: vi.fn() }, legacyAlbum);
+    await upsertAlbum({ query: vi.fn() } as never, legacyAlbum);
     const [track] = extractTracksFromAlbum(release(), "alice");
     delete track.artist_credits;
     await upsertTracks([track]);
-    expect(importAlbumCredits).toHaveBeenCalledWith("26715224", 6, [
-      expect.objectContaining({ name: "Earth, Wind & Fire", source: "legacy" }),
-    ]);
+    expect(importAlbumCredits).toHaveBeenCalledWith(
+      "26715224",
+      6,
+      [expect.objectContaining({ name: "Earth, Wind & Fire", source: "legacy" })],
+      expect.anything(),
+    );
     expect(importTrackCredits).toHaveBeenCalledWith(track.track_id, 6, [
       expect.objectContaining({ name: "Los Mirlos", source: "legacy" }),
     ]);
@@ -144,7 +150,7 @@ describe("artist credits through the import services", () => {
   it("reports failed credit writes so the import can be retried", async () => {
     importAlbumCredits.mockRejectedValueOnce(new Error("credit write failed"));
     await expect(
-      upsertAlbum({ query: vi.fn() }, discogsReleaseToAlbum(release(), 6)),
+      upsertAlbum({ query: vi.fn() } as never, discogsReleaseToAlbum(release(), 6)),
     ).rejects.toThrow("credit write failed");
     importTrackCredits.mockRejectedValueOnce(new Error("credit write failed"));
     const { errors } = await upsertTracks(extractTracksFromAlbum(release(), "alice"));
