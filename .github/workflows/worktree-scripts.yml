@@ -1,0 +1,30 @@
+name: worktree-scripts
+
+# Self-tests for scripts/worktree (stub op/docker/herdr-agent on PATH).
+on:
+  pull_request:
+    paths:
+      - .github/workflows/worktree-scripts.yml
+      - scripts/worktree/**
+      - justfile
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worktree-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run worktree script self-tests
+        run: |
+          for t in scripts/worktree/*_test.sh; do
+            echo "== $t"
+            "$t"
+          done

@@ -103,12 +103,18 @@ command -v "$AGENT_BIN" >/dev/null 2>&1 \
 args=("$BRANCH" --base "${BASE:-origin/main}")
 [[ "$FOCUS" == true ]] || args+=(--no-focus)
 
+# The setup runs in an agent pane nobody watches, so it must never wait on the
+# 1Password approval prompt. herdr-agent evals --setup in a fresh shell, so the
+# flag travels in the command itself. Always pass it, even for the default setup.
+UNATTENDED="WORKTREE_UNATTENDED=1"
 if [[ "$WITH_BOOTSTRAP" == false && "$WITH_STACK" == false ]]; then
   args+=(--no-setup)
 elif [[ "$WITH_BOOTSTRAP" == false ]]; then
-  args+=(--setup "just worktree-up")
+  args+=(--setup "$UNATTENDED just worktree-up")
 elif [[ "$WITH_STACK" == false ]]; then
-  args+=(--setup "just worktree-setup --no-stack")
+  args+=(--setup "$UNATTENDED just worktree-setup --no-stack")
+else
+  args+=(--setup "$UNATTENDED just worktree-setup")
 fi
 
 if [[ -n "$ISSUE" ]]; then

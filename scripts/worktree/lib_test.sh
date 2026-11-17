@@ -301,6 +301,68 @@ assert_eq "a compose failure under op is not retried without op" \
     '^docker compose ' "$(cat "$FAKE_LOG")"
 )
 
+# --- op_injection_available: timeout, unattended, caching ---
+# A fake op whose `vault list` hangs, succeeds or fails per FAKE_OP_VAULT.
+op_bin="$TEST_TMP/op-bin"
+mkdir -p "$op_bin"
+cat >"$op_bin/op" <<'FAKE'
+#!/usr/bin/env bash
+echo "op $1 $2" >>"$FAKE_LOG"
+case "$1" in
+  whoami) exit "${FAKE_OP_WHOAMI_STATUS:-0}" ;;
+  vault)
+    case "${FAKE_OP_VAULT:-ok}" in
+      hang) echo $$ >"$FAKE_LOG.pid"; exec sleep 300 ;;
+      fail) exit 1 ;;
+      *) exit 0 ;;
+    esac
+    ;;
+esac
+FAKE
+chmod +x "$op_bin/op"
+
+# op_case <vault-mode> [VAR=value ...]: interactive shell, prints
+# "<available|unavailable>|<log lines>|<stderr>" for two consecutive checks.
+op_case() {
+  local mode="$1" log="$TEST_TMP/op.log" err="$TEST_TMP/op.err" state
+  shift
+  : >"$log"
+  rm -f "$log.pid"
+  state="$(
+    export PATH="$op_bin:$PATH" FAKE_LOG="$log" COMPOSE_DIR="$TEST_TMP" FAKE_OP_VAULT="$mode"
+    unset WORKTREE_OP_STATE WORKTREE_UNATTENDED
+    for kv in "$@"; do export "${kv?}"; done
+    _is_interactive() { return 0; }
+    op_injection_resolve 2>"$err"
+    op_injection_available
+    op_injection_available && echo available || echo unavailable
+  )"
+  printf '%s|%s|%s' "$state" "$(tr '\n' ';' <"$log")" "$(cat "$err")"
+}
+
+assert_match "interactive: a granted prompt enables injection" \
+  '^available\|op vault list;\|$' "$(op_case ok)"
+assert_match "interactive: a denied prompt disables injection" \
+  '^unavailable\|op vault list;\|$' "$(op_case fail)"
+
+started=$SECONDS
+result="$(op_case hang WORKTREE_OP_TIMEOUT_SECONDS=1)"
+assert_match "interactive: a hanging op times out, warns, and falls back" \
+  '^unavailable\|op vault list;\|Warning: 1Password did not answer within 1s' "$result"
+assert_true "the hang costs about the timeout, once, across two checks" \
+  "$([[ $((SECONDS - started)) -le 4 ]] && echo true || echo false)"
+pid="$(cat "$TEST_TMP/op.log.pid" 2>/dev/null || true)"
+assert_true "the timed-out op process is killed, not orphaned" \
+  "$([[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null && echo true || echo false)"
+
+assert_match "unattended: uses whoami, never the prompting vault list, even on a TTY" \
+  '^available\|op whoami ;\|$' "$(op_case hang WORKTREE_UNATTENDED=1)"
+assert_match "unattended: a locked op falls back" \
+  '^unavailable\|op whoami ;\|$' "$(op_case hang WORKTREE_UNATTENDED=1 FAKE_OP_WHOAMI_STATUS=1)"
+
+assert_match "a cached verdict is reused without calling op again" \
+  '^available\|\|$' "$(op_case hang WORKTREE_OP_STATE=available)"
+
 # --- per-worktree Postgres password ---
 
 # Fake docker/op that record the POSTGRES_PASSWORD compose would see. The fake
