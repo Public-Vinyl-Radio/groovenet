@@ -70,6 +70,12 @@ bootstrap-hooks:
 lint-all:
   uv tool run pre-commit run --all-files
 
+# Self-tests for scripts/worktree (stub op/docker/herdr-agent; no Docker, Caddy or 1Password needed).
+worktree-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  for t in scripts/worktree/*_test.sh; do echo "== $t"; "$t"; done
+
 # Format tracked files: Prettier for web/Node/docs, ruff for the Python services.
 # The ruff version follows ruff-pre-commit's rev in .pre-commit-config.yaml.
 # Symlinks (AGENTS.md) are skipped: Prettier refuses them, and pre-commit's

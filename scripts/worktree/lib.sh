@@ -179,7 +179,7 @@ worktree_lock_dir() {
 }
 
 path_mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
 }
 
 # lock_is_stale: owner pid is gone, or (no pid recorded) the lock is old.
@@ -370,19 +370,72 @@ compose_args_array() {
   done
 }
 
+# run_bounded <seconds> <cmd...>: run cmd with stdout/stderr discarded and kill
+# it after <seconds>. Portable (macOS has no `timeout`): the command runs in the
+# background, is polled, and is TERMed then KILLed on expiry, then reaped so it
+# is never orphaned. Returns the command's status, or 124 on timeout.
+run_bounded() {
+  local limit="$1" pid ticks=0 max rc=0
+  shift
+  max=$((limit * 5))
+  "$@" >/dev/null 2>&1 </dev/null &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if ((ticks >= max)); then
+      kill -TERM "$pid" 2>/dev/null || true
+      sleep 0.2
+      kill -KILL "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 0.2
+    ticks=$((ticks + 1))
+  done
+  wait "$pid" || rc=$?
+  return "$rc"
+}
+
 # op_injection_available: 1Password injection can work (op installed, signed
 # in, and a template exists). Checked up front so a compose failure is never
 # mistaken for an injection failure. `op whoami` never triggers the desktop
 # app's authorisation prompt, so an interactive terminal uses `op vault list`,
-# which does; unattended runs keep the non-blocking `whoami`.
+# which does. Two things keep that from blocking forever: unattended runs
+# (WORKTREE_UNATTENDED=1, set by herdr-task) keep the non-blocking `whoami`,
+# and the prompting check is bounded by WORKTREE_OP_TIMEOUT_SECONDS (60), after
+# which it counts as unavailable. The verdict is cached in WORKTREE_OP_STATE so
+# one run pays for at most one wait; resolve it in the top-level shell
+# (op_injection_resolve) because a subshell's cache dies with it.
+op_injection_resolve() {
+  if [[ -z "${WORKTREE_OP_STATE:-}" ]]; then
+    if _op_injection_check; then
+      WORKTREE_OP_STATE=available
+    else
+      WORKTREE_OP_STATE=unavailable
+    fi
+    export WORKTREE_OP_STATE
+  fi
+}
+
 op_injection_available() {
+  op_injection_resolve
+  [[ "$WORKTREE_OP_STATE" == available ]]
+}
+
+# Seam for tests: a person at a terminal, as opposed to a pipe or CI.
+_is_interactive() { [[ -t 0 && -t 1 ]]; }
+
+_op_injection_check() {
   command -v op >/dev/null 2>&1 || return 1
   [[ -f "$COMPOSE_DIR/.env.tpl" ]] || return 1
-  if [[ -t 0 && -t 1 ]]; then
-    op vault list >/dev/null 2>&1
-  else
-    op whoami >/dev/null 2>&1
+  if [[ "${WORKTREE_UNATTENDED:-}" != 1 ]] && _is_interactive; then
+    local rc=0
+    run_bounded "${WORKTREE_OP_TIMEOUT_SECONDS:-60}" op vault list || rc=$?
+    if ((rc == 124)); then
+      echo "Warning: 1Password did not answer within ${WORKTREE_OP_TIMEOUT_SECONDS:-60}s (approval prompt unanswered?)" >&2
+    fi
+    return "$rc"
   fi
+  op whoami >/dev/null 2>&1
 }
 
 # run_compose runs "docker compose <args>", injecting secrets via 1Password

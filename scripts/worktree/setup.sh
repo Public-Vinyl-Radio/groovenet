@@ -51,6 +51,8 @@ done
 require_command git docker caddy
 
 ensure_worktree_env
+# Decide once, here in the top-level shell, so every compose call below reuses it.
+op_injection_resolve
 if [[ -n "$REQUESTED_PROFILES" ]]; then
   save_profiles "$(normalize_profiles "${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}$REQUESTED_PROFILES")"
 fi
