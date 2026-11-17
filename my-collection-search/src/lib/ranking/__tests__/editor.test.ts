@@ -27,7 +27,7 @@ describe("editor drafts", () => {
   it("sets a weight, rounded, and drops one set to 0", () => {
     expect(withWeight(draft, "rating", 0.12345).weights.rating).toBe(0.123);
     expect(withWeight(draft, "era", 0).weights).not.toHaveProperty("era");
-    expect(draft.weights.era).toBe(0.05);
+    expect(draft.weights.era).toBe(0.3);
   });
 
   it("sets and clears constraints, and maps key modes onto key_rule", () => {

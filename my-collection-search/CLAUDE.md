@@ -535,8 +535,8 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
   #1195's import all parse it). Presets live in code (`src/lib/ranking/profiles.ts`):
   **Default** (`DEFAULT_RANKING_CONFIG` unchanged), **Beatmatcher** (tempo weight 3 and
   key 0.3 over a 0.15 similarity base, ±6% with half and double time, adjacent keys) and
-  **Selector** (genre 1.6 and vibe 1, both added, no identity and no base; faint
-  era/energy/tempo, no constraints). Both re-tuned in #1218 for pool-ranked similarity;
+  **Selector** (genre 1.8 and vibe 1, both added, no identity and no base; era 0.3,
+  energy 0.48, faint tempo, no constraints). Both re-tuned in #1218 for pool-ranked similarity;
   Selector's genre lead is what the owner chose in the #1196 blind review. They are read-only; tuning one means copying it. Their orderings are
   pinned in `__tests__/presets.test.ts` on `presetFixture.ts`.
 - **Storage:** `ranking_profiles` (per friend, `config` jsonb plus `version`, at most 50)

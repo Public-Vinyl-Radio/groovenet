@@ -114,22 +114,26 @@ export const BEATMATCHER_RANKING_CONFIG = define({
 
 /**
  * Selector (#1192, re-tuned for #1218): genre and vibe first. Genre overlap
- * (up to 1.6) leads, the owner's preference in the #1196 blind review, and
+ * (up to 1.8) leads, the owner's preference in the #1196 blind review, and
  * vibe adds up to 1 by its rank in the pool. Vibe adds rather than forming
  * a `max` base with identity: the identity index is itself genre-heavy, so
  * a strong genre weight over a `max` base filled the lists with tracks the
  * vibe index never found. A candidate outside the vibe top 200 scores no
- * vibe, which is where it ranks. Era and energy pull gently, tempo barely
- * registers and key not at all. No hard constraints.
+ * vibe, which is where it ranks. Genre, era (0.3) and energy (0.48) keep
+ * their #1192 proportions (0.3 : 0.05 : 0.08, times 6); tempo barely
+ * registers and key not at all. No hard constraints. Of the configs tried,
+ * these give the lists closest to Selector's before #1218 (evaluations/1218):
+ * the owner preferred those to genre 1.6 / era 0.05 / energy 0.08 in the
+ * round 1 blind review.
  */
 export const SELECTOR_RANKING_CONFIG = define({
   version: 2,
   id: "selector",
   weights: {
     vibe_similarity: 1,
-    genre_overlap: 1.6,
-    era: 0.05,
-    energy: 0.08,
+    genre_overlap: 1.8,
+    era: 0.3,
+    energy: 0.48,
     bpm_distance: 0.01,
   },
   usePrior: true,

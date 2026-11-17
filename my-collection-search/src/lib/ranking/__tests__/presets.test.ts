@@ -48,8 +48,8 @@ describe("preset orderings", () => {
     expect(ids("selector")).toEqual([
       "vibe-twin-off-tempo",
       "no-analysis",
-      "calm-vibe",
       "genre-match-two-steps",
+      "calm-vibe",
       "all-rounder",
       "half-time-adjacent",
       "relative-key",
