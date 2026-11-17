@@ -4,6 +4,12 @@ declare global {
   var __mcsDbPool: Pool | undefined;
 }
 
+// Defence in depth (#1223). A transaction left idle, or one waiting on a lock
+// nothing will release, holds a pooled connection forever and eventually takes
+// the whole site down. These make such a bug fail one request instead.
+export const LOCK_TIMEOUT_MS = 30_000;
+export const IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
+
 function createPool(): Pool {
   const connectionString =
     process.env.DATABASE_URL ||
@@ -11,7 +17,15 @@ function createPool(): Pool {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not configured");
   }
-  return new Pool({ connectionString });
+  const pool = new Pool({
+    connectionString,
+    lock_timeout: LOCK_TIMEOUT_MS,
+    idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_TIMEOUT_MS,
+  });
+  // Postgres ends a connection that hit idle_in_transaction_session_timeout;
+  // without a listener that error on an idle pooled client crashes the process.
+  pool.on("error", (error) => console.error("[db] idle pooled client error:", error.message));
+  return pool;
 }
 
 function getPool(): Pool {

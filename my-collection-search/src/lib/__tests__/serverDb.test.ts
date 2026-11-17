@@ -8,15 +8,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 class PoolMock {
   static instances: PoolMock[] = [];
 
-  config: { connectionString?: string };
+  config: Record<string, unknown>;
   calls: { text: string; values?: unknown[] }[] = [];
   result: unknown = { rows: [], rowCount: 0 };
   client: ClientMock = new ClientMock();
   totalCount = 7;
 
-  constructor(config: { connectionString?: string }) {
+  handlers: Record<string, (e: Error) => void> = {};
+
+  constructor(config: Record<string, unknown>) {
     this.config = config;
     PoolMock.instances.push(this);
+  }
+
+  on(event: string, fn: (e: Error) => void) {
+    this.handlers[event] = fn;
+    return this;
   }
 
   async query(text: string, values?: unknown[]) {
@@ -89,7 +96,22 @@ describe("pool construction", () => {
 
     await dbQuery("SELECT 1");
 
-    expect(onlyPool().config).toEqual({ connectionString: DSN });
+    expect(onlyPool().config).toMatchObject({ connectionString: DSN });
+  });
+
+  it("sets lock and idle-in-transaction timeouts and survives an idle client error (#1223)", async () => {
+    const { dbQuery } = await loadModule();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await dbQuery("SELECT 1");
+
+    expect(onlyPool().config).toMatchObject({
+      lock_timeout: 30_000,
+      idle_in_transaction_session_timeout: 60_000,
+    });
+    expect(() => onlyPool().handlers.error(new Error("terminating connection"))).not.toThrow();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it("falls back to the local test database when DATABASE_URL is unset under NODE_ENV=test", async () => {
@@ -99,7 +121,7 @@ describe("pool construction", () => {
 
     await dbQuery("SELECT 1");
 
-    expect(onlyPool().config).toEqual({ connectionString: TEST_DSN });
+    expect(onlyPool().config).toMatchObject({ connectionString: TEST_DSN });
   });
 
   it("prefers DATABASE_URL over the test fallback", async () => {
@@ -108,7 +130,7 @@ describe("pool construction", () => {
 
     await dbQuery("SELECT 1");
 
-    expect(onlyPool().config).toEqual({ connectionString: DSN });
+    expect(onlyPool().config).toMatchObject({ connectionString: DSN });
   });
 
   it.each(["production", "development"])(
@@ -164,7 +186,7 @@ describe("pool construction", () => {
 
     process.env.DATABASE_URL = DSN;
     await expect(dbQuery("SELECT 1")).resolves.toBeDefined();
-    expect(onlyPool().config).toEqual({ connectionString: DSN });
+    expect(onlyPool().config).toMatchObject({ connectionString: DSN });
   });
 });
 
@@ -181,7 +203,7 @@ describe("dbPool proxy", () => {
     const { dbPool } = await loadModule();
 
     expect(dbPool.totalCount).toBe(7);
-    expect((dbPool as unknown as PoolMock).config).toEqual({ connectionString: DSN });
+    expect((dbPool as unknown as PoolMock).config).toMatchObject({ connectionString: DSN });
   });
 
   it("binds methods so a detached reference still reaches the pool", async () => {
