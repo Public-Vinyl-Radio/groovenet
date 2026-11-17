@@ -1707,11 +1707,17 @@ const audioIngestContracts: ApiContractRoute[] = [
         },
         "400": {
           description:
-            "Rejected. `error` is one of missing_audio_file, missing_source_id, unsupported_audio_format, invalid_audio_stream, audio_too_short, audio_too_long.",
+            "Permanently rejected; the chunk is bad, do not retry it. `error` is one of missing_audio_file, missing_source_id, unsupported_audio_format, invalid_audio_stream, audio_too_short, audio_too_long. missing_audio_file means the body arrived complete but is not multipart or has no `audio` part.",
+          content: { "application/json": { schema: componentRef("IngestError") } },
+        },
+        "408": {
+          description:
+            "Retryable. The request body never fully arrived (aborted, truncated or timed out), `error` is upload_incomplete. The chunk may be fine: keep it and retry with backoff.",
           content: { "application/json": { schema: componentRef("IngestError") } },
         },
         "413": {
-          description: "Upload exceeds the configured size limit (audio_too_large)",
+          description:
+            "Permanently rejected: upload exceeds the configured size limit (audio_too_large)",
           content: { "application/json": { schema: componentRef("IngestError") } },
         },
         "500": {

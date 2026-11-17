@@ -155,6 +155,128 @@ describe("POST /api/audio/ingest", () => {
     expect((await res.json()).error).toBe("missing_audio_file");
   });
 
+  describe("an incomplete body (#1224)", () => {
+    beforeEach(() => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.spyOn(console, "log").mockImplementation(() => {});
+    });
+
+    async function multipart() {
+      const form = new FormData();
+      form.append("audio", audioFile("chunk.wav", 4000));
+      form.append("source_id", "s");
+      const res = new Response(form);
+      return {
+        bytes: new Uint8Array(await res.arrayBuffer()),
+        type: res.headers.get("content-type") as string,
+      };
+    }
+
+    function streamed(
+      chunks: Uint8Array[],
+      headers: Record<string, string>,
+      failWith?: Error,
+    ): Request {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(chunk);
+          if (failWith) controller.error(failWith);
+          else controller.close();
+        },
+      });
+      return new Request("http://app/api/audio/ingest", {
+        method: "POST",
+        headers,
+        body,
+        duplex: "half",
+      } as RequestInit);
+    }
+
+    async function expectIncomplete(res: Response) {
+      expect(res.status).toBe(408);
+      expect((await res.json()).error).toBe("upload_incomplete");
+      expect(service.accept).not.toHaveBeenCalled();
+      expect(metrics.chunkRejected).toHaveBeenCalledWith("upload_incomplete");
+      expect(logged()[0]).toMatchObject({
+        event: "ingest.rejected",
+        stage: "upload",
+        reason: "upload_incomplete",
+      });
+    }
+
+    it("408s a connection aborted mid-body", async () => {
+      const { bytes, type } = await multipart();
+      const aborted = Object.assign(new Error("aborted"), { code: "ECONNRESET" });
+
+      const res = await POST(streamed([bytes.slice(0, 2000)], { "Content-Type": type }, aborted));
+
+      await expectIncomplete(res);
+    });
+
+    it("408s a body that ends short of its Content-Length", async () => {
+      const { bytes, type } = await multipart();
+
+      const res = await POST(
+        streamed([bytes.slice(0, 2000)], {
+          "Content-Type": type,
+          "Content-Length": String(bytes.length),
+        }),
+      );
+
+      await expectIncomplete(res);
+    });
+
+    it("still 400s a complete multipart body with no audio part", async () => {
+      const res = await POST(request({ source_id: "s" }));
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("missing_audio_file");
+    });
+
+    it("400s a complete, malformed multipart body whose length matches", async () => {
+      const { bytes, type } = await multipart();
+      const cut = bytes.slice(0, 2000);
+
+      const res = await POST(
+        streamed([cut], { "Content-Type": type, "Content-Length": String(cut.length) }),
+      );
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("missing_audio_file");
+      expect(metrics.chunkRejected).toHaveBeenCalledWith("missing_audio_file");
+    });
+
+    it("400s a complete non-multipart body with a matching Content-Length", async () => {
+      const json = new TextEncoder().encode('{"source_id":"s"}');
+
+      const res = await POST(
+        streamed([json], {
+          "Content-Type": "application/json",
+          "Content-Length": String(json.length),
+        }),
+      );
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("missing_audio_file");
+    });
+
+    it("400s a request with no body at all", async () => {
+      const res = await POST(new Request("http://app/api/audio/ingest", { method: "POST" }));
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("missing_audio_file");
+    });
+
+    it("keeps 413 for a complete oversized upload", async () => {
+      service.accept.mockRejectedValue(new IngestRejected("audio_too_large", "too big"));
+
+      const res = await POST(request({ audio: audioFile("big.wav", 8000), source_id: "s" }));
+
+      expect(res.status).toBe(413);
+      expect((await res.json()).error).toBe("audio_too_large");
+    });
+  });
+
   it("400s a missing source_id", async () => {
     const res = await POST(request({ audio: audioFile() }));
 

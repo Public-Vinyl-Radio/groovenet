@@ -34,6 +34,7 @@ export const INGEST_ERROR_CODES = [
   "audio_too_large",
   "audio_too_short",
   "audio_too_long",
+  "upload_incomplete",
   "internal_error",
 ] as const;
 export const ingestErrorCodeSchema = z.enum(INGEST_ERROR_CODES);

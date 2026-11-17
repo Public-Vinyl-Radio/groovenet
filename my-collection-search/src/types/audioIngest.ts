@@ -58,7 +58,9 @@ export type IngestErrorCode =
   | "invalid_audio_stream"
   | "audio_too_large"
   | "audio_too_short"
-  | "audio_too_long";
+  | "audio_too_long"
+  /** Retryable (408): the body never fully arrived. Keep the chunk. */
+  | "upload_incomplete";
 
 /** Limits on what one chunk may be. */
 export type IngestLimits = {

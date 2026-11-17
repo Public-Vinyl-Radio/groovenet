@@ -828,6 +828,24 @@ screen and uses them to tell "this chunk is bad, drop it" from "retry later" —
 don't reword them. `202` rather than `200` because what the audio _is_ will not
 be known for a second or two.
 
+Which codes mean "drop it" and which mean "keep it" is part of that contract:
+
+| Status | `error`                                                                                                                            | Listener should                      |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 400    | `missing_audio_file`, `missing_source_id`, `unsupported_audio_format`, `invalid_audio_stream`, `audio_too_short`, `audio_too_long` | **Permanent** — discard the chunk    |
+| 413    | `audio_too_large`                                                                                                                  | **Permanent** — discard the chunk    |
+| 408    | `upload_incomplete`                                                                                                                | **Retryable** — keep, retry, backoff |
+| 5xx    | `internal_error`                                                                                                                   | **Retryable**                        |
+
+`upload_incomplete` (#1224) is a `req.formData()` failure where the body never
+fully arrived: the body stream errored (an aborted or timed-out connection —
+Node's `ECONNRESET`, "aborted") or ended short of `Content-Length`. The runtime
+does not separate these from a malformed body by what it throws, since a body
+that merely ends early is the same `TypeError` as a complete non-multipart one,
+so the route watches the stream. A complete body that is not multipart, or has
+no `audio` part, stays `missing_audio_file` / 400. Unknown codes and unparseable
+bodies are the listener's to retry.
+
 ### Lifecycle
 
 ```
