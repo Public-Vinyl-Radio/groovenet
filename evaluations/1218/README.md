@@ -226,10 +226,15 @@ key rule, ±4 BPM and genre floor all bite, as #1220 found. Not redesigned here.
   longer parse, would rank as Default, and the editor would show Default's
   weights instead of their own.
 
-## Blind review, round 2: fallback Selector vs `main`'s (for the owner)
+## Blind review, round 2: fallback Selector vs `main`'s
 
-Not judged yet. **Selector's new weights are confirmed only once the owner's
-review agrees.**
+**Result: the owner preferred the fallback, 7–4 on both questions**, with 5
+"no difference" and 2 automatic ties (16 of 17 reviewed, 1 skipped; sign test
+p = 0.55 each). The two answers agreed on every seed. Not significant alone,
+but 12 of 18 judged seeds came out equal or better than `main`, against 4
+worse. **The review agrees, so Selector keeps the fallback weights.** Round 1
+put `main` ahead of the genre 1.6 re-tune; the fallback keeps `main`'s
+genre and vibe levels on the new scale and no longer loses to it.
 
 - **Why a round 2:** round 1 (below) preferred `main` to the re-tune, so
   Selector moved to the fallback, `proposals/selector-add-i0-g18.json`.
