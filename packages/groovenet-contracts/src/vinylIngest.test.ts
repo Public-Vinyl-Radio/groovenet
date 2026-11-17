@@ -23,6 +23,7 @@ describe("vinyl ingest contracts", () => {
       "audio_too_large",
       "audio_too_short",
       "audio_too_long",
+      "upload_incomplete",
       "internal_error",
     ]);
     expect(vinylIngestJsonSchemas.IngestError.properties.error.enum).toEqual([

@@ -50,9 +50,19 @@ export async function POST(req: Request) {
 
   try {
     let form: FormData;
+    const upload = watchUpload(req);
     try {
-      form = await req.formData();
+      form = await upload.request.formData();
     } catch {
+      // A body that never fully arrived is the network's fault, not the
+      // chunk's: say so, and let the device keep the audio and retry (#1224).
+      if (upload.incomplete()) {
+        return refuse(
+          "upload_incomplete",
+          "the request body ended before it was complete; retry the upload",
+          408,
+        );
+      }
       return refuse("missing_audio_file", "expected multipart/form-data", 400);
     }
 
@@ -109,9 +119,57 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * Wrap a request so a failed `formData()` can be told apart: body never arrived
+ * in full, or arrived in full and is wrong.
+ *
+ * What the runtime throws does not separate them on its own. An aborted or
+ * timed-out connection errors the body stream, and that error comes out of
+ * `formData()` as-is (Node: `ECONNRESET`, "aborted"). A body that simply ends
+ * early — a proxy cutting it off — is a `TypeError: Failed to parse body as
+ * FormData`, identical to a complete body that is malformed. So the stream is
+ * observed: it errored, or it ended with fewer bytes than `Content-Length`
+ * promised, means incomplete. Anything else is the device's mistake.
+ */
+function watchUpload(req: Request): { request: Request; incomplete: () => boolean } {
+  if (!req.body) return { request: req, incomplete: () => false };
+  const declared = Number(req.headers.get("content-length"));
+  const reader = req.body.getReader();
+  let received = 0;
+  let errored = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) return controller.close();
+        received += value.byteLength;
+        controller.enqueue(value);
+      } catch (error) {
+        errored = true;
+        controller.error(error);
+      }
+    },
+  });
+  const request = new Request(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body,
+    duplex: "half",
+  } as RequestInit);
+  return {
+    request,
+    incomplete: () =>
+      errored ||
+      (req.headers.has("content-length") && Number.isFinite(declared) && received < declared),
+  };
+}
+
 /** Refused before the bytes were looked at, or because of what they turned out to be. */
 function stageOf(code: IngestErrorCode): "upload" | "validation" {
-  return code === "missing_audio_file" || code === "missing_source_id" || code === "audio_too_large"
+  return code === "missing_audio_file" ||
+    code === "missing_source_id" ||
+    code === "audio_too_large" ||
+    code === "upload_incomplete"
     ? "upload"
     : "validation";
 }
