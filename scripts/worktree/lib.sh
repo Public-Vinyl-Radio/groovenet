@@ -179,7 +179,7 @@ worktree_lock_dir() {
 }
 
 path_mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
 }
 
 # lock_is_stale: owner pid is gone, or (no pid recorded) the lock is old.

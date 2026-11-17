@@ -102,6 +102,8 @@ assert_true "gc.sh's pattern rejects an un-prefixed legacy supacode project" \
 # --- worktree_list_entries, against this real repo (read-only) ---
 
 this_branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+# A detached checkout (CI) reports no branch, and rev-parse says "HEAD".
+[[ "$this_branch" != HEAD ]] || this_branch=""
 found="$(worktree_list_entries | awk -F'\t' -v p="$REPO_ROOT" '$1 == p { print $2 }')"
 assert_eq "worktree_list_entries reports this worktree's own branch" \
   "$this_branch" "$found"
