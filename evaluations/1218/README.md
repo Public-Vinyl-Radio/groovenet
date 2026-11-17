@@ -74,25 +74,31 @@ are unchanged, so `test_pinned_orderings.py` doesn't move.
 
 Frozen set (34 track + 5 playlist seeds):
 
-| Profile     | Starved | ±6% ½×/2×   | mean \|ΔBPM\| ½×/2× | Compatible key | Same key  | Genre       | Vibe sim      | Identity sim  | Artists   | Releases    | Identity-only picks | Jaccard vs main |
-| ----------- | ------- | ----------- | ------------------- | -------------- | --------- | ----------- | ------------- | ------------- | --------- | ----------- | ------------------- | --------------- |
-| default     | 4 → 4   | 100% → 100% | 2.6 → 2.5           | 100% → 100%    | 78% → 56% | 0.22 → 0.25 | 0.984 → 0.984 | 0.505 → 0.520 | 9.3 → 9.2 | 9.3 → 9.3   | 17% → 23%           | 0.68            |
-| beatmatcher | 2 → 2   | 100% → 100% | 1.8 → 1.9           | 100% → 100%    | 76% → 75% | 0.29 → 0.27 | 0.980 → 0.980 | 0.511 → 0.517 | 9.6 → 9.6 | 9.8 → 9.8   | 19% → 23%           | 0.73            |
-| selector    | 0 → 0   | 54% → 65%   | 8.6 → 7.0           | 28% → 35%      | 15% → 22% | 0.65 → 0.64 | 0.977 → 0.980 | 0.576 → 0.572 | 9.4 → 9.6 | 10.0 → 10.0 | 10% → 16%           | 0.36            |
-| blend       | 0 → 0   | 68% → 72%   | 4.8 → 4.1           | 59% → 51%      | 39% → 40% | 0.57 → 0.38 | 0.979 → 0.982 | 0.570 → 0.566 | 9.6 → 9.6 | 10.0 → 10.0 | 12% → 29%           | 0.17            |
-| mixable     | 2 → 2   | 96% → 95%   | 2.6 → 2.3           | 77% → 75%      | 45% → 48% | 0.45 → 0.29 | 0.980 → 0.983 | 0.550 → 0.533 | 9.3 → 9.3 | 9.6 → 9.6   | 16% → 24%           | 0.32            |
-| strict      | 17 → 17 | 100% → 100% | 1.9 → 1.8           | 100% → 100%    | 43% → 40% | 0.50 → 0.47 | 0.978 → 0.977 | 0.552 → 0.554 | 7.3 → 7.3 | 7.5 → 7.5   | 24% → 33%           | 0.68            |
+| Profile                   | Starved | ±6% ½×/2×   | mean \|ΔBPM\| ½×/2× | Compatible key | Same key  | Genre       | Vibe sim      | Identity sim  | Artists   | Releases    | Identity-only picks | Jaccard vs main |
+| ------------------------- | ------- | ----------- | ------------------- | -------------- | --------- | ----------- | ------------- | ------------- | --------- | ----------- | ------------------- | --------------- |
+| default                   | 4 → 4   | 100% → 100% | 2.6 → 2.5           | 100% → 100%    | 78% → 56% | 0.22 → 0.25 | 0.984 → 0.984 | 0.505 → 0.520 | 9.3 → 9.2 | 9.3 → 9.3   | 17% → 23%           | 0.68            |
+| beatmatcher               | 2 → 2   | 100% → 100% | 1.8 → 1.9           | 100% → 100%    | 76% → 75% | 0.29 → 0.27 | 0.980 → 0.980 | 0.511 → 0.517 | 9.6 → 9.6 | 9.8 → 9.8   | 19% → 23%           | 0.73            |
+| selector                  | 0 → 0   | 54% → 59%   | 8.6 → 8.2           | 28% → 34%      | 15% → 20% | 0.65 → 0.66 | 0.977 → 0.977 | 0.576 → 0.586 | 9.4 → 9.5 | 10.0 → 10.0 | 10% → 22%           | 0.39            |
+| selector, round 1 re-tune | 0 → 0   | 54% → 65%   | 8.6 → 7.0           | 28% → 35%      | 15% → 22% | 0.65 → 0.64 | 0.977 → 0.980 | 0.576 → 0.572 | 9.4 → 9.6 | 10.0 → 10.0 | 10% → 16%           | 0.36            |
+| blend                     | 0 → 0   | 68% → 72%   | 4.8 → 4.1           | 59% → 51%      | 39% → 40% | 0.57 → 0.38 | 0.979 → 0.982 | 0.570 → 0.566 | 9.6 → 9.6 | 10.0 → 10.0 | 12% → 29%           | 0.17            |
+| mixable                   | 2 → 2   | 96% → 95%   | 2.6 → 2.3           | 77% → 75%      | 45% → 48% | 0.45 → 0.29 | 0.980 → 0.983 | 0.550 → 0.533 | 9.3 → 9.3 | 9.6 → 9.6   | 16% → 24%           | 0.32            |
+| strict                    | 17 → 17 | 100% → 100% | 1.9 → 1.8           | 100% → 100%    | 43% → 40% | 0.50 → 0.47 | 0.978 → 0.977 | 0.552 → 0.554 | 7.3 → 7.3 | 7.5 → 7.5   | 24% → 33%           | 0.68            |
 
 Holdout (seeds the re-tune never saw):
 
-| Profile     | Starved | ±6% ½×/2×   | mean \|ΔBPM\| ½×/2× | Compatible key | Same key  | Genre       | Vibe sim      | Identity sim  | Artists   | Identity-only picks | Jaccard vs main |
-| ----------- | ------- | ----------- | ------------------- | -------------- | --------- | ----------- | ------------- | ------------- | --------- | ------------------- | --------------- |
-| default     | 2 → 2   | 100% → 100% | 2.8 → 2.6           | 100% → 100%    | 85% → 70% | 0.25 → 0.29 | 0.986 → 0.985 | 0.504 → 0.518 | 9.4 → 9.3 | 14% → 21%           | 0.72            |
-| beatmatcher | 2 → 2   | 100% → 100% | 1.8 → 1.9           | 100% → 100%    | 84% → 83% | 0.29 → 0.30 | 0.982 → 0.982 | 0.507 → 0.513 | 9.6 → 9.6 | 18% → 21%           | 0.71            |
-| selector    | 0 → 0   | 59% → 64%   | 8.5 → 7.0           | 34% → 41%      | 16% → 25% | 0.71 → 0.67 | 0.979 → 0.983 | 0.574 → 0.563 | 9.3 → 9.6 | 10% → 11%           | 0.39            |
-| blend       | 2 → 2   | 73% → 81%   | 4.6 → 3.7           | 60% → 56%      | 39% → 46% | 0.63 → 0.40 | 0.981 → 0.985 | 0.570 → 0.561 | 9.4 → 9.5 | 15% → 28%           | 0.23            |
-| mixable     | 2 → 2   | 94% → 96%   | 2.6 → 2.3           | 79% → 78%      | 45% → 57% | 0.54 → 0.34 | 0.981 → 0.985 | 0.549 → 0.533 | 9.2 → 9.3 | 13% → 21%           | 0.33            |
-| strict      | 12 → 12 | 100% → 100% | 1.8 → 1.7           | 100% → 100%    | 46% → 48% | 0.53 → 0.48 | 0.980 → 0.981 | 0.550 → 0.551 | 8.2 → 8.2 | 22% → 26%           | 0.66            |
+| Profile                   | Starved | ±6% ½×/2×   | mean \|ΔBPM\| ½×/2× | Compatible key | Same key  | Genre       | Vibe sim      | Identity sim  | Artists   | Identity-only picks | Jaccard vs main |
+| ------------------------- | ------- | ----------- | ------------------- | -------------- | --------- | ----------- | ------------- | ------------- | --------- | ------------------- | --------------- |
+| default                   | 2 → 2   | 100% → 100% | 2.8 → 2.6           | 100% → 100%    | 85% → 70% | 0.25 → 0.29 | 0.986 → 0.985 | 0.504 → 0.518 | 9.4 → 9.3 | 14% → 21%           | 0.72            |
+| beatmatcher               | 2 → 2   | 100% → 100% | 1.8 → 1.9           | 100% → 100%    | 84% → 83% | 0.29 → 0.30 | 0.982 → 0.982 | 0.507 → 0.513 | 9.6 → 9.6 | 18% → 21%           | 0.71            |
+| selector                  | 0 → 0   | 59% → 63%   | 8.5 → 7.7           | 34% → 38%      | 16% → 21% | 0.71 → 0.69 | 0.979 → 0.981 | 0.574 → 0.577 | 9.3 → 9.4 | 10% → 14%           | 0.45            |
+| selector, round 1 re-tune | 0 → 0   | 59% → 64%   | 8.5 → 7.0           | 34% → 41%      | 16% → 25% | 0.71 → 0.67 | 0.979 → 0.983 | 0.574 → 0.563 | 9.3 → 9.6 | 10% → 11%           | 0.39            |
+| blend                     | 2 → 2   | 73% → 81%   | 4.6 → 3.7           | 60% → 56%      | 39% → 46% | 0.63 → 0.40 | 0.981 → 0.985 | 0.570 → 0.561 | 9.4 → 9.5 | 15% → 28%           | 0.23            |
+| mixable                   | 2 → 2   | 94% → 96%   | 2.6 → 2.3           | 79% → 78%      | 45% → 57% | 0.54 → 0.34 | 0.981 → 0.985 | 0.549 → 0.533 | 9.2 → 9.3 | 13% → 21%           | 0.33            |
+| strict                    | 12 → 12 | 100% → 100% | 1.8 → 1.7           | 100% → 100%    | 46% → 48% | 0.53 → 0.48 | 0.980 → 0.981 | 0.550 → 0.551 | 8.2 → 8.2 | 22% → 26%           | 0.66            |
+
+`selector` is the preset as it is now, on the fallback weights (genre 1.8),
+after the round 1 blind review. The round 1 re-tune (genre 1.6) is kept for
+comparison. The overlap and verdict lines below are from the round 1 run.
 
 Vibe and identity similarity are exact cosine (`1 − d`) on the serving
 embeddings, as in #1196. "Same key" is the share of picks in the seed's own
@@ -132,12 +138,12 @@ expectation failed. Beatmatcher holds.
 
 ## The preset changes
 
-| Preset                 | `main`                                                                      | After                                                                                  |
-| ---------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Default                | identity 1, vibe 1 (max base), key 0.02, BPM 0.01                           | unchanged                                                                              |
-| Beatmatcher            | identity 0.5, vibe 0.5 (max base), key 0.3, BPM 3, genre 0.05, energy 0.05  | identity **0.15**, vibe **0.15** (max base); the rest unchanged                        |
-| Selector               | identity 0.8, vibe 1 (max base), genre 0.3, era 0.05, energy 0.08, BPM 0.01 | vibe 1 (**added, no base**), identity **0**, genre **1.6**; era, energy, BPM unchanged |
-| blend, mixable, strict | Default's similarity, key and tempo, plus genre 0.08 and era 0.02           | unchanged                                                                              |
+| Preset                 | `main`                                                                      | After                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Default                | identity 1, vibe 1 (max base), key 0.02, BPM 0.01                           | unchanged                                                                                                                                                                                  |
+| Beatmatcher            | identity 0.5, vibe 0.5 (max base), key 0.3, BPM 3, genre 0.05, energy 0.05  | identity **0.15**, vibe **0.15** (max base); the rest unchanged                                                                                                                            |
+| Selector               | identity 0.8, vibe 1 (max base), genre 0.3, era 0.05, energy 0.08, BPM 0.01 | vibe 1 (**added, no base**), identity **0**, genre **1.8**, era **0.3**, energy **0.48**, BPM 0.01 (the fallback, after round 1; round 1 reviewed genre 1.6 with era and energy unchanged) |
+| blend, mixable, strict | Default's similarity, key and tempo, plus genre 0.08 and era 0.02           | unchanged                                                                                                                                                                                  |
 
 ### Selector: still genre-led
 
@@ -145,18 +151,18 @@ The owner chose genre-led Selector in #1196 (16–1 and 14–3). So the target w
 to keep its genre pull while vibe starts to count. Sweep on the frozen set
 (`proposals/selector-*.json`, compared with `main`'s Selector):
 
-| Config                         | Rule          | Identity | Genre | Genre overlap | Vibe sim  | Identity-only picks | Jaccard vs main |
-| ------------------------------ | ------------- | -------- | ----- | ------------- | --------- | ------------------- | --------------- |
-| `main`                         | max base, raw | 0.8      | 0.3   | 0.65          | 0.977     | 10%                 | 1               |
-| unchanged weights              | max base      | 0.8      | 0.3   | 0.48          | 0.982     | 21%                 | 0.12            |
-| `g1`                           | max base      | 0.8      | 1     | 0.68          | 0.967     | 49%                 | 0.19            |
-| `g2`                           | max base      | 0.8      | 2     | 0.72          | 0.962     | 59%                 | 0.22            |
-| `max-i05-g1`                   | max base      | 0.5      | 1     | 0.63          | 0.977     | 26%                 | 0.25            |
-| `add-i03-g1`                   | added         | 0.3      | 1     | 0.59          | 0.981     | 15%                 | 0.31            |
-| `add-i03-g16`                  | added         | 0.3      | 1.6   | 0.66          | 0.975     | 26%                 | 0.36            |
-| `add-i0-g14`                   | added         | 0        | 1.4   | 0.62          | 0.981     | 16%                 | 0.36            |
-| **`add-i0-g16-lite`** (chosen) | added         | 0        | 1.6   | **0.64**      | **0.980** | **16%**             | 0.36            |
-| `add-i0-g18`                   | added         | 0        | 1.8   | 0.66          | 0.977     | 22%                 | 0.39            |
+| Config                      | Rule          | Identity | Genre | Genre overlap | Vibe sim  | Identity-only picks | Jaccard vs main |
+| --------------------------- | ------------- | -------- | ----- | ------------- | --------- | ------------------- | --------------- |
+| `main`                      | max base, raw | 0.8      | 0.3   | 0.65          | 0.977     | 10%                 | 1               |
+| unchanged weights           | max base      | 0.8      | 0.3   | 0.48          | 0.982     | 21%                 | 0.12            |
+| `g1`                        | max base      | 0.8      | 1     | 0.68          | 0.967     | 49%                 | 0.19            |
+| `g2`                        | max base      | 0.8      | 2     | 0.72          | 0.962     | 59%                 | 0.22            |
+| `max-i05-g1`                | max base      | 0.5      | 1     | 0.63          | 0.977     | 26%                 | 0.25            |
+| `add-i03-g1`                | added         | 0.3      | 1     | 0.59          | 0.981     | 15%                 | 0.31            |
+| `add-i03-g16`               | added         | 0.3      | 1.6   | 0.66          | 0.975     | 26%                 | 0.36            |
+| `add-i0-g14`                | added         | 0        | 1.4   | 0.62          | 0.981     | 16%                 | 0.36            |
+| `add-i0-g16-lite` (round 1) | added         | 0        | 1.6   | **0.64**      | **0.980** | **16%**             | 0.36            |
+| **`add-i0-g18`** (now)      | added         | 0        | 1.8   | **0.66**      | **0.977** | **22%**             | **0.39**        |
 
 (`-lite` keeps `main`'s era 0.05 and energy 0.08; the others scale them with
 genre.)
@@ -166,13 +172,15 @@ genre.)
   genre leads, its candidates win (39–65% of picks), and vibe falls _below_
   `main`'s. Adding vibe instead keeps them to 10–16%: a track outside the vibe
   top 200 scores no vibe, which is the rank it has.
-- **The chosen point** keeps `main`'s genre pull (0.64 against 0.65), lifts vibe
+- **The round 1 point** keeps `main`'s genre pull (0.64 against 0.65), lifts vibe
   0.977 → 0.980 and artists 9.4 → 9.6, and changes only two things against
   `main`: genre is rescaled for the new spread and vibe adds. On the holdout,
   vibe rises 0.979 → 0.983 and artists 9.3 → 9.6, but genre gives up a little
   more (0.71 → 0.67). It is a trade, not a strict win, which is why the blind
   review decides.
-- On the #1192 preset fixture the re-tuned Selector orders exactly as `main`'s did.
+- On the #1192 preset fixture the round 1 re-tune ordered exactly as `main`'s
+  did. The fallback swaps two neighbours there (`genre-match-two-steps` now
+  precedes `calm-vibe`), because genre pulls harder.
 
 ### Beatmatcher: BPM and key held
 
@@ -218,10 +226,56 @@ key rule, ±4 BPM and genre floor all bite, as #1220 found. Not redesigned here.
   longer parse, would rank as Default, and the editor would show Default's
   weights instead of their own.
 
-## Blind review: re-tuned Selector vs `main`'s (for the owner)
+## Blind review, round 2: fallback Selector vs `main`'s (for the owner)
 
-Not judged yet. **The re-tune is confirmed only once the owner's review
-agrees.**
+Not judged yet. **Selector's new weights are confirmed only once the owner's
+review agrees.**
+
+- **Why a round 2:** round 1 (below) preferred `main` to the re-tune, so
+  Selector moved to the fallback, `proposals/selector-add-i0-g18.json`.
+- **Seeds:** the 19 holdout seeds round 1 did not show, frozen in
+  `review-seeds-2.json` (SHA-256 `d9d6528d…ad00b`). Committed (aef996a2) before
+  any fallback list existed. Round 1 showed `main`'s lists for its 20 seeds,
+  so reusing them could be recognised.
+- **Lists:** `main`'s Selector from the holdout run on `main`, and the
+  fallback from this branch. `review-pair.mjs pair --round 2` joins them as
+  `selector-main` and `selector-fallback`.
+- **Sheet:** the same tooling and questions: 17 items, plus 2 automatic ties
+  where both lists are identical. Mean Jaccard between the two lists is 0.45.
+
+```bash
+node evaluations/1196/review-web.mjs --file eval-data/1218-r2/review.json \
+  --audio-base https://groovenet.home.arpa      # then open http://127.0.0.1:8196/
+# afterwards
+node evaluations/1196/score-review.mjs --sheet eval-data/1218-r2/review.json \
+  --key eval-data/1218-r2/review-key.json --output eval-data/1218-r2/review-score.json
+```
+
+To rebuild the sheet:
+
+```bash
+node evaluations/1218/review-pair.mjs pair --round 2 \
+  --before eval-data/1218-holdout-before/results.json \
+  --after eval-data/1218-holdout-after2/results.json \
+  --output eval-data/1218-r2/review-results.json
+node evaluations/1196/side-by-side.mjs --results eval-data/1218-r2/review-results.json \
+  --output eval-data/1218-r2/review.json --key eval-data/1218-r2/review-key.json \
+  --compare selector-main:selector-fallback --sample 19
+```
+
+**If round 2 also prefers `main`:** nothing on the ranked scale reproduces
+`main`'s Selector. The choice is then between keeping Selector on raw
+similarity (a per-config opt-out of pool ranking) or holding the Selector
+change until #1217. Neither should be decided here.
+
+## Blind review, round 1: re-tuned Selector vs `main`'s
+
+**Result: the owner preferred `main`, 11–5 on both questions** (17 of 20
+reviewed, 1 "no difference", 3 skipped; sign test p = 0.21 each). The two
+answers agreed on every seed. That is not significant alone, but the re-tune
+needed the review to agree, so it is not adopted. Genre overlap explains it
+only in part: of `main`'s 11 wins, `main`'s list had more genre overlap in 5,
+the same in 3 and less in 3.
 
 - **Seeds:** 20 holdout seeds, frozen in `review-seeds.json` (SHA-256
   `ca980374…e72f2`). Committed (e30b38fc) before any re-tuned list existed, and
@@ -269,8 +323,8 @@ with `main`. The closest of everything tried is the re-tuned family itself.
 **Fallback: `proposals/selector-add-i0-g18.json`** (vibe 1 added, genre 1.8,
 era 0.3, energy 0.48, BPM 0.01, no identity, no base): Jaccard 0.39 with
 `main`, genre 0.66, vibe 0.977. That is `main`'s genre pull and vibe level on
-the new scale. A second review would then decide between it and the chosen
-config.
+the new scale. Round 1 preferred `main`, so Selector now uses it and round
+2 reviews it against `main`.
 
 ## Findings
 
