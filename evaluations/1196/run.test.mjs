@@ -50,14 +50,14 @@ test("the similarity query escapes ids and dedupes in SQL", () => {
 
 test("an inline config is stored as a temporary playlists-only draft", () => {
   const config = {
-    version: 1,
+    version: 2,
     id: "lean",
     weights: { vibe_similarity: 10 },
     usePrior: true,
     constraints: {},
   };
   assert.deepEqual(profileDraft({ id: "lean", config }), {
-    version: 1,
+    version: 2,
     name: "eval-1196 lean",
     description: "Temporary #1196 evaluation profile; deleted after the run.",
     surfaces: ["playlists"],
@@ -110,6 +110,11 @@ test("proposed configs parse with the contracts' own schemas", () => {
     "proposal",
   );
   assert.equal(bare.id, "proposal");
+  // A #1196 (v1) proposal reads on the pool-normalised scale, like a v1 file.
+  assert.equal(bare.version, 2);
+  const current = rankingConfigFor({ version: 2, id: "x", weights: {} }, "now");
+  assert.equal(current.version, 2);
+  assert.throws(() => rankingConfigFor({ version: 3, id: "x", weights: {} }, "future"));
   const file = rankingConfigFor(
     {
       format: "groovenet-ranking-profile",

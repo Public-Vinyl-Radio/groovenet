@@ -7,7 +7,7 @@ import { computeSignals } from "../signals";
 import type { RankingTrack } from "../features";
 
 const config = (constraints: RankingConfig["constraints"]): RankingConfig =>
-  rankingConfigSchema.parse({ version: 1, id: "t", weights: { bpm_distance: 1 }, constraints });
+  rankingConfigSchema.parse({ version: 2, id: "t", weights: { bpm_distance: 1 }, constraints });
 
 describe("bpm_window half and double time", () => {
   const seed: RankingTrack = { bpm: 124 };

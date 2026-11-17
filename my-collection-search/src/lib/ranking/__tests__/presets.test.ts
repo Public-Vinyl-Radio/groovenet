@@ -34,10 +34,10 @@ describe("preset orderings", () => {
 
   it("Beatmatcher puts locked tempo and key first and keeps half time", () => {
     expect(ids("beatmatcher")).toEqual([
-      "all-rounder",
       "mixable-stranger",
-      "half-time-adjacent",
+      "all-rounder",
       "locked-but-unrelated",
+      "half-time-adjacent",
       "relative-key",
       "no-analysis",
     ]);
@@ -48,8 +48,8 @@ describe("preset orderings", () => {
     expect(ids("selector")).toEqual([
       "vibe-twin-off-tempo",
       "no-analysis",
-      "calm-vibe",
       "genre-match-two-steps",
+      "calm-vibe",
       "all-rounder",
       "half-time-adjacent",
       "relative-key",
@@ -71,10 +71,11 @@ describe("switching profile", () => {
     const beatmatcher = ids("beatmatcher");
     const selector = ids("selector");
     expect(beatmatcher).not.toEqual(selector);
-    expect(beatmatcher[0]).toBe("all-rounder");
+    expect(beatmatcher[0]).toBe("mixable-stranger");
     expect(selector[0]).toBe("vibe-twin-off-tempo");
-    // The mixable stranger is Beatmatcher's second pick and Selector's second last.
-    expect(beatmatcher.indexOf("mixable-stranger")).toBe(1);
+    // The mixable stranger (same key, a BPM off, a poor match) is Beatmatcher's
+    // first pick, since tempo and key lead it, and Selector's second last.
+    expect(beatmatcher.indexOf("mixable-stranger")).toBe(0);
     expect(selector.indexOf("mixable-stranger")).toBe(selector.length - 2);
     // The off-tempo vibe twin is Selector's first and outside Beatmatcher's window.
     expect(beatmatcher).not.toContain("vibe-twin-off-tempo");

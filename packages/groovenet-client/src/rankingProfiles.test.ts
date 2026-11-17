@@ -9,7 +9,7 @@ import { GroovenetClient } from "./client.js";
 
 const client = () => new GroovenetClient({ baseUrl: "https://example.test" });
 const draft = {
-  version: 1 as const,
+  version: 2 as const,
   name: "Peak",
   surfaces: ["suggestions" as const],
   weights: { bpm_distance: 2 },

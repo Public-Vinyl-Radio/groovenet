@@ -136,7 +136,7 @@ describe("useRankingProfileMutations", () => {
     const invalidate = vi.spyOn(client, "invalidateQueries");
     const { result } = renderHook(() => useRankingProfileMutations(6), { wrapper });
     const draft = {
-      version: 1 as const,
+      version: 2 as const,
       name: "Mine",
       surfaces: ["related" as const],
       weights: {},

@@ -33,7 +33,7 @@ const playlist = read("playlist.json").tracks as Array<{
 }>;
 
 const config = (input: Partial<RankingConfigInput>) =>
-  rankingConfigSchema.parse({ version: 1, id: "x", weights: {}, ...input });
+  rankingConfigSchema.parse({ version: 2, id: "x", weights: {}, ...input });
 
 const total = (weights: Record<string, number>) =>
   weights.metadata + weights.embedding + weights.energy + weights.bpm + weights.key;

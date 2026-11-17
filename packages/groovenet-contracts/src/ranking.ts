@@ -11,6 +11,15 @@ import { z } from "zod";
  * on these, so an id is never renamed or reused; a new signal gets a new id.
  * Each value is normalised to [0, 1], higher meaning a closer match, or null
  * when either side lacks the data.
+ *
+ * `identity_similarity` and `vibe_similarity` are normalised **within the
+ * candidate pool** (#1218): a candidate's value is the share of the other
+ * candidates ranked with it that it is at least as similar as (best 1,
+ * worst 0, ties sharing the higher rank, a pool of one 1), and null when the
+ * retrieval index didn't find it. Raw, they are `1 − d/2` of the cosine
+ * distance, which bunches within ~0.006 in a pool, so no weight could make
+ * them count beside the other signals. The raw value is the breakdown's
+ * `detail` (`raw 0.9871`). Every other signal has a fixed scale.
  */
 export const RANKING_SIGNAL_IDS = [
   "identity_similarity",
@@ -110,9 +119,15 @@ export const rankingConstraintsSchema = z
   .strict();
 export type RankingConstraints = z.infer<typeof rankingConstraintsSchema>;
 
+/**
+ * The ranking schema's version, for migrating stored and imported profiles.
+ * 2 (#1218): the similarity signals are pool-normalised, so a weight on them
+ * means "best to worst in the pool"; under 1 it scaled a raw similarity.
+ */
+export const RANKING_SCHEMA_VERSION = 2;
+
 const rankingConfigShape = {
-  /** Schema version, for migrating stored and imported profiles. */
-  version: z.literal(1),
+  version: z.literal(RANKING_SCHEMA_VERSION),
   id: z.string().min(1).max(64),
   /**
    * Per-signal weights. A signal's contribution is `weight × value`; an
@@ -121,8 +136,9 @@ const rankingConfigShape = {
   weights: z.partialRecord(rankingSignalIdSchema, weight),
   /**
    * Signals that form the base score by their best weighted value rather
-   * than adding up (today: the better of identity and vibe similarity).
-   * Omitted or empty, every weighted signal adds.
+   * than adding up (Default: the better of identity and vibe similarity, by
+   * their ranks in the pool, so either index's closest match scores the
+   * same). Omitted or empty, every weighted signal adds.
    */
   base: z
     .object({
@@ -144,7 +160,7 @@ export type RankingConfig = z.infer<typeof rankingConfigSchema>;
 export type RankingConfigInput = z.input<typeof rankingConfigSchema>;
 
 export const rankingSignalBreakdownSchema = z.object({
-  /** Normalised to [0, 1]; null when either side lacks the data. */
+  /** Normalised to [0, 1] (similarity: within the pool); null when either side lacks the data. */
   value: z.number().nullable(),
   weight: z.number(),
   /** What it added to the score: `weight × value`, or 0 for a base signal that didn't win. */
@@ -383,21 +399,38 @@ function inspectRankingInput(value: unknown, depth = 0, path = "$", budget = { n
   }
 }
 
-/** Each step migrates vN to vN+1; no historical file versions exist yet. */
+/** Each step migrates vN to vN+1. */
 export type RankingFileMigration = (
   file: Readonly<Record<string, unknown>>,
 ) => Record<string, unknown>;
+
+/**
+ * What importing a file of an older version warns, by the version it was.
+ * A v1 file's weights are kept as they are, because no rescaling reproduces
+ * a raw-similarity ranking on ranks, so it may rank differently (#1218).
+ */
+export const RANKING_FILE_MIGRATION_WARNINGS: Readonly<Record<number, string>> = {
+  1: "Made before similarity was ranked within the pool (#1218): its identity and vibe weights now count fully, so it may rank differently. Review its weights.",
+};
+
+/** The import chain: 1 → 2 keeps every field and changes only the version. */
+export const RANKING_FILE_MIGRATIONS: Readonly<Record<number, RankingFileMigration>> = {
+  1: (file) => ({ ...file, version: 2 }),
+};
+
 export function migrateRankingFile(
   file: Record<string, unknown>,
-  steps: Readonly<Record<number, RankingFileMigration>> = {},
+  steps: Readonly<Record<number, RankingFileMigration>> = RANKING_FILE_MIGRATIONS,
 ): Record<string, unknown> {
   let current = file;
   const version = current.version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 0)
     throw new RankingImportError("Invalid schema version");
-  if (version > 1)
-    throw new RankingImportError(`Future schema version ${version}; supported version is 1`);
-  for (let v = version; v < 1; v++) {
+  if (version > RANKING_SCHEMA_VERSION)
+    throw new RankingImportError(
+      `Future schema version ${version}; supported version is ${RANKING_SCHEMA_VERSION}`,
+    );
+  for (let v = version; v < RANKING_SCHEMA_VERSION; v++) {
     const step = steps[v];
     if (!step) throw new RankingImportError(`No migration for schema version ${v}`);
     current = step(current);
@@ -426,7 +459,11 @@ export function parseRankingProfileFile(input: unknown): {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new RankingImportError("Ranking file must be an object");
   const migrated = migrateRankingFile(value as Record<string, unknown>);
-  const warnings: string[] = [];
+  // The steps the file took, by the version each started from.
+  const from = (value as Record<string, unknown>).version as number;
+  const warnings: string[] = Object.entries(RANKING_FILE_MIGRATION_WARNINGS)
+    .filter(([version]) => Number(version) >= from)
+    .map(([, warning]) => warning);
   const known = (signal: string) => {
     if ((RANKING_SIGNAL_IDS as readonly string[]).includes(signal)) return true;
     warnings.push(`Dropped unknown signal: ${signal}`);

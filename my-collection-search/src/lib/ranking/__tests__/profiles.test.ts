@@ -31,7 +31,7 @@ const row = (overrides: Partial<StoredRankingProfile> = {}): StoredRankingProfil
   name: "Late night",
   description: "Slow it down",
   surfaces: ["suggestions"],
-  version: 1,
+  version: 2,
   config: {
     weights: { vibe_similarity: 1, energy: 0.2 },
     usePrior: true,
@@ -78,7 +78,8 @@ describe("stored profiles", () => {
     ["an unknown signal", { config: { weights: { plays: 1 } } }],
     ["a huge weight", { config: { weights: { rating: 1e9 } } }],
     ["an extra field", { config: { weights: {}, script: "x" } }],
-    ["a future version", { version: 2 }],
+    ["a future version", { version: 3 }],
+    ["a v1 row the #1218 migration missed", { version: 1 }],
     ["bad surfaces", { surfaces: "suggestions" }],
     ["an empty name", { name: "  " }],
   ])("are null with %s", (_label, overrides) => {
@@ -97,7 +98,7 @@ describe("stored profiles", () => {
   it("round-trip through the stored columns", () => {
     const draft = profileToDraft(RANKING_PRESETS.beatmatcher, "Mine");
     const stored = draftToStored(draft);
-    expect(stored).toMatchObject({ name: "Mine", version: 1 });
+    expect(stored).toMatchObject({ name: "Mine", version: 2 });
     expect(stored.config).not.toHaveProperty("name");
     const back = parseStoredProfile({ id: 3, ...stored });
     expect(back && toRankingConfig(back)).toEqual({ ...BEATMATCHER_RANKING_CONFIG, id: "3" });
@@ -163,7 +164,7 @@ describe("profileAnalyticsId", () => {
 
 describe("suggestionFilterLabels", () => {
   const withConstraints = (constraints: RankingConfig["constraints"]) =>
-    rankingConfigSchema.parse({ version: 1, id: "x", weights: {}, constraints });
+    rankingConfigSchema.parse({ version: 2, id: "x", weights: {}, constraints });
 
   it("reads Default's toggles as before", () => {
     expect(suggestionFilterLabels(DEFAULT_RANKING_CONFIG)).toEqual({

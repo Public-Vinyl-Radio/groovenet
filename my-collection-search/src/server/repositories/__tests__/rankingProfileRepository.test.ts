@@ -9,7 +9,7 @@ const write = {
   name: "Peak",
   description: "",
   surfaces: ["suggestions" as const],
-  version: 1,
+  version: 2,
   config: { weights: { bpm_distance: 1 } },
 };
 const row = { id: 3, friend_id: 1, ...write };
@@ -44,7 +44,7 @@ describe("RankingProfileRepository", () => {
       "Peak",
       "",
       ["suggestions"],
-      1,
+      2,
       '{"weights":{"bpm_distance":1}}',
       50,
       null,

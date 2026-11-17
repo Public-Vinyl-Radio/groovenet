@@ -151,7 +151,7 @@ describe("GET, PUT and DELETE /api/ranking/profiles/{id}", () => {
       name: "Old",
       description: "",
       surfaces: ["suggestions"],
-      version: 1,
+      version: 2,
       config: { weights: { bpm_distance: "fast" } },
     });
     const res = await profile.GET(request("/profiles/3"), params("3"));
@@ -358,7 +358,7 @@ describe("profile sharing", () => {
     ["types", () => ({ ...file(), weights: "wrong" }), "weights"],
     ["constructor", () => ({ ...file(), constructor: 1 }), "constructor"],
     ["proto", () => '{"version":1,"__proto__":{}}', "__proto__"],
-    ["future", () => ({ ...file(), version: 2 }), "Future"],
+    ["future", () => ({ ...file(), version: 3 }), "Future"],
     ["invalid JSON", () => "{", "Invalid JSON"],
     ["size", () => " ".repeat(33000), "file"],
   ])("hostile %s is 400 naming the problem", async (_label, input, problem) => {

@@ -4,10 +4,13 @@ import {
   parseRankingProfileFile,
   migrateRankingFile,
   MAX_RANKING_FILE_BYTES,
+  RANKING_FILE_MIGRATION_WARNINGS,
+  RANKING_FILE_MIGRATIONS,
+  RANKING_SCHEMA_VERSION,
 } from "./ranking.js";
 const file = {
   format: "groovenet-ranking-profile",
-  version: 1,
+  version: 2,
   name: "Peak",
   description: "Warm",
   author: "dj",
@@ -68,10 +71,22 @@ describe("portable ranking profiles", () => {
   });
   it("builds a pure migration chain, tested with a synthetic v0", () => {
     const older = { ...file, version: 0 };
-    expect(migrateRankingFile(older, { 0: (f) => ({ ...f, version: 1 }) })).toEqual(file);
+    const steps = { ...RANKING_FILE_MIGRATIONS, 0: (f: object) => ({ ...f, version: 1 }) };
+    expect(migrateRankingFile(older, steps)).toEqual(file);
     expect(older.version).toBe(0);
     expect(() => migrateRankingFile(older)).toThrow("No migration");
     expect(() => migrateRankingFile(older, { 0: (f) => ({ ...f }) })).toThrow("Invalid migration");
+  });
+  it("imports a v1 file (raw similarity, before #1218) with its weights kept and a warning", () => {
+    expect(RANKING_SCHEMA_VERSION).toBe(2);
+    const v1 = { ...file, version: 1, weights: { vibe_similarity: 1, genre_overlap: 0.3 } };
+    const result = parseRankingProfileFile(JSON.stringify(v1));
+    expect(result.file).toEqual({ ...v1, version: 2 });
+    expect(result.warnings).toEqual([RANKING_FILE_MIGRATION_WARNINGS[1]]);
+    expect(v1.version).toBe(1);
+  });
+  it("warns nothing for a current file", () => {
+    expect(parseRankingProfileFile(file).warnings).toEqual([]);
   });
   it.each([
     ["size", " ".repeat(MAX_RANKING_FILE_BYTES + 1), "exceeds"],
@@ -79,7 +94,7 @@ describe("portable ranking profiles", () => {
     ["JSON", "{", "Invalid JSON"],
     ["null", null, "object"],
     ["array", [], "object"],
-    ["future", { ...file, version: 2 }, "Future schema version"],
+    ["future", { ...file, version: 3 }, "Future schema version 3; supported version is 2"],
     ["version type", { ...file, version: "1" }, "version"],
     ["negative version", { ...file, version: -1 }, "version"],
     ["huge", { ...file, weights: { bpm_distance: 1e300 } }, "weights.bpm_distance"],

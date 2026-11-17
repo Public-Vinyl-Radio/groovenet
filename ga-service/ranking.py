@@ -7,6 +7,12 @@ optimiser scores exactly as it always has (`LEGACY_WEIGHTS`, no constraints).
 Constraints can't drop a track from a playlist, so in ordering they are
 penalties: every constraint a transition fails subtracts `constraint_penalty`
 from that transition's score.
+
+`version` 2 (#1218) ranks the embedding term within the request
+(`pool_rank` over every pair of tracks), as the app's ranker ranks its
+similarity signals within a candidate pool: the raw `(cos + 1) / 2` of a
+playlist's tracks spans only a few hundredths, so any other weight swamped
+it. Version 1 keeps the raw term, so an older app orders as it did.
 """
 
 from typing import Annotated, Literal
@@ -71,7 +77,7 @@ class TransitionConstraints(_Strict):
 
 
 class OrderingRanking(_Strict):
-    version: Literal[1]
+    version: Literal[1, 2]
     weights: TransitionWeights
     constraints: TransitionConstraints = Field(default_factory=TransitionConstraints)
     constraint_penalty: float = Field(ge=0, le=10, allow_inf_nan=False)
@@ -109,3 +115,22 @@ def failed_constraints(constraints, prev, nxt):
         if change > energy.max_rise or -change > energy.max_drop:
             failed.append("energy_range")
     return failed
+
+
+def pool_rank(values):
+    """
+    Rank-normalise raw values within their pool, as the app's `poolRank`
+    (`src/lib/ranking/signals.ts`): each value becomes the share of the
+    pool's other values it is at least as high as, so the best is 1 and the
+    worst 0. Tied values share the higher rank; one value (or all equal) is
+    1; None stays None and isn't counted.
+    """
+    present = sorted((v, i) for i, v in enumerate(values) if v is not None)
+    out = [None] * len(values)
+    others = len(present) - 1
+    end = others
+    for k in range(len(present) - 1, -1, -1):
+        if k < others and present[k][0] != present[k + 1][0]:
+            end = k
+        out[present[k][1]] = 1.0 if others == 0 else end / others
+    return out

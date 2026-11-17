@@ -22,10 +22,10 @@ import {
   recommendationsResponseSchema,
 } from "./recommendations.js";
 
-const config = { version: 1, id: "x", weights: { bpm_distance: 1 } } as const;
+const config = { version: 2, id: "x", weights: { bpm_distance: 1 } } as const;
 
 const draft = {
-  version: 1,
+  version: 2,
   name: "Warm-up",
   surfaces: ["suggestions", "related"],
   weights: { vibe_similarity: 1, energy: 0.1 },
@@ -92,7 +92,7 @@ describe("ranking profiles", () => {
     const profile = rankingProfileSchema.parse({ ...draft, id: "12", kind: "custom" });
     expect(profile).toMatchObject({ id: "12", kind: "custom", description: "", usePrior: false });
     expect(toRankingConfig(profile)).toEqual({
-      version: 1,
+      version: 2,
       id: "12",
       weights: draft.weights,
       usePrior: false,
@@ -134,7 +134,8 @@ describe("ranking profiles", () => {
     ["a deep object", { ...draft, extra: { a: { b: { c: { d: {} } } } } }],
     ["an id in the draft", { ...draft, id: "5" }],
     ["a kind in the draft", { ...draft, kind: "custom" }],
-    ["a future version", { ...draft, version: 2 }],
+    ["a future version", { ...draft, version: 3 }],
+    ["a v1 draft (raw similarity, before #1218)", { ...draft, version: 1 }],
     ["an extra base field", { ...draft, base: { combine: "max", signals: [], x: 1 } }],
   ])("rejects a draft with %s", (_label, value) => {
     expect(rankingProfileDraftSchema.safeParse(value).success).toBe(false);

@@ -15,7 +15,7 @@ vi.mock("@groovenet/client", () => ({
 import { addProfilesCommands, runExport, runImport } from "./profiles.js";
 const file = {
   format: "groovenet-ranking-profile",
-  version: 1,
+  version: 2,
   name: "Peak",
   description: "",
   surfaces: ["related"],

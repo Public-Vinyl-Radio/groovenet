@@ -22,7 +22,7 @@ const define = (config: RankingConfigInput): RankingConfig => rankingConfigSchem
  * them off.
  */
 export const DEFAULT_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "default",
   weights: {
     identity_similarity: 1,
@@ -52,7 +52,7 @@ const modeWeights = {
 };
 
 export const BLEND_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "blend",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -61,7 +61,7 @@ export const BLEND_RANKING_CONFIG = define({
 });
 
 export const MIXABLE_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "mixable",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -73,7 +73,7 @@ export const MIXABLE_RANKING_CONFIG = define({
 });
 
 export const STRICT_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "strict",
   weights: modeWeights,
   base: DEFAULT_RANKING_CONFIG.base,
@@ -86,17 +86,19 @@ export const STRICT_RANKING_CONFIG = define({
 });
 
 /**
- * Beatmatcher (#1192): mixable first. Tempo and key outweigh similarity: in
- * the ±6% window (half and double time allowed) the tempo signal spreads up
- * to 0.36 and the key up to 0.3, against at most 0.5 from the similarity
- * base, which mostly breaks ties. Genre and energy are faint pulls.
+ * Beatmatcher (#1192): mixable first. Tempo and key lead: in the ±6% window
+ * (half and double time allowed) the tempo signal spreads up to 0.18 and a
+ * key step is 0.15, and similarity, now ranked within the pool (#1218),
+ * spans 0.15 from the pool's best match to its worst, so it breaks ties
+ * between tracks equally in tempo and key. Genre and energy are faint pulls
+ * (its genre requirement is #1217).
  */
 export const BEATMATCHER_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "beatmatcher",
   weights: {
-    identity_similarity: 0.5,
-    vibe_similarity: 0.5,
+    identity_similarity: 0.15,
+    vibe_similarity: 0.15,
     key_relation: 0.3,
     bpm_distance: 3,
     genre_overlap: 0.05,
@@ -111,22 +113,29 @@ export const BEATMATCHER_RANKING_CONFIG = define({
 });
 
 /**
- * Selector (#1192): the vibe first. Audio vibe leads the base (identity
- * counts at 0.8), genre overlap adds up to 0.3, era and energy pull gently,
- * tempo barely registers and key not at all. No hard constraints.
+ * Selector (#1192, re-tuned for #1218): genre and vibe first. Genre overlap
+ * (up to 1.8) leads, the owner's preference in the #1196 blind review, and
+ * vibe adds up to 1 by its rank in the pool. Vibe adds rather than forming
+ * a `max` base with identity: the identity index is itself genre-heavy, so
+ * a strong genre weight over a `max` base filled the lists with tracks the
+ * vibe index never found. A candidate outside the vibe top 200 scores no
+ * vibe, which is where it ranks. Genre, era (0.3) and energy (0.48) keep
+ * their #1192 proportions (0.3 : 0.05 : 0.08, times 6); tempo barely
+ * registers and key not at all. No hard constraints. Of the configs tried,
+ * these give the lists closest to Selector's before #1218 (evaluations/1218):
+ * the owner preferred those to genre 1.6 / era 0.05 / energy 0.08 in the
+ * round 1 blind review.
  */
 export const SELECTOR_RANKING_CONFIG = define({
-  version: 1,
+  version: 2,
   id: "selector",
   weights: {
-    identity_similarity: 0.8,
     vibe_similarity: 1,
-    genre_overlap: 0.3,
-    era: 0.05,
-    energy: 0.08,
+    genre_overlap: 1.8,
+    era: 0.3,
+    energy: 0.48,
     bpm_distance: 0.01,
   },
-  base: { combine: "max", signals: ["identity_similarity", "vibe_similarity"] },
   usePrior: true,
   constraints: {},
 });
