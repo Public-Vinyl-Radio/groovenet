@@ -7,11 +7,14 @@ import { fileURLToPath } from "node:url";
 import { buildSideBySide } from "../1196/side-by-side.mjs";
 import {
   AFTER,
+  AFTER_2,
   BEFORE,
   freezeSample,
+  freezeSecondSample,
   HOLDOUT_SEEDS_SHA256,
   loadSample,
   pairResults,
+  REVIEW_2_SEEDS_SHA256,
   REVIEW_SEEDS_SHA256,
   seedKeys,
   serialize,
@@ -20,6 +23,7 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const holdout = readFileSync(join(HERE, "../1196/seeds-holdout.json"), "utf8");
 const committed = readFileSync(join(HERE, "review-seeds.json"), "utf8");
+const committed2 = readFileSync(join(HERE, "review-seeds-2.json"), "utf8");
 
 test("the committed sample re-derives byte for byte from the holdout seeds", () => {
   assert.equal(serialize(freezeSample(holdout)), committed);
@@ -38,6 +42,22 @@ test("the sample is drawn from the holdout keys, which the #1196 review never sh
     assert.ok(keys.has(key));
     assert.ok(!frozen.has(key));
   }
+});
+
+test("round 2 re-derives from the holdout keys round 1 did not show", () => {
+  assert.equal(serialize(freezeSecondSample(holdout, loadSample(committed))), committed2);
+  const second = loadSample(committed2, REVIEW_2_SEEDS_SHA256);
+  const first = new Set(loadSample(committed).keys);
+  assert.equal(second.keys.length, 19);
+  assert.equal(new Set(second.keys).size, 19);
+  assert.ok(second.keys.every((key) => !first.has(key)));
+  assert.equal(first.size + second.keys.length, seedKeys(JSON.parse(holdout)).length);
+  assert.throws(() => freezeSecondSample(holdout + " ", { keys: [] }), /Holdout seeds hash/);
+  assert.throws(
+    () => freezeSecondSample(holdout, { seeds_sha256: "x", keys: [] }),
+    /Round 1 is not over/,
+  );
+  assert.throws(() => loadSample(committed2 + " ", REVIEW_2_SEEDS_SHA256), /Review seeds hash/);
 });
 
 test("a changed seeds file or sample is refused", () => {
@@ -95,6 +115,19 @@ test("pairs the two runs' Selector lists for the sampled seeds only", () => {
   assert.equal(sheet.items.length, 1);
   assert.deepEqual(key.auto_ties, ["6:b"]);
   assert.ok(!JSON.stringify(sheet).includes("selector"));
+});
+
+test("round 2 names the new list selector-fallback", () => {
+  const sample = { seeds_sha256: "s", keys: ["6:a"] };
+  const paired = pairResults(
+    run("s", { "6:a": ["x"] }),
+    run("s", { "6:a": ["y"] }),
+    sample,
+    undefined,
+    AFTER_2,
+  );
+  assert.deepEqual(paired.profiles, [BEFORE, AFTER_2]);
+  assert.deepEqual(Object.keys(paired.seeds[0].lists), [BEFORE, AFTER_2]);
 });
 
 test("refuses runs over other seeds, or a seed missing a list", () => {
