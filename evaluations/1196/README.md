@@ -5,6 +5,10 @@
 > `main` before that change; `evaluations/1218/README.md` has the before →
 > after tables, the re-tune and its blind review. The `proposals/` here were
 > tuned on the raw scale; `configs.mjs` still loads them, now on ranks.
+>
+> **Since #1217** the metrics include era fit and energy fit, Selector's
+> claim is "vibe and genre first" (vibe similarity and genre overlap), and
+> Beatmatcher has a genre pull: `evaluations/1217/README.md`.
 
 Phase 6 of #1190. Compares the ranking profiles on the real collection:
 **Default** (today's behaviour, the baseline), **Beatmatcher** and **Selector**,
