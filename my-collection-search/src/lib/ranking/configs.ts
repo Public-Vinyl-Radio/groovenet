@@ -86,12 +86,15 @@ export const STRICT_RANKING_CONFIG = define({
 });
 
 /**
- * Beatmatcher (#1192): mixable first. Tempo and key lead: in the ±6% window
- * (half and double time allowed) the tempo signal spreads up to 0.18 and a
- * key step is 0.15, and similarity, now ranked within the pool (#1218),
- * spans 0.15 from the pool's best match to its worst, so it breaks ties
- * between tracks equally in tempo and key. Genre and energy are faint pulls
- * (its genre requirement is #1217).
+ * Beatmatcher (#1192, genre added in #1217): mixable, then the seed's genre.
+ * The constraints keep every pick within ±6% BPM (half and double time
+ * allowed) and a compatible key. Inside that, genre overlap (up to 0.9)
+ * leads, ahead of a key step (0.15) and the tempo signal's spread in the
+ * window (up to 0.18): the owner's rule from the #1196 review is that genre
+ * has to match even when beatmatching. Era (0.3) and energy (0.5) move with
+ * genre, as #1218's reviews suggested. Similarity, ranked within the pool
+ * (#1218), spans 0.15 and breaks ties. A `genre_floor` was tried instead and
+ * starved a quarter of the eval's seeds (evaluations/1217).
  */
 export const BEATMATCHER_RANKING_CONFIG = define({
   version: 2,
@@ -101,8 +104,9 @@ export const BEATMATCHER_RANKING_CONFIG = define({
     vibe_similarity: 0.15,
     key_relation: 0.3,
     bpm_distance: 3,
-    genre_overlap: 0.05,
-    energy: 0.05,
+    genre_overlap: 0.9,
+    era: 0.3,
+    energy: 0.5,
   },
   base: { combine: "max", signals: ["identity_similarity", "vibe_similarity"] },
   usePrior: true,

@@ -29,15 +29,17 @@ export const CLAIMS = [
       { path: "key.clash", better: "lower", label: "key clashes" },
     ],
   },
+  // #1196 judged Selector on vibe similarity and diversity, and it failed;
+  // the owner preferred it anyway, for its genre pull. #1217 rewords the
+  // claim to what Selector says it is, "vibe and genre first".
   {
-    id: "selector-vibe-diversity",
-    claim: "Selector beats Beatmatcher on vibe similarity and diversity",
+    id: "selector-vibe-genre",
+    claim: "Selector beats Beatmatcher on vibe and genre",
     winner: "selector",
     loser: "beatmatcher",
     tests: [
       { path: "vibe.mean", better: "higher", label: "vibe similarity" },
-      { path: "artists", better: "higher", label: "distinct artists" },
-      { path: "releases", better: "higher_or_equal", label: "distinct releases" },
+      { path: "genre.mean", better: "higher", label: "genre overlap" },
     ],
   },
 ];

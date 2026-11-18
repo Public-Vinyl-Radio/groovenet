@@ -36,7 +36,7 @@ const pick = (
 function results() {
   const bm = ["a", "b", "c"].map((id) => pick(id, { bpm: 121, artist: "same" }));
   const sel = ["d", "e", "f"].map((id) =>
-    pick(id, { bpm: 90, rel: "clash", year: "1995", energy: 0.9 }),
+    pick(id, { bpm: 90, rel: "clash", year: "1995", energy: 0.9, genre: 0.8 }),
   );
   const def = ["a", "d"].map((id) => pick(id));
   const seeds = ["s1", "s2"].map((key) => ({
@@ -121,9 +121,15 @@ test("claims pass when the preset wins every metric, and fail on any loss", () =
     tempo.tests.map((t) => t.pass),
     [true, true, true, true],
   );
-  // Selector: closer vibe and more artists; releases tie (3, 3 and 0 for the empty seed), which counts.
+  // Selector: closer vibe and more genre overlap.
   assert.equal(vibe.pass, true);
-  assert.equal(vibe.tests.find((t) => t.path === "releases").a, 2);
+  assert.deepEqual(
+    vibe.tests.map((t) => [t.path, t.a.toFixed(3), t.b.toFixed(3), t.pass]),
+    [
+      ["vibe.mean", "0.800", "0.500", true],
+      ["genre.mean", "0.800", "0.500", true],
+    ],
+  );
   // Flip the vibe: the claim fails on that metric alone.
   const flipped = results();
   for (const k of Object.keys(flipped.sims))
@@ -132,7 +138,7 @@ test("claims pass when the preset wins every metric, and fail on any loss", () =
   assert.equal(failed.pass, false);
   assert.deepEqual(
     failed.tests.map((t) => t.pass),
-    [false, true, true],
+    [false, true],
   );
   assert.equal(verdicts({ beatmatcher: [], selector: [] })[0].pass, null, "no data is undecided");
 });

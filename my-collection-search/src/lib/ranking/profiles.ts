@@ -50,7 +50,7 @@ export const RANKING_PRESETS: Record<RankingPresetId, RankingProfile> = {
     id: "beatmatcher",
     name: "Beatmatcher",
     description:
-      "Tempo and key first: ±6% BPM with half and double time, compatible keys, genre barely counts.",
+      "Mixable, then genre: ±6% BPM with half and double time and compatible keys, then the seed's genre, era and energy.",
   }),
   selector: preset(SELECTOR_RANKING_CONFIG, {
     id: "selector",

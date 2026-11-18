@@ -533,11 +533,15 @@ and the track page's Related tracks run it in the browser, through `rankSuggesti
 - **Profiles (#1192):** a profile is a `RankingConfig` plus `name`, `description`,
   `surfaces` and `kind` (`rankingProfileSchema`, strict, bounded: the API, storage and
   #1195's import all parse it). Presets live in code (`src/lib/ranking/profiles.ts`):
-  **Default** (`DEFAULT_RANKING_CONFIG` unchanged), **Beatmatcher** (tempo weight 3 and
-  key 0.3 over a 0.15 similarity base, ±6% with half and double time, adjacent keys) and
-  **Selector** (genre 1.8 and vibe 1, both added, no identity and no base; era 0.3,
-  energy 0.48, faint tempo, no constraints). Both re-tuned in #1218 for pool-ranked similarity;
-  Selector's genre lead is what the owner chose in the #1196 blind review. They are read-only; tuning one means copying it. Their orderings are
+  **Default** (`DEFAULT_RANKING_CONFIG` unchanged), **Beatmatcher** (mixable, then genre:
+  ±6% with half and double time and adjacent keys as constraints; inside them genre 0.9,
+  era 0.3 and energy 0.5 lead tempo 3 and key 0.3, over a 0.15 similarity base) and
+  **Selector** (vibe and genre first: genre 1.8 and vibe 1, both added, no identity and no
+  base; era 0.3, energy 0.48, faint tempo, no constraints). Both re-tuned in #1218 for
+  pool-ranked similarity. Selector's genre lead is what the owner chose in the #1196 blind
+  review, and Beatmatcher's genre pull (#1217) is that review's rule: genre has to match
+  even when beatmatching. A `genre_floor` would starve slow and fast seeds, so it is a
+  weight. They are read-only; tuning one means copying it. Their orderings are
   pinned in `__tests__/presets.test.ts` on `presetFixture.ts`.
 - **Storage:** `ranking_profiles` (per friend, `config` jsonb plus `version`, at most 50)
   and `ranking_profile_selections` (one preset id or profile id per friend and surface;
