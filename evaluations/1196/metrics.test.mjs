@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { resolveAppSpecifier } from "./app-modules.mjs";
 import {
   bpmDelta,
+  ENERGY_RANGE,
+  eraOf,
+  fitMetrics,
   jaccard,
   listMetrics,
   macro,
@@ -13,6 +16,7 @@ import {
   releaseOf,
   topPicks,
   trackKey,
+  yearOf,
 } from "./metrics.mjs";
 
 const candidate = (
@@ -57,10 +61,16 @@ test("pickOf keeps what the metrics and the sheet read", () => {
     { id: p.track_id, bpm: p.bpm, rel: p.key_relation, genre: p.genre_overlap, year: p.year },
     { id: "x", bpm: 120, rel: "same", genre: 0.5, year: "1977" },
   );
+  const fit = pickOf({
+    trackId: "z",
+    friendId: 6,
+    metadata: { year: "1977", eraBucket: "1970s", energy: 0.42 },
+  });
+  assert.deepEqual([fit.era, fit.energy], ["1970s", 0.42]);
   const bare = pickOf({ trackId: "y", friendId: 6 });
   assert.deepEqual(
-    [bare.bpm, bare.key, bare.key_relation, bare.genre_overlap, bare.score],
-    [null, null, null, null, null],
+    [bare.bpm, bare.key, bare.key_relation, bare.genre_overlap, bare.score, bare.era, bare.energy],
+    [null, null, null, null, null, null, null],
   );
   assert.deepEqual(bare.styles, []);
 });
@@ -230,4 +240,80 @@ test("ordering metrics per transition come from the app's orderingMetrics", () =
   const one = orderingPerTransition([tracks[0]]);
   assert.equal(one.transitions, 0);
   assert.equal(one.bpm_jump, null);
+});
+
+const fitPick = (id, extra) => ({ track_id: id, friend_id: 6, artist: id, album: id, ...extra });
+
+test("era fit: same bucket, same or adjacent, and |Δyear| where both are known", () => {
+  const seed = { year: "1975", era: "1970s" };
+  const picks = [
+    fitPick("a", { year: "1979", era: "1970s" }),
+    fitPick("b", { year: "1983", era: "1980s" }),
+    fitPick("c", { year: "1995", era: "1990s" }),
+    // Era from the year alone, as a result saved before #1217 has it.
+    fitPick("d", { year: "1962" }),
+    fitPick("e", { year: null }),
+    fitPick("f", { year: "0" }),
+  ];
+  const { era } = fitMetrics(seed, picks);
+  assert.equal(era.known, 4);
+  assert.equal(era.coverage, 4 / 6);
+  assert.equal(era.same, 1 / 4);
+  // 1970s, 1980s and 1960s are within one bucket; 1990s isn't.
+  assert.equal(era.near, 3 / 4);
+  assert.equal(era.years_known, 4);
+  assert.equal(era.mean_abs_year, (4 + 8 + 20 + 13) / 4);
+});
+
+test("era fit is unknown without the seed's era, and on an empty list", () => {
+  const picks = [fitPick("a", { year: "1979" })];
+  const { era } = fitMetrics({ year: null }, picks);
+  assert.deepEqual(
+    [era.known, era.coverage, era.same, era.near, era.mean_abs_year],
+    [0, 0, null, null, null],
+  );
+  const empty = fitMetrics({ year: "1979" }, []);
+  assert.equal(empty.era.coverage, null);
+  assert.equal(empty.energy.coverage, null);
+  assert.equal(empty.energy.mean_abs, null);
+});
+
+test("eraOf and yearOf read the era signal's buckets", () => {
+  assert.equal(eraOf({ era: "1980s", year: "1999" }), "1980s", "a stored bucket wins");
+  assert.equal(eraOf({ year: 2021 }), "2020s");
+  assert.equal(eraOf({ year: "1890" }), null);
+  assert.equal(eraOf({}), null);
+  assert.equal(yearOf({ year: "1977" }), 1977);
+  assert.equal(yearOf({ year: "1899" }), null);
+  assert.equal(yearOf({ year: "unknown" }), null);
+  assert.equal(yearOf({}), null);
+});
+
+test("energy fit: mean |Δenergy| and the share within ±0.2, over known values", () => {
+  assert.equal(ENERGY_RANGE, 0.2);
+  const seed = { energy: 0.5 };
+  const picks = [
+    fitPick("a", { energy: 0.55 }),
+    fitPick("b", { energy: 0.7 }),
+    fitPick("c", { energy: 0.1 }),
+    fitPick("d", { energy: null }),
+    fitPick("e", {}),
+  ];
+  const { energy } = fitMetrics(seed, picks);
+  assert.equal(energy.known, 3);
+  assert.equal(energy.coverage, 3 / 5);
+  assert.ok(Math.abs(energy.mean_abs - (0.05 + 0.2 + 0.4) / 3) < 1e-12);
+  assert.equal(energy.within, 2 / 3, "exactly 0.2 is within");
+  const noSeed = fitMetrics({ energy: null }, picks).energy;
+  assert.deepEqual([noSeed.known, noSeed.mean_abs, noSeed.within], [0, null, null]);
+});
+
+test("listMetrics carries era and energy fit", () => {
+  const m = listMetrics({ bpm: 120, year: "1977", energy: 0.4 }, [
+    fitPick("a", { bpm: 120, year: "1977", era: "1970s", energy: 0.4 }),
+  ]);
+  assert.equal(m.era.same, 1);
+  assert.equal(m.era.mean_abs_year, 0);
+  assert.equal(m.energy.within, 1);
+  assert.equal(macro([m], "energy.mean_abs").mean, 0);
 });

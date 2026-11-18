@@ -33,6 +33,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { calculateEnergy, computeEraBucket } from "./app-modules.mjs";
 import { rankingConfigFor } from "./configs.mjs";
 import { topPicks, trackKey } from "./metrics.mjs";
 import { loadSeeds, SEEDS_SHA256 } from "./seeds.mjs";
@@ -81,18 +82,31 @@ SELECT coalesce(json_object_agg(sf || ':' || st || '|' || pf || ':' || pt, json_
 FROM (SELECT DISTINCT * FROM pairs) d`;
 }
 
-/** The seed's fields the metrics and the review sheet read. */
+const finiteOrNull = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * The seed's fields the metrics and the review sheet read. Its era bucket
+ * and energy are the ranker's own features (`computeEraBucket`,
+ * `calculateEnergy`), as `buildCandidateMetadata` gives a candidate's.
+ */
 export function seedOf(track) {
+  const year = track.year ?? null;
   return {
     track_id: track.track_id,
     friend_id: track.friend_id,
     title: track.title ?? "",
     artist: track.artist ?? "",
     album: track.album ?? "",
-    year: track.year ?? null,
+    year,
+    era: year === null ? null : computeEraBucket(String(year)),
     styles: track.styles ?? [],
     bpm: track.bpm ?? null,
     key: track.key ?? null,
+    energy: calculateEnergy(finiteOrNull(track.danceability), finiteOrNull(track.mood_aggressive)),
   };
 }
 

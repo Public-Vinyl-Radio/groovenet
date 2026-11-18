@@ -67,7 +67,7 @@ test("pool spread shows what one outlier does to min–max", () => {
 const seedOf = (key, picks) => ({
   key,
   kind: "track",
-  seed: { track_id: key, friend_id: 6, bpm: 120, key: "8A" },
+  seed: { track_id: key, friend_id: 6, bpm: 120, key: "8A", year: "1977", energy: 0.5 },
   lists: { selector: { picks } },
 });
 const p = (id, extra = {}) => ({
@@ -79,7 +79,9 @@ const p = (id, extra = {}) => ({
 });
 
 test("a profile's run and its summary use the #1196 metrics", () => {
-  const ten = Array.from({ length: 10 }, (_, i) => p(`t${i}`, { artist: `A${i % 5}` }));
+  const ten = Array.from({ length: 10 }, (_, i) =>
+    p(`t${i}`, { artist: `A${i % 5}`, year: i < 5 ? "1977" : "1985", energy: i < 5 ? 0.5 : 0.9 }),
+  );
   const results = { seeds: [seedOf("s1", ten), seedOf("s2", ten.slice(0, 4))], sims: {} };
   const perSeed = profileRun(results, "selector");
   assert.equal(perSeed.length, 2);
@@ -90,6 +92,14 @@ test("a profile's run and its summary use the #1196 metrics", () => {
   assert.equal(summary.vibe, null);
   assert.equal(summary.identity_only, 0);
   assert.equal(summary.artists, (5 + 4) / 2);
+  // Seed 1: half in the 1970s, half the 1980s; seed 2's four are all 1970s.
+  assert.equal(summary.era_same, (0.5 + 1) / 2);
+  assert.equal(summary.era_near, 1);
+  assert.equal(summary.year_abs, (4 + 0) / 2);
+  assert.equal(summary.era_known, 1);
+  assert.equal(summary.energy_within, (0.5 + 1) / 2);
+  assert.ok(Math.abs(summary.energy_abs - (0.2 + 0) / 2) < 1e-12);
+  assert.equal(summary.energy_known, 1);
   // A missing list counts as an empty one.
   assert.equal(profileRun(results, "beatmatcher")[0].picks.length, 0);
 });

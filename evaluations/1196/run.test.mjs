@@ -97,11 +97,29 @@ test("seedOf keeps only the fields the metrics and sheet need", () => {
       artist: "",
       album: "",
       year: null,
+      era: null,
       styles: [],
       bpm: 120,
       key: null,
+      energy: null,
     },
   );
+});
+
+test("seedOf carries the ranker's era bucket and energy", () => {
+  const seed = seedOf({
+    track_id: "a",
+    friend_id: 6,
+    year: "1977",
+    danceability: "0.5",
+    mood_aggressive: 0.25,
+  });
+  assert.equal(seed.era, "1970s");
+  assert.equal(seed.energy, 0.5 * 0.6 + 0.25 * 0.4);
+  // Unknown aggression defaults to 0.5, as `calculateEnergy` does; junk is unknown.
+  assert.equal(seedOf({ year: 2004, danceability: 1 }).energy, 0.6 + 0.2);
+  assert.equal(seedOf({ danceability: "", mood_aggressive: "x" }).energy, null);
+  assert.equal(seedOf({ year: 2004 }).era, "2000s");
 });
 
 test("proposed configs parse with the contracts' own schemas", () => {

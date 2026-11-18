@@ -179,7 +179,7 @@ describe("RankingSettingsSection", () => {
     await user.click(await screen.findByRole("button", { name: "Beatmatcher" }));
     const editor = screen.getByTestId("ranking-editor");
     expect(within(editor).queryByRole("button", { name: "Save" })).toBeNull();
-    expect(within(editor).getByText(/Tempo and key first/)).toBeTruthy();
+    expect(within(editor).getByText(/Mixable, then genre/)).toBeTruthy();
     expect(
       within(editor).getByRole("slider", { name: "BPM weight" }).getAttribute("aria-disabled"),
     ).toBe("true");

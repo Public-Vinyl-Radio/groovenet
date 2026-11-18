@@ -1,6 +1,7 @@
 /**
  * Imports the app's own pure TypeScript modules (#1196), so this harness
- * measures with `orderingMetrics.ts` and `mixCompat.ts` rather than copies.
+ * measures with `orderingMetrics.ts`, `mixCompat.ts` and the ranker's era and
+ * energy features (#1217) rather than copies.
  * Node 26 strips the types; this hook maps the app's `@/` alias onto
  * `my-collection-search/src` and adds the `.ts` extension the app omits.
  * Only modules whose runtime imports are themselves pure work this way.
@@ -37,6 +38,10 @@ registerHooks({
 
 const metrics = await import("@/lib/ranking/orderingMetrics");
 const mix = await import("@/lib/mixCompat");
+const features = await import("@/lib/ranking/features");
+const preScorer = await import("@/lib/recommendation-pre-scorer");
 
 export const { bpmJumpTotal, keyClashCount, vibeDistanceTotal, orderingMetrics } = metrics;
 export const { parseBpm, camelotOf, describeMix } = mix;
+export const { computeEraBucket, calculateEnergy } = features;
+export const { areErasAdjacent } = preScorer;

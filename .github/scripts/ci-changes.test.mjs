@@ -111,6 +111,8 @@ test("app modules the profile evaluation imports rerun its tests", () => {
     "my-collection-search/src/lib/ranking/orderingMetrics.ts",
     "my-collection-search/src/lib/mixCompat.ts",
     "my-collection-search/src/lib/playlistOrder.ts",
+    "my-collection-search/src/lib/ranking/features.ts",
+    "my-collection-search/src/lib/recommendation-pre-scorer.ts",
   ])
     assert.equal(classify([path]).cli, true, path);
   assert.equal(classify(["my-collection-search/src/lib/ranking/ranker.ts"]).cli, false);

@@ -6,11 +6,19 @@
  * response, so nothing here re-derives what the app already computes.
  */
 import { signTest } from "../1170/side-by-side.mjs";
-import { bpmJumpTotal, orderingMetrics, parseBpm } from "./app-modules.mjs";
+import {
+  areErasAdjacent,
+  bpmJumpTotal,
+  computeEraBucket,
+  orderingMetrics,
+  parseBpm,
+} from "./app-modules.mjs";
 
 export const TOP_K = 10;
 /** The ±6% window, as the Default and Beatmatcher constraints define it. */
 export const BPM_RATIO = 0.06;
+/** Energy fit's window: the `energy_range` constraint's default (±0.2) in the profile editor. */
+export const ENERGY_RANGE = 0.2;
 const COMPATIBLE = new Set(["same", "adjacent", "relative"]);
 
 export const trackKey = (t) => `${t.friend_id}:${t.track_id}`;
@@ -33,9 +41,11 @@ export function pickOf(candidate) {
     artist: m.artist,
     album: m.album,
     year: m.year ?? null,
+    era: m.eraBucket ?? null,
     styles: m.styles ?? [],
     bpm: m.bpm ?? null,
     key: m.key ?? null,
+    energy: typeof m.energy === "number" ? m.energy : null,
     score: candidate.ranking?.score ?? null,
     key_relation: s.key_relation?.detail ?? null,
     genre_overlap: s.genre_overlap?.value ?? null,
@@ -74,6 +84,60 @@ const share = (xs) => (xs.length ? xs.filter(Boolean).length / xs.length : null)
 export function bpmDelta(seed, pick, halfDouble = false) {
   if (parseBpm(seed.bpm) === null || parseBpm(pick.bpm) === null) return null;
   return bpmJumpTotal([seed, pick], { halfDouble });
+}
+
+/**
+ * A track's era bucket, as the `era` signal reads it: the record's own
+ * `era`, else computed from its year (results saved before #1217 carry only
+ * the year).
+ */
+export function eraOf(t) {
+  if (t.era) return t.era;
+  return t.year === null || t.year === undefined ? null : computeEraBucket(String(t.year));
+}
+
+/** A release year the era signal would also read (1900 on), else null. */
+export function yearOf(t) {
+  const y = parseInt(String(t.year ?? ""), 10);
+  return Number.isFinite(y) && y >= 1900 ? y : null;
+}
+
+const energyOf = (t) =>
+  typeof t.energy === "number" && Number.isFinite(t.energy) ? t.energy : null;
+
+/**
+ * Era and energy fit (#1217), each over the picks where both sides have the
+ * value; `coverage` is that share of the picks, as `known` is for the rest.
+ * Era: in the seed's bucket (`same`), in it or the next one (`near`, by the
+ * `era` signal's own `areErasAdjacent`), and the mean |Δyear| where both
+ * years are known. Energy: mean |Δenergy| and the share within ±0.2.
+ */
+export function fitMetrics(seed, picks) {
+  const seedEra = eraOf(seed);
+  const eras = seedEra ? picks.map(eraOf).filter(Boolean) : [];
+  const seedYear = yearOf(seed);
+  const years = seedYear === null ? [] : picks.map(yearOf).filter((y) => y !== null);
+  const seedEnergy = energyOf(seed);
+  const energies = seedEnergy === null ? [] : picks.map(energyOf).filter((e) => e !== null);
+  const energyDeltas = energies.map((e) => Math.abs(e - seedEnergy));
+  const coverage = (n) => (picks.length ? n / picks.length : null);
+  return {
+    era: {
+      known: eras.length,
+      coverage: coverage(eras.length),
+      same: share(eras.map((e) => e === seedEra)),
+      near: share(eras.map((e) => e === seedEra || areErasAdjacent(e, seedEra))),
+      years_known: years.length,
+      mean_abs_year: mean(years.map((y) => Math.abs(y - seedYear))),
+    },
+    energy: {
+      known: energies.length,
+      coverage: coverage(energies.length),
+      mean_abs: mean(energyDeltas),
+      // A hair of slack so 0.2 itself isn't lost to float error.
+      within: share(energyDeltas.map((d) => d <= ENERGY_RANGE + 1e-9)),
+    },
+  };
 }
 
 /**
@@ -116,6 +180,7 @@ export function listMetrics(seed, picks, sims = new Map()) {
     genre: { known: genres.length, mean: mean(genres) },
     vibe: { known: vibe.length, mean: mean(vibe) },
     identity: { known: identity.length, mean: mean(identity) },
+    ...fitMetrics(seed, picks),
     artists: new Set(picks.map((p) => p.artist?.trim().toLowerCase() || trackKey(p))).size,
     releases: new Set(picks.map(releaseOf)).size,
   };

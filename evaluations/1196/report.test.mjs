@@ -11,10 +11,20 @@ import {
 
 const pick = (
   id,
-  { bpm = 120, rel = "same", artist = `art-${id}`, album = `al-${id}`, genre = 0.5 } = {},
+  {
+    bpm = 120,
+    rel = "same",
+    artist = `art-${id}`,
+    album = `al-${id}`,
+    genre = 0.5,
+    year = "1977",
+    energy = 0.5,
+  } = {},
 ) => ({
   track_id: id,
   friend_id: 6,
+  year,
+  energy,
   bpm,
   key_relation: rel,
   genre_overlap: genre,
@@ -25,12 +35,14 @@ const pick = (
 /** Beatmatcher: on tempo and key, one artist. Selector: off tempo, clashing, varied, closer vibe. */
 function results() {
   const bm = ["a", "b", "c"].map((id) => pick(id, { bpm: 121, artist: "same" }));
-  const sel = ["d", "e", "f"].map((id) => pick(id, { bpm: 90, rel: "clash" }));
+  const sel = ["d", "e", "f"].map((id) =>
+    pick(id, { bpm: 90, rel: "clash", year: "1995", energy: 0.9, genre: 0.8 }),
+  );
   const def = ["a", "d"].map((id) => pick(id));
   const seeds = ["s1", "s2"].map((key) => ({
     key: `6:${key}`,
     kind: "track",
-    seed: { track_id: key, friend_id: 6, bpm: 120, key: "8A" },
+    seed: { track_id: key, friend_id: 6, bpm: 120, key: "8A", year: "1979", energy: 0.6 },
     lists: {
       default: { picks: def },
       beatmatcher: { picks: bm },
@@ -109,9 +121,15 @@ test("claims pass when the preset wins every metric, and fail on any loss", () =
     tempo.tests.map((t) => t.pass),
     [true, true, true, true],
   );
-  // Selector: closer vibe and more artists; releases tie (3, 3 and 0 for the empty seed), which counts.
+  // Selector: closer vibe and more genre overlap.
   assert.equal(vibe.pass, true);
-  assert.equal(vibe.tests.find((t) => t.path === "releases").a, 2);
+  assert.deepEqual(
+    vibe.tests.map((t) => [t.path, t.a.toFixed(3), t.b.toFixed(3), t.pass]),
+    [
+      ["vibe.mean", "0.800", "0.500", true],
+      ["genre.mean", "0.800", "0.500", true],
+    ],
+  );
   // Flip the vibe: the claim fails on that metric alone.
   const flipped = results();
   for (const k of Object.keys(flipped.sims))
@@ -120,7 +138,7 @@ test("claims pass when the preset wins every metric, and fail on any loss", () =
   assert.equal(failed.pass, false);
   assert.deepEqual(
     failed.tests.map((t) => t.pass),
-    [false, true, true],
+    [false, true],
   );
   assert.equal(verdicts({ beatmatcher: [], selector: [] })[0].pass, null, "no data is undecided");
 });
@@ -168,6 +186,9 @@ test("the report renders verdicts, tables and overlap", () => {
   assert.match(md, /## Overlap/);
   assert.match(md, /\| greedy \| beatmatcher \|/);
   assert.match(md, /beatmatcher lower bpm_jump_hd than selector/);
+  assert.match(md, /## Era and energy fit/);
+  assert.match(md, /\| beatmatcher \| 100% \| 100% \| 2\.0 \| 100% \| 0\.100 \| 100% \| 100% \|/);
+  assert.match(md, /\| selector \| 0% \| 0% \| 16\.0 \| 100% \| 0\.300 \| 0% \| 100% \|/);
   const empty = renderReport({ ...summarize(results(), vectors), ordering_verdicts: [] });
   assert.doesNotMatch(empty, /Expectation/);
 });
