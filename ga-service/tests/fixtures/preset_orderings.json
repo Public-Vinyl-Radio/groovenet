@@ -4,11 +4,11 @@
     "beatmatcher": {
       "version": 2,
       "weights": {
-        "metadata": 0.013098591549295777,
-        "embedding": 0.039295774647887326,
-        "energy": 0.013098591549295777,
-        "bpm": 0.7859154929577465,
-        "key": 0.07859154929577465,
+        "metadata": 0.17257731958762887,
+        "embedding": 0.028762886597938145,
+        "energy": 0.09587628865979382,
+        "bpm": 0.575257731958763,
+        "key": 0.05752577319587629,
         "same_artist": 0.2,
         "same_album": 0.12
       },
@@ -47,7 +47,7 @@
   },
   "orderings": {
     "beatmatcher": {
-      "genetic": ["w5", "w3", "w1", "b4", "b2", "b5", "b3", "b1", "w4", "w2"],
+      "genetic": ["w3", "w5", "w1", "b4", "b2", "b1", "b3", "b5", "w2", "w4"],
       "greedy": ["w1", "w3", "w5", "b4", "b2", "b5", "b3", "b1", "w4", "w2"],
       "cohesive_blocks": ["w1", "w3", "w2", "w4", "w5", "b4", "b2", "b5", "b3", "b1"]
     },
@@ -61,9 +61,9 @@
     "beatmatcher": {
       "genetic": {
         "transitions": 9,
-        "bpm_jumps": 38.0,
+        "bpm_jumps": 37.0,
         "key_clashes": 1,
-        "vibe_distance": 1.6176224115637319
+        "vibe_distance": 1.539224098091577
       },
       "greedy": {
         "transitions": 9,

@@ -32,13 +32,15 @@ describe("preset orderings", () => {
     ]);
   });
 
-  it("Beatmatcher puts locked tempo and key first and keeps half time", () => {
+  it("Beatmatcher puts the seed's genre first within the mix, and keeps half time", () => {
+    // #1217: the house tracks in the window lead; the off-genre ones locked to
+    // the seed's tempo and key (disco, cumbia) follow them.
     expect(ids("beatmatcher")).toEqual([
-      "mixable-stranger",
       "all-rounder",
-      "locked-but-unrelated",
       "half-time-adjacent",
       "relative-key",
+      "mixable-stranger",
+      "locked-but-unrelated",
       "no-analysis",
     ]);
     expect(order("beatmatcher").hiddenByFilters).toBe(3);
@@ -71,11 +73,14 @@ describe("switching profile", () => {
     const beatmatcher = ids("beatmatcher");
     const selector = ids("selector");
     expect(beatmatcher).not.toEqual(selector);
-    expect(beatmatcher[0]).toBe("mixable-stranger");
+    expect(beatmatcher[0]).toBe("all-rounder");
     expect(selector[0]).toBe("vibe-twin-off-tempo");
-    // The mixable stranger (same key, a BPM off, a poor match) is Beatmatcher's
-    // first pick, since tempo and key lead it, and Selector's second last.
-    expect(beatmatcher.indexOf("mixable-stranger")).toBe(0);
+    // The mixable stranger (same key, a BPM off, another genre and decade)
+    // ranks below every house track in Beatmatcher's window since #1217,
+    // though it is the closest in tempo and key; it is Selector's second last.
+    expect(beatmatcher.indexOf("mixable-stranger")).toBeGreaterThan(
+      beatmatcher.indexOf("relative-key"),
+    );
     expect(selector.indexOf("mixable-stranger")).toBe(selector.length - 2);
     // The off-tempo vibe twin is Selector's first and outside Beatmatcher's window.
     expect(beatmatcher).not.toContain("vibe-twin-off-tempo");
