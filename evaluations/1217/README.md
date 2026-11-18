@@ -4,7 +4,7 @@ Part of #1190. Follows #1196 (PR #1209), where the owner preferred Selector to
 Beatmatcher 16–1 ("which would you mix from this track?"), and #1218 (PR
 #1221), which ranked similarity within the pool.
 
-## Result: Beatmatcher leads with genre inside its constraints (pending review)
+## Result: Beatmatcher leads with genre inside its constraints (confirmed by blind review)
 
 **Chosen: genre 0.9, era 0.3, energy 0.5** (`proposals/bm-g09-e03-n05.json`),
 the rest unchanged: similarity 0.15 / 0.15 (max base), key 0.3, BPM 3, ±6%
@@ -12,9 +12,9 @@ with half and double time, compatible keys. The constraints keep every pick
 mixable, so tempo and key fit stay at 100%; inside them, genre now outweighs
 a key step (0.15) and the tempo spread (0.18).
 
-**It is confirmed only if the owner's blind review prefers it** to `main`'s
-Beatmatcher (below). The app change is in the PR so it can be reviewed as
-it would ship; it is not adopted until then.
+**Confirmed by the owner's blind review** against `main`'s Beatmatcher
+(below), on 19 frozen seeds no earlier round showed: **12–1 on both
+questions** (2 same, 2 automatic ties, 2 not judged; sign test p = 0.003).
 
 | Frozen set                                    | `main`     | Chosen     |
 | --------------------------------------------- | ---------- | ---------- |
@@ -99,6 +99,9 @@ no per-seed list was read.
   Mean Jaccard between the two lists over the 19 seeds is 0.44.
 - **Questions:** the same two, **Which would you mix from this track?** and
   **Which makes the more interesting set?**
+- **Result (2026-11-18):** `beatmatcher-genre` preferred **12–1** on both
+  questions; 2 same, 2 automatic ties, 2 not judged. Sign test p = 0.003.
+  The runner-up `bm-g06` sheet was not needed.
 
 ```bash
 node evaluations/1196/review-web.mjs --file eval-data/1217-review/bm-g09-e03-n05/review.json \
