@@ -13,25 +13,33 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/services/internalApi/trackLyrics", () => api);
 
-import TrackLyricsSection from "./TrackLyricsSection";
+import TrackLyricsDialog from "./TrackLyricsDialog";
 
 const lyrics = { text: "Old words", source: "embedded" as const, updated_at: "2026-11-11" };
+
+function renderDialog(open = true, onOpenChange = vi.fn()) {
+  const view = renderWithProviders(
+    <TrackLyricsDialog trackId="t1" friendId={1} open={open} onOpenChange={onOpenChange} />,
+  );
+  return { ...view, onOpenChange, user: userEvent.setup() };
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("TrackLyricsSection", () => {
-  it("reads the track's lyrics and writes a save back into the cache", async () => {
+describe("TrackLyricsDialog", () => {
+  it("is a Lyrics dialog that reads, edits and saves into the cache", async () => {
     api.fetchTrackLyrics.mockResolvedValue({ kind: "lyrics", lyrics });
     api.saveTrackLyrics.mockResolvedValue({ ...lyrics, text: "New words", source: "user" });
-    const user = userEvent.setup();
-    const { queryClient } = renderWithProviders(<TrackLyricsSection trackId="t1" friendId={1} />);
+    const { user, queryClient } = renderDialog();
 
+    const dialog = await screen.findByRole("dialog", { name: "Lyrics" });
+    expect(dialog).toBeTruthy();
     expect(await screen.findByText("From file")).toBeTruthy();
+    expect(screen.getByTestId("track-lyrics-text").textContent).toBe("Old words");
     expect(api.fetchTrackLyrics).toHaveBeenCalledWith("t1", 1);
 
-    await user.click(screen.getByRole("button", { name: "Show" }));
     await user.click(screen.getByRole("button", { name: "Edit" }));
     const box = screen.getByRole("textbox", { name: "Lyrics" });
     await user.clear(box);
@@ -49,27 +57,23 @@ describe("TrackLyricsSection", () => {
   it("clears into the empty state", async () => {
     api.fetchTrackLyrics.mockResolvedValue({ kind: "lyrics", lyrics });
     api.clearTrackLyrics.mockResolvedValue({ deleted: true });
-    const user = userEvent.setup();
-    renderWithProviders(<TrackLyricsSection trackId="t1" friendId={1} />);
+    const { user } = renderDialog();
 
-    await user.click(await screen.findByRole("button", { name: "Show" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Clear lyrics" }));
 
     expect(await screen.findByText("None")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add lyrics" })).toBeTruthy();
     expect(api.clearTrackLyrics).toHaveBeenCalledWith("t1", 1);
   });
 
-  it("renders nothing for a friend's track", async () => {
-    api.fetchTrackLyrics.mockResolvedValue({ kind: "not_owner" });
-    const { container, queryClient } = renderWithProviders(
-      <TrackLyricsSection trackId="t1" friendId={2} />,
-    );
-    await vi.waitFor(() =>
-      expect(queryClient.getQueryData(queryKeys.trackLyrics("t1", 2))).toEqual({
-        kind: "not_owner",
-      }),
-    );
-    expect(container.querySelector("section")).toBeNull();
+  it("closes from its close button and renders nothing while closed", async () => {
+    api.fetchTrackLyrics.mockResolvedValue({ kind: "none" });
+    const { user, onOpenChange, unmount } = renderDialog();
+    await user.click(await screen.findByRole("button", { name: "Close" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    unmount();
+    renderDialog(false);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -471,12 +471,14 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         ]
           .filter(Boolean)
           .join(" · ");
-  const header = (
+  const pageHeader = (
     <PageHeader>
       <PageHeader.Context
         crumbs={[{ label: "Playlists", href: "/playlists" }, { label: displayName }]}
       />
-      <PageHeader.Title meta={meta}>{displayName}</PageHeader.Title>
+      <PageHeader.Title phoneTitle="Playlist" metaOnPhone={false} meta={meta}>
+        {displayName}
+      </PageHeader.Title>
       <PageHeader.Actions
         actions={[
           ...(hasUnsavedChanges && playlistId
@@ -500,6 +502,30 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         }
       />
     </PageHeader>
+  );
+  // The phone bar reads "Playlist"; the full name wraps here instead (#1214).
+  const header = (
+    <>
+      {pageHeader}
+      <Box data-testid="playlist-phone-title" display={{ base: "block", md: "none" }} mb={3}>
+        <Text
+          fontFamily="body"
+          fontWeight="semibold"
+          fontSize="20px"
+          lineHeight="26px"
+          lineClamp={3}
+          overflowWrap="anywhere"
+          title={displayName}
+        >
+          {displayName}
+        </Text>
+        {meta && (
+          <Text fontFamily="label" fontSize="13px" lineHeight="20px" color="fg.muted">
+            {meta}
+          </Text>
+        )}
+      </Box>
+    </>
   );
 
   if (trackIdsLoading || tracksLoading) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import NextLink from "next/link";
 import { Box, Button, Drawer, Flex, Link, Popover, Portal, Text } from "@chakra-ui/react";
+import { FiFile } from "react-icons/fi";
 import { MetaTag, SourceTag, StatusTag } from "@/components/ui/RoleTags";
 import type { Track } from "@/types/track";
 import { fileInfo, fileSources } from "./audioQuality";
@@ -108,9 +109,16 @@ export default function FileInfo({
   onReprobe,
   open: controlledOpen,
   onOpenChange,
+  trigger = "tag",
 }: {
   track: Track;
   mobile?: boolean;
+  /**
+   * `tag`: the compact quality tag (player, queue). `meta`: a quiet ghost `xs`
+   * button reading "AAC · 267 kbps" with a file icon, for a page header where a
+   * tag would read as a second identifier beside the library ID (#1214).
+   */
+  trigger?: "tag" | "meta";
   fullPath?: boolean;
   onReprobe?: () => Promise<void>;
   open?: boolean;
@@ -120,18 +128,39 @@ export default function FileInfo({
   const open = controlledOpen ?? localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const info = fileInfo(track);
-  const badge = (
-    <MetaTag
-      asChild
-      variant={info.lossless ? "lossless" : "plain"}
-      cursor="pointer"
-      {...(mobile ? touchTarget : {})}
-    >
-      <button type="button" aria-label={`File info: ${info.label}`}>
-        {info.label}
-      </button>
-    </MetaTag>
-  );
+  const badge =
+    trigger === "meta" ? (
+      <Button
+        variant="ghost"
+        size="xs"
+        color="fg.muted"
+        fontFamily="mono"
+        fontWeight="normal"
+        textTransform="none"
+        letterSpacing="normal"
+        px={1}
+        ms={-1}
+        gap={1.5}
+        alignSelf="flex-start"
+        aria-label={`File info: ${info.meta}`}
+        data-testid="file-meta"
+        {...(mobile ? touchTarget : {})}
+      >
+        <FiFile aria-hidden />
+        {info.meta}
+      </Button>
+    ) : (
+      <MetaTag
+        asChild
+        variant={info.lossless ? "lossless" : "plain"}
+        cursor="pointer"
+        {...(mobile ? touchTarget : {})}
+      >
+        <button type="button" aria-label={`File info: ${info.label}`}>
+          {info.label}
+        </button>
+      </MetaTag>
+    );
   if (mobile)
     return (
       <Drawer.Root open={open} onOpenChange={(e) => setOpen(e.open)} placement="bottom">

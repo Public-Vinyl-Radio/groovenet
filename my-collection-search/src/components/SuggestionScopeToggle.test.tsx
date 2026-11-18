@@ -20,4 +20,12 @@ describe("SuggestionScopeToggle", () => {
 
     expect(onChange).toHaveBeenCalledWith("all");
   });
+
+  it("sizes to its content at the row's right end instead of filling it", () => {
+    renderWithProviders(<SuggestionScopeToggle value="all" onChange={vi.fn()} />);
+    const style = getComputedStyle(screen.getByTestId("suggestion-scope-toggle"));
+    expect(style.width).not.toBe("100%");
+    expect(style.marginInlineStart).toBe("auto");
+    expect(style.flexShrink).toBe("0");
+  });
 });

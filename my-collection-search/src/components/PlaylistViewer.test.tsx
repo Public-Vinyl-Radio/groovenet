@@ -234,6 +234,15 @@ describe("PlaylistViewer page header", () => {
     ).toBe("/playlists");
   });
 
+  it("reads Playlist in the phone bar and shows the full name and meta in the content", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    expect(screen.getByTestId("page-header-phone-title").textContent).toBe("Playlist");
+    const content = screen.getByTestId("playlist-phone-title");
+    expect(content.textContent).toBe("Set2 tracks · 0:00");
+    expect(within(content).queryByRole("heading")).toBeNull();
+  });
+
   it("has one h1 and totals the playlist in the header meta", async () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     await screen.findByRole("heading", { level: 1, name: "Set" });

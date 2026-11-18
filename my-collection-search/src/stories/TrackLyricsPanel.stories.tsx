@@ -36,20 +36,17 @@ const meta: Meta<typeof TrackLyricsPanel> = {
 export default meta;
 type Story = StoryObj<typeof TrackLyricsPanel>;
 
-/** The default on the track page: collapsed, saying where the lyrics came from. */
-export const Collapsed: Story = {};
-
-export const Lyrics: Story = { args: { defaultOpen: true } };
+/** The Lyrics dialog's body: the words, saying where they came from. */
+export const Lyrics: Story = {};
 
 export const EditedByYou: Story = {
   args: {
-    defaultOpen: true,
     state: { kind: "lyrics", lyrics: { ...lyrics, source: "user" } },
   },
 };
 
 /** An instrumental, or a file without lyrics. */
-export const Empty: Story = { args: { state: { kind: "none" }, defaultOpen: true } };
+export const Empty: Story = { args: { state: { kind: "none" } } };
 
 export const Editing: Story = { args: { defaultEditing: true } };
 
@@ -57,8 +54,8 @@ export const AddingToEmpty: Story = { args: { state: { kind: "none" }, defaultEd
 
 export const Saving: Story = { args: { defaultEditing: true, saving: true } };
 
-export const Loading: Story = { args: { state: undefined, defaultOpen: true } };
+export const Loading: Story = { args: { state: undefined } };
 
 export const LoadFailed: Story = {
-  args: { state: undefined, defaultOpen: true, error: new Error("Failed to read lyrics") },
+  args: { state: undefined, error: new Error("Failed to read lyrics") },
 };

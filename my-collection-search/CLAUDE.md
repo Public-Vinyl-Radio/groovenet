@@ -108,6 +108,14 @@
   rule when present. Context, title, actions, tabs and toolbar compose from
   `PageHeader` parts. The audited route inventory and migration notes are in
   [`docs/design/headers-audit.md`](docs/design/headers-audit.md).
+  **Long names (#1214):** detail pages whose names run long (track, album,
+  playlist) pass `phoneTitle` ("Track", "Album", "Playlist"): below `md` the
+  52px bar shows that label (`aria-hidden`) while the h1 keeps the full name,
+  visually hidden, for screen readers; from `md` up the bar shows the name as
+  before. Such a page shows the full name as the first line of its content on
+  phones: Body face, semibold, 20/26, wrapping to at most 3 lines, never a
+  heading. Pages that don't pass it are unchanged. Artist and genre names stay
+  in the bar.
 - **Section headings (#995):** use `SectionHeading` for display-face section
   titles at 18/24, with `level` choosing h2 or h3. Use `SectionLabel` for
   Labels-face strips, overlines and bars; choose its variant and explicit line
@@ -335,6 +343,22 @@ an invalid value the browser drops, so it fails silently.
   `"none"`. Pickers, menus, dialogs, toasts and forms stay plain text, and a link is
   never nested in a button (give the row a sibling overlay button instead, as
   `QueueList` does).
+- **Track page** (`/tracks/[id]`, `TrackHeader`; #1214): on phones the card opens
+  with the full title across its width, above the cover. Under the library ID (the one
+  accent `id` tag) the file's format is a mono meta line with units (`AAC · 267 kbps`),
+  a quiet ghost `xs` button with a file icon that opens File info (`FileInfo
+trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
+  position starts with a side letter, else **Track** (`9`) (`trackPositionFact`, on
+  `parseTrackPosition`). Genres are one labelled row per source (`TrackGenresSection`):
+  **Genres** (the track's, linked), **Album** (Discogs genres and styles), **File** (the
+  audio file's tags, plain), the Labels-face label in a fixed column; empty rows are
+  left out and a genre shows once. Lyrics live in a `RetroDialog` (`TrackLyricsDialog`,
+  full screen on phones) opened from the ⋯ menu's **Lyrics** / **Add lyrics** item
+  (`onOpenLyrics`), offered only once the lyrics read says the track is the owner's
+  (#1176), never as a page section. The Suggestions scope toggle
+  (`SuggestionScopeToggle`) sizes to its content at the right end of the summary line,
+  with a 44px hit area from an invisible extension on phones; the playlist panel does
+  the same.
 - **Track cards** (`TrackResult`, the default `layout`; #722): the container is a 2px
   `border.ink` outline with `shadow-md`, so a grid of them needs `padding: 0 6px 6px 0`
   and a 20px gap (14px between stacked cards; the title is in the Body face; the card carries `mb: 14px`, a caller with

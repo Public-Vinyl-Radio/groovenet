@@ -24,6 +24,33 @@ describe("file info formatting", () => {
     ).toBe(label);
   });
   it.each([
+    ["alac", true, 24, 96000, null, "ALAC · 24-bit/96 kHz"],
+    ["aac", false, null, 44100, 267000, "AAC · 267 kbps"],
+    ["alac", true, null, null, null, "ALAC"],
+    [null, null, null, null, null, "Quality unknown"],
+  ])("writes the meta line for %s with units", (codec, lossless, depth, rate, bitrate, meta) => {
+    expect(
+      fileInfo({
+        ...sampleTrack,
+        local_audio_url: "/audio/a.m4a",
+        audio_codec: codec as string | null,
+        audio_lossless: lossless as boolean | null,
+        audio_bit_depth: depth as number | null,
+        audio_sample_rate: rate as number | null,
+        audio_bitrate: bitrate as number | null,
+      }).meta,
+    ).toBe(meta);
+  });
+  it("marks a stream in the meta line", () => {
+    expect(
+      fileInfo({
+        ...sampleTrack,
+        local_audio_url: undefined,
+        apple_music_url: "https://music.apple.com/x",
+      }).meta,
+    ).toBe("AAC · 256 kbps · Stream");
+  });
+  it.each([
     [null, "Unknown"],
     [0, "Unknown"],
     [-1, "Unknown"],

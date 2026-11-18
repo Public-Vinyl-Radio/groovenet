@@ -74,6 +74,38 @@ describe("PageHeader parts", () => {
       );
       expect(getComputedStyle(screen.getByTestId("page-header-meta")).display).toBe("none");
     });
+
+    it("shows a phone label in the bar but keeps the full title as the h1's name", () => {
+      const title = "Si Una Vez (Remasterizado 2002)";
+      renderWithProviders(
+        <PageHeader>
+          <PageHeader.Title phoneTitle="Track">{title}</PageHeader.Title>
+        </PageHeader>,
+      );
+      // Screen readers hear the full title once; the short label is visual only.
+      const h1 = screen.getByRole("heading", { level: 1, name: title });
+      expect(h1.getAttribute("title")).toBe(title);
+      const label = screen.getByTestId("page-header-phone-title");
+      expect(label.textContent).toBe("Track");
+      expect(label.getAttribute("aria-hidden")).toBe("true");
+      expect(getComputedStyle(label).display).toBe("inline");
+      // Below md the full title is visually hidden, not removed (jsdom matches no media query).
+      const full = screen.getByTestId("page-header-full-title");
+      expect(full.textContent).toBe(title);
+      expect(getComputedStyle(full).position).toBe("absolute");
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    });
+
+    it("renders the title alone when no phone label is given", () => {
+      renderWithProviders(
+        <PageHeader>
+          <PageHeader.Title>Mezzanine</PageHeader.Title>
+        </PageHeader>,
+      );
+      expect(screen.queryByTestId("page-header-phone-title")).toBeNull();
+      expect(screen.queryByTestId("page-header-full-title")).toBeNull();
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Mezzanine");
+    });
   });
 
   describe("Context", () => {

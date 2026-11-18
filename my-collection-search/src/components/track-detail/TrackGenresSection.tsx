@@ -1,6 +1,7 @@
 "use client";
 
-import { Flex, Text } from "@chakra-ui/react";
+import React from "react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import { GenreBadgeList } from "@/components/GenreBadge";
 import { CategoryTag } from "@/components/ui/RoleTags";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
@@ -35,20 +36,43 @@ const tagCss = {
   },
 };
 
-const groupLabel = {
+const rowLabel = {
   fontFamily: "label",
   fontSize: "11px",
+  lineHeight: "20px",
   letterSpacing: "0.08em",
   textTransform: "uppercase",
   color: "fg.muted",
-  mx: 1,
 } as const;
 
+function GenreRow({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box data-testid="track-genre-row" display="contents">
+      <Text as="dt" {...rowLabel} title={title}>
+        {label}
+      </Text>
+      <Flex as="dd" m={0} flexWrap="wrap" alignItems="center" gap={1.5} minW={0} css={tagCss}>
+        {children}
+      </Flex>
+    </Box>
+  );
+}
+
 /**
- * The track's DJ genres, then its album's effective Discogs genres and styles,
- * each a link into track search (#376), then the genre the audio file declares
- * (read-only: it refreshes from the file). One wrapping row for the track page
- * header; each genre shows once. Reads the store, so an edit shows at once.
+ * One labelled row per source (#1214): the track's DJ genres, then its album's
+ * effective Discogs genres and styles, each a link into track search (#376),
+ * then the genre the audio file declares (read-only, plain: it refreshes from the
+ * file). The label sits in a fixed column so its tags wrap beside it, never
+ * around it. A row with nothing to show isn't rendered, and each genre shows
+ * once, in the first row that has it. Reads the store, so an edit shows at once.
  * Editing itself is the menu's Edit Track.
  */
 export default function TrackGenresSection({ trackId, friendId, fallbackTrack }: Props) {
@@ -66,48 +90,55 @@ export default function TrackGenresSection({ trackId, friendId, fallbackTrack }:
   );
   const hasAlbum = discogsGenres.length > 0 || discogsStyles.length > 0;
   // What the audio file's own tags say (#673): Apple/ID3 names, never a genre
-  // assignment, so plain tags rather than links, under a label naming the file.
+  // assignment, so plain tags rather than links.
   const fileGenres = withoutSeen(
     (track.audio_file_genre ?? []).map((label) => ({ label, slug: null })),
     seen,
   );
 
+  if (trackGenres.length === 0 && !hasAlbum && fileGenres.length === 0) {
+    return (
+      <Text data-testid="track-genres-section" fontSize="sm" color="fg.muted">
+        No genres yet
+      </Text>
+    );
+  }
+
   return (
-    <Flex
+    <Box
+      as="dl"
       data-testid="track-genres-section"
-      flexWrap="wrap"
-      alignItems="center"
-      gap={1.5}
+      m={0}
+      display="grid"
+      gridTemplateColumns="56px minmax(0, 1fr)"
+      columnGap={2}
+      rowGap={1.5}
+      alignItems="start"
       minW={0}
-      css={tagCss}
     >
-      <GenreBadgeList items={trackGenres} kind="track" />
-      {trackGenres.length === 0 && (
-        <Text as="span" fontSize="sm" color="fg.muted">
-          No genres yet
-        </Text>
+      {trackGenres.length > 0 && (
+        <GenreRow label="Genres">
+          <GenreBadgeList items={trackGenres} kind="track" />
+        </GenreRow>
       )}
       {hasAlbum && (
-        <Text as="span" {...groupLabel}>
-          Album
-        </Text>
+        <GenreRow label="Album">
+          <GenreBadgeList items={discogsGenres} kind="discogs-genre" />
+          <GenreBadgeList items={discogsStyles} kind="discogs-style" />
+        </GenreRow>
       )}
-      <GenreBadgeList items={discogsGenres} kind="discogs-genre" />
-      <GenreBadgeList items={discogsStyles} kind="discogs-style" />
       {fileGenres.length > 0 && (
-        <Text
-          as="span"
-          {...groupLabel}
+        <GenreRow
+          label="File"
           title="Read from the audio file's tags; refreshes when the file is re-read"
         >
-          Genre from file
-        </Text>
+          {fileGenres.map((item) => (
+            <CategoryTag key={`file:${item.label}`} size="sm" data-testid="file-genre">
+              {item.label}
+            </CategoryTag>
+          ))}
+        </GenreRow>
       )}
-      {fileGenres.map((item) => (
-        <CategoryTag key={`file:${item.label}`} size="sm" data-testid="file-genre">
-          {item.label}
-        </CategoryTag>
-      ))}
-    </Flex>
+    </Box>
   );
 }

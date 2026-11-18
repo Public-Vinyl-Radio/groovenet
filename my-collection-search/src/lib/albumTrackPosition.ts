@@ -215,3 +215,17 @@ export function normalizeAlbumTrackSides<TTrack extends { position: TrackPositio
 
   return groups;
 }
+
+/**
+ * How a track page names a position (#1214): "Side" with the position (A1, B3)
+ * when it starts with a side letter, otherwise "Track" (9, or 1-9 on a CD set).
+ */
+export function trackPositionFact(position: TrackPositionValue): {
+  label: "Side" | "Track";
+  value: string | null;
+} {
+  const parsed = parseTrackPosition(position);
+  // A disc-track position ("1-9") parses a "DISC-1" side, which is not a side letter.
+  const hasSide = parsed.side !== "" && parsed.classification !== "disc-track";
+  return { label: hasSide ? "Side" : "Track", value: parsed.raw || null };
+}

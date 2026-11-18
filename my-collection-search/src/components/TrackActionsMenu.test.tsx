@@ -215,6 +215,23 @@ describe("TrackActionsMenu desktop dropdown — conditional items", () => {
     expect(screen.queryByRole("menuitem", { name: "File info", hidden: true })).toBeNull();
   });
 
+  it.each([
+    [true, "Lyrics"],
+    [false, "Add lyrics"],
+  ])("offers lyrics to the owner (has lyrics %s) as %s", async (hasLyrics, label) => {
+    const onOpenLyrics = vi.fn();
+    const { user, menuButton } = setup(trackMinimal, { onOpenLyrics, hasLyrics });
+    await chooseMenuItem(user, menuButton, new RegExp(`^${label}$`));
+    expect(onOpenLyrics).toHaveBeenCalled();
+  });
+
+  it("has no Lyrics item without a handler (a friend's track)", async () => {
+    const { user, menuButton } = setup(trackWithEverything, { hasLyrics: true });
+    await user.click(menuButton);
+    await screen.findByRole("menuitem", { name: /Add to Playlist/, hidden: true });
+    expect(screen.queryByRole("menuitem", { name: /lyrics/i, hidden: true })).toBeNull();
+  });
+
   it("offers Track Debug when a handler is given", async () => {
     const { user, menuButton } = setup(trackWithEverything, { onOpenTrackDebug: vi.fn() });
     await user.click(menuButton);
@@ -345,6 +362,16 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     unmount();
     await openModal(trackMinimal, { onOpenFileInfo });
     expect(screen.queryByText("File info")).toBeNull();
+  });
+
+  it("opens lyrics from the phone menu, named for whether there are any", async () => {
+    const onOpenLyrics = vi.fn();
+    const { user, unmount } = await openModal(trackMinimal, { onOpenLyrics });
+    await user.click(screen.getByText("Add lyrics"));
+    expect(onOpenLyrics).toHaveBeenCalled();
+    unmount();
+    await openModal(trackMinimal, { onOpenLyrics, hasLyrics: true });
+    expect(screen.getByText("Lyrics")).toBeTruthy();
   });
 
   it("is a labelled dialog headed by the track and its catalogue line", async () => {

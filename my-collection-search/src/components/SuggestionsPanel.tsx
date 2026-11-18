@@ -331,10 +331,13 @@ export default function SuggestionsPanel({
               {labels.bpmWithinSixPercent}
             </Button>
           )}
-          <SuggestionScopeToggle value={scope} onChange={setScope} />
         </Flex>
         {picker}
-        {status}
+        {/* The scope toggle sits at the right end of the summary line (#1214). */}
+        <Flex align="center" gap={2} minH="24px">
+          {status}
+          <SuggestionScopeToggle value={scope} onChange={setScope} />
+        </Flex>
         {empty}
         {list}
       </Flex>

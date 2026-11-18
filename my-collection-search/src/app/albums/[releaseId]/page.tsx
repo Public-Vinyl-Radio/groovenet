@@ -173,6 +173,7 @@ function AlbumDetailContent() {
           ]}
         />
         <PageHeader.Title
+          phoneTitle="Album"
           metaOnPhone={false}
           meta={albumMeta({
             identifier: album.library_identifier || album.catalog_number,

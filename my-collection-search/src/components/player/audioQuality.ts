@@ -43,6 +43,20 @@ export function fileInfo(track: Track) {
     source,
     lossless,
     label: `${quality}${streamed ? " · Stream" : ""}`,
+    // The same facts with their units, for a meta line ("AAC · 267 kbps", #1214).
+    meta: [
+      codec?.toUpperCase() ?? "Quality unknown",
+      lossless
+        ? track.audio_bit_depth && track.audio_sample_rate
+          ? `${track.audio_bit_depth}-bit/${track.audio_sample_rate / 1000} kHz`
+          : null
+        : bitrate
+          ? `${Math.round(bitrate / 1000)} kbps`
+          : null,
+      streamed ? "Stream" : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     details: [
       ["Codec", codec?.toUpperCase() ?? "Unknown"],
       ["Container", streamed ? "Not measured" : (track.audio_container ?? "Unknown")],

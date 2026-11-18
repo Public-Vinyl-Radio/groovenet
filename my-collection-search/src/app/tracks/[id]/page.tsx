@@ -23,8 +23,9 @@ import {
   TrackPlaylistsSection,
   TrackHeader,
   TrackDebugModal,
-  TrackLyricsSection,
+  TrackLyricsDialog,
 } from "@/components/track-detail";
+import { useTrackLyrics } from "@/hooks/useTrackLyrics";
 
 export default function TrackPage() {
   const params = useParams<{ id: string }>();
@@ -39,6 +40,11 @@ export default function TrackPage() {
   const showUsername = friendId !== currentUserFriend?.id;
   const [debugOpen, setDebugOpen] = useState(false);
   const [fileInfoOpen, setFileInfoOpen] = useState(false);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+  // The lyrics endpoint answers `not_owner` for a friend's track (#1176), so the
+  // menu offers Lyrics only once it knows this is the owner's library.
+  const lyricsState = useTrackLyrics(trackId, friendId, { enabled: hasValidFriendId }).query.data;
+  const canEditLyrics = lyricsState !== undefined && lyricsState.kind !== "not_owner";
   const { replacePlaylist } = usePlaybackPlayer();
   const [artworkOpen, setArtworkOpen] = useState(false);
   const isMobile = useBreakpointValue({ base: true, md: false }) ?? true;
@@ -74,6 +80,8 @@ export default function TrackPage() {
         prominent={prominent}
         onOpenTrackDebug={() => setDebugOpen(true)}
         onOpenFileInfo={() => setFileInfoOpen(true)}
+        onOpenLyrics={canEditLyrics ? () => setLyricsOpen(true) : undefined}
+        hasLyrics={lyricsState?.kind === "lyrics"}
         onChangeArtwork={track.release_id ? () => setArtworkOpen(true) : undefined}
       />
     );
@@ -83,7 +91,7 @@ export default function TrackPage() {
       {hasValidFriendId && crumbs && track && (
         <PageHeader>
           <PageHeader.Context crumbs={crumbs} />
-          <PageHeader.Title metaOnPhone={false} meta={trackMeta(track)}>
+          <PageHeader.Title phoneTitle="Track" metaOnPhone={false} meta={trackMeta(track)}>
             {track.title}
           </PageHeader.Title>
           {/* The menu sits in the header at both widths, not in the card. */}
@@ -153,7 +161,14 @@ export default function TrackPage() {
 
               <TrackPlaylistsSection query={playlistsQuery} />
 
-              <TrackLyricsSection trackId={trackId} friendId={friendId} />
+              {canEditLyrics && (
+                <TrackLyricsDialog
+                  trackId={trackId}
+                  friendId={friendId}
+                  open={lyricsOpen}
+                  onOpenChange={setLyricsOpen}
+                />
+              )}
 
               <RelatedTracksSection track={trackQuery.data} />
 

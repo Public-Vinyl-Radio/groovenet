@@ -195,6 +195,20 @@ export default function AlbumHeader({
           minW={0}
           css={{ gridArea: "main", [wide]: { padding: "24px", gap: "16px" } }}
         >
+          {/* The phone bar shows "Album"; the full title leads the card (#1214). */}
+          <Text
+            data-testid="album-header-title"
+            display={{ base: "-webkit-box", md: "none" }}
+            fontFamily="body"
+            fontWeight="semibold"
+            fontSize="20px"
+            lineHeight="26px"
+            lineClamp={3}
+            overflowWrap="anywhere"
+            title={album.title}
+          >
+            {album.title}
+          </Text>
           <Flex gap="14px" minW={0} css={{ [wide]: { gap: "24px" } }}>
             <Box
               as="button"

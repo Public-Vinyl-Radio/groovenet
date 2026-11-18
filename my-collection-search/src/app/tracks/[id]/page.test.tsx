@@ -36,6 +36,12 @@ vi.mock("@/stores/trackStore", () => ({ useTrackStore: { getState: () => ({ setT
 vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: currentLibraryFriend }),
 }));
+const lyricsApi = vi.hoisted(() => ({
+  fetchTrackLyrics: vi.fn(),
+  saveTrackLyrics: vi.fn(),
+  clearTrackLyrics: vi.fn(),
+}));
+vi.mock("@/services/internalApi/trackLyrics", () => lyricsApi);
 vi.mock("@/hooks/useTrackDetailQueries", () => ({ useTrackDetailQueries: () => queries }));
 vi.mock("@/components/AlbumArtworkDialog", () => ({
   default: (props: {
@@ -58,8 +64,15 @@ vi.mock("@/components/TrackActionsMenu", () => ({
     onChangeArtwork?: () => void;
     onOpenTrackDebug?: () => void;
     onOpenFileInfo?: () => void;
+    onOpenLyrics?: () => void;
+    hasLyrics?: boolean;
   }) => (
-    <div data-testid="header-menu" data-prominent={String(props.prominent)}>
+    <div
+      data-testid="header-menu"
+      data-prominent={String(props.prominent)}
+      data-has-lyrics={String(props.hasLyrics)}
+    >
+      {props.onOpenLyrics && <button onClick={props.onOpenLyrics}>Header lyrics</button>}
       {props.onChangeArtwork && <button onClick={props.onChangeArtwork}>Header cover art</button>}
       <button onClick={props.onOpenTrackDebug}>Header debug</button>
       <button onClick={props.onOpenFileInfo}>Header file info</button>
@@ -69,11 +82,12 @@ vi.mock("@/components/TrackActionsMenu", () => ({
 vi.mock("@/components/RelatedTracksSection", () => ({ default: () => null }));
 vi.mock("@/components/track-detail", () => ({
   TrackPlaylistsSection: () => null,
-  TrackLyricsSection: (props: { trackId: string; friendId: number }) => (
-    <div data-testid="lyrics-section">
-      {props.trackId}:{props.friendId}
-    </div>
-  ),
+  TrackLyricsDialog: (props: { trackId: string; friendId: number; open: boolean }) =>
+    props.open ? (
+      <div role="dialog" aria-label="Lyrics">
+        {props.trackId}:{props.friendId}
+      </div>
+    ) : null,
   TrackHeader: (props: {
     showUsername?: boolean;
     onChangeArtwork?: () => void;
@@ -100,13 +114,45 @@ import TrackPage from "./page";
 
 beforeEach(() => {
   currentLibraryFriend.id = 6;
+  lyricsApi.fetchTrackLyrics.mockReset().mockResolvedValue({ kind: "none" });
   setViewportWidth(1280);
 });
 
 describe("TrackPage", () => {
-  it("shows the lyrics panel for the track", () => {
+  it("labels the phone bar Track and keeps the full title as the h1", () => {
     renderWithProviders(<TrackPage />);
-    expect(screen.getByTestId("lyrics-section").textContent).toBe("t1:6");
+    expect(screen.getByRole("heading", { level: 1, name: "Song" })).toBeTruthy();
+    expect(screen.getByTestId("page-header-phone-title").textContent).toBe("Track");
+  });
+
+  it("opens the lyrics dialog from the menu for the owner's track with lyrics", async () => {
+    lyricsApi.fetchTrackLyrics.mockResolvedValue({
+      kind: "lyrics",
+      lyrics: { text: "Words", source: "embedded", updated_at: "2026-11-11" },
+    });
+    const { user } = renderWithProviders(<TrackPage />);
+    const item = await screen.findByRole("button", { name: "Header lyrics", hidden: true });
+    expect(screen.getByTestId("header-menu").getAttribute("data-has-lyrics")).toBe("true");
+    expect(screen.queryByRole("dialog", { name: "Lyrics" })).toBeNull();
+    await user.click(item);
+    expect(screen.getByRole("dialog", { name: "Lyrics" }).textContent).toBe("t1:6");
+    expect(lyricsApi.fetchTrackLyrics).toHaveBeenCalledWith("t1", 6);
+  });
+
+  it("offers Add lyrics on the owner's track without any", async () => {
+    renderWithProviders(<TrackPage />);
+    await screen.findByRole("button", { name: "Header lyrics", hidden: true });
+    expect(screen.getByTestId("header-menu").getAttribute("data-has-lyrics")).toBe("false");
+  });
+
+  it("has no lyrics item on a friend's track", async () => {
+    lyricsApi.fetchTrackLyrics.mockResolvedValue({ kind: "not_owner" });
+    renderWithProviders(<TrackPage />);
+    await waitFor(() => expect(lyricsApi.fetchTrackLyrics).toHaveBeenCalled());
+    // Let the read settle, then check the item never appears.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByRole("button", { name: "Header lyrics", hidden: true })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Lyrics" })).toBeNull();
   });
 
   it("hands the debug modal the context embedding preview", () => {
@@ -231,9 +277,8 @@ describe("TrackPage breadcrumbs", () => {
       album: "Blue Lines",
     };
     renderWithProviders(<TrackPage />);
-    expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
-      "Song",
-    ]);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1, name: "Song" })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href"),
     ).toBe("/albums/r9?friend_id=6");
