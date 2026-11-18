@@ -37,6 +37,18 @@ describe("File info", () => {
     expect(getComputedStyle(tag).minHeight).not.toBe("44px");
     expect(getComputedStyle(button).minHeight).not.toBe("44px");
   });
+  it.each([false, true])(
+    "offers a quiet meta-line trigger with units (mobile %s)",
+    async (mobile) => {
+      const { user } = renderWithProviders(
+        <FileInfo track={track} mobile={mobile} trigger="meta" />,
+      );
+      const button = screen.getByRole("button", { name: "File info: ALAC · 24-bit/96 kHz" });
+      expect(button.textContent).toBe("ALAC · 24-bit/96 kHz");
+      await user.click(button);
+      expect(await screen.findByText("Lossless")).toBeTruthy();
+    },
+  );
   it("shows the full path and pending metadata without a track link", () => {
     renderWithProviders(
       <FileInfoDetails

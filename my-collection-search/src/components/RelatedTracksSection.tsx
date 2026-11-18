@@ -92,13 +92,22 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
             {labels.bpmWithinSixPercent}
           </Button>
         )}
-        <SuggestionScopeToggle value={scope} onChange={setScope} />
         <RankingProfilePicker
           id="related"
           value={ranking.profile.id}
           options={ranking.options}
           onChange={ranking.choose}
         />
+      </Flex>
+      {/* The scope toggle sits at the right end of the summary line (#1214). */}
+      <Flex align="center" gap={2} mb={2} minH="24px">
+        {ready && !isLoading && !error && (
+          <Text color="fg.muted" fontSize="12px" role="status">
+            {layout.shown} of {layout.total}
+            {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
+          </Text>
+        )}
+        <SuggestionScopeToggle value={scope} onChange={setScope} />
       </Flex>
       {!ready || isLoading ? (
         <Flex align="center" gap={3} py={4}>
@@ -111,10 +120,6 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
         </Text>
       ) : (
         <>
-          <Text color="fg.muted" fontSize="12px" role="status" mb={2}>
-            {layout.shown} of {layout.total}
-            {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
-          </Text>
           {layout.shown === 0 && (
             <Text color="fg.muted" fontSize="sm">
               {scope === "library"

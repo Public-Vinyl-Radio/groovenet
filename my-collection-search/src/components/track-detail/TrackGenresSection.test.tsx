@@ -82,17 +82,66 @@ describe("TrackGenresSection", () => {
       audio_file_genre: ["Latin Pop", "cumbia"],
     });
 
-    expect(screen.getByText("Genre from file")).toBeTruthy();
+    expect(screen.getByText("File")).toBeTruthy();
     const tags = screen.getAllByTestId("file-genre");
     expect(tags.map((tag) => tag.textContent)).toEqual(["Latin Pop"]);
     expect(tags[0].closest("a")).toBeNull();
   });
 
-  it("has no file label when the file declares no genre", () => {
+  it("has no file row when the file declares no genre", () => {
     renderSection({ audio_file_genre: null });
-    expect(screen.queryByText("Genre from file")).toBeNull();
+    expect(screen.queryByText("File")).toBeNull();
   });
-  it("is one inline row, not a card with a heading", () => {
+  it("puts each source in its own labelled row, in order", () => {
+    renderSection({
+      track_genres: [
+        { id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+        { id: "t", name: "Tejano", slug: "tejano", parent_id: null, parent_name: null },
+      ],
+      genres: ["Latin", "Pop"],
+      styles: ["Mariachi"],
+      audio_file_genre: ["Pop Latino"],
+    });
+    const rows = screen.getAllByTestId("track-genre-row").map((row) => ({
+      label: within(row).getByRole("term").textContent,
+      tags: within(row).getByRole("definition").textContent,
+    }));
+    expect(rows).toEqual([
+      { label: "Genres", tags: "CumbiaTejano" },
+      { label: "Album", tags: "LatinPopMariachi" },
+      { label: "File", tags: "Pop Latino" },
+    ]);
+  });
+
+  it.each([
+    [
+      {
+        track_genres: [
+          { id: "c", name: "Cumbia", slug: "cumbia", parent_id: null, parent_name: null },
+        ],
+      },
+      "Genres",
+    ],
+    [{ genres: ["Latin"] }, "Album"],
+    [{ styles: ["Mariachi"] }, "Album"],
+    [{ audio_file_genre: ["Pop Latino"] }, "File"],
+  ] as [Partial<Track>, string][])(
+    "renders only the row with something to show (%#)",
+    (source, label) => {
+      renderSection({
+        track_genres: [],
+        local_tags: undefined,
+        genres: [],
+        styles: [],
+        audio_file_genre: null,
+        ...source,
+      });
+      expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual([label]);
+      expect(screen.queryByText("No genres yet")).toBeNull();
+    },
+  );
+
+  it("is labelled rows, not a card with a heading", () => {
     renderSection({ track_genres: [], local_tags: undefined, genres: [], styles: [] });
     expect(screen.queryByRole("heading")).toBeNull();
   });

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useId, useState } from "react";
+import React, { useState } from "react";
 import { Box, Button, Flex, Skeleton, Text, Textarea } from "@chakra-ui/react";
-import { SectionHeading } from "@/components/ui/SectionHeading";
 import type { TrackLyricsState } from "@/services/internalApi/trackLyrics";
 
 export type TrackLyricsPanelProps = {
@@ -13,8 +12,6 @@ export type TrackLyricsPanelProps = {
   clearing?: boolean;
   onSave: (text: string) => Promise<unknown>;
   onClear: () => Promise<unknown>;
-  /** Collapsed by default; stories open it. */
-  defaultOpen?: boolean;
   /** Start in the editor (stories). */
   defaultEditing?: boolean;
 };
@@ -22,11 +19,12 @@ export type TrackLyricsPanelProps = {
 const SOURCE_LABEL = { embedded: "From file", user: "Edited" } as const;
 
 /**
- * Lyrics on the track page (#1171), collapsed by default: a song's words are
- * long and most visits are for BPM and key. Your own library only, so a
- * friend's track renders nothing. Lyrics read from the file say "From file";
- * typed ones say "Edited", and a re-read of the file never replaces them.
- * Clearing deletes the row, so the next tag read can fill it from the file.
+ * A track's lyrics (#1171), the body of the Lyrics dialog that the track page's
+ * ⋯ menu opens (#1214): a song's words are long and most visits are for BPM and
+ * key, so they don't take a section. Your own library only, so a friend's track
+ * renders nothing. Lyrics read from the file say "From file"; typed ones say
+ * "Edited", and a re-read of the file never replaces them. Clearing deletes the
+ * row, so the next tag read can fill it from the file.
  */
 export default function TrackLyricsPanel({
   state,
@@ -35,11 +33,8 @@ export default function TrackLyricsPanel({
   clearing = false,
   onSave,
   onClear,
-  defaultOpen = false,
   defaultEditing = false,
 }: TrackLyricsPanelProps) {
-  const bodyId = useId();
-  const [open, setOpen] = useState(defaultOpen || defaultEditing);
   const [draft, setDraft] = useState<string | null>(
     defaultEditing ? (state?.kind === "lyrics" ? state.lyrics.text : "") : null,
   );
@@ -61,10 +56,7 @@ export default function TrackLyricsPanel({
     }
   };
 
-  const startEditing = () => {
-    setOpen(true);
-    setDraft(lyrics?.text ?? "");
-  };
+  const startEditing = () => setDraft(lyrics?.text ?? "");
 
   let body: React.ReactNode;
   if (error) {
@@ -141,47 +133,33 @@ export default function TrackLyricsPanel({
   }
 
   return (
-    <Box
-      as="section"
-      aria-label="Lyrics"
-      borderWidth="outline"
-      borderColor="border.ink"
-      boxShadow="sm"
-      p={4}
-      mt={4}
-      borderRadius="md"
-    >
-      <SectionHeading
-        meta={meta}
-        actions={
-          <Flex gap={1}>
-            {open && lyrics && !editing && (
-              <Button size="xs" variant="ghost" onClick={startEditing}>
-                Edit
-              </Button>
-            )}
-            <Button
-              size="xs"
-              variant="ghost"
-              aria-expanded={open}
-              aria-controls={bodyId}
-              onClick={() => setOpen((value) => !value)}
-            >
-              {open ? "Hide" : "Show"}
-            </Button>
-          </Flex>
-        }
-      >
-        Lyrics
-      </SectionHeading>
-      <Box id={bodyId} hidden={!open} mt={3}>
-        {open && body}
-        {open && actionError && (
-          <Text color="fg.error" mt={2} role="alert">
-            {actionError}
+    <Box data-testid="track-lyrics-panel">
+      {meta && (
+        <Flex align="center" justify="space-between" gap={2} mb={3} minH="32px">
+          <Text
+            as="span"
+            fontFamily="label"
+            fontSize="11px"
+            lineHeight="16px"
+            letterSpacing="0.08em"
+            textTransform="uppercase"
+            color="fg.muted"
+          >
+            {meta}
           </Text>
-        )}
-      </Box>
+          {lyrics && !editing && (
+            <Button size="xs" variant="ghost" minH="44px" onClick={startEditing}>
+              Edit
+            </Button>
+          )}
+        </Flex>
+      )}
+      {body}
+      {actionError && (
+        <Text color="fg.error" mt={2} role="alert">
+          {actionError}
+        </Text>
+      )}
     </Box>
   );
 }

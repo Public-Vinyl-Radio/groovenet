@@ -42,7 +42,7 @@ describe("TrackHeader", () => {
       release_id: "r1",
     });
 
-    // The page header owns the title; the card repeats none of it.
+    // The page header owns the h1; the card's title line is plain text.
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain(
       "Los%20Mirlos",
@@ -51,6 +51,15 @@ describe("TrackHeader", () => {
       "/albums/r1?friend_id=6",
     );
     expect(screen.getByText(/2018/)).toBeTruthy();
+  });
+
+  it("leads with the full title for phones, where the bar reads Track", () => {
+    const title = "Si Una Vez (Remasterizado 2002) [Live at the Astrodome]";
+    renderHeader({ title });
+    const line = screen.getByTestId("track-header-title");
+    expect(line.textContent).toBe(title);
+    expect(line.getAttribute("title")).toBe(title);
+    expect(line.tagName).not.toMatch(/^H\d$/);
   });
 
   it("shows notes only when the track has them, and drops a zero year", () => {
@@ -92,6 +101,16 @@ describe("TrackHeader", () => {
     ).toEqual(["BPM", "Key", "Duration", "Side"]);
   });
 
+  it("calls a position without a side letter a track number", () => {
+    renderHeader({ position: "9" });
+    expect(
+      facts()
+        .getAllByRole("term")
+        .map((t) => t.textContent),
+    ).toEqual(["BPM", "Key", "Duration", "Track"]);
+    expect(facts().getByText("9")).toBeTruthy();
+  });
+
   it("shows a dash, not a blank or zero, for a missing key, BPM, duration and side", () => {
     renderHeader({
       bpm: undefined,
@@ -109,9 +128,20 @@ describe("TrackHeader", () => {
   });
 
   it("shows file information for audio and leaves hero actions out", async () => {
-    const { user, unmount } = renderHeader({ local_audio_url: "x.m4a" });
+    const { user, unmount } = renderHeader({
+      local_audio_url: "x.m4a",
+      library_identifier: "LP-076",
+      audio_codec: "aac",
+      audio_lossless: false,
+      audio_bitrate: 267000,
+    });
     expect(screen.queryByTestId("track-actions-card")).toBeNull();
     expect(screen.queryByText("Add to playlist")).toBeNull();
+    const meta = screen.getByTestId("file-meta");
+    // A meta line with its unit, not a second tag beside the library ID.
+    expect(meta.tagName).toBe("BUTTON");
+    expect(meta.textContent).toBe("AAC · 267 kbps");
+    expect(meta.contains(screen.getByText("LP-076"))).toBe(false);
     await user.click(screen.getByRole("button", { name: /^File info:/ }));
     expect(await screen.findByText("Full path")).toBeTruthy();
     unmount();

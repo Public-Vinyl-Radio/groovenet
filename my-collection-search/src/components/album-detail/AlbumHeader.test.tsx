@@ -77,7 +77,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("AlbumHeader", () => {
   it("names the album, links its artist and gives the overline and byline", () => {
     renderHeader();
-    // The page header owns the title; the card repeats none of it.
+    // The page header owns the h1; the card's phone title line is plain text.
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.getByRole("link", { name: "Los Mirlos" }).getAttribute("href")).toContain(
       "Los%20Mirlos",
@@ -86,6 +86,14 @@ describe("AlbumHeader", () => {
     expect(screen.getByText("Discos Eternos · 2022 · Peru")).toBeTruthy();
     expect(screen.getByText("Latin")).toBeTruthy();
     expect(screen.getByText("Cumbia")).toBeTruthy();
+  });
+
+  it("leads with the full title for phones, where the bar reads Album", () => {
+    renderHeader();
+    const line = screen.getByTestId("album-header-title");
+    expect(line.textContent).toBeTruthy();
+    expect(line.getAttribute("title")).toBe(line.textContent);
+    expect(screen.queryByRole("heading")).toBeNull();
   });
 
   it("computes the stat panel from the tracks and spins", () => {

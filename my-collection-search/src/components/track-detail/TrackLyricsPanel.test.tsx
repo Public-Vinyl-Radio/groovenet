@@ -28,18 +28,11 @@ function renderPanel(props: Partial<TrackLyricsPanelProps> = {}) {
 const button = (name: string) => screen.getByRole("button", { name });
 
 describe("TrackLyricsPanel", () => {
-  it("starts collapsed, naming the source, and opens on Show", async () => {
-    const { user } = renderPanel();
+  it("shows the lyrics at once, naming the source", () => {
+    renderPanel();
     expect(screen.getByText("From file")).toBeTruthy();
-    expect(screen.queryByTestId("track-lyrics-text")).toBeNull();
-    expect(button("Show").getAttribute("aria-expanded")).toBe("false");
-
-    await user.click(button("Show"));
     expect(screen.getByTestId("track-lyrics-text").textContent).toBe("First line\nSecond line");
-    expect(button("Hide").getAttribute("aria-expanded")).toBe("true");
-
-    await user.click(button("Hide"));
-    expect(screen.queryByTestId("track-lyrics-text")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show" })).toBeNull();
   });
 
   it("labels typed lyrics as edited", () => {
@@ -48,12 +41,12 @@ describe("TrackLyricsPanel", () => {
   });
 
   it("renders nothing on a friend's track", () => {
-    const { container } = renderPanel({ state: { kind: "not_owner" } });
-    expect(container.querySelector("section")).toBeNull();
+    renderPanel({ state: { kind: "not_owner" } });
+    expect(screen.queryByTestId("track-lyrics-panel")).toBeNull();
   });
 
   it("shows a skeleton while loading and the error when the read fails", () => {
-    const { rerender } = renderPanel({ state: undefined, defaultOpen: true });
+    const { rerender } = renderPanel({ state: undefined });
     expect(screen.queryByTestId("track-lyrics-text")).toBeNull();
     expect(screen.queryByText("None")).toBeNull();
 
@@ -63,14 +56,13 @@ describe("TrackLyricsPanel", () => {
         error={new Error("Failed to read lyrics")}
         onSave={vi.fn()}
         onClear={vi.fn()}
-        defaultOpen
       />,
     );
     expect(screen.getByText("Failed to read lyrics")).toBeTruthy();
   });
 
   it("has an empty state that adds lyrics", async () => {
-    const { user, onSave } = renderPanel({ state: { kind: "none" }, defaultOpen: true });
+    const { user, onSave } = renderPanel({ state: { kind: "none" } });
     expect(screen.getByText("None")).toBeTruthy();
     expect(screen.getByText(/An instrumental, or the file carries none/)).toBeTruthy();
 
@@ -84,7 +76,7 @@ describe("TrackLyricsPanel", () => {
   });
 
   it("edits existing lyrics, and Cancel leaves them alone", async () => {
-    const { user, onSave } = renderPanel({ defaultOpen: true });
+    const { user, onSave } = renderPanel();
     await user.click(button("Edit"));
     const box = screen.getByRole("textbox", { name: "Lyrics" }) as HTMLTextAreaElement;
     expect(box.value).toBe("First line\nSecond line");

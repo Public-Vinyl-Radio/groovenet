@@ -8,4 +8,4 @@ export { default as TrackDebugModal } from "./TrackDebugModal";
 export { default as TrackGenresSection } from "./TrackGenresSection";
 export { default as TrackHeader } from "./TrackHeader";
 export { default as TrackLyricsPanel } from "./TrackLyricsPanel";
-export { default as TrackLyricsSection } from "./TrackLyricsSection";
+export { default as TrackLyricsDialog } from "./TrackLyricsDialog";

@@ -118,9 +118,41 @@ export type PageHeaderTitleProps = {
   meta?: React.ReactNode;
   /** Keep the meta in the phone bar. Short counts fit; summaries don't. */
   metaOnPhone?: boolean;
+  /**
+   * A short label for the 52px phone bar ("Track", "Playlist"), for detail pages
+   * whose names run long; the page then shows the full name in its content.
+   * Visual only: the h1 still holds the full title, visually hidden below `md`,
+   * and the short label is `aria-hidden`. Omit it and the bar shows the title.
+   */
+  phoneTitle?: string;
 };
 
-export function PageHeaderTitle({ children, meta, metaOnPhone = true }: PageHeaderTitleProps) {
+// Below `md`, the full title stays in the h1 for screen readers but takes no space.
+const hiddenOnPhone = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  margin: "-1px",
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  md: {
+    position: "static",
+    width: "auto",
+    height: "auto",
+    margin: 0,
+    overflow: "visible",
+    clip: "auto",
+    whiteSpace: "inherit",
+  },
+} as const;
+
+export function PageHeaderTitle({
+  children,
+  meta,
+  metaOnPhone = true,
+  phoneTitle,
+}: PageHeaderTitleProps) {
   return (
     <Flex gridArea="title" align="baseline" gap={pageHeader.titleGap} minW={0}>
       <Heading
@@ -129,7 +161,23 @@ export function PageHeaderTitle({ children, meta, metaOnPhone = true }: PageHead
         truncate
         title={typeof children === "string" ? children : undefined}
       >
-        {children}
+        {phoneTitle ? (
+          <>
+            <Box
+              as="span"
+              aria-hidden="true"
+              data-testid="page-header-phone-title"
+              display={{ base: "inline", md: "none" }}
+            >
+              {phoneTitle}
+            </Box>
+            <Box as="span" data-testid="page-header-full-title" css={hiddenOnPhone}>
+              {children}
+            </Box>
+          </>
+        ) : (
+          children
+        )}
       </Heading>
       {meta !== undefined && meta !== null && (
         <Text

@@ -8,6 +8,7 @@ import {
   FiCode,
   FiDownload,
   FiEdit,
+  FiFileText,
   FiImage,
   FiMoreVertical,
   FiPlay,
@@ -49,6 +50,13 @@ type Props = {
   track: Track;
   onOpenTrackDebug?: () => void;
   onOpenFileInfo?: () => void;
+  /**
+   * Opens the lyrics dialog (#1214). Only the track page passes it, and only for
+   * the owner's library (the #1176 rule): a friend's track has no Lyrics item.
+   */
+  onOpenLyrics?: () => void;
+  /** Whether the track has lyrics: the item reads "Lyrics", else "Add lyrics". */
+  hasLyrics?: boolean;
   /** Preview, restore or upload the cover art of the track's album (#494). */
   onChangeArtwork?: () => void;
   /** Hide the "Edit Track" item (e.g. when already on the edit page). */
@@ -74,6 +82,8 @@ export default function TrackActionsMenu({
   paletteScope = false,
   onOpenTrackDebug,
   onOpenFileInfo,
+  onOpenLyrics,
+  hasLyrics = false,
   onChangeArtwork,
   hideEdit,
   audioActions,
@@ -317,6 +327,8 @@ export default function TrackActionsMenu({
       : null,
   );
 
+  const lyricsLabel = hasLyrics ? "Lyrics" : "Add lyrics";
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -364,6 +376,7 @@ export default function TrackActionsMenu({
             ...(onOpenFileInfo && hasAudio
               ? [{ label: "File info", onClick: onOpenFileInfo }]
               : []),
+            ...(onOpenLyrics ? [{ label: lyricsLabel, onClick: onOpenLyrics }] : []),
             ...(onChangeArtwork ? [{ label: "Cover art...", onClick: onChangeArtwork }] : []),
             ...(onOpenTrackDebug ? [{ label: "Track debug", onClick: onOpenTrackDebug }] : []),
           ]}
@@ -442,6 +455,11 @@ export default function TrackActionsMenu({
                 {onOpenFileInfo && hasAudio && (
                   <Menu.Item onSelect={onOpenFileInfo} value="file-info">
                     File info
+                  </Menu.Item>
+                )}
+                {onOpenLyrics && (
+                  <Menu.Item onSelect={onOpenLyrics} value="lyrics">
+                    <FiFileText /> {lyricsLabel}
                   </Menu.Item>
                 )}
                 {onChangeArtwork && (

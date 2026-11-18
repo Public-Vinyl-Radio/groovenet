@@ -8,6 +8,7 @@ import ArtistLink from "@/components/ArtistLink";
 import { ArtworkPlay, NotesIndicator } from "@/components/TrackResult";
 import TrackGenresSection from "@/components/track-detail/TrackGenresSection";
 import { useTrack } from "@/hooks/useTrack";
+import { trackPositionFact } from "@/lib/albumTrackPosition";
 import { camelotDotColor, camelotOf, parseBpm } from "@/lib/mixCompat";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
 import FileInfo from "@/components/player/FileInfo";
@@ -107,7 +108,7 @@ function Facts({ track }: { track: Track }) {
   const bpm = parseBpm(track.bpm);
   const camelot = camelotOf(track.key);
   const seconds = getTrackDurationSeconds(track);
-  const side = track.position ? String(track.position) : null;
+  const position = trackPositionFact(track.position);
 
   return (
     <Box
@@ -182,8 +183,8 @@ function Facts({ track }: { track: Track }) {
       <Fact label="Duration">
         <Text {...factValue}>{seconds !== null ? formatSeconds(seconds) : <Missing />}</Text>
       </Fact>
-      <Fact label="Side">
-        <Text {...factValue}>{side ?? <Missing />}</Text>
+      <Fact label={position.label}>
+        <Text {...factValue}>{position.value ?? <Missing />}</Text>
       </Fact>
     </Box>
   );
@@ -191,8 +192,9 @@ function Facts({ track }: { track: Track }) {
 
 /**
  * The track identity card: one outlined card with the artwork, artist and genres on
- * the left and the facts (BPM, key, duration, side) beside them or, narrow,
- * as a strip.
+ * the left and the facts (BPM, key, duration, side or track number) beside them
+ * or, narrow, as a strip. Below `md` the phone bar reads "Track", so the card's
+ * first line is the full title (#1214).
  */
 export default function TrackHeader({
   trackId,
@@ -223,7 +225,7 @@ export default function TrackHeader({
         css={{
           display: "grid",
           gridTemplateColumns: "108px minmax(0, 1fr)",
-          gridTemplateAreas: '"art info" "facts facts" "genres genres"',
+          gridTemplateAreas: '"title title" "art info" "facts facts" "genres genres"',
           [wide]: {
             gridTemplateColumns: "188px minmax(0, 1fr) minmax(280px, 400px)",
             gridTemplateRows: "auto 1fr",
@@ -231,6 +233,22 @@ export default function TrackHeader({
           },
         }}
       >
+        {/* The phone bar shows "Track"; the full title leads the card, wrapping (#1214). */}
+        <Text
+          data-testid="track-header-title"
+          display={{ base: "-webkit-box", md: "none" }}
+          gridArea="title"
+          p="12px 12px 0"
+          fontFamily="body"
+          fontWeight="semibold"
+          fontSize="20px"
+          lineHeight="26px"
+          lineClamp={3}
+          overflowWrap="anywhere"
+          title={track.title}
+        >
+          {track.title}
+        </Text>
         <Box
           css={{
             gridArea: "art",
@@ -303,23 +321,23 @@ export default function TrackHeader({
               {track.username}
             </Text>
           )}
-          <Flex align="center" gap={3} wrap="wrap" mt={1}>
-            {track.library_identifier && (
-              <MetaTag variant="id" size="sm" alignSelf="flex-start">
-                {track.library_identifier}
-              </MetaTag>
-            )}
-            {track.local_audio_url && (
-              <FileInfo
-                track={track}
-                mobile={isMobile}
-                fullPath
-                onReprobe={onReprobe}
-                open={fileInfoOpen}
-                onOpenChange={onFileInfoOpenChange}
-              />
-            )}
-          </Flex>
+          {track.library_identifier && (
+            <MetaTag variant="id" size="sm" alignSelf="flex-start" mt={1}>
+              {track.library_identifier}
+            </MetaTag>
+          )}
+          {/* The file's format is a meta line, not a tag beside the ID (#1214). */}
+          {track.local_audio_url && (
+            <FileInfo
+              track={track}
+              trigger="meta"
+              mobile={isMobile}
+              fullPath
+              onReprobe={onReprobe}
+              open={fileInfoOpen}
+              onOpenChange={onFileInfoOpenChange}
+            />
+          )}
         </Flex>
 
         <Box

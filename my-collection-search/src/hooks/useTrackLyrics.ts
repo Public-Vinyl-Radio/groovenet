@@ -10,18 +10,19 @@ import {
 } from "@/services/internalApi/trackLyrics";
 
 /**
- * The track page's lyrics (#1171): one small read, so the collapsed panel can
- * say whether there are any and hide itself on a friend's track. Lyrics are not
+ * The track page's lyrics (#1171): one small read, so the ⋯ menu can say
+ * "Lyrics" or "Add lyrics" and leave the item off a friend's track (#1214). Lyrics are not
  * a Track field (they stay out of the entity store, as they stay out of
  * `tracks`), so React Query holds them.
  */
-export function useTrackLyrics(trackId: string, friendId: number) {
+export function useTrackLyrics(trackId: string, friendId: number, { enabled = true } = {}) {
   const queryClient = useQueryClient();
   const key = queryKeys.trackLyrics(trackId, friendId);
 
   const query = useQuery({
     queryKey: key,
     queryFn: () => fetchTrackLyrics(trackId, friendId),
+    enabled,
   });
 
   const save = useMutation({
