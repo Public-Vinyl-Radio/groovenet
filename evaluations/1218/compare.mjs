@@ -9,7 +9,9 @@
  *  - **source**: which retrieval index found each pick (identity only, vibe
  *    only, both), from the saved raw responses, to see whether a candidate
  *    only the identity index found can now make the top 10;
- *  - **stability**: Jaccard at 10 between the two runs' lists, per profile.
+ *  - **stability**: Jaccard at 10 between the two runs' lists, per profile;
+ *  - **era and energy fit** (#1217): same era / era ±1 / |Δyear|, and
+ *    |Δenergy| / within ±0.2, each with the share of picks it is known for.
  *
  * And the spread of the raw similarities in each seed's pool, which is what
  * the normalisation is for (`poolSpread`).
@@ -120,6 +122,13 @@ export function summarise(perSeed) {
     genre: pick("genre.mean"),
     vibe: pick("vibe.mean"),
     identity: pick("identity.mean"),
+    era_same: pick("era.same"),
+    era_near: pick("era.near"),
+    year_abs: pick("era.mean_abs_year"),
+    era_known: pick("era.coverage"),
+    energy_abs: pick("energy.mean_abs"),
+    energy_within: pick("energy.within"),
+    energy_known: pick("energy.coverage"),
     artists: pick("artists"),
     releases: pick("releases"),
     identity_only: extra("identity_only"),
@@ -151,9 +160,9 @@ function main() {
   const fmt = (v, d = 2) => (v == null ? "–" : Number(v).toFixed(d));
   const pct = (v) => (v == null ? "–" : `${Math.round(v * 100)}%`);
   console.log(
-    "| Profile | Starved | ±6% ½×/2× | mean \\|ΔBPM\\| ½×/2× | Compatible key | Same key | Genre | Vibe sim | Identity sim | Artists | Releases | Identity-only picks | Jaccard vs main |",
+    "| Profile | Starved | ±6% ½×/2× | mean \\|ΔBPM\\| ½×/2× | Compatible key | Same key | Genre | Vibe sim | Identity sim | Same era | Era ±1 | \\|Δyear\\| | Era known | \\|Δenergy\\| | Energy ±0.2 | Energy known | Artists | Releases | Identity-only picks | Jaccard vs main |",
   );
-  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  console.log(`|${" --- |".repeat(20)}`);
   for (const profile of profiles) {
     const target = map[profile] ?? profile;
     const b = profileRun(before, profile, (k) => rawCandidates(beforeDir, profile, k));
@@ -162,7 +171,7 @@ function main() {
     const y = summarise(a);
     const arrow = (f, v, w) => `${f(v)} → ${f(w)}`;
     console.log(
-      `| ${target === profile ? profile : `${profile} → ${target}`} | ${x.starved} → ${y.starved} | ${arrow(pct, x.within_hd, y.within_hd)} | ${arrow((v) => fmt(v, 1), x.mean_abs_hd, y.mean_abs_hd)} | ${arrow(pct, x.compatible, y.compatible)} | ${arrow(pct, x.same_key, y.same_key)} | ${arrow(fmt, x.genre, y.genre)} | ${arrow((v) => fmt(v, 3), x.vibe, y.vibe)} | ${arrow((v) => fmt(v, 3), x.identity, y.identity)} | ${arrow((v) => fmt(v, 1), x.artists, y.artists)} | ${arrow((v) => fmt(v, 1), x.releases, y.releases)} | ${arrow(pct, x.identity_only, y.identity_only)} | ${fmt(stability(b, a))} |`,
+      `| ${target === profile ? profile : `${profile} → ${target}`} | ${x.starved} → ${y.starved} | ${arrow(pct, x.within_hd, y.within_hd)} | ${arrow((v) => fmt(v, 1), x.mean_abs_hd, y.mean_abs_hd)} | ${arrow(pct, x.compatible, y.compatible)} | ${arrow(pct, x.same_key, y.same_key)} | ${arrow(fmt, x.genre, y.genre)} | ${arrow((v) => fmt(v, 3), x.vibe, y.vibe)} | ${arrow((v) => fmt(v, 3), x.identity, y.identity)} | ${arrow(pct, x.era_same, y.era_same)} | ${arrow(pct, x.era_near, y.era_near)} | ${arrow((v) => fmt(v, 1), x.year_abs, y.year_abs)} | ${arrow(pct, x.era_known, y.era_known)} | ${arrow((v) => fmt(v, 3), x.energy_abs, y.energy_abs)} | ${arrow(pct, x.energy_within, y.energy_within)} | ${arrow(pct, x.energy_known, y.energy_known)} | ${arrow((v) => fmt(v, 1), x.artists, y.artists)} | ${arrow((v) => fmt(v, 1), x.releases, y.releases)} | ${arrow(pct, x.identity_only, y.identity_only)} | ${fmt(stability(b, a))} |`,
     );
   }
   if (args.includes("--spread")) {

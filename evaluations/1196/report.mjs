@@ -119,6 +119,13 @@ const LIST_PATHS = [
   "genre.mean",
   "vibe.mean",
   "identity.mean",
+  "era.same",
+  "era.near",
+  "era.mean_abs_year",
+  "era.coverage",
+  "energy.mean_abs",
+  "energy.within",
+  "energy.coverage",
   "artists",
   "releases",
   "picks",
@@ -262,6 +269,22 @@ export function renderReport(summary) {
     const m = summary.profiles[id].metrics;
     lines.push(
       `| ${id}${summary.profiles[id].proposal ? " (proposal)" : ""}${summary.profiles[id].half_double ? " (½×/2×)" : ""} | ${summary.profiles[id].starved} | ${summary.profiles[id].empty} | ${f(m["bpm.mean_abs"].mean, 1)} | ${f(m["bpm.mean_abs_hd"].mean, 1)} | ${pct(m["bpm.within"].mean)} | ${pct(m["bpm.within_hd"].mean)} | ${pct(m["key.compatible"].mean)} | ${pct(m["key.clash"].mean)} | ${f(m["genre.mean"].mean)} | ${f(m["vibe.mean"].mean, 3)} | ${f(m["identity.mean"].mean, 3)} | ${f(m.artists.mean, 1)} | ${f(m.releases.mean, 1)} |`,
+    );
+  }
+  lines.push(
+    "",
+    "## Era and energy fit",
+    "",
+    "Over the picks where seed and pick both have the value; known is that share of the picks. Era buckets are the `era` signal's decades; ±1 counts the adjacent decade too. Energy is the ranker's (danceability and aggressive mood); ±0.2 is the `energy_range` default.",
+    "",
+    "| Profile | Same era | Era ±1 | mean \\|Δyear\\| | Era known | mean \\|Δenergy\\| | Energy ±0.2 | Energy known |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+  );
+  for (const id of ids) {
+    const m = summary.profiles[id].metrics;
+    const v = (path) => m[path]?.mean;
+    lines.push(
+      `| ${id} | ${pct(v("era.same"))} | ${pct(v("era.near"))} | ${f(v("era.mean_abs_year"), 1)} | ${pct(v("era.coverage"))} | ${f(v("energy.mean_abs"), 3)} | ${pct(v("energy.within"))} | ${pct(v("energy.coverage"))} |`,
     );
   }
   lines.push(

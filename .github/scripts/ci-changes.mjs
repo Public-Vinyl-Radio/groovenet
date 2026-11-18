@@ -101,7 +101,7 @@ export function classify(files, { full = false, mainPush = false } = {}) {
     if (/^(packages\/groovenet-cli\/|mcp-server\/|evaluations\/)/.test(file)) enable("cli", "lint");
     // The #1196 evaluation measures with these app modules, so its tests (in the CLI job) rerun.
     if (
-      /^my-collection-search\/src\/lib\/(ranking\/orderingMetrics|mixCompat|playlistOrder)\.ts$/.test(
+      /^my-collection-search\/src\/lib\/(ranking\/orderingMetrics|ranking\/features|mixCompat|playlistOrder|recommendation-pre-scorer)\.ts$/.test(
         file,
       )
     )
