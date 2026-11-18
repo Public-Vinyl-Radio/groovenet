@@ -25,7 +25,7 @@ jobs:
           llvm-profdata merge -sparse /tmp/brick-probe/*.profraw -o /tmp/brick-probe/coverage.profdata
           llvm-cov report /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata
           llvm-cov export -format=lcov /tmp/brick-probe/probe-input-test -ignore-filename-regex=test_input.cpp -instr-profile=/tmp/brick-probe/coverage.profdata > /tmp/brick-probe/coverage.lcov
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/brick-probe/coverage.lcov
