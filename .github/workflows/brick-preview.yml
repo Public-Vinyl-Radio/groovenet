@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - name: Install desktop dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libsdl2-ttf-dev fonts-dejavu-core libcurl4-openssl-dev libjson-c-dev libpng-dev libjpeg-dev python3 openssl
       - name: Exercise shared logic and SDL desktop with coverage

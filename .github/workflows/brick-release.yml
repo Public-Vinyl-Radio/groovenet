@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name || github.ref }}
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - name: Cross-compile using frozen dependencies
         run: just brick-package
       - name: Verify a second build is byte-for-byte reproducible
