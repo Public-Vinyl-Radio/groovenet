@@ -171,9 +171,9 @@ export function useUnsavedChangesGuard({ dirty, onSave, summary }: Options) {
   }, [dirty, ask]);
 
   const stay = () => setPending(null);
+  // The navigation the open dialog holds; its buttons only show while it is open.
+  const proceed = pending as () => void;
   const saveAndLeave = async () => {
-    const proceed = pending;
-    if (!proceed) return;
     setSaving(true);
     // Saving makes the page clean; marked as leaving first, the cleanup leaves the
     // guard entry for `leave` to take off, rather than both stepping back.
@@ -192,7 +192,8 @@ export function useUnsavedChangesGuard({ dirty, onSave, summary }: Options) {
   const dialog = (
     <RetroDialog
       open={pending !== null}
-      onOpenChange={(open) => !open && stay()}
+      // Open only while a navigation waits, so any change is a close: Stay.
+      onOpenChange={stay}
       role="alertdialog"
       title="Unsaved changes"
       dismissible={!saving}
@@ -215,7 +216,7 @@ export function useUnsavedChangesGuard({ dirty, onSave, summary }: Options) {
             colorPalette="danger"
             minH={{ base: "44px", md: "auto" }}
             disabled={saving}
-            onClick={() => pending && leave(pending)}
+            onClick={() => leave(proceed)}
           >
             Leave without saving
           </Button>

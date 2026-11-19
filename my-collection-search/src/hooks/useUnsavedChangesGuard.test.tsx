@@ -142,4 +142,64 @@ describe("useUnsavedChangesGuard (#1231)", () => {
     // Its own pop isn't mistaken for the user's back.
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
+
+  it("closes from its close button, as Stay", async () => {
+    const { user } = renderWithProviders(<Page dirty onSave={vi.fn()} />);
+    fireEvent.click(screen.getByText("Tracks"));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing more while it is already leaving on a save", async () => {
+    let finish: (saved: boolean) => void = () => {};
+    const onSave = vi.fn(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    const { user } = renderWithProviders(<Page dirty onSave={onSave} />);
+    fireEvent.click(screen.getByText("Tracks"));
+    await user.click(await screen.findByRole("button", { name: "Save and leave" }));
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    screen.getByText("Tracks").dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+    const proceed = vi.fn();
+    guardNavigation(proceed);
+    expect(proceed).toHaveBeenCalledOnce();
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+
+    await act(async () => finish(true));
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/tracks"));
+  });
+
+  it("leaves at once when its history entry is already gone", async () => {
+    const { user } = renderWithProviders(<Page dirty onSave={vi.fn()} />);
+    window.history.replaceState(null, "", window.location.href);
+    fireEvent.click(screen.getByText("Tracks"));
+    await user.click(await screen.findByRole("button", { name: "Leave without saving" }));
+    expect(mocks.push).toHaveBeenCalledWith("/tracks");
+  });
+
+  it("ignores pops while clean, and stepping forward onto its own entry", async () => {
+    const { rerender } = renderWithProviders(<Page dirty={false} onSave={vi.fn()} />);
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    rerender(<Page dirty onSave={vi.fn()} />);
+    expect(atGuardEntry()).toBe(true);
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("keeps its entry when the page goes clean and dirty again before the pop lands", async () => {
+    const { rerender } = renderWithProviders(<Page dirty onSave={vi.fn()} />);
+    rerender(<Page dirty={false} onSave={vi.fn()} />);
+    // Still on the entry: the step back hasn't landed, so dirty again pushes nothing new.
+    rerender(<Page dirty onSave={vi.fn()} />);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Its own pop took the entry off; it is put back, and nobody is asked.
+    expect(atGuardEntry()).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
 });
