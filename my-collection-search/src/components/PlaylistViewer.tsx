@@ -3,12 +3,13 @@
 import { usePaletteScope } from "@/providers/CommandPaletteProvider";
 
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Box, EmptyState, Flex, VStack, Skeleton, Button, Text } from "@chakra-ui/react";
+import { Box, EmptyState, Flex, VStack, Skeleton, Text } from "@chakra-ui/react";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
+import PlaylistUnsavedBar from "@/components/PlaylistUnsavedBar";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiHeadphones, FiSave } from "react-icons/fi";
 
-import { ViewModeSwitch } from "@/components/layout/ListHeader";
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import DraggableTrackList from "@/components/DraggableTrackList";
 import PlaylistStatsPanel from "@/components/PlaylistStatsPanel";
@@ -35,7 +36,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
 import { useLiveSet } from "@/hooks/useLiveSet";
 import PageHeader from "@/components/layout/PageHeader";
-import RankingProfilePicker from "@/components/RankingProfilePicker";
 import { useRankingProfile } from "@/hooks/useRankingProfiles";
 
 const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
@@ -66,6 +66,9 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
   // The ranking profile the optimisers order by (#1193).
   const ordering = useRankingProfile("playlists");
+  // Whether the unsaved changes moved the order (a sort or a drag), for the bar's summary.
+  const [reordered, setReordered] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   // New mutation and action hooks
   const {
@@ -79,10 +82,21 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     isCohesiveBlocksSorting,
     sortPositionChanges,
     orderedBy,
-  } = usePlaylistMutations(playlistId, () => setHasUnsavedChanges(true), {
-    rankingProfileId: ordering.profile.id,
-    friendId: ordering.friendId > 0 ? ordering.friendId : undefined,
-  });
+    sortMethod,
+    resetLocalChanges,
+  } = usePlaylistMutations(
+    playlistId,
+    (change) => {
+      setHasUnsavedChanges(true);
+      if (change === "order") setReordered(true);
+    },
+    {
+      rankingProfileId: ordering.profile.id,
+      friendId: ordering.friendId > 0 ? ordering.friendId : undefined,
+      // A remove or add saves the whole list as it stands: nothing is left unsaved.
+      onPersisted: () => markSaved(),
+    },
+  );
 
   const { replacePlaylist, playlist: queue, currentTrackIndex: queueIndex } = usePlaybackPlayer();
   const { viewMode, setViewMode, layout } = useTrackViewMode();
@@ -93,10 +107,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     Dialog: SaveDialog,
     open: openSaveDialog,
     saveExisting,
-  } = usePlaylistSaveDialog(playlistId, () => {
-    setHasUnsavedChanges(false);
-    setJustAdded([]);
-  });
+  } = usePlaylistSaveDialog(playlistId, () => markSaved());
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState("");
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -108,6 +119,37 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const [justAdded, setJustAdded] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  function markSaved() {
+    setHasUnsavedChanges(false);
+    setReordered(false);
+    setJustAdded([]);
+  }
+
+  // Back to the saved playlist: the edits live only in the track-ids cache, so a
+  // refetch restores it, and the sort's markers go with them.
+  const discardChanges = async () => {
+    setDiscarding(true);
+    try {
+      await refetchTrackIds();
+      resetLocalChanges();
+      markSaved();
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
+  // What the bar and the leave dialog say is unsaved: "Order changed · by Selector".
+  const unsavedSummary =
+    [
+      reordered && "Order changed",
+      reordered && orderedBy && `by ${orderedBy.name}`,
+      reordered && !orderedBy && sortMethod === "greedy" && "Greedy order",
+      justAdded.length > 0 &&
+        `${justAdded.length} ${justAdded.length === 1 ? "track" : "tracks"} added`,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "Playlist changed";
+
   useEffect(() => {
     if (playlistName) {
       setRenameName(playlistName);
@@ -118,18 +160,13 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     }
   }, [playlistId, playlistName]);
 
-  // Warn before leaving page with unsaved changes
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  // Leaving with unsaved changes asks first: links, the palette, back, and the
+  // browser's own prompt on reload or close (#1231).
+  const { dialog: leaveDialog } = useUnsavedChangesGuard({
+    dirty: hasUnsavedChanges && Boolean(playlistId),
+    onSave: saveExisting,
+    summary: unsavedSummary,
+  });
 
   // Get total playtime for display
   const { formatted: totalPlaytimeFormatted, missingCount: durationMissingCount } =
@@ -417,24 +454,17 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         : [],
   });
 
-  const orderingPicker = (where: "desktop" | "phone") => (
-    <RankingProfilePicker
-      id={`playlist-order-${where}`}
-      label="Order by"
-      value={ordering.profile.id}
-      options={ordering.options}
-      onChange={ordering.choose}
-    />
-  );
-
+  // Order by and List/Grid live in the menu, not the header (#1231).
   const actionsMenu = (
     <PlaylistActionsMenu
-      orderingPicker={orderingPicker("phone")}
-      disabled={tracksPlaylist.length === 0}
-      onSortGreedy={() => {
-        console.log("sort greed");
-        sortGreedy();
+      ordering={{
+        value: ordering.profile.id,
+        options: ordering.options,
+        onChange: ordering.choose,
       }}
+      view={{ value: viewMode, onChange: setViewMode }}
+      disabled={tracksPlaylist.length === 0}
+      onSortGreedy={sortGreedy}
       onSortGenetic={sortGenetic}
       onSortCohesiveBlocks={sortCohesiveBlocks}
       onExportJson={exportPlaylist}
@@ -493,13 +523,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             : []),
         ]}
         phone={actionsMenu}
-        desktop={
-          <>
-            <ViewModeSwitch value={viewMode} onChange={setViewMode} />
-            {tracksPlaylist.length > 0 && orderingPicker("desktop")}
-            {actionsMenu}
-          </>
-        }
+        desktop={actionsMenu}
       />
     </PageHeader>
   );
@@ -586,29 +610,28 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       {header}
       <Flex direction={{ base: "column", xl: "row" }} align="flex-start" gap={4} w="100%">
         <Box flex="1" minW={{ xl: "560px" }} w="100%">
-          {orderedBy && (
-            <Text role="status" fontSize="13px" lineHeight="20px" color="fg.muted" mb={2}>
-              Ordered by {orderedBy.name}
-              {orderedBy.fallback && " (the chosen profile couldn't be read)"}
-            </Text>
-          )}
-          {hasUnsavedChanges && (
-            <Flex
-              display={{ base: "none", md: "flex" }}
-              align="center"
-              justify="space-between"
-              gap={2}
-              w="100%"
-            >
-              <StatusTag tone="analysis" size="sm">
-                Unsaved changes
-              </StatusTag>
-              {playlistId && (
-                <Button size="sm" colorPalette="accent" onClick={saveExisting}>
-                  Save Changes
-                </Button>
-              )}
-            </Flex>
+          {/* One bar while unsaved, holding the sort's result; once saved, the
+              profile stays as a quiet note (#1231). */}
+          {hasUnsavedChanges ? (
+            <PlaylistUnsavedBar
+              summary={`${unsavedSummary}${orderedBy?.fallback ? " (the chosen profile couldn't be read)" : ""}`}
+              onSave={playlistId ? () => void saveExisting() : undefined}
+              onDiscard={playlistId ? () => void discardChanges() : undefined}
+              discarding={discarding}
+            />
+          ) : (
+            orderedBy && (
+              <Text
+                role="status"
+                fontSize="13px"
+                lineHeight="20px"
+                color="fg.muted"
+                mb={{ base: 3, md: 4 }}
+              >
+                Ordered by {orderedBy.name}
+                {orderedBy.fallback && " (the chosen profile couldn't be read)"}
+              </Text>
+            )
           )}
           {playlistId && <SetDetailsPanel playlistId={playlistId} liveSet={liveSet} />}
           <PlaylistStatsPanel tracks={tracks} />
@@ -630,10 +653,8 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
               }}
               sortPositionChanges={sortPositionChanges}
             />
-            {hasUnsavedChanges && playlistId && (
-              <Box display={{ base: "block", md: "none" }} h="92px" />
-            )}
             <SaveDialog />
+            {leaveDialog}
             <NamePlaylistDialog
               open={duplicateDialogOpen}
               name={duplicateName}

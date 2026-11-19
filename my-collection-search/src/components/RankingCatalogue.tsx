@@ -99,7 +99,9 @@ export default function RankingCatalogue() {
           listStyleType="none"
           borderWidth="outline"
           borderColor="border.ink"
+          borderRadius="md"
           boxShadow="md"
+          overflow="clip"
         >
           {data.profiles.map((profile, index) => (
             <Flex

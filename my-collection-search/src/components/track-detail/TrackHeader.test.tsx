@@ -2,14 +2,17 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
+import { setViewportWidth } from "@/test/renderWithProviders";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { queryKeys } from "@/lib/queryKeys";
 import { sampleTrack } from "@/stories/fixtures/track";
 import type { Track } from "@/types/track";
 
 const player = vi.hoisted(() => ({ replacePlaylist: vi.fn(), appendToQueue: vi.fn() }));
+const saved = vi.hoisted(() => ({ saveTrack: vi.fn() }));
 
 vi.mock("@/providers/PlaylistPlayerProvider", () => ({ usePlaylistPlayer: () => player }));
+vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => saved }));
 
 import TrackHeader from "./TrackHeader";
 
@@ -30,7 +33,10 @@ function renderHeader(
 
 const facts = () => within(screen.getByTestId("track-facts"));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  setViewportWidth(1280);
+});
 
 describe("TrackHeader", () => {
   it("names the track, its artist and its album, linked", () => {
@@ -158,4 +164,84 @@ describe("TrackHeader", () => {
     expect(screen.getAllByTestId("track-genres-section")).toHaveLength(1);
     expect(screen.getByText("Cumbia")).toBeTruthy();
   });
+});
+
+describe("TrackHeader rating (#1231)", () => {
+  it("shows a rated track's stars at rest on desktop, and sets and clears them", async () => {
+    const { user } = renderHeader({ star_rating: 4 });
+    const rating = screen.getByTestId("track-header-rating");
+    const stars = rating.querySelector(".track-result-rating") as HTMLElement;
+    expect(stars.getAttribute("aria-label")).toBe("Rated 4 of 5");
+    expect(getComputedStyle(stars).opacity).toBe("1");
+
+    await user.click(within(rating).getAllByRole("radio", { hidden: true })[1]);
+    expect(saved.saveTrack).toHaveBeenLastCalledWith({
+      track_id: "h1",
+      friend_id: 6,
+      star_rating: 2,
+    });
+    await user.click(within(rating).getByRole("button", { name: "Clear rating" }));
+    expect(saved.saveTrack).toHaveBeenLastCalledWith({
+      track_id: "h1",
+      friend_id: 6,
+      star_rating: 0,
+    });
+  });
+
+  it("shows an unrated track's empty stars and Not rated, never nothing", () => {
+    renderHeader({ star_rating: 0 });
+    const rating = screen.getByTestId("track-header-rating");
+    expect(rating.textContent).toContain("Not rated");
+    const stars = rating.querySelector(".track-result-rating") as HTMLElement;
+    expect(getComputedStyle(stars).opacity).toBe("1");
+    expect(within(rating).queryByRole("button", { name: "Clear rating" })).toBeNull();
+  });
+
+  it("rates a friend's track as a card does", async () => {
+    const { user } = renderHeader({ friend_id: 2, star_rating: 0 }, { friendId: 2 });
+    await user.click(
+      within(screen.getByTestId("track-header-rating")).getAllByRole("radio", { hidden: true })[4],
+    );
+    expect(saved.saveTrack).toHaveBeenCalledWith({ track_id: "h1", friend_id: 2, star_rating: 5 });
+  });
+
+  it("on phones opens the rating dialog from a 44px tap, and saves or clears from it", async () => {
+    setViewportWidth(390);
+    const { user } = renderHeader({ star_rating: 3 });
+    const button = screen.getByRole("button", { name: "Rated 3 of 5, change rating" });
+    expect(getComputedStyle(button).minHeight).toBe("44px");
+    await user.click(button);
+    const dialog = await screen.findByRole("dialog", { name: "Rate track" });
+    await user.click(within(dialog).getByRole("button", { name: "5 stars" }));
+    expect(saved.saveTrack).toHaveBeenLastCalledWith({
+      track_id: "h1",
+      friend_id: 6,
+      star_rating: 5,
+    });
+
+    await user.click(button);
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Rate track" })).getByRole("button", {
+        name: "Clear rating",
+      }),
+    );
+    expect(saved.saveTrack).toHaveBeenLastCalledWith({
+      track_id: "h1",
+      friend_id: 6,
+      star_rating: 0,
+    });
+  });
+
+  it("on phones names an unrated track as such", () => {
+    setViewportWidth(390);
+    renderHeader({ star_rating: 0 });
+    expect(screen.getByRole("button", { name: "Not rated, rate track" }).textContent).toBe(
+      "Not rated",
+    );
+  });
+});
+
+it("reads a missing rating as not rated (#1231)", () => {
+  renderHeader({ star_rating: undefined });
+  expect(screen.getByTestId("track-header-rating").textContent).toContain("Not rated");
 });

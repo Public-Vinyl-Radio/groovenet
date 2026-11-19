@@ -13,6 +13,8 @@ type Props = {
   value: RecommendationScope;
   onChange: (scope: RecommendationScope) => void;
   size?: "xs" | "sm" | "md";
+  /** `end` pushes it to the right end of its row (the summary line); `start` in a form. */
+  align?: "start" | "end";
 };
 
 /**
@@ -22,7 +24,12 @@ type Props = {
  * segment keeps a 44px hit area through an invisible extension, as the card
  * menus do, not through its drawn size.
  */
-export default function SuggestionScopeToggle({ value, onChange, size = "xs" }: Props) {
+export default function SuggestionScopeToggle({
+  value,
+  onChange,
+  size = "xs",
+  align = "end",
+}: Props) {
   return (
     <SegmentGroup.Root
       size={size}
@@ -30,7 +37,8 @@ export default function SuggestionScopeToggle({ value, onChange, size = "xs" }: 
       aria-label="Suggestion scope"
       data-testid="suggestion-scope-toggle"
       flexShrink={0}
-      ms="auto"
+      ms={align === "end" ? "auto" : 0}
+      alignSelf={align === "end" ? undefined : "flex-start"}
       css={{
         "@media (max-width: 47.99em)": {
           "& [data-part='item']": {

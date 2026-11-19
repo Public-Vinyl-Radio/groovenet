@@ -81,6 +81,17 @@ describe("InAppNavigationProvider", () => {
     expect(result.current.canGoBack).toBe(true);
   });
 
+  it("ignores a pop that stays on the page, like an unsaved-changes guard's own entry (#1231)", () => {
+    const { result, navigate } = setup();
+    act(() => navigate("/albums/r1", "tab=tracks"));
+    window.history.replaceState(null, "", "/albums/r1?tab=tracks");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    // The next route change is a new entry, not a step back.
+    act(() => navigate("/albums/r2"));
+    expect(result.current.canGoBack).toBe(true);
+    window.history.replaceState(null, "", "/");
+  });
+
   it("copes with no search params at all", () => {
     nav.nullSearch = true;
     const { result, navigate } = setup();

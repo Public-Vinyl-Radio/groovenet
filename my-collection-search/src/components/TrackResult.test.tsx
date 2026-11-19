@@ -812,7 +812,10 @@ describe("TrackResult row layout (#685)", () => {
       />,
     );
 
-    const tag = within(screen.getByTestId("track-genres")).getByText("Rock en Español");
+    const tag = within(screen.getByTestId("track-genres")).getByRole("link", {
+      name: "Open Rock en Español",
+      hidden: true,
+    });
     expect(tag.getAttribute("title")).toBe("Open Rock en Español");
   });
 

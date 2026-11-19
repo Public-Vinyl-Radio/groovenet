@@ -18,9 +18,9 @@ import {
   FiUpload,
   FiZap,
 } from "react-icons/fi";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { TrackCardContext, TrackRowContext } from "@/components/trackCardContext";
+import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { SiApplemusic, SiYoutube, SiSoundcloud } from "react-icons/si";
 import NextLink from "next/link";
@@ -115,7 +115,8 @@ export default function TrackActionsMenu({
     },
   });
   const queryClient = useQueryClient();
-  const router = useRouter();
+  // Guarded: Enrich leaves the page, which may hold unsaved work (#1231).
+  const router = useGuardedRouter();
   const setEnrichmentQueue = useEnrichmentStore((s) => s.setQueue);
   const uploadMutation = useUploadTrackAudioMutation();
   const deleteTrack = useDeleteTrackMutation();
@@ -355,8 +356,9 @@ export default function TrackActionsMenu({
           onPlay={hasAudio ? playTrack : undefined}
           onQueue={queueTrack}
           onPlaylist={() => openForTrack(track)}
+          // Cards (no hover on phones) and the track page header both rate from the sheet.
           rating={
-            compact
+            compact || prominent
               ? {
                   value: rating,
                   onChange: (value) => {

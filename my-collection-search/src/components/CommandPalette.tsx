@@ -3,7 +3,8 @@
 import React from "react";
 import { Command, defaultFilter } from "cmdk";
 import * as RadixDialog from "@radix-ui/react-dialog";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useUsername } from "@/providers/UsernameProvider";
 import { usePlaylistsQuery } from "@/hooks/usePlaylistsQuery";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
@@ -75,7 +76,8 @@ const isInteractiveTarget = (el: EventTarget | null): boolean => {
 };
 
 export default function CommandPalette() {
-  const router = useRouter();
+  // Guarded: a page with unsaved work asks before the palette leaves it (#1231).
+  const router = useGuardedRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { friend } = useUsername();

@@ -6,6 +6,10 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
 import RankingProfilePicker from "@/components/RankingProfilePicker";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
+import SuggestionSettingsDialog, {
+  SuggestionSettingsButton,
+  suggestionSettingsSummary,
+} from "@/components/SuggestionSettingsDialog";
 import { useRankingProfile } from "@/hooks/useRankingProfiles";
 import { suggestionFilterLabels } from "@/lib/ranking/configs";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
@@ -29,6 +33,7 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
   const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [added, setAdded] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
   const {
     data = [],
@@ -65,50 +70,74 @@ export default function RelatedTracksSection({ track }: { track: Track }) {
 
   return (
     <Box as="section" aria-labelledby="suggestions-heading" mt={6}>
-      <SectionHeading id="suggestions-heading">Suggestions</SectionHeading>
-      <Text color="fg.muted" fontSize="sm" mb={3}>
-        Tracks that could follow this one
-      </Text>
-      <Flex gap={2} wrap="wrap" align="center" mb={3}>
-        {labels.compatibleKey && (
-          <Button
-            size="xs"
-            aria-pressed={compatibleKey}
-            variant={compatibleKey ? "solid" : "outline"}
-            colorPalette="neutral"
-            onClick={() => setCompatibleKey((value) => !value)}
-          >
-            {labels.compatibleKey}
-          </Button>
-        )}
-        {labels.bpmWithinSixPercent && (
-          <Button
-            size="xs"
-            aria-pressed={bpmWithinSixPercent}
-            variant={bpmWithinSixPercent ? "solid" : "outline"}
-            colorPalette="neutral"
-            onClick={() => setBpmWithinSixPercent((value) => !value)}
-          >
-            {labels.bpmWithinSixPercent}
-          </Button>
-        )}
-        <RankingProfilePicker
-          id="related"
-          value={ranking.profile.id}
-          options={ranking.options}
-          onChange={ranking.choose}
-        />
+      {/* Phones keep Ranking and Libraries in a dialog off the heading row (#1231). */}
+      <Flex align="center" justify="space-between" gap={2} mb={{ base: 1, md: 3 }}>
+        <SectionHeading id="suggestions-heading">Suggestions</SectionHeading>
+        {isMobile && <SuggestionSettingsButton onClick={() => setSettingsOpen(true)} />}
       </Flex>
-      {/* The scope toggle sits at the right end of the summary line (#1214). */}
+      {(!isMobile || labels.compatibleKey || labels.bpmWithinSixPercent) && (
+        <Flex gap={2} wrap="wrap" align="center" mb={3}>
+          {labels.compatibleKey && (
+            <Button
+              size="xs"
+              aria-pressed={compatibleKey}
+              variant={compatibleKey ? "solid" : "outline"}
+              colorPalette="neutral"
+              onClick={() => setCompatibleKey((value) => !value)}
+            >
+              {labels.compatibleKey}
+            </Button>
+          )}
+          {labels.bpmWithinSixPercent && (
+            <Button
+              size="xs"
+              aria-pressed={bpmWithinSixPercent}
+              variant={bpmWithinSixPercent ? "solid" : "outline"}
+              colorPalette="neutral"
+              onClick={() => setBpmWithinSixPercent((value) => !value)}
+            >
+              {labels.bpmWithinSixPercent}
+            </Button>
+          )}
+          {!isMobile && (
+            <RankingProfilePicker
+              id="related"
+              value={ranking.profile.id}
+              options={ranking.options}
+              onChange={ranking.choose}
+            />
+          )}
+        </Flex>
+      )}
+      {/* The scope toggle sits at the right end of the summary line (#1214); on phones
+          the line names both settings instead, so a choice in the dialog stays visible. */}
       <Flex align="center" gap={2} mb={2} minH="24px">
         {ready && !isLoading && !error && (
-          <Text color="fg.muted" fontSize="12px" role="status">
-            {layout.shown} of {layout.total}
-            {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
+          <Text color="fg.muted" fontSize="12px" role="status" data-testid="suggestions-summary">
+            {[
+              `${layout.shown} of ${layout.total}`,
+              ranked.hiddenByFilters > 0 && `${ranked.hiddenByFilters} hidden by filters`,
+              isMobile && suggestionSettingsSummary({ rankingName: ranking.profile.name, scope }),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </Text>
         )}
-        <SuggestionScopeToggle value={scope} onChange={setScope} />
+        {!isMobile && <SuggestionScopeToggle value={scope} onChange={setScope} />}
       </Flex>
+      {isMobile && (
+        <SuggestionSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          id="related"
+          ranking={{
+            value: ranking.profile.id,
+            options: ranking.options,
+            onChange: ranking.choose,
+          }}
+          scope={{ value: scope, onChange: setScope }}
+        />
+      )}
       {!ready || isLoading ? (
         <Flex align="center" gap={3} py={4}>
           <Spinner size="sm" />

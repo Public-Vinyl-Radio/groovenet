@@ -6,9 +6,26 @@ import { Flex, Link, Text, type FlexProps } from "@chakra-ui/react";
 
 export type Crumb = {
   label: string;
-  /** Parents link; the last crumb is the current page and needs none. */
+  /**
+   * Parents link. A last crumb without one is the current page; a trail whose
+   * last crumb links is all parents, for a page whose h1 is its only name (the
+   * track page ends at its album, #1231).
+   */
   href?: string;
 };
+
+/** The index of the crumb naming the current page, or -1 when every crumb is a parent. */
+export function currentCrumbIndex(crumbs: Crumb[]): number {
+  const last = crumbs.length - 1;
+  return last >= 0 && !crumbs[last].href ? last : -1;
+}
+
+/** The parent a phone back button returns to: the last linked crumb before the current page. */
+export function parentCrumb(crumbs: Crumb[]): Crumb | undefined {
+  const current = currentCrumbIndex(crumbs);
+  const parents = current === -1 ? crumbs : crumbs.slice(0, current);
+  return parents[parents.length - 1];
+}
 
 // Only a long label gives way, so "Albums" or "Edit" never lose letters to
 // the title beside them.
@@ -19,10 +36,11 @@ type BreadcrumbsProps = { crumbs: Crumb[] } & Omit<FlexProps, "children">;
 
 /**
  * Trail of parents ending in the current page: mono, uppercase, muted. Parents
- * link; the last crumb is plain text. Any of them truncates when the trail is long.
+ * link; the current page, a last crumb with no link, is plain text marked
+ * `aria-current`. Any of them truncates when the trail is long.
  */
 export default function Breadcrumbs({ crumbs, ...rest }: BreadcrumbsProps) {
-  const lastIndex = crumbs.length - 1;
+  const currentIndex = currentCrumbIndex(crumbs);
 
   return (
     <Flex
@@ -43,7 +61,7 @@ export default function Breadcrumbs({ crumbs, ...rest }: BreadcrumbsProps) {
       {crumbs.map((crumb, index) => (
         <React.Fragment key={`${index}-${crumb.label}`}>
           {index > 0 && <span aria-hidden="true">/</span>}
-          {index === lastIndex ? (
+          {index === currentIndex ? (
             <Text as="span" color="fg" lineClamp={1} flexShrink={shrink(crumb)} aria-current="page">
               {crumb.label}
             </Text>

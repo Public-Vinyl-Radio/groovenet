@@ -19,9 +19,13 @@ const mocks = vi.hoisted(() => ({
   saveExisting: vi.fn(),
   insertTrack: vi.fn(),
   saved: (() => {}) as () => void,
-  markChanged: (() => {}) as () => void,
+  markChanged: (() => {}) as (change?: "order" | "insert") => void,
+  refetch: vi.fn(),
+  resetLocalChanges: vi.fn(),
+  push: vi.fn(),
+  sortMethod: null as null | string,
   liveSet: { set: null as unknown, loading: false, create: vi.fn() },
-  ordering: null as unknown,
+  ordering: null as null | { onPersisted?: () => void },
   orderedBy: null as null | { id: string; name: string; fallback: boolean },
 }));
 
@@ -40,15 +44,19 @@ vi.mock("@/hooks/usePlaylistTrackIdsQuery", () => ({
     tracks: mocks.empty ? [] : mocks.single ? refs.slice(0, 1) : refs,
     playlistName: "Set",
     isPending: mocks.pending,
-    refetch: vi.fn(),
+    refetch: mocks.refetch,
   }),
 }));
 vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
 }));
 vi.mock("@/hooks/usePlaylistMutations", () => ({
-  usePlaylistMutations: (_id: unknown, onChange: () => void, ordering: unknown) => {
-    mocks.markChanged = onChange;
+  usePlaylistMutations: (
+    _id: unknown,
+    onChange: (change?: "order" | "insert") => void,
+    ordering: { onPersisted?: () => void },
+  ) => {
+    mocks.markChanged = (change = "order") => onChange(change);
     mocks.ordering = ordering;
     return {
       moveTrack: vi.fn(),
@@ -61,6 +69,8 @@ vi.mock("@/hooks/usePlaylistMutations", () => ({
       isCohesiveBlocksSorting: false,
       sortPositionChanges: {},
       orderedBy: mocks.orderedBy,
+      sortMethod: mocks.sortMethod,
+      resetLocalChanges: mocks.resetLocalChanges,
     };
   },
 }));
@@ -96,18 +106,26 @@ vi.mock("@/hooks/useTracksQuery", () => ({ useTracksQuery: () => ({ saveTrack: v
 vi.mock("@/components/PlaylistStatsPanel", () => ({ default: () => null }));
 vi.mock("@/components/SetDetailsPanel", () => ({ default: () => null }));
 vi.mock("@/hooks/useLiveSet", () => ({ useLiveSet: () => mocks.liveSet }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/components/PlaylistActionsMenu", () => ({
   default: ({
     onOpenRecommendations,
     onCreateSet,
-    orderingPicker,
+    ordering,
+    view,
   }: {
     onOpenRecommendations: () => void;
     onCreateSet?: () => void;
-    orderingPicker?: React.ReactNode;
+    ordering?: { value: string; onChange: (id: string) => void };
+    view?: { value: string; onChange: (mode: "row" | "card") => void };
   }) => (
     <>
-      <div data-testid="menu-ordering">{orderingPicker}</div>
+      <div data-testid="menu-ordering" data-value={ordering?.value}>
+        <button onClick={() => ordering?.onChange("beatmatcher")}>order by beatmatcher</button>
+      </div>
+      <div data-testid="menu-view" data-value={view?.value}>
+        <button onClick={() => view?.onChange("card")}>view grid</button>
+      </div>
       <button data-testid="actions-menu" onClick={onOpenRecommendations}>
         Recommendations
       </button>
@@ -153,6 +171,9 @@ beforeEach(async () => {
   vi.clearAllMocks();
   (await import("@/test/rankingProfileMock")).rankingProfileMock.reset();
   mocks.orderedBy = null;
+  mocks.sortMethod = null;
+  mocks.saveExisting.mockResolvedValue(true);
+  mocks.refetch.mockResolvedValue({});
   localStorage.clear();
   setViewportWidth(1280);
   mocks.player = { playlist: [], currentTrackIndex: null };
@@ -168,12 +189,12 @@ describe("PlaylistViewer view mode", () => {
     expect(await screen.findByTestId("track-table")).toBeTruthy();
     expect(screen.getAllByTestId("track-result-row")).toHaveLength(2);
     expect(screen.getAllByText("item menu")).toHaveLength(2);
-    expect(screen.getByRole("radio", { name: "List", checked: true, hidden: true })).toBeTruthy();
+    expect(screen.getAllByTestId("menu-view")[0].dataset.value).toBe("row");
   });
 
-  it("switches to cards and keeps the choice for the other lists", async () => {
+  it("switches to cards from the menu and keeps the choice for the other lists (#1231)", async () => {
     const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
-    await user.click(await screen.findByText("Grid"));
+    await user.click((await screen.findAllByText("view grid"))[0]);
     expect(screen.queryByTestId("track-table")).toBeNull();
     expect(screen.queryByTestId("track-result-row")).toBeNull();
     expect(localStorage.getItem("searchViewMode")).toBe("card");
@@ -182,9 +203,8 @@ describe("PlaylistViewer view mode", () => {
   it("starts from the saved mode", async () => {
     localStorage.setItem("searchViewMode", "card");
     renderWithProviders(<PlaylistViewer playlistId={1} />);
-    expect(
-      await screen.findByRole("radio", { name: "Grid", checked: true, hidden: true }),
-    ).toBeTruthy();
+    await screen.findAllByTestId("menu-view");
+    expect(screen.getAllByTestId("menu-view")[0].dataset.value).toBe("card");
     expect(screen.queryByTestId("track-table")).toBeNull();
   });
 
@@ -317,7 +337,9 @@ describe("PlaylistViewer suggestions panel", () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     const desktop = within(await screen.findByTestId("page-header-desktop-actions"));
     expect(desktop.queryByRole("button", { name: /Suggestions/, hidden: true })).toBeNull();
-    expect(desktop.getByRole("radio", { name: "Grid", hidden: true })).toBeTruthy();
+    // View and Order by are in the menu now, not beside it (#1231).
+    expect(desktop.queryByRole("radio", { hidden: true })).toBeNull();
+    expect(desktop.queryByLabelText("Order by")).toBeNull();
     expect(desktop.getAllByTestId("actions-menu")).toHaveLength(1);
     const phone = within(screen.getByTestId("page-header-phone-actions"));
     expect(phone.queryByRole("button", { name: /Suggestions/, hidden: true })).toBeNull();
@@ -415,19 +437,15 @@ it("disables palette optimisation while sorting", () => {
 });
 
 describe("PlaylistViewer ordering by ranking profile (#1193)", () => {
-  it("puts an Order by picker beside the actions, and in the phone menu", async () => {
+  it("hands the menu the playlists profile, and no picker sits in the header (#1231)", async () => {
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     await screen.findByRole("heading", { level: 1, name: "Set" });
-    const pickers = screen.getAllByLabelText("Order by") as HTMLSelectElement[];
-    expect(pickers.map((picker) => picker.id).sort()).toEqual([
-      "playlist-order-desktop-ranking-profile",
-      "playlist-order-phone-ranking-profile",
+    expect(screen.queryByLabelText("Order by")).toBeNull();
+    expect(screen.getAllByTestId("menu-ordering").map((el) => el.dataset.value)).toEqual([
+      "default",
+      "default",
     ]);
-    expect(pickers[0].value).toBe("default");
-    expect(
-      within(screen.getAllByTestId("menu-ordering")[0]).getByLabelText("Order by"),
-    ).toBeTruthy();
-    expect(mocks.ordering).toEqual({ rankingProfileId: "default", friendId: 1 });
+    expect(mocks.ordering).toMatchObject({ rankingProfileId: "default", friendId: 1 });
   });
 
   it("names no library before one is chosen", async () => {
@@ -435,16 +453,15 @@ describe("PlaylistViewer ordering by ranking profile (#1193)", () => {
     rankingProfileMock.state.friendId = 0;
     renderWithProviders(<PlaylistViewer playlistId={1} />);
     await screen.findByRole("heading", { level: 1, name: "Set" });
-    expect(mocks.ordering).toEqual({ rankingProfileId: "default", friendId: undefined });
+    expect(mocks.ordering).toMatchObject({ rankingProfileId: "default", friendId: undefined });
   });
 
   it("orders by the profile chosen, saved for the playlists surface", async () => {
     const { rankingProfileMock } = await import("@/test/rankingProfileMock");
-    renderWithProviders(<PlaylistViewer playlistId={1} />);
-    const [picker] = await screen.findAllByLabelText("Order by");
-    fireEvent.change(picker, { target: { value: "beatmatcher" } });
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("order by beatmatcher"))[0]);
     expect(rankingProfileMock.state.choose).toHaveBeenCalledWith("playlists", "beatmatcher");
-    expect(mocks.ordering).toEqual({ rankingProfileId: "beatmatcher", friendId: 1 });
+    expect(mocks.ordering).toMatchObject({ rankingProfileId: "beatmatcher", friendId: 1 });
   });
 
   it("says which profile ordered it after an optimise, and when Default stood in", async () => {
@@ -461,5 +478,116 @@ describe("PlaylistViewer ordering by ranking profile (#1193)", () => {
     expect(screen.getByRole("status").textContent).toBe(
       "Ordered by Default (the chosen profile couldn't be read)",
     );
+  });
+});
+
+describe("PlaylistViewer unsaved changes (#1231)", () => {
+  const bar = () => screen.queryByTestId("playlist-unsaved-bar");
+
+  it("shows one bar naming the change and the profile, with Save and Discard", async () => {
+    mocks.orderedBy = { id: "selector", name: "Selector", fallback: false };
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    // Saved: the profile is the quiet note, no bar.
+    expect(bar()).toBeNull();
+    expect(screen.getByText("Ordered by Selector")).toBeTruthy();
+
+    act(() => mocks.markChanged("order"));
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe(
+      "Order changed · by Selector",
+    );
+    expect(screen.queryByText("Ordered by Selector")).toBeNull();
+    expect(within(bar()!).getByRole("button", { name: "Discard", hidden: true })).toBeTruthy();
+    expect(within(bar()!).getByText("Save changes")).toBeTruthy();
+  });
+
+  it("names a greedy sort, added tracks, and the fallback profile", async () => {
+    mocks.sortMethod = "greedy";
+    const { user, rerender } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("order"));
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe(
+      "Order changed · Greedy order",
+    );
+
+    await user.click((await screen.findAllByText("item menu"))[0]);
+    await user.click(screen.getByRole("button", { name: "add new" }));
+    act(() => mocks.markChanged("insert"));
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe(
+      "Order changed · Greedy order · 1 track added",
+    );
+
+    mocks.orderedBy = { id: "default", name: "Default", fallback: true };
+    rerender(<PlaylistViewer playlistId={1} />);
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe(
+      "Order changed · by Default · 1 track added (the chosen profile couldn't be read)",
+    );
+  });
+
+  it("says only that the playlist changed when an insert is all there is", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("insert"));
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe("Playlist changed");
+  });
+
+  it("clears the bar once saved", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("order"));
+    await user.click(within(bar()!).getByText("Save changes"));
+    expect(mocks.saveExisting).toHaveBeenCalled();
+    act(() => mocks.saved());
+    expect(bar()).toBeNull();
+  });
+
+  it("discards back to the saved order: refetches the list and drops the sort's markers", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("order"));
+    await user.click(within(bar()!).getByRole("button", { name: "Discard", hidden: true }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+    expect(mocks.resetLocalChanges).toHaveBeenCalledOnce();
+    expect(bar()).toBeNull();
+  });
+
+  it("counts a remove or add as saved: it writes the whole list to the server", async () => {
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("order"));
+    expect(bar()).toBeTruthy();
+    act(() => mocks.ordering?.onPersisted?.());
+    expect(bar()).toBeNull();
+  });
+
+  it("asks before an in-app link leaves the page with unsaved changes", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await screen.findByRole("heading", { level: 1, name: "Set" });
+    act(() => mocks.markChanged("order"));
+    fireEvent.click(screen.getAllByRole("link", { name: /Playlists/, hidden: true })[0]);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByTestId("unsaved-changes-summary").textContent).toBe("Order changed");
+    await user.click(within(dialog).getByRole("button", { name: "Leave without saving" }));
+    expect(mocks.push).toHaveBeenCalledWith("/playlists");
+  });
+});
+
+describe("PlaylistViewer unsaved changes, more cases (#1231)", () => {
+  it("counts several added tracks", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("item menu"))[0]);
+    await user.click(screen.getByRole("button", { name: "add new" }));
+    await user.click(screen.getByRole("button", { name: "add new" }));
+    act(() => mocks.markChanged("insert"));
+    expect(screen.getByTestId("playlist-unsaved-summary").textContent).toBe("2 tracks added");
+  });
+
+  it("offers neither Save nor Discard for a playlist not saved yet", async () => {
+    renderWithProviders(<PlaylistViewer />);
+    await screen.findAllByTestId("actions-menu");
+    act(() => mocks.markChanged("order"));
+    const bar = screen.getByTestId("playlist-unsaved-bar");
+    expect(within(bar).queryByText("Save changes")).toBeNull();
+    expect(within(bar).queryByText("Discard")).toBeNull();
   });
 });
