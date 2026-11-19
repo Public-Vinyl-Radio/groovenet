@@ -103,7 +103,10 @@ describe("Track page suggestions", () => {
       enabled: true,
     });
     expect(screen.getByRole("heading", { name: "Suggestions" })).toBeTruthy();
-    expect(screen.getByText("Tracks that could follow this one")).toBeTruthy();
+    // No tagline under the heading (#1231).
+    expect(screen.queryByText("Tracks that could follow this one")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Suggestion settings" })).toBeNull();
+    expect(screen.getByLabelText("Ranking")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Compatible key" }).getAttribute("aria-pressed"),
     ).toBe("true");
@@ -256,9 +259,13 @@ describe("Track page suggestions", () => {
     setViewportWidth(width);
     candidates(tracks(45));
     const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
-    expect(screen.getByText(`${initial} of 45`)).toBeTruthy();
+    expect(screen.getByTestId("suggestions-summary").textContent).toMatch(
+      new RegExp(`^${initial} of 45`),
+    );
     await user.click(screen.getByRole("button", { name: "Show 20 more" }));
-    expect(screen.getByText(`${initial + 20} of 45`)).toBeTruthy();
+    expect(screen.getByTestId("suggestions-summary").textContent).toMatch(
+      new RegExp(`^${initial + 20} of 45`),
+    );
   });
 });
 
@@ -374,7 +381,7 @@ it("starts with five rows until the viewport is known", () => {
   mocks.unknownBreakpoint = true;
   candidates(tracks(25));
   renderWithProviders(<RelatedTracksSection track={seed} />);
-  expect(screen.getByText("5 of 25")).toBeTruthy();
+  expect(screen.getByText("5 of 25 · Default · This library")).toBeTruthy();
 });
 
 describe("ranking profile picker (#1192)", () => {
@@ -422,5 +429,50 @@ describe("ranking profile picker (#1192)", () => {
     expect(screen.queryByRole("button", { name: /Compatible key|BPM ±/ })).toBeNull();
     const { rankingProfileMock } = await import("@/test/rankingProfileMock");
     expect(rankingProfileMock.state.choose).toHaveBeenLastCalledWith("related", "selector");
+  });
+});
+
+describe("phone suggestion settings (#1231)", () => {
+  beforeEach(async () => {
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    rankingProfileMock.reset();
+    setViewportWidth(390);
+    candidates(tracks(8));
+  });
+
+  it("keeps Ranking and Libraries off the list, behind a 44px sliders button", () => {
+    renderWithProviders(<RelatedTracksSection track={seed} />);
+    expect(screen.queryByLabelText("Ranking")).toBeNull();
+    expect(screen.queryByTestId("suggestion-scope-toggle")).toBeNull();
+    const button = screen.getByRole("button", { name: "Suggestion settings" });
+    expect(getComputedStyle(button).width).toBe("44px");
+    expect(screen.getByTestId("suggestions-summary").textContent).toBe(
+      "5 of 8 · Default · This library",
+    );
+  });
+
+  it("changes the ranking and the scope from the dialog, and the summary follows", async () => {
+    const { user } = renderWithProviders(<RelatedTracksSection track={seed} />);
+    await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Suggestion settings" });
+    expect(within(dialog).queryByRole("button", { name: /Save/ })).toBeNull();
+
+    await user.selectOptions(within(dialog).getByLabelText("Ranking"), "selector");
+    const { rankingProfileMock } = await import("@/test/rankingProfileMock");
+    expect(rankingProfileMock.state.choose).toHaveBeenLastCalledWith("related", "selector");
+    expect(screen.getByTestId("suggestions-summary").textContent).toContain(
+      "Selector · This library",
+    );
+
+    await user.click(within(dialog).getByText("All libraries"));
+    expect(mocks.scope.setScope).toHaveBeenCalledWith("all");
+  });
+
+  it("names All libraries once that is the scope", () => {
+    mocks.scope.scope = "all";
+    renderWithProviders(<RelatedTracksSection track={seed} />);
+    expect(screen.getByTestId("suggestions-summary").textContent).toBe(
+      "5 of 8 · Default · All libraries",
+    );
   });
 });

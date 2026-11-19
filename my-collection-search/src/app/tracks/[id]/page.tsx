@@ -17,7 +17,6 @@ import RelatedTracksSection from "@/components/RelatedTracksSection";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import type { Crumb } from "@/components/layout/Breadcrumbs";
-import { trackMeta } from "@/lib/entityMeta";
 import { useTrackDetailQueries } from "@/hooks/useTrackDetailQueries";
 import {
   TrackPlaylistsSection,
@@ -62,13 +61,15 @@ export default function TrackPage() {
 
   const fetchedTrack = trackQuery.data;
   const track = useTrack(trackId, friendId) ?? fetchedTrack;
+  // The trail ends at the album, its link back (#1231): the h1 is the one place
+  // the title shows, and the card below holds the ID, duration, BPM and key, so
+  // the title carries no meta line either.
   const crumbs: Crumb[] | undefined = track
     ? [
         { label: "Tracks", href: "/tracks" },
         ...(track.release_id && track.album
           ? [{ label: track.album, href: `/albums/${track.release_id}?friend_id=${friendId}` }]
           : []),
-        { label: track.title },
       ]
     : undefined;
 
@@ -91,9 +92,7 @@ export default function TrackPage() {
       {hasValidFriendId && crumbs && track && (
         <PageHeader>
           <PageHeader.Context crumbs={crumbs} />
-          <PageHeader.Title phoneTitle="Track" metaOnPhone={false} meta={trackMeta(track)}>
-            {track.title}
-          </PageHeader.Title>
+          <PageHeader.Title phoneTitle="Track">{track.title}</PageHeader.Title>
           {/* The menu sits in the header at both widths, not in the card. */}
           <PageHeader.Actions
             actions={[

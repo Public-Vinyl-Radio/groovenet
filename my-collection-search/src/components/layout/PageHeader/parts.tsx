@@ -6,7 +6,7 @@ import NextLink from "next/link";
 import { FiChevronLeft, FiMoreHorizontal } from "react-icons/fi";
 import { headerTarget, pageHeader } from "@/app/houseStyle";
 import { useRootFlag } from "@/hooks/useRootFlag";
-import Breadcrumbs, { type Crumb } from "@/components/layout/Breadcrumbs";
+import Breadcrumbs, { parentCrumb, type Crumb } from "@/components/layout/Breadcrumbs";
 import { HeaderButton } from "@/components/layout/ListHeader";
 import { useCanGoBack, useGoBack } from "@/providers/InAppNavigationProvider";
 import { useOptionalCommandPalette } from "@/providers/CommandPaletteProvider";
@@ -53,7 +53,7 @@ export type PageHeaderContextProps = {
 export function PageHeaderContext({ crumbs = [], leading }: PageHeaderContextProps) {
   const canGoBack = useCanGoBack();
   const goBack = useGoBack();
-  const parent = crumbs.length > 1 ? crumbs[crumbs.length - 2] : undefined;
+  const parent = parentCrumb(crumbs);
   let back: React.ReactNode = null;
   if (leading) {
     back = (

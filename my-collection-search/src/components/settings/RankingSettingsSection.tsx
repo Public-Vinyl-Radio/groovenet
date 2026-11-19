@@ -99,6 +99,8 @@ export default function RankingSettingsSection() {
   const { data, friendId, isPending, isError } = useRankingProfilesQuery();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // The custom profile waiting on the delete confirmation, from its row or the editor.
+  const [deleting, setDeleting] = useState<RankingProfileEntry | null>(null);
   const isPhone = useBreakpointValue({ base: true, md: false }) === true;
   const mutations = useRankingProfileMutations(friendId);
   const choose = useSetActiveRankingProfile();
@@ -133,16 +135,22 @@ export default function RankingSettingsSection() {
       saving={mutations.save.isPending}
       onCopy={() => copy(selected.id)}
       onSave={(profile) => mutations.save.mutate({ id: selected.id, profile })}
-      onDelete={() =>
-        mutations.remove.mutate(selected.id, {
-          onSuccess: () => {
-            setSelectedId(null);
-            setDialogOpen(false);
-          },
-        })
-      }
+      onDelete={() => setDeleting(selected)}
     />
   );
+
+  const confirmDelete = (id: string) => {
+    mutations.remove.mutate(id, {
+      onSuccess: () => {
+        setDeleting(null);
+        // The editor falls back to a remaining profile.
+        if (selected.id === id) {
+          setSelectedId(null);
+          setDialogOpen(false);
+        }
+      },
+    });
+  };
 
   return (
     <Flex direction="column" gap={6}>
@@ -157,8 +165,11 @@ export default function RankingSettingsSection() {
         listStyleType="none"
         borderWidth="outline"
         borderColor="border.ink"
+        borderRadius="md"
         boxShadow="md"
         bg="bg.panel"
+        // The selected row's fill would paint over the rounded corners (#1231).
+        overflow="clip"
         aria-label="Ranking profiles"
       >
         {data.profiles.map((profile, index) => {
@@ -179,13 +190,19 @@ export default function RankingSettingsSection() {
             >
               <Box flex="1" minW={0}>
                 <Flex align="center" gap={2} wrap="wrap">
+                  {/* An underlined text button, so the name reads as the way into the editor. */}
                   <Button
-                    variant="ghost"
+                    variant="plain"
                     size="sm"
                     fontFamily="body"
                     fontWeight="semibold"
                     px={0}
                     minH="44px"
+                    textDecoration="underline"
+                    textUnderlineOffset="3px"
+                    textDecorationColor={isSelected ? "fg" : "fg.muted"}
+                    _hover={{ textDecorationColor: "fg" }}
+                    title={`Open ${profile.name} in the editor`}
                     aria-pressed={isSelected}
                     onClick={() => open(profile.id)}
                   >
@@ -229,11 +246,33 @@ export default function RankingSettingsSection() {
                 >
                   Copy
                 </Button>
+                {/* Presets are read-only, so only a custom profile can go. */}
+                {profile.kind === "custom" && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    colorPalette="danger"
+                    minH={{ base: "44px", md: "auto" }}
+                    disabled={mutations.remove.isPending}
+                    aria-label={`Delete ${profile.name}`}
+                    onClick={() => setDeleting(profile)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </Flex>
             </Flex>
           );
         })}
       </Box>
+
+      <DeleteProfileDialog
+        profile={deleting}
+        usedFor={deleting ? activeOn(deleting.id) : []}
+        pending={mutations.remove.isPending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
 
       {isPhone ? (
         <RetroDialog
@@ -248,6 +287,74 @@ export default function RankingSettingsSection() {
         editor
       )}
     </Flex>
+  );
+}
+
+/**
+ * Asks before a custom profile is deleted (#1231): names it and the surfaces that
+ * use it, which go back to Default. A `RetroDialog`, so phones get the house modal.
+ */
+export function DeleteProfileDialog({
+  profile,
+  usedFor,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  profile: RankingProfileEntry | null;
+  usedFor: RankingSurface[];
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: (id: string) => void;
+}) {
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  // Delete only shows while a profile is waiting on it.
+  const id = profile?.id ?? "";
+  return (
+    <RetroDialog
+      open={profile !== null}
+      // Open only while there is a profile to delete, so any change is a close.
+      onOpenChange={onCancel}
+      role="alertdialog"
+      title="Delete profile"
+      dismissible={!pending}
+      initialFocusEl={() => cancelRef.current}
+      footer={
+        <Flex justify="flex-end" gap={2} p="12px 14px">
+          <Button
+            ref={cancelRef}
+            size="sm"
+            variant="outline"
+            minH={{ base: "44px", md: "auto" }}
+            onClick={onCancel}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            variant="solid"
+            colorPalette="danger"
+            minH={{ base: "44px", md: "auto" }}
+            loading={pending}
+            onClick={() => onConfirm(id)}
+          >
+            Delete
+          </Button>
+        </Flex>
+      }
+    >
+      {profile && (
+        <Flex direction="column" gap={2} p="14px">
+          <Text>Delete {profile.name}? This can’t be undone.</Text>
+          <Text fontSize="sm" color="fg.muted">
+            {usedFor.length > 0
+              ? `It is used for ${usedFor.map((s) => SURFACE_LABELS[s].toLowerCase()).join(", ")}, which go back to Default.`
+              : "It isn’t used anywhere."}
+          </Text>
+        </Flex>
+      )}
+    </RetroDialog>
   );
 }
 
@@ -703,7 +810,9 @@ export function RankingPreview({ friendId, config }: { friendId: number; config:
               listStyleType="none"
               borderWidth="outline"
               borderColor="border.ink"
+              borderRadius="md"
               boxShadow="md"
+              overflow="clip"
               opacity={preview.isFetching ? 0.6 : 1}
               aria-busy={preview.isFetching}
             >

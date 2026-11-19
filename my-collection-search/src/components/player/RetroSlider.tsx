@@ -75,12 +75,14 @@ export default function RetroSlider({
           height="10px"
           borderWidth="outline"
           borderColor="border.ink"
-          rounded="none"
+          // Follows the Corners setting; the range is clipped to the track's curve.
+          borderRadius="md"
+          overflow="clip"
         >
           <Slider.Range bg="accent.solid" />
         </Slider.Track>
         <Slider.Thumbs
-          rounded="none"
+          borderRadius="md"
           width="10px"
           height={thumbH}
           bg="neutral.solid"

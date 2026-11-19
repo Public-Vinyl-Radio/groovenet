@@ -19,7 +19,7 @@ import {
   Popover,
   Portal,
 } from "@chakra-ui/react";
-import { CountTag, MetaTag, StatusTag } from "@/components/ui/RoleTags";
+import { MetaTag, StatusTag } from "@/components/ui/RoleTags";
 import { Track } from "@/types/track";
 import { FaPlay } from "react-icons/fa";
 import { FiFileText, FiPlus } from "react-icons/fi";
@@ -28,14 +28,9 @@ import { camelotDotColor } from "@/lib/mixCompat";
 import { formatBpmConfidencePercent, isBpmConfidenceLow } from "@/lib/essentiaBpm";
 import { formatKeyConfidencePercent, isKeyConfidenceLow } from "@/lib/essentiaKey";
 import { getTrackDurationSeconds } from "@/lib/trackUtils";
-import {
-  discogsGenreBadges,
-  primaryGenreBadges,
-  trackGenreBadges,
-  type GenreBadgeItem,
-} from "@/lib/genres/links";
+import { discogsGenreBadges, primaryGenreBadges, trackGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import { GenreBadgeList, GenreBadgeRow, type GenreBadgeKind } from "./GenreBadge";
+import { FittedGenreList, GenreBadgeList, GenreBadgeRow } from "./GenreBadge";
 import { TrackCardContext, TrackRowContext } from "./trackCardContext";
 import TrackRatingDialog from "./TrackRatingDialog";
 import { usePlaybackPlayer } from "@/providers/PlaybackTargetProvider";
@@ -304,61 +299,20 @@ function BpmValue({
   );
 }
 
-/** Up to `max` purple-subtle genre badges, plus a "+N" overflow badge. */
-function GenreList({
-  items,
-  kind,
-  max = 2,
-  wrap = false,
-}: {
-  items: GenreBadgeItem[];
-  kind: GenreBadgeKind;
-  max?: number;
-  /** Wrap onto more lines instead of shrinking a tag to an ellipsis (the card has the height). */
-  wrap?: boolean;
-}) {
-  if (items.length === 0) return null;
-  const shown = items.slice(0, max);
-  const overflow = items.length - shown.length;
-  return (
-    <Flex
-      gap={1.5}
-      alignItems="center"
-      overflow="hidden"
-      minW={0}
-      flexWrap={wrap ? "wrap" : "nowrap"}
-      data-testid="track-genres"
-      // A tag shrinks and ends in an ellipsis rather than being cut mid-letter.
-      css={{
-        "& > a, & > span:not([data-overflow])": {
-          display: "block",
-          minWidth: 0,
-          maxWidth: "100%",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        },
-      }}
-    >
-      <GenreBadgeList items={shown} kind={kind} />
-      {overflow > 0 && (
-        <CountTag data-overflow="" size="sm" flexShrink={0}>
-          +{overflow}
-        </CountTag>
-      )}
-    </Flex>
-  );
-}
-
-/** Star rating: hidden unless rated or the ancestor row/card carries the hover class. */
+/**
+ * Star rating: hidden unless rated or the ancestor row/card carries the hover class.
+ * `alwaysVisible` shows the empty stars too (the track page, where it is the rating's home).
+ */
 export function RatingStars({
   value,
   onChange,
   size = "xs",
+  alwaysVisible = false,
 }: {
   value: number;
   onChange: (value: number) => void;
   size?: "xs" | "sm";
+  alwaysVisible?: boolean;
 }) {
   const rated = value > 0;
   return (
@@ -368,7 +322,7 @@ export function RatingStars({
       count={5}
       size={size}
       className="track-result-rating"
-      opacity={rated ? 1 : 0}
+      opacity={rated || alwaysVisible ? 1 : 0}
       transition="opacity 0.12s ease"
       aria-label={rated ? `Rated ${value} of 5` : "Not rated"}
     >
@@ -1073,7 +1027,13 @@ export default function TrackResult({
             the genre cell keeps its slot in the template regardless.
           */}
           <Box data-col="genre" minW={0} overflow="hidden">
-            {showGenres && <GenreList items={genreBadges.items} kind={genreBadges.kind} max={2} />}
+            {/* Whole tags only, then "+N" (#1231): never one cut at the cell's edge. */}
+            {showGenres && (
+              <FittedGenreList
+                data-testid="track-genres"
+                items={genreBadges.items.map((item) => ({ item, kind: genreBadges.kind }))}
+              />
+            )}
           </Box>
 
           <Flex data-col="rating" gap={0.5} justifyContent="flex-start" minW={0}>

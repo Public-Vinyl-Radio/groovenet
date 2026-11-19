@@ -355,7 +355,13 @@ trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
   left out and a genre shows once. Lyrics live in a `RetroDialog` (`TrackLyricsDialog`,
   full screen on phones) opened from the ⋯ menu's **Lyrics** / **Add lyrics** item
   (`onOpenLyrics`), offered only once the lyrics read says the track is the owner's
-  (#1176), never as a page section. The Suggestions scope toggle
+  (#1176), never as a page section. Each fact shows once (#1231): the trail ends at the album
+  (`Tracks / <album>`, every crumb a parent, so the h1 alone names the track) and the title has no
+  meta line, since the card holds the ID, duration, BPM and key. The rating sits in the info
+  column, always visible (`TrackHeaderRating`): the stars at rest on desktop, a 44px tap opening
+  `TrackRatingDialog` on phones. On phones Ranking and Libraries sit in
+  `SuggestionSettingsDialog`, opened from the sliders button on the Suggestions heading row, and
+  the summary line names both (`5 of 116 · Selector · This library`). The Suggestions scope toggle
   (`SuggestionScopeToggle`) sizes to its content at the right end of the summary line,
   with a 44px hit area from an invisible extension on phones; the playlist panel does
   the same.
@@ -401,6 +407,11 @@ trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
   3. Chip row: `FilterChips`, with the mono result count (`summary`) at its right end. With no
      chips and no summary it renders nothing (no reserved height), so the list sits one gap under
      the search row and shifts down a row when the first chip appears.
+
+  The playlist page is the one exception (#1231): its View (List / Grid) and Order by live in the
+  kebab menu, not the header, because that header holds the playlist's own actions and Order by
+  only matters at the moment you sort.
+
 - **Filters** live in one place per page: a `*FilterControls` object the page builds
   once and spreads into both the phone modal (`TrackSearchOptionsModal`,
   `AlbumFiltersModal`, titled "Sort & filter" on Albums) and the desktop `FiltersPanel` (a 460px popover under FILTERS,
@@ -453,6 +464,11 @@ trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
     the registry and that files and licences exist. Check it in Storybook (the
     toolbar has Display/Body/Labels font switchers) and in the app at 390px: buttons, chips, tags,
     tabs and track rows must hold. Inputs use 16px text so iOS doesn't zoom.
+- **Leaving unsaved work (#1231):** a page with unsaved edits calls `useUnsavedChangesGuard`,
+  which asks in a `RetroDialog` (Save and leave, Leave without saving, Stay) before an in-app link,
+  back, or a programmatic route change leaves it; reload and closing keep the browser's own
+  prompt. Navigation in code goes through `useGuardedRouter`, never a bare `useRouter().push`,
+  wherever it can leave such a page (the palette, menu actions).
 - **Copy:** terse sentence case, DJ vocabulary ("112 BPM", "D major (10B)",
   "B2", "LP-342"), no emoji in the UI. No page taglines: the header title and meta
   say what the page is.

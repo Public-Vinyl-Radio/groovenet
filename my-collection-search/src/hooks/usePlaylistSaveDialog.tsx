@@ -53,14 +53,15 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
     return refs;
   }, [getTrackRefs]);
 
-  // Main save handler - works for both new and existing playlists
+  // Main save handler - works for both new and existing playlists. Resolves
+  // whether it saved, so a caller leaving the page only leaves on success.
   const handleSave = React.useCallback(
-    async (finalName?: string) => {
+    async (finalName?: string): Promise<boolean> => {
       const tracksWithFriendId = getTracksWithFriendId();
 
       if (tracksWithFriendId.length === 0) {
         toaster.create({ title: "Cannot save empty playlist", type: "error" });
-        return;
+        return false;
       }
 
       try {
@@ -79,7 +80,7 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
               title: "Please enter a playlist name",
               type: "error",
             });
-            return;
+            return false;
           }
           // Create new playlist with tracks that have friend_id
           await importPlaylist(finalName.trim(), tracksWithFriendId);
@@ -92,18 +93,18 @@ export function usePlaylistSaveDialog(playlistId?: number, onSaved?: () => void)
         setOpen(false);
         setPlaylistName("");
         onSaved?.(); // Clear modified state
+        return true;
       } catch (error) {
         console.error("Failed to save playlist:", error);
         toaster.create({ title: "Failed to save playlist", type: "error" });
+        return false;
       }
     },
     [playlistId, getTracksWithFriendId, onSaved],
   );
 
   // For existing playlists, save directly without dialog
-  const saveExisting = React.useCallback(async () => {
-    await handleSave();
-  }, [handleSave]);
+  const saveExisting = React.useCallback(() => handleSave(), [handleSave]);
 
   // For new playlists, use dialog with name input
   const onConfirm = React.useCallback(

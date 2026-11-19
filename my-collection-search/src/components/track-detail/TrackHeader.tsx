@@ -1,13 +1,16 @@
 "use client";
 
-import React from "react";
-import { Box, Flex, Text, useBreakpointValue } from "@chakra-ui/react";
+import React, { useState } from "react";
+import { Box, Button, chakra, Flex, Text, useBreakpointValue } from "@chakra-ui/react";
+import { FiStar } from "react-icons/fi";
 import { MetaTag } from "@/components/ui/RoleTags";
 import AlbumLink from "@/components/AlbumLink";
 import ArtistLink from "@/components/ArtistLink";
-import { ArtworkPlay, NotesIndicator } from "@/components/TrackResult";
+import { ArtworkPlay, NotesIndicator, RatingStars } from "@/components/TrackResult";
+import TrackRatingDialog from "@/components/TrackRatingDialog";
 import TrackGenresSection from "@/components/track-detail/TrackGenresSection";
 import { useTrack } from "@/hooks/useTrack";
+import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { trackPositionFact } from "@/lib/albumTrackPosition";
 import { camelotDotColor, camelotOf, parseBpm } from "@/lib/mixCompat";
 import { formatSeconds, getTrackDurationSeconds } from "@/lib/trackUtils";
@@ -191,6 +194,81 @@ function Facts({ track }: { track: Track }) {
 }
 
 /**
+ * The track's rating, always shown on its page (#1231): the stars a card reveals on
+ * hover, here at rest, with Clear once rated; on phones one tap opens the same
+ * `TrackRatingDialog` a card's ★4 does. Both save through `saveTrack`, which patches
+ * the store, so every row and card showing the track updates too. A friend's track
+ * is rated like it is on a card: cards don't gate the rating on whose track it is.
+ */
+export function TrackHeaderRating({ track, mobile }: { track: Track; mobile: boolean }) {
+  const { saveTrack } = useTracksQuery();
+  const [open, setOpen] = useState(false);
+  const value = track.star_rating ?? 0;
+  const rate = (next: number) => {
+    void saveTrack({ track_id: track.track_id, friend_id: track.friend_id, star_rating: next });
+  };
+
+  if (mobile) {
+    return (
+      <>
+        <chakra.button
+          type="button"
+          data-testid="track-header-rating"
+          aria-label={value > 0 ? `Rated ${value} of 5, change rating` : "Not rated, rate track"}
+          onClick={() => setOpen(true)}
+          alignSelf="flex-start"
+          display="inline-flex"
+          alignItems="center"
+          gap="2px"
+          minH="44px"
+          // The stars are drawn small; the button keeps the 44px hit area.
+          my="-10px"
+          color={value > 0 ? "accent.fg" : "fg.muted"}
+        >
+          {[1, 2, 3, 4, 5].map((star) => (
+            <FiStar
+              key={star}
+              size={16}
+              aria-hidden="true"
+              fill={star <= value ? "currentColor" : "none"}
+            />
+          ))}
+          {value === 0 && (
+            <Text as="span" ms={1.5} fontSize="13px" lineHeight="18px">
+              Not rated
+            </Text>
+          )}
+        </chakra.button>
+        {open && (
+          <TrackRatingDialog open={open} onOpenChange={setOpen} value={value} onChange={rate} />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <Flex data-testid="track-header-rating" align="center" gap={2} minH="24px">
+      <RatingStars value={value} onChange={rate} size="sm" alwaysVisible />
+      {value > 0 ? (
+        <Button
+          size="xs"
+          variant="ghost"
+          color="fg.muted"
+          aria-label="Clear rating"
+          onClick={() => rate(0)}
+        >
+          Clear
+        </Button>
+      ) : (
+        <Text as="span" fontSize="13px" color="fg.muted">
+          Not rated
+        </Text>
+      )}
+    </Flex>
+  );
+}
+
+/**
  * The track identity card: one outlined card with the artwork, artist and genres on
  * the left and the facts (BPM, key, duration, side or track number) beside them
  * or, narrow, as a strip. Below `md` the phone bar reads "Track", so the card's
@@ -338,6 +416,9 @@ export default function TrackHeader({
               onOpenChange={onFileInfoOpenChange}
             />
           )}
+          <Box mt={1}>
+            <TrackHeaderRating track={track} mobile={isMobile} />
+          </Box>
         </Flex>
 
         <Box
@@ -347,7 +428,9 @@ export default function TrackHeader({
           css={{
             gridArea: "genres",
             padding: "10px 12px",
-            [wide]: { padding: "8px 20px 0", borderTopWidth: 0 },
+            // The bottom matches the cover's 20px margin, so the last genre row never
+            // meets the card's border (#1231).
+            [wide]: { padding: "8px 20px 0", paddingBottom: "5", borderTopWidth: 0 },
           }}
         >
           <TrackGenresSection trackId={trackId} friendId={friendId} fallbackTrack={fallbackTrack} />

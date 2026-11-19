@@ -3,6 +3,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
+import type { RankingProfileEntry } from "@groovenet/contracts";
 import PlaylistActionsMenu from "./PlaylistActionsMenu";
 
 const handlers = () => ({
@@ -18,6 +19,18 @@ const handlers = () => ({
 
 afterEach(() => vi.clearAllMocks());
 
+const profile = (id: string, name: string) =>
+  ({ id, name, kind: "preset", surfaces: [], description: "" }) as unknown as RankingProfileEntry;
+const ordering = {
+  value: "selector",
+  options: [
+    profile("default", "Default"),
+    profile("beatmatcher", "Beatmatcher"),
+    profile("selector", "Selector"),
+  ],
+  onChange: vi.fn(),
+};
+
 async function openModal(props: Partial<React.ComponentProps<typeof PlaylistActionsMenu>> = {}) {
   const h = handlers();
   const rendered = renderWithProviders(
@@ -31,10 +44,28 @@ async function openModal(props: Partial<React.ComponentProps<typeof PlaylistActi
 }
 
 describe("PlaylistActionsMenu phone modal (#751)", () => {
-  it("shows the ordering picker with the sort actions (#1193)", async () => {
-    await openModal({ orderingPicker: <label htmlFor="x">Order by picker</label> });
-    expect(screen.getByText("Order by picker")).toBeTruthy();
-    expect(screen.getByText("Sort")).toBeTruthy();
+  it("puts Order by over the two sorts that use it, and Greedy apart (#1193, #1231)", async () => {
+    const onChange = vi.fn();
+    const { user } = await openModal({ ordering: { ...ordering, onChange } });
+    const picker = screen.getByLabelText("Order by") as HTMLSelectElement;
+    expect(picker.value).toBe("selector");
+    await user.selectOptions(picker, "beatmatcher");
+    expect(onChange).toHaveBeenCalledWith("beatmatcher");
+
+    const sortGroup = screen.getByText("Sort").parentElement as HTMLElement;
+    expect(sortGroup.contains(picker)).toBe(true);
+    expect(sortGroup.textContent).toContain("Genetic order");
+    expect(sortGroup.textContent).toContain("Cohesive blocks");
+    expect(sortGroup.textContent).not.toContain("Greedy order");
+    expect((screen.getByText("More").parentElement as HTMLElement).textContent).toContain(
+      "Greedy order",
+    );
+  });
+
+  it("has no view choice: phones always show cards (#1231)", async () => {
+    await openModal({ ordering, view: { value: "row", onChange: vi.fn() } });
+    expect(screen.queryByText("View")).toBeNull();
+    expect(screen.queryByText("List")).toBeNull();
   });
 
   it("shows the summary and title, and runs the tiles", async () => {
@@ -156,4 +187,64 @@ it("offers Create set in the desktop menu only when a handler is given", async (
     screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
   );
   expect(screen.queryByRole("menuitem", { name: /Create set/, hidden: true })).toBeNull();
+});
+
+describe("PlaylistActionsMenu desktop: order and view in the menu (#1231)", () => {
+  const desktopTrigger = () =>
+    screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1];
+
+  it("names the current profile on the Order by item, above Genetic and Cohesive", async () => {
+    const { user } = renderWithProviders(
+      <PlaylistActionsMenu {...handlers()} ordering={ordering} />,
+    );
+    await user.click(desktopTrigger());
+    const trigger = await screen.findByTestId("order-by-trigger");
+    expect(trigger.textContent).toContain("Order by: Selector");
+    const items = screen.getAllByRole("menuitem", { hidden: true }).map((el) => el.textContent);
+    const at = (label: RegExp) => items.findIndex((text) => label.test(text ?? ""));
+    expect(at(/Greedy Order/)).toBeLessThan(at(/Order by/));
+    expect(at(/Order by/)).toBeLessThan(at(/Genetic Order/));
+    expect(at(/Genetic Order/)).toBeLessThan(at(/Cohesive Blocks/));
+  });
+
+  it("chooses a profile from the Order by submenu", async () => {
+    const onChange = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistActionsMenu {...handlers()} ordering={{ ...ordering, onChange }} />,
+    );
+    await user.click(desktopTrigger());
+    await user.click(await screen.findByTestId("order-by-trigger"));
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /Beatmatcher/, hidden: true }),
+    );
+    expect(onChange).toHaveBeenCalledWith("beatmatcher");
+  });
+
+  it("switches the view from the menu", async () => {
+    const onChange = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistActionsMenu {...handlers()} view={{ value: "row", onChange }} />,
+    );
+    await user.click(desktopTrigger());
+    const list = await screen.findByRole("menuitemradio", { name: /List/, hidden: true });
+    expect(list.getAttribute("aria-checked")).toBe("true");
+    await user.click(screen.getByRole("menuitemradio", { name: /Grid/, hidden: true }));
+    expect(onChange).toHaveBeenCalledWith("card");
+  });
+
+  it("leaves out Order by and View when not given", async () => {
+    const { user } = renderWithProviders(<PlaylistActionsMenu {...handlers()} />);
+    await user.click(desktopTrigger());
+    await screen.findByRole("menuitem", { name: /Greedy Order/, hidden: true });
+    expect(screen.queryByTestId("order-by-trigger")).toBeNull();
+    expect(screen.queryByRole("menuitemradio", { hidden: true })).toBeNull();
+  });
+});
+
+it("reads plain Order by when the chosen profile isn't among the options (#1231)", async () => {
+  const { user } = renderWithProviders(
+    <PlaylistActionsMenu {...handlers()} ordering={{ ...ordering, value: "gone" }} />,
+  );
+  await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
+  expect((await screen.findByTestId("order-by-trigger")).textContent).toBe("Order by");
 });

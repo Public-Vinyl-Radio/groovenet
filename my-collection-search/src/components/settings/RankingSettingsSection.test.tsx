@@ -296,10 +296,13 @@ describe("RankingSettingsSection", () => {
     expect(await screen.findByRole("button", { name: "Default", pressed: true })).toBeTruthy();
   });
 
-  it("deletes a profile", async () => {
+  it("asks before the editor's Delete profile removes anything", async () => {
     const { user } = renderWithProviders(<RankingSettingsSection />);
     await screen.findByRole("button", { name: "Peak time" });
     await user.click(screen.getByRole("button", { name: "Delete profile" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(mocks.remove).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("7", expect.anything()));
   });
 
@@ -365,5 +368,72 @@ describe("RankingSettingsSection", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("ranking-editor")).toBeTruthy();
     expect(profileToDraft(RANKING_PRESETS.selector).name).toBe("Selector");
+  });
+});
+
+describe("RankingSettingsSection: deleting a custom profile from its row (#1231)", () => {
+  it("offers Delete on custom rows only, never on a preset", async () => {
+    renderWithProviders(<RankingSettingsSection />);
+    await screen.findByRole("button", { name: "Peak time" });
+    expect(screen.getByRole("button", { name: "Delete Peak time" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete Old" })).toBeTruthy();
+    for (const preset of PRESET_LIST) {
+      expect(screen.queryByRole("button", { name: `Delete ${preset.name}` })).toBeNull();
+    }
+  });
+
+  it("names the profile and where it is used, and Cancel keeps it", async () => {
+    const { user } = renderWithProviders(<RankingSettingsSection />);
+    await user.click(await screen.findByRole("button", { name: "Delete Peak time" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog.textContent).toContain("Delete Peak time?");
+    expect(dialog.textContent).toContain("It is used for suggestions, which go back to Default.");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Peak time" })).toBeTruthy();
+  });
+
+  it("says when the profile isn't used anywhere", async () => {
+    const { user } = renderWithProviders(<RankingSettingsSection />);
+    await user.click(await screen.findByRole("button", { name: "Delete Old" }));
+    expect((await screen.findByRole("alertdialog")).textContent).toContain(
+      "It isn’t used anywhere.",
+    );
+  });
+
+  it("deletes on confirm and refreshes the list", async () => {
+    const { user } = renderWithProviders(<RankingSettingsSection />);
+    await user.click(await screen.findByRole("button", { name: "Delete Peak time" }));
+    const calls = mocks.list.mock.calls.length;
+    response = {
+      ...response,
+      profiles: response.profiles.filter((p) => p.id !== "7"),
+      active: { ...response.active, suggestions: "default" },
+    };
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
+    );
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("7", expect.anything()));
+    await waitFor(() => expect(mocks.list.mock.calls.length).toBeGreaterThan(calls));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Peak time" })).toBeNull());
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("deletes another row without moving the editor off its profile", async () => {
+    const { user } = renderWithProviders(<RankingSettingsSection />);
+    await screen.findByRole("button", { name: "Peak time" });
+    await user.click(screen.getByRole("button", { name: "Delete Old" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
+    );
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("8", expect.anything()));
+    expect(within(screen.getByTestId("ranking-editor")).getByText("Peak time")).toBeTruthy();
+  });
+
+  it("names each profile as the way into the editor", async () => {
+    renderWithProviders(<RankingSettingsSection />);
+    const name = await screen.findByRole("button", { name: "Peak time" });
+    expect(name.getAttribute("title")).toBe("Open Peak time in the editor");
   });
 });

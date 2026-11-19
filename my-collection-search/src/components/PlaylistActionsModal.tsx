@@ -23,9 +23,12 @@ type Props = {
   onDuplicate?: () => void;
   /** Shown as a button in the strip. */
   onRename?: () => void;
+  /** The sorts that order by a ranking profile: Genetic and Cohesive. */
   sort: ModalAction[];
   /** Above the sort actions: the ranking profile they order by (#1193). */
   sortHeader?: React.ReactNode;
+  /** Greedy order (no profile), Suggestions, Create set. */
+  more?: ModalAction[];
   exportImport: ModalAction[];
 };
 
@@ -41,6 +44,7 @@ export default function PlaylistActionsModal({
   onRename,
   sort,
   sortHeader,
+  more = [],
   exportImport,
 }: Props) {
   const close = () => onOpenChange(false);
@@ -89,6 +93,7 @@ export default function PlaylistActionsModal({
     >
       <TileRow tiles={tiles} onDone={close} />
       <Group label="Sort" actions={sort} onDone={close} header={sortHeader} />
+      <Group label="More" actions={more} onDone={close} />
       <Group label="Export & import" actions={exportImport} onDone={close} />
     </RetroDialog>
   );

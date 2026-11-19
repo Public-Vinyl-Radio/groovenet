@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders, setViewportWidth } from "@/test/renderWithProviders";
 
 const modalProps = vi.hoisted(() => vi.fn());
@@ -225,7 +225,7 @@ describe("TrackPage username attribution", () => {
 });
 
 describe("TrackPage header meta", () => {
-  it("puts the library ID, duration, BPM and key on the title line, only on desktop", () => {
+  it("shows each fact once: no meta on the title, the card holds them (#1231)", () => {
     queries.trackQuery.data = {
       track_id: "t1",
       friend_id: 6,
@@ -236,7 +236,34 @@ describe("TrackPage header meta", () => {
       key: "A minor",
     };
     renderWithProviders(<TrackPage />);
-    expect(screen.getByTestId("page-header-meta").textContent).toBe("LP-322 · 4:12 · 124 BPM · 8A");
+    expect(screen.queryByTestId("page-header-meta")).toBeNull();
+  });
+
+  it("ends the trail at the album, which stays a link, and names the track only in the h1", () => {
+    queries.trackQuery.data = {
+      track_id: "t1",
+      friend_id: 6,
+      title: "Song",
+      release_id: "r9",
+      album: "Blue Lines",
+    };
+    renderWithProviders(<TrackPage />);
+    const trail = screen.getByTestId("page-header-breadcrumbs");
+    expect(trail.textContent).toBe("Tracks/Blue Lines");
+    expect(within(trail).getByRole("link", { name: "Blue Lines", hidden: true })).toBeTruthy();
+    expect(trail.querySelector("[aria-current]")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Back to Blue Lines", hidden: true }).getAttribute("href"),
+    ).toBe("/albums/r9?friend_id=6");
+  });
+
+  it("trails just Tracks for a track with no album", () => {
+    queries.trackQuery.data = { track_id: "t1", friend_id: 6, title: "Song" };
+    renderWithProviders(<TrackPage />);
+    expect(screen.getByTestId("page-header-breadcrumbs").textContent).toBe("Tracks");
+    expect(
+      screen.getByRole("link", { name: "Back to Tracks", hidden: true }).getAttribute("href"),
+    ).toBe("/tracks");
   });
 });
 

@@ -41,7 +41,10 @@ export function InAppNavigationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onPop = () => {
-      popped.current = true;
+      // A pop that stays on this page (an unsaved-changes guard's own entry,
+      // #1231) changes no location, so it is no step back either.
+      const here = `${window.location.pathname}?${new URLSearchParams(window.location.search)}`;
+      if (here !== lastLocation.current) popped.current = true;
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);

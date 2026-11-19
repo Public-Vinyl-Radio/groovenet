@@ -156,6 +156,21 @@ describe("TrackActionsMenu on a track card (#722)", () => {
   });
 });
 
+describe("TrackActionsMenu on the track page header (#1231)", () => {
+  it("gives the prominent header menu's phone sheet the Rating row too", async () => {
+    const rendered = renderWithProviders(
+      <TrackActionsMenu track={{ ...trackMinimal, star_rating: 3 }} prominent />,
+    );
+    await rendered.user.click(
+      screen.getAllByRole("button", { name: "Track actions", hidden: true })[0],
+    );
+    await screen.findByText("Playlist");
+    expect(screen.getByText("Rating")).toBeTruthy();
+    await rendered.user.click(screen.getAllByRole("radio", { hidden: true })[0]);
+    expect(mocks.saveTrack).toHaveBeenCalledWith({ track_id: "t2", friend_id: 7, star_rating: 1 });
+  });
+});
+
 describe("TrackActionsMenu desktop dropdown — conditional items", () => {
   it("shows Play and Remove Audio only when the track has local audio", async () => {
     const { user, menuButton } = setup(trackWithEverything);

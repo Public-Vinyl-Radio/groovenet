@@ -29,7 +29,18 @@ export type PlaylistOrderingOptions = {
   rankingProfileId?: string;
   /** The library that profile belongs to. */
   friendId?: number;
+  /**
+   * Told when a change reached the server: removing or adding a track saves the
+   * whole list as it stands, so nothing local is left unsaved after it (#1231).
+   */
+  onPersisted?: () => void;
 };
+
+/** A local change awaiting Save: the order moved, or a track went in. */
+export type PlaylistChange = "order" | "insert";
+
+/** How the order was last sorted: `greedy` on the client, or an optimiser mode. */
+export type PlaylistSortMethod = "greedy" | PlaylistOptimizerMode;
 
 /** What analytics may say about the profile that ordered a playlist: its preset id, or `custom`. */
 const orderedByAnalyticsId = (ranking: RankingApplied) =>
@@ -41,7 +52,7 @@ const orderedByAnalyticsId = (ranking: RankingApplied) =>
  */
 export function usePlaylistMutations(
   playlistId?: number,
-  onModified?: () => void,
+  onModified?: (change: PlaylistChange) => void,
   ordering: PlaylistOrderingOptions = {},
 ) {
   const queryClient = useQueryClient();
@@ -51,6 +62,7 @@ export function usePlaylistMutations(
   >({});
   // The profile that ordered the playlist, until anything reorders it (#1193).
   const [orderedBy, setOrderedBy] = useState<RankingApplied | null>(null);
+  const [sortMethod, setSortMethod] = useState<PlaylistSortMethod | null>(null);
 
   // Get current track refs (track_id + friend_id) from cache
   type TrackRef = { track_id: string; friend_id: number };
@@ -110,6 +122,7 @@ export function usePlaylistMutations(
   const clearSortPositionChanges = () => {
     setSortPositionChanges({});
     setOrderedBy(null);
+    setSortMethod(null);
   };
 
   const getPositionChangeKey = (ref: TrackRef, index: number) =>
@@ -152,7 +165,7 @@ export function usePlaylistMutations(
     newRefs.splice(toIdx, 0, moved);
 
     updateTrackRefs(newRefs);
-    onModified?.(); // Mark as modified
+    onModified?.("order");
   };
 
   // Insert a track at an index (appended when the index is past the end). Local until saved.
@@ -164,7 +177,7 @@ export function usePlaylistMutations(
     const newRefs = [...trackRefs];
     newRefs.splice(at, 0, { track_id: track.track_id, friend_id: track.friend_id });
     updateTrackRefs(newRefs);
-    onModified?.();
+    onModified?.("insert");
   };
 
   // Mutation for removing a single track instance from playlist by index
@@ -182,7 +195,7 @@ export function usePlaylistMutations(
     },
     onSuccess: (newRefs) => {
       updateTrackRefs(newRefs);
-      onModified?.(); // Mark as modified
+      ordering.onPersisted?.();
       toaster.create({ title: "Track removed from playlist", type: "success" });
     },
     onError: (error) => {
@@ -205,7 +218,7 @@ export function usePlaylistMutations(
     },
     onSuccess: (newRefs, track) => {
       updateTrackRefs(newRefs);
-      onModified?.(); // Mark as modified
+      ordering.onPersisted?.();
       toaster.create({ title: `"${track.title}" added to playlist`, type: "success" });
     },
     onError: (error) => {
@@ -281,8 +294,9 @@ export function usePlaylistMutations(
 
     setSortPositionChanges(buildPositionChanges(previousRefs, sortedTrackRefs));
     setOrderedBy(null);
+    setSortMethod("greedy");
     updateTrackRefs(sortedTrackRefs);
-    onModified?.(); // Mark as modified
+    onModified?.("order");
 
     analytics.track("playlist_sorted", {
       playlist_id: playlistId,
@@ -329,8 +343,9 @@ export function usePlaylistMutations(
         }));
         setSortPositionChanges(buildPositionChanges(previousRefs, sortedTrackRefs));
         setOrderedBy(ranking);
+        setSortMethod(mode);
         updateTrackRefs(sortedTrackRefs);
-        onModified?.(); // Mark as modified
+        onModified?.("order");
 
         analytics.track("playlist_sorted", {
           playlist_id: playlistId,
@@ -395,5 +410,8 @@ export function usePlaylistMutations(
       optimizerMutation.isPending && optimizerMutation.variables === "cohesive_blocks",
     sortPositionChanges,
     orderedBy,
+    sortMethod,
+    /** Forgets the sort's markers and profile, for Discard (the caller refetches the list). */
+    resetLocalChanges: clearSortPositionChanges,
   };
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Menu, Box, Flex } from "@chakra-ui/react";
+import { Button, Menu, Box, Flex, Portal } from "@chakra-ui/react";
+import type { RankingProfileEntry } from "@groovenet/contracts";
 import { menuDivider } from "@/components/ui/action-menu-primitives";
 import PlaylistActionsModal from "@/components/PlaylistActionsModal";
+import RankingProfilePicker from "@/components/RankingProfilePicker";
+import type { TrackViewMode } from "@/hooks/useTrackViewMode";
 import {
   FiCalendar,
+  FiChevronRight,
   FiCopy,
   FiEdit,
   FiLayers,
@@ -38,9 +42,29 @@ export interface PlaylistActionsMenuProps {
   playlistName?: string;
   /** The strip's catalogue line on phones: `tracks · total time`. */
   summary?: string;
-  /** The ranking profile picker for the optimisers (#1193), shown with Sort on phones. */
-  orderingPicker?: React.ReactNode;
+  /**
+   * The ranking profile Genetic and Cohesive order by (#1193). Chosen where you
+   * sort, beside the two modes that send it, never in the page header (#1231).
+   */
+  ordering?: {
+    value: string;
+    options: RankingProfileEntry[];
+    onChange: (profileId: string) => void;
+  };
+  /**
+   * List or Grid, chosen from the menu on desktop (#1231). Phones always show
+   * cards (`useTrackViewMode`), so the sheet has no view choice to offer.
+   */
+  view?: { value: TrackViewMode; onChange: (mode: TrackViewMode) => void };
 }
+
+const groupLabel = {
+  fontFamily: "label",
+  fontSize: "11px",
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  color: "fg.muted",
+} as const;
 
 export default function PlaylistActionsMenu({
   disabled,
@@ -60,9 +84,11 @@ export default function PlaylistActionsMenu({
   isCohesiveBlocksSorting,
   playlistName,
   summary = "",
-  orderingPicker,
+  ordering,
+  view,
 }: PlaylistActionsMenuProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const orderingName = ordering?.options.find((profile) => profile.id === ordering.value)?.name;
 
   return (
     <>
@@ -89,9 +115,19 @@ export default function PlaylistActionsMenu({
           onSave={onOpenSaveDialog}
           onDuplicate={onDuplicate}
           onRename={onRename}
-          sortHeader={orderingPicker}
+          // The picker sits over the two modes that order by it; Greedy doesn't.
+          sortHeader={
+            ordering && (
+              <RankingProfilePicker
+                id="playlist-order-phone"
+                label="Order by"
+                value={ordering.value}
+                options={ordering.options}
+                onChange={ordering.onChange}
+              />
+            )
+          }
           sort={[
-            { label: "Greedy order", onClick: onSortGreedy },
             {
               label: isGeneticSorting ? "Sorting..." : "Genetic order",
               disabled: isGeneticSorting,
@@ -102,6 +138,9 @@ export default function PlaylistActionsMenu({
               disabled: isCohesiveBlocksSorting,
               onClick: onSortCohesiveBlocks,
             },
+          ]}
+          more={[
+            { label: "Greedy order", onClick: onSortGreedy },
             ...(onOpenRecommendations
               ? [{ label: "Suggestions", onClick: onOpenRecommendations }]
               : []),
@@ -138,6 +177,40 @@ export default function PlaylistActionsMenu({
               <Menu.Item value="sort-greedy" onSelect={onSortGreedy}>
                 <GiTakeMyMoney /> Greedy Order
               </Menu.Item>
+              {/* The profile Genetic and Cohesive order by, right above them; it
+                  stays open on a choice, so the sort is the next click. */}
+              {ordering && (
+                <Menu.Root positioning={{ placement: "right-start", gutter: 2 }}>
+                  <Menu.TriggerItem data-testid="order-by-trigger">
+                    <Box as="span" flex="1">
+                      Order by{orderingName ? `: ${orderingName}` : ""}
+                    </Box>
+                    <FiChevronRight aria-hidden="true" />
+                  </Menu.TriggerItem>
+                  <Portal>
+                    <Menu.Positioner>
+                      <Menu.Content minW="200px">
+                        <Menu.RadioItemGroup
+                          value={ordering.value}
+                          onValueChange={(details) => ordering.onChange(details.value)}
+                        >
+                          <Menu.ItemGroupLabel {...groupLabel}>Order by</Menu.ItemGroupLabel>
+                          {ordering.options.map((profile) => (
+                            <Menu.RadioItem
+                              key={profile.id}
+                              value={profile.id}
+                              closeOnSelect={false}
+                            >
+                              {profile.name}
+                              <Menu.ItemIndicator />
+                            </Menu.RadioItem>
+                          ))}
+                        </Menu.RadioItemGroup>
+                      </Menu.Content>
+                    </Menu.Positioner>
+                  </Portal>
+                </Menu.Root>
+              )}
               <Menu.Item value="sort-genetic" onSelect={onSortGenetic} disabled={isGeneticSorting}>
                 <PiDna /> {isGeneticSorting ? "Sorting..." : "Genetic Order"}
               </Menu.Item>
@@ -157,6 +230,25 @@ export default function PlaylistActionsMenu({
                 <Menu.Item value="create-set" onSelect={onCreateSet}>
                   <FiCalendar /> Create set
                 </Menu.Item>
+              )}
+              {view && (
+                <>
+                  {menuDivider}
+                  <Menu.RadioItemGroup
+                    value={view.value}
+                    onValueChange={(details) => view.onChange(details.value as TrackViewMode)}
+                  >
+                    <Menu.ItemGroupLabel {...groupLabel}>View</Menu.ItemGroupLabel>
+                    <Menu.RadioItem value="row">
+                      List
+                      <Menu.ItemIndicator />
+                    </Menu.RadioItem>
+                    <Menu.RadioItem value="card">
+                      Grid
+                      <Menu.ItemIndicator />
+                    </Menu.RadioItem>
+                  </Menu.RadioItemGroup>
+                </>
               )}
               {menuDivider}
               <Menu.Item value="export-json" onSelect={onExportJson}>
