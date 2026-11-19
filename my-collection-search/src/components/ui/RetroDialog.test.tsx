@@ -132,4 +132,18 @@ describe("useRunAfterClose (#1234)", () => {
     await waitFor(() => expect(fn).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("closes with nothing queued when dismissed another way", async () => {
+    function Host() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <RetroDialog open={open} onOpenChange={setOpen} title="Menu">
+          <p>Body</p>
+        </RetroDialog>
+      );
+    }
+    const { user } = renderWithProviders(<Host />);
+    await user.click(await screen.findByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
 });
