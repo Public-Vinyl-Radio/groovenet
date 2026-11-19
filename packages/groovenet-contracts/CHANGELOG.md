@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.9.0...groovenet-contracts-v1.10.0) (2026-11-19)
+
+
+### Features
+
+* **ga-service:** order playlists by the active ranking profile ([#1207](https://github.com/Public-Vinyl-Radio/groovenet/issues/1207)) ([32e2e3a](https://github.com/Public-Vinyl-Radio/groovenet/commit/32e2e3af4c46bc82d674001bf495242864c1c872))
+* **ranking:** export, import and share ranking profiles ([#1208](https://github.com/Public-Vinyl-Radio/groovenet/issues/1208)) ([2e71761](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e71761d05f53a626cb884d51a8d9d1d95aef28d))
+* **ranking:** normalise similarity signals within the candidate pool ([#1221](https://github.com/Public-Vinyl-Radio/groovenet/issues/1221)) ([ec2e50a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ec2e50a91906e6a1f5545b0a20b7bd082f0338bf))
+* **ranking:** one ranker contract with per-signal score breakdown ([#1198](https://github.com/Public-Vinyl-Radio/groovenet/issues/1198)) ([ac5132a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ac5132a6e6cf683ccf245e2f3e59b6a5af480518))
+* **ranking:** ranking profiles with Beatmatcher and Selector presets ([#1199](https://github.com/Public-Vinyl-Radio/groovenet/issues/1199)) ([81b68f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/81b68f541f40fa0e6b82ce8897ccbdd0749a098b))
+* **tracks:** show file genre and an owner-only lyrics panel ([#1176](https://github.com/Public-Vinyl-Radio/groovenet/issues/1176)) ([b305cd6](https://github.com/Public-Vinyl-Radio/groovenet/commit/b305cd6addc2e8028416ce6f2d882a43183cff3a))
+
+
+### Bug Fixes
+
+* **ingest:** retryable response for an incomplete upload ([#1227](https://github.com/Public-Vinyl-Radio/groovenet/issues/1227)) ([17901aa](https://github.com/Public-Vinyl-Radio/groovenet/commit/17901aadcf3e5383da4e941c75f3a43251f38468))
+* **ranking:** Camelot key rule reads stored key spellings ([#1220](https://github.com/Public-Vinyl-Radio/groovenet/issues/1220)) ([29534d1](https://github.com/Public-Vinyl-Radio/groovenet/commit/29534d1e3e894f6a8f253fe985abec9f2d7b00b7))
+
 ## [1.9.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.8.0...groovenet-contracts-v1.9.0) (2026-11-11)
 
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.15.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.14.0...groovenet-cli-v3.15.0) (2026-11-19)
+
+
+### Features
+
+* **cli:** file genre and lyrics in embedding eval exports ([#1170](https://github.com/Public-Vinyl-Radio/groovenet/issues/1170) eval: no-go) ([#1184](https://github.com/Public-Vinyl-Radio/groovenet/issues/1184)) ([8bf1944](https://github.com/Public-Vinyl-Radio/groovenet/commit/8bf19446e8deb6ea3c2bd55a96ad7bf067ff405a))
+* **ga-service:** order playlists by the active ranking profile ([#1207](https://github.com/Public-Vinyl-Radio/groovenet/issues/1207)) ([32e2e3a](https://github.com/Public-Vinyl-Radio/groovenet/commit/32e2e3af4c46bc82d674001bf495242864c1c872))
+* **ranking:** export, import and share ranking profiles ([#1208](https://github.com/Public-Vinyl-Radio/groovenet/issues/1208)) ([2e71761](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e71761d05f53a626cb884d51a8d9d1d95aef28d))
+* **ranking:** normalise similarity signals within the candidate pool ([#1221](https://github.com/Public-Vinyl-Radio/groovenet/issues/1221)) ([ec2e50a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ec2e50a91906e6a1f5545b0a20b7bd082f0338bf))
+* **ranking:** ranking profiles with Beatmatcher and Selector presets ([#1199](https://github.com/Public-Vinyl-Radio/groovenet/issues/1199)) ([81b68f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/81b68f541f40fa0e6b82ce8897ccbdd0749a098b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.13.0 to ^3.14.0
+    * @groovenet/contracts bumped from 1.9.0 to 1.10.0
+    * @groovenet/player bumped from 0.1.13 to 0.1.14
+
 ## [3.14.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.13.0...groovenet-cli-v3.14.0) (2026-11-11)
 
 
