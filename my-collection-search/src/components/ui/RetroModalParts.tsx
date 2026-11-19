@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Button, Link, Text, chakra } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+import { useRunAfterClose } from "@/components/ui/RetroDialog";
 
 export type ModalAction = {
   label: string;
@@ -74,6 +75,7 @@ export function ActionButton({
   danger?: boolean;
   onDone: () => void;
 }) {
+  const runAfterClose = useRunAfterClose();
   const style = {
     minH: "44px",
     px: "10px",
@@ -122,7 +124,8 @@ export function ActionButton({
       {...style}
       disabled={action.disabled}
       onClick={() => {
-        action.onClick?.();
+        // After the sheet has closed, so a dialog the action opens isn't dismissed with it.
+        if (action.onClick) runAfterClose(action.onClick);
         onDone();
       }}
     >
@@ -178,6 +181,7 @@ export type ModalTile = {
 
 /** Up to three primary tiles in one row; picking one runs it, then closes. */
 export function TileRow({ tiles, onDone }: { tiles: ModalTile[]; onDone: () => void }) {
+  const runAfterClose = useRunAfterClose();
   return (
     <Box
       display="grid"
@@ -193,7 +197,7 @@ export function TileRow({ tiles, onDone }: { tiles: ModalTile[]; onDone: () => v
           solid={tile.solid}
           href={tile.href}
           onClick={() => {
-            tile.onClick?.();
+            if (tile.onClick) runAfterClose(tile.onClick);
             onDone();
           }}
         />

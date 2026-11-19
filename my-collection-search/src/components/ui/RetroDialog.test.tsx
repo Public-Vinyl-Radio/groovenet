@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import RetroDialog, { RetroDialogTitle } from "./RetroDialog";
+import RetroDialog, { RetroDialogTitle, useRunAfterClose } from "./RetroDialog";
 
 function renderDialog(props: Partial<React.ComponentProps<typeof RetroDialog>> = {}) {
   const onOpenChange = vi.fn();
@@ -93,4 +93,43 @@ it("fills the phone viewport for editors and forwards their initial focus ref", 
   expect(getComputedStyle(dialog).maxWidth).toBe("none");
   expect(getComputedStyle(dialog).height).toBe("100%");
   expect(ref.current).toBe(screen.getByRole("button", { name: "Close" }));
+});
+
+describe("useRunAfterClose (#1234)", () => {
+  function Runner({ fn, close }: { fn: () => void; close?: () => void }) {
+    const runAfterClose = useRunAfterClose();
+    return (
+      <button
+        onClick={() => {
+          runAfterClose(fn);
+          close?.();
+        }}
+      >
+        Go
+      </button>
+    );
+  }
+
+  it("runs at once outside a dialog", async () => {
+    const fn = vi.fn();
+    const { user } = renderWithProviders(<Runner fn={fn} />);
+    await user.click(screen.getByRole("button", { name: "Go" }));
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for the dialog to finish closing, then runs once", async () => {
+    const fn = vi.fn();
+    function Host() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <RetroDialog open={open} onOpenChange={setOpen} title="Menu">
+          <Runner fn={fn} close={() => setOpen(false)} />
+        </RetroDialog>
+      );
+    }
+    const { user } = renderWithProviders(<Host />);
+    await user.click(await screen.findByRole("button", { name: "Go" }));
+    await waitFor(() => expect(fn).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

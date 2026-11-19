@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -59,14 +59,14 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
     expect(screen.getByText("02 / 05")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Move down" }));
-    expect(moveTrack).toHaveBeenCalledWith(1, 2);
+    await waitFor(() => expect(moveTrack).toHaveBeenCalledWith(1, 2));
   });
 
   it("moves up", async () => {
     const { user, moveTrack } = setup();
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Move up" }));
-    expect(moveTrack).toHaveBeenCalledWith(1, 0);
+    await waitFor(() => expect(moveTrack).toHaveBeenCalledWith(1, 0));
   });
 
   it("disables the arrow at either end", async () => {
@@ -91,17 +91,19 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
     const { user, removeFromPlaylist } = setup();
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Add to playlist" }));
-    expect(mocks.openForTrack).toHaveBeenCalledWith(track);
+    await waitFor(() => expect(mocks.openForTrack).toHaveBeenCalledWith(track));
 
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Fetch audio" }));
-    expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ track_id: "t1", friend_id: 7 }),
+    await waitFor(() =>
+      expect(mocks.analyzeTrackAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ track_id: "t1", friend_id: 7 }),
+      ),
     );
 
     await openModal(user);
     await user.click(screen.getByRole("button", { name: "Remove from playlist" }));
-    expect(removeFromPlaylist).toHaveBeenCalledWith(1);
+    await waitFor(() => expect(removeFromPlaylist).toHaveBeenCalledWith(1));
   });
 
   it("omits Fetch audio when the track has audio or no streaming link", async () => {
@@ -117,7 +119,7 @@ describe("PlaylistItemMenu phone modal (#751)", () => {
       "/tracks/t1/edit?friend_id=7",
     );
     await user.click(screen.getByRole("button", { name: "Suggest after this track" }));
-    expect(onSuggestAfter).toHaveBeenCalledWith(track);
+    await waitFor(() => expect(onSuggestAfter).toHaveBeenCalledWith(track));
   });
 });
 
@@ -128,7 +130,7 @@ describe("PlaylistItemMenu desktop dropdown", () => {
     await user.click(
       await screen.findByRole("menuitem", { name: /Suggest after this track/, hidden: true }),
     );
-    expect(onSuggestAfter).toHaveBeenCalledWith(track);
+    await waitFor(() => expect(onSuggestAfter).toHaveBeenCalledWith(track));
   });
 
   it("offers no suggest entry without a handler", async () => {

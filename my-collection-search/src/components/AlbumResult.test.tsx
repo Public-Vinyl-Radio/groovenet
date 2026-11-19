@@ -168,18 +168,22 @@ describe("AlbumResult full actions", () => {
       "/albums/rel/edit?friend_id=7",
     );
     await user.click(within(dialog).getByText("Add to queue"));
-    expect(playerMocks.appendToQueue).toHaveBeenCalledWith([
-      expect.objectContaining({ track_id: "a1" }),
-      expect.objectContaining({ track_id: "b1" }),
-    ]);
+    await waitFor(() =>
+      expect(playerMocks.appendToQueue).toHaveBeenCalledWith([
+        expect.objectContaining({ track_id: "a1" }),
+        expect.objectContaining({ track_id: "b1" }),
+      ]),
+    );
   });
 
   it("plays, downloads, enriches, opens cover and raw viewers, and asks before delete", async () => {
     let view = await openCardActions();
     await view.user.click(within(screen.getByRole("dialog")).getByText("Play"));
-    expect(playerMocks.replacePlaylist).toHaveBeenCalledWith(
-      [expect.objectContaining({ track_id: "a1" }), expect.objectContaining({ track_id: "b1" })],
-      { autoplay: true, startIndex: 0 },
+    await waitFor(() =>
+      expect(playerMocks.replacePlaylist).toHaveBeenCalledWith(
+        [expect.objectContaining({ track_id: "a1" }), expect.objectContaining({ track_id: "b1" })],
+        { autoplay: true, startIndex: 0 },
+      ),
     );
 
     view = await openCardActions();
@@ -189,7 +193,7 @@ describe("AlbumResult full actions", () => {
 
     view = await openCardActions();
     await view.user.click(within(screen.getByRole("dialog")).getByText("Enrich album"));
-    expect(routerPush).toHaveBeenCalledWith("/enrich");
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith("/enrich"));
 
     view = await openCardActions();
     await view.user.click(within(screen.getByRole("dialog")).getByText("Cover art"));

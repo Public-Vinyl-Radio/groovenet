@@ -237,7 +237,9 @@ describe("AlbumRecordCarePanel", () => {
 
     await user.click(within(dj).getAllByRole("button", { name: "Copy actions" })[0]);
     await user.click(await screen.findByRole("button", { name: /Remove copy/ }));
-    await screen.findByRole("alertdialog");
+    const confirm = await screen.findByRole("alertdialog");
+    // The prompt opens once the menu has closed; Esc is heard after focus has moved into it.
+    await waitFor(() => expect(confirm.contains(document.activeElement)).toBe(true));
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
 

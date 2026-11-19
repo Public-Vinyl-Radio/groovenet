@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -40,7 +40,7 @@ describe("Cover Art menu items (#494)", () => {
     await user.click(screen.getAllByRole("button", { name: trigger, hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: /Cover art/i, hidden: true }));
 
-    expect(onChangeArtwork).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onChangeArtwork).toHaveBeenCalledTimes(1));
   });
 
   it.each(menus)("%s: lists cover art in the dropdown", async (trigger, render) => {

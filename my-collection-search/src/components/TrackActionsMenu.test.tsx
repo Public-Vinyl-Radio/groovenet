@@ -3,7 +3,7 @@ import React from "react";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 import { PaletteScopeControls } from "@/test/PaletteScopeControls";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
 import type { Track } from "@/types/track";
 
@@ -142,7 +142,13 @@ describe("TrackActionsMenu on a track card (#722)", () => {
     expect(screen.getByText("Rating")).toBeTruthy();
     await rendered.user.click(screen.getByRole("radio", { name: "5 stars", hidden: true }));
 
-    expect(mocks.saveTrack).toHaveBeenCalledWith({ track_id: "t2", friend_id: 7, star_rating: 5 });
+    await waitFor(() =>
+      expect(mocks.saveTrack).toHaveBeenCalledWith({
+        track_id: "t2",
+        friend_id: 7,
+        star_rating: 5,
+      }),
+    );
   });
 
   it("has no rating row outside a card", async () => {
@@ -207,7 +213,7 @@ describe("TrackActionsMenu desktop dropdown — conditional items", () => {
     const onOpenFileInfo = vi.fn();
     const { user, menuButton, unmount } = setup(trackWithEverything, { onOpenFileInfo });
     await chooseMenuItem(user, menuButton, /^File info$/);
-    expect(onOpenFileInfo).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenFileInfo).toHaveBeenCalled());
     unmount();
     const second = setup(trackMinimal, { onOpenFileInfo });
     await second.user.click(second.menuButton);
@@ -222,7 +228,7 @@ describe("TrackActionsMenu desktop dropdown — conditional items", () => {
     const onOpenLyrics = vi.fn();
     const { user, menuButton } = setup(trackMinimal, { onOpenLyrics, hasLyrics });
     await chooseMenuItem(user, menuButton, new RegExp(`^${label}$`));
-    expect(onOpenLyrics).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenLyrics).toHaveBeenCalled());
   });
 
   it("has no Lyrics item without a handler (a friend's track)", async () => {
@@ -252,19 +258,19 @@ describe("TrackActionsMenu desktop dropdown — selecting an item", () => {
   it("opens the add-to-playlist dialog", async () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Add to Playlist/);
-    expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything);
+    await waitFor(() => expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything));
   });
 
   it("queues enrichment and navigates to /enrich", async () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Enrich Track/);
-    expect(mocks.push).toHaveBeenCalledWith("/enrich");
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/enrich"));
   });
 
   it("adds the track to the play queue", async () => {
     const { user, menuButton } = setup(trackWithEverything);
     await chooseMenuItem(user, menuButton, /Add to Queue/);
-    expect(mocks.appendToQueue).toHaveBeenCalledWith(trackWithEverything);
+    await waitFor(() => expect(mocks.appendToQueue).toHaveBeenCalledWith(trackWithEverything));
   });
 
   it("fetches audio from streaming links", async () => {
@@ -328,7 +334,7 @@ describe("TrackActionsMenu desktop dropdown — optional items", () => {
       onOpenTrackDebug: vi.fn(),
     });
     await chooseMenuItem(user, menuButton, /Cover Art/);
-    expect(onChangeArtwork).toHaveBeenCalled();
+    await waitFor(() => expect(onChangeArtwork).toHaveBeenCalled());
   });
 
   it("opens track debug from its item", async () => {
@@ -338,7 +344,7 @@ describe("TrackActionsMenu desktop dropdown — optional items", () => {
       onOpenTrackDebug,
     });
     await chooseMenuItem(user, menuButton, /Track Debug/);
-    expect(onOpenTrackDebug).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenTrackDebug).toHaveBeenCalled());
   });
 });
 
@@ -358,7 +364,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const onOpenFileInfo = vi.fn();
     const { user, unmount } = await openModal(trackWithEverything, { onOpenFileInfo });
     await user.click(screen.getByText("File info"));
-    expect(onOpenFileInfo).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenFileInfo).toHaveBeenCalled());
     unmount();
     await openModal(trackMinimal, { onOpenFileInfo });
     expect(screen.queryByText("File info")).toBeNull();
@@ -368,7 +374,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const onOpenLyrics = vi.fn();
     const { user, unmount } = await openModal(trackMinimal, { onOpenLyrics });
     await user.click(screen.getByText("Add lyrics"));
-    expect(onOpenLyrics).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenLyrics).toHaveBeenCalled());
     unmount();
     await openModal(trackMinimal, { onOpenLyrics, hasLyrics: true });
     expect(screen.getByText("Lyrics")).toBeTruthy();
@@ -472,10 +478,10 @@ describe("TrackActionsMenu phone modal (#735)", () => {
       onOpenTrackDebug,
     });
     await user.click(screen.getByText("Cover art..."));
-    expect(onChangeArtwork).toHaveBeenCalled();
+    await waitFor(() => expect(onChangeArtwork).toHaveBeenCalled());
     await user.click(trigger);
     await user.click(await screen.findByText("Track debug"));
-    expect(onOpenTrackDebug).toHaveBeenCalled();
+    await waitFor(() => expect(onOpenTrackDebug).toHaveBeenCalled());
   });
 
   it("closes from the close button", async () => {
@@ -565,7 +571,7 @@ describe("TrackActionsMenu phone modal (#735)", () => {
     const click = vi.spyOn(input, "click");
     const { user } = { user: (await import("@testing-library/user-event")).default.setup() };
     await user.click(screen.getByText("Upload audio"));
-    expect(click).toHaveBeenCalled();
+    await waitFor(() => expect(click).toHaveBeenCalled());
   });
 });
 
@@ -583,7 +589,7 @@ describe("track page palette actions", () => {
       startIndex: 0,
     });
     await user.click(screen.getByText("Palette: Add to playlist"));
-    expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything);
+    await waitFor(() => expect(mocks.openForTrack).toHaveBeenCalledWith(trackWithEverything));
   });
   it("omits play without audio and does not register card menus", () => {
     const { rerender } = renderWithProviders(
@@ -610,12 +616,12 @@ describe("TrackActionsMenu add to playlist", () => {
     const onAction = vi.fn();
     const { user, menuButton } = setup(trackMinimal, { onAddedToPlaylist, onAction });
     await chooseMenuItem(user, menuButton, /Add to Playlist/);
-    expect(mocks.openForTrack).toHaveBeenCalledWith(trackMinimal);
+    await waitFor(() => expect(mocks.openForTrack).toHaveBeenCalledWith(trackMinimal));
     // Opening (or cancelling) the picker reports nothing.
     expect(onAddedToPlaylist).not.toHaveBeenCalled();
     act(() => mocks.dialogOptions?.onAdded?.(trackMinimal, 12));
-    expect(onAddedToPlaylist).toHaveBeenCalledWith(12);
-    expect(onAction).toHaveBeenCalledWith("added_to_playlist");
+    await waitFor(() => expect(onAddedToPlaylist).toHaveBeenCalledWith(12));
+    await waitFor(() => expect(onAction).toHaveBeenCalledWith("added_to_playlist"));
   });
 
   it("is optional", () => {

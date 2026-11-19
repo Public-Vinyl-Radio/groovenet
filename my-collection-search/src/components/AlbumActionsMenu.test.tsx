@@ -110,7 +110,7 @@ describe("AlbumActionsMenu phone modal (#751)", () => {
   ])("runs %s and closes the modal", async (label, props) => {
     const { user } = await open(<AlbumActionsMenu {...props} />);
     await user.click(within(screen.getByRole("dialog")).getByText(label));
-    expect(Object.values(props)[0]).toHaveBeenCalled();
+    await waitFor(() => expect(Object.values(props)[0]).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
