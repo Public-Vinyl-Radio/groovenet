@@ -26,7 +26,7 @@ describe("SpinActionsMenu", () => {
 
     await chooseMenuItem(user, menuButton, /Edit spin/);
 
-    expect(onEdit).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onEdit).toHaveBeenCalledOnce());
   });
 
   it("edits from the phone modal", async () => {
@@ -35,7 +35,7 @@ describe("SpinActionsMenu", () => {
     await user.click(sheetButton);
     await user.click(await screen.findByText("Edit spin", { selector: "p" }));
 
-    expect(onEdit).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onEdit).toHaveBeenCalledOnce());
   });
 
   it("deletes from the sheet only once confirmed", async () => {
@@ -48,7 +48,7 @@ describe("SpinActionsMenu", () => {
     expect(onDelete).not.toHaveBeenCalled();
 
     await user.click(within(prompt).getByRole("button", { name: "Delete" }));
-    expect(onDelete).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
   });
 

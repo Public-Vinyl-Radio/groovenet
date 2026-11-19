@@ -1,9 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { createContext, useCallback, useContext, useRef } from "react";
 import { Dialog, Flex, IconButton, Portal } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import { retroDialog } from "@/app/houseStyle";
+
+const RunAfterCloseContext = createContext<((fn: () => void) => void) | null>(null);
+
+/**
+ * Returns `run(fn)`: inside a `RetroDialog`, `fn` waits until the dialog has finished closing;
+ * outside one it runs at once. A menu item that opens another dialog or sheet must use it: a
+ * layer mounted over a dialog that is still closing is dismissed when the old layer is removed
+ * (zag's layer stack dismisses everything nested above a removed layer), so it flashes and goes.
+ */
+export function useRunAfterClose(): (fn: () => void) => void {
+  return useContext(RunAfterCloseContext) ?? ((fn) => fn());
+}
 
 /** The accessible name of a dialog whose `header` is custom. */
 export const RetroDialogTitle = Dialog.Title;
@@ -51,107 +63,119 @@ export default function RetroDialog({
   footer,
   children,
 }: Props) {
+  const pending = useRef<(() => void) | null>(null);
+  const runAfterClose = useCallback((fn: () => void) => {
+    pending.current = fn;
+  }, []);
+  const onExitComplete = () => {
+    const fn = pending.current;
+    pending.current = null;
+    fn?.();
+  };
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(e) => dismissible && onOpenChange(e.open)}
-      closeOnEscape={dismissible}
-      closeOnInteractOutside={dismissible}
-      placement="center"
-      motionPreset="scale"
-      role={role}
-      initialFocusEl={initialFocusEl}
-      scrollBehavior="inside"
-    >
-      <Portal>
-        <Dialog.Backdrop css={retroDialog.backdrop} />
-        <Dialog.Positioner
-          css={
-            fullScreenOnMobile
-              ? {
-                  pt: {
-                    base: "env(safe-area-inset-top, 0px)",
-                    md: retroDialog.positioner.pt,
-                  },
-                  pb: {
-                    base: "env(safe-area-inset-bottom, 0px)",
-                    md: retroDialog.positioner.pb,
-                  },
-                  pl: { base: 0, md: retroDialog.positioner.pl },
-                  pr: { base: 0, md: retroDialog.positioner.pr },
-                }
-              : retroDialog.positioner
-          }
-        >
-          <Dialog.Content
-            css={{
-              ...retroDialog.content,
-              maxW: fullScreenOnMobile ? { base: "none", md: maxW } : maxW,
-            }}
-            height={fullScreenOnMobile ? { base: "100%", md: "auto" } : undefined}
-            width="100%"
-            minW={0}
-            display="flex"
-            flexDirection="column"
-            overflow="hidden"
+    <RunAfterCloseContext.Provider value={runAfterClose}>
+      <Dialog.Root
+        open={open}
+        onExitComplete={onExitComplete}
+        onOpenChange={(e) => dismissible && onOpenChange(e.open)}
+        closeOnEscape={dismissible}
+        closeOnInteractOutside={dismissible}
+        placement="center"
+        motionPreset="scale"
+        role={role}
+        initialFocusEl={initialFocusEl}
+        scrollBehavior="inside"
+      >
+        <Portal>
+          <Dialog.Backdrop css={retroDialog.backdrop} />
+          <Dialog.Positioner
+            css={
+              fullScreenOnMobile
+                ? {
+                    pt: {
+                      base: "env(safe-area-inset-top, 0px)",
+                      md: retroDialog.positioner.pt,
+                    },
+                    pb: {
+                      base: "env(safe-area-inset-bottom, 0px)",
+                      md: retroDialog.positioner.pb,
+                    },
+                    pl: { base: 0, md: retroDialog.positioner.pl },
+                    pr: { base: 0, md: retroDialog.positioner.pr },
+                  }
+                : retroDialog.positioner
+            }
           >
-            <Flex
-              align="center"
-              gap={3}
-              bg="border.ink"
-              color="bg"
-              pl={header ? "10px" : "14px"}
-              pr="4px"
-              minH={header ? undefined : "48px"}
-              py={header ? "10px" : 0}
-              flexShrink={0}
+            <Dialog.Content
+              css={{
+                ...retroDialog.content,
+                maxW: fullScreenOnMobile ? { base: "none", md: maxW } : maxW,
+              }}
+              height={fullScreenOnMobile ? { base: "100%", md: "auto" } : undefined}
+              width="100%"
+              minW={0}
+              display="flex"
+              flexDirection="column"
+              overflow="hidden"
             >
-              {header ?? (
-                <Dialog.Title
-                  flex={1}
-                  fontFamily="label"
-                  fontSize="13px"
-                  letterSpacing="0.06em"
-                  textTransform="uppercase"
-                  fontWeight="semibold"
-                >
-                  {title}
-                </Dialog.Title>
-              )}
-              <Dialog.CloseTrigger asChild>
-                <IconButton
-                  ref={closeButtonRef}
-                  aria-label="Close"
-                  variant="ghost"
-                  color="bg"
-                  boxSize="44px"
-                  minW="44px"
-                  flexShrink={0}
-                  position="static"
-                  disabled={!dismissible}
-                  _hover={{ bg: "transparent", opacity: 0.75 }}
-                >
-                  <FiX />
-                </IconButton>
-              </Dialog.CloseTrigger>
-            </Flex>
-            <Dialog.Body p={0} flex="1" minH={0} overflowY="auto">
-              {children}
-            </Dialog.Body>
-            {footer ? (
-              <Dialog.Footer
-                p={0}
+              <Flex
+                align="center"
+                gap={3}
+                bg="border.ink"
+                color="bg"
+                pl={header ? "10px" : "14px"}
+                pr="4px"
+                minH={header ? undefined : "48px"}
+                py={header ? "10px" : 0}
                 flexShrink={0}
-                display="block"
-                borderTopWidth="outline"
-                borderColor="border.ink"
               >
-                {footer}
-              </Dialog.Footer>
-            ) : null}
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+                {header ?? (
+                  <Dialog.Title
+                    flex={1}
+                    fontFamily="label"
+                    fontSize="13px"
+                    letterSpacing="0.06em"
+                    textTransform="uppercase"
+                    fontWeight="semibold"
+                  >
+                    {title}
+                  </Dialog.Title>
+                )}
+                <Dialog.CloseTrigger asChild>
+                  <IconButton
+                    ref={closeButtonRef}
+                    aria-label="Close"
+                    variant="ghost"
+                    color="bg"
+                    boxSize="44px"
+                    minW="44px"
+                    flexShrink={0}
+                    position="static"
+                    disabled={!dismissible}
+                    _hover={{ bg: "transparent", opacity: 0.75 }}
+                  >
+                    <FiX />
+                  </IconButton>
+                </Dialog.CloseTrigger>
+              </Flex>
+              <Dialog.Body p={0} flex="1" minH={0} overflowY="auto">
+                {children}
+              </Dialog.Body>
+              {footer ? (
+                <Dialog.Footer
+                  p={0}
+                  flexShrink={0}
+                  display="block"
+                  borderTopWidth="outline"
+                  borderColor="border.ink"
+                >
+                  {footer}
+                </Dialog.Footer>
+              ) : null}
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+    </RunAfterCloseContext.Provider>
   );
 }

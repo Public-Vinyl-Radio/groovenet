@@ -35,7 +35,7 @@ describe("RecordCopyMenu phone modal", () => {
   it("runs edit", async () => {
     const { user, dialog, onEdit } = await openSheet();
     await user.click(within(dialog).getByText("Edit"));
-    expect(onEdit).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onEdit).toHaveBeenCalledOnce());
   });
 
   it("removes a non-default copy from the danger group", async () => {
@@ -43,7 +43,7 @@ describe("RecordCopyMenu phone modal", () => {
     const { user, dialog } = await openSheet({ onRemove });
     expect(within(dialog).getByText("Danger")).toBeTruthy();
     await user.click(within(dialog).getByText("Remove copy"));
-    expect(onRemove).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onRemove).toHaveBeenCalledOnce());
   });
 });
 

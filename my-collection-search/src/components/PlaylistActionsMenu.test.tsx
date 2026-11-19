@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { chooseMenuItem, renderWithProviders } from "@/test/renderWithProviders";
 import type { RankingProfileEntry } from "@groovenet/contracts";
 import PlaylistActionsMenu from "./PlaylistActionsMenu";
@@ -72,24 +72,24 @@ describe("PlaylistActionsMenu phone modal (#751)", () => {
     const { user, h } = await openModal({ onDuplicate: vi.fn() });
     expect(screen.getByText("Late Night")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Enqueue" }));
-    expect(h.enqueuePlaylist).toHaveBeenCalled();
+    await waitFor(() => expect(h.enqueuePlaylist).toHaveBeenCalled());
   });
 
   it("saves and duplicates", async () => {
     const onDuplicate = vi.fn();
     const { user, h } = await openModal({ onDuplicate });
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(h.onOpenSaveDialog).toHaveBeenCalled();
+    await waitFor(() => expect(h.onOpenSaveDialog).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Duplicate" }));
-    expect(onDuplicate).toHaveBeenCalled();
+    await waitFor(() => expect(onDuplicate).toHaveBeenCalled());
   });
 
   it("renames from the header button, only when renaming is available", async () => {
     const onRename = vi.fn();
     const { user, unmount } = await openModal({ onRename });
     await user.click(screen.getByRole("button", { name: "Rename" }));
-    expect(onRename).toHaveBeenCalled();
+    await waitFor(() => expect(onRename).toHaveBeenCalled());
     unmount();
 
     await openModal();
@@ -103,22 +103,22 @@ describe("PlaylistActionsMenu phone modal (#751)", () => {
     expect(screen.queryByText(/Backfill Duration/i)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Greedy order" }));
-    expect(h.onSortGreedy).toHaveBeenCalled();
+    await waitFor(() => expect(h.onSortGreedy).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Genetic order" }));
-    expect(h.onSortGenetic).toHaveBeenCalled();
+    await waitFor(() => expect(h.onSortGenetic).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Cohesive blocks" }));
-    expect(h.onSortCohesiveBlocks).toHaveBeenCalled();
+    await waitFor(() => expect(h.onSortCohesiveBlocks).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Export JSON" }));
-    expect(h.onExportJson).toHaveBeenCalled();
+    await waitFor(() => expect(h.onExportJson).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Export PDF" }));
-    expect(h.onExportPdf).toHaveBeenCalled();
+    await waitFor(() => expect(h.onExportPdf).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[0]);
     await user.click(await screen.findByRole("button", { name: "Import & append JSON" }));
-    expect(h.onImportJson).toHaveBeenCalled();
+    await waitFor(() => expect(h.onImportJson).toHaveBeenCalled());
   });
 
   it("disables a sort that is running and shows Sorting...", async () => {
@@ -142,7 +142,7 @@ it("opens Suggestions from the phone action sheet", async () => {
   const onOpenRecommendations = vi.fn();
   const { user } = await openModal({ onOpenRecommendations });
   await user.click(screen.getByRole("button", { name: "Suggestions" }));
-  expect(onOpenRecommendations).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onOpenRecommendations).toHaveBeenCalledOnce());
 });
 
 it("opens Suggestions from the desktop menu", async () => {
@@ -155,14 +155,14 @@ it("opens Suggestions from the desktop menu", async () => {
     screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
     /^Suggestions$/,
   );
-  expect(onOpenRecommendations).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onOpenRecommendations).toHaveBeenCalledOnce());
 });
 
 it("offers Create set in the phone action sheet only when a handler is given", async () => {
   const onCreateSet = vi.fn();
   const { user, unmount } = await openModal({ onCreateSet });
   await user.click(screen.getByRole("button", { name: "Create set" }));
-  expect(onCreateSet).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onCreateSet).toHaveBeenCalledOnce());
   unmount();
 
   await openModal();
@@ -179,7 +179,7 @@ it("offers Create set in the desktop menu only when a handler is given", async (
     screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
     /^Create set$/,
   );
-  expect(onCreateSet).toHaveBeenCalledOnce();
+  await waitFor(() => expect(onCreateSet).toHaveBeenCalledOnce());
   unmount();
 
   const none = renderWithProviders(<PlaylistActionsMenu {...handlers()} />);

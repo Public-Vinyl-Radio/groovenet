@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import PlaylistItemActionsMenu from "./PlaylistItemActionsMenu";
 
@@ -31,13 +31,13 @@ describe("PlaylistItemActionsMenu phone modal (#751)", () => {
     const { user, h, open } = setup();
     await open();
     await user.click(screen.getByRole("button", { name: "Play now" }));
-    expect(h.onPlay).toHaveBeenCalled();
+    await waitFor(() => expect(h.onPlay).toHaveBeenCalled());
     await open();
     await user.click(screen.getByRole("button", { name: "Enqueue" }));
-    expect(h.onEnqueue).toHaveBeenCalled();
+    await waitFor(() => expect(h.onEnqueue).toHaveBeenCalled());
     await open();
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(h.onOpen).toHaveBeenCalled();
+    await waitFor(() => expect(h.onOpen).toHaveBeenCalled());
   });
 
   it("offers Turn into a set and Export PDF only when given, and deletes from the danger group", async () => {
@@ -46,13 +46,13 @@ describe("PlaylistItemActionsMenu phone modal (#751)", () => {
     const { user, h, open } = setup({ onCreateSet, onExportPdf });
     await open();
     await user.click(screen.getByRole("button", { name: "Turn into a set" }));
-    expect(onCreateSet).toHaveBeenCalled();
+    await waitFor(() => expect(onCreateSet).toHaveBeenCalled());
     await open();
     await user.click(screen.getByRole("button", { name: "Export PDF" }));
-    expect(onExportPdf).toHaveBeenCalled();
+    await waitFor(() => expect(onExportPdf).toHaveBeenCalled());
     await open();
     await user.click(screen.getByRole("button", { name: "Delete playlist" }));
-    expect(h.onDelete).toHaveBeenCalled();
+    await waitFor(() => expect(h.onDelete).toHaveBeenCalled());
   });
 
   it("omits the optional actions and shows the played badge and collaborators", async () => {
@@ -87,9 +87,9 @@ describe("PlaylistItemActionsMenu desktop dropdown", () => {
     const { user, h } = setup({ onExportPdf, onCreateSet: vi.fn() });
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
     await user.click(await screen.findByRole("menuitem", { name: /Enqueue/, hidden: true }));
-    expect(h.onEnqueue).toHaveBeenCalled();
+    await waitFor(() => expect(h.onEnqueue).toHaveBeenCalled());
     await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
     await user.click(await screen.findByRole("menuitem", { name: /Export PDF/, hidden: true }));
-    expect(onExportPdf).toHaveBeenCalled();
+    await waitFor(() => expect(onExportPdf).toHaveBeenCalled());
   });
 });

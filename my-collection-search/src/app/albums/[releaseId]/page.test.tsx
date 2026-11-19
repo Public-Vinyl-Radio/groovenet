@@ -366,10 +366,12 @@ describe("album page layout (#727)", () => {
       (await screen.findAllByRole("button", { name: "Album actions", hidden: true }))[0],
     );
     await user.click(await screen.findByRole("button", { name: /Enrich album/i }));
-    expect(enrichQueue).toHaveBeenCalledWith([
-      { trackId: "a1", friendId: 7 },
-      { trackId: "b1", friendId: 7 },
-    ]);
+    await waitFor(() =>
+      expect(enrichQueue).toHaveBeenCalledWith([
+        { trackId: "a1", friendId: 7 },
+        { trackId: "b1", friendId: 7 },
+      ]),
+    );
     expect(routerPush).toHaveBeenCalledWith("/enrich");
   });
 

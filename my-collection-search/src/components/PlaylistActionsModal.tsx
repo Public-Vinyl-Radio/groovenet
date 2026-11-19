@@ -3,7 +3,7 @@
 import React from "react";
 import { Box, Text, chakra } from "@chakra-ui/react";
 import { FiCopy, FiPlay, FiSave } from "react-icons/fi";
-import RetroDialog, { RetroDialogTitle } from "@/components/ui/RetroDialog";
+import RetroDialog, { RetroDialogTitle, useRunAfterClose } from "@/components/ui/RetroDialog";
 import {
   Group,
   TileRow,
@@ -67,27 +67,7 @@ export default function PlaylistActionsModal({
               {playlistName ?? "Playlist actions"}
             </RetroDialogTitle>
           </Box>
-          {onRename && (
-            <chakra.button
-              h="44px"
-              px="12px"
-              flexShrink={0}
-              borderWidth="outline"
-              borderRadius="md"
-              borderColor="bg"
-              fontFamily="label"
-              fontSize="12px"
-              letterSpacing="0.06em"
-              textTransform="uppercase"
-              _hover={{ opacity: 0.75 }}
-              onClick={() => {
-                onRename();
-                close();
-              }}
-            >
-              Rename
-            </chakra.button>
-          )}
+          {onRename && <RenameButton onRename={onRename} onDone={close} />}
         </>
       }
     >
@@ -96,5 +76,31 @@ export default function PlaylistActionsModal({
       <Group label="More" actions={more} onDone={close} />
       <Group label="Export & import" actions={exportImport} onDone={close} />
     </RetroDialog>
+  );
+}
+
+/** In the header strip, so it sits inside the dialog and can wait for it to close. */
+function RenameButton({ onRename, onDone }: { onRename: () => void; onDone: () => void }) {
+  const runAfterClose = useRunAfterClose();
+  return (
+    <chakra.button
+      h="44px"
+      px="12px"
+      flexShrink={0}
+      borderWidth="outline"
+      borderRadius="md"
+      borderColor="bg"
+      fontFamily="label"
+      fontSize="12px"
+      letterSpacing="0.06em"
+      textTransform="uppercase"
+      _hover={{ opacity: 0.75 }}
+      onClick={() => {
+        runAfterClose(onRename);
+        onDone();
+      }}
+    >
+      Rename
+    </chakra.button>
   );
 }
