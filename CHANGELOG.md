@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.3.20](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.19...v0.3.20) (2026-11-19)
+
+
+### Features
+
+* **albums:** one album card with a compact size for scrollers ([#1181](https://github.com/Public-Vinyl-Radio/groovenet/issues/1181)) ([7f50def](https://github.com/Public-Vinyl-Radio/groovenet/commit/7f50def34496ba7c5c8176d6cf117f12ca38bafd))
+* **analytics:** record which suggestions are shown and used, and from which source ([#1186](https://github.com/Public-Vinyl-Radio/groovenet/issues/1186)) ([4b90bc6](https://github.com/Public-Vinyl-Radio/groovenet/commit/4b90bc61c40c7c361d226749e2a820b2161377be))
+* **cli:** file genre and lyrics in embedding eval exports ([#1170](https://github.com/Public-Vinyl-Radio/groovenet/issues/1170) eval: no-go) ([#1184](https://github.com/Public-Vinyl-Radio/groovenet/issues/1184)) ([8bf1944](https://github.com/Public-Vinyl-Radio/groovenet/commit/8bf19446e8deb6ea3c2bd55a96ad7bf067ff405a))
+* **eval:** compare ranking profiles with metrics and blind review ([#1209](https://github.com/Public-Vinyl-Radio/groovenet/issues/1209)) ([67e099b](https://github.com/Public-Vinyl-Radio/groovenet/commit/67e099b01cabb34dd75a64b61d9da971cc9499e1))
+* **ga-service:** order playlists by the active ranking profile ([#1207](https://github.com/Public-Vinyl-Radio/groovenet/issues/1207)) ([32e2e3a](https://github.com/Public-Vinyl-Radio/groovenet/commit/32e2e3af4c46bc82d674001bf495242864c1c872))
+* **ranking:** Beatmatcher requires a genre match ([#1230](https://github.com/Public-Vinyl-Radio/groovenet/issues/1230)) ([ff99ffe](https://github.com/Public-Vinyl-Radio/groovenet/commit/ff99ffec4befcfbb2a0aaa609d700c0b83ec147d))
+* **ranking:** export, import and share ranking profiles ([#1208](https://github.com/Public-Vinyl-Radio/groovenet/issues/1208)) ([2e71761](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e71761d05f53a626cb884d51a8d9d1d95aef28d))
+* **ranking:** normalise similarity signals within the candidate pool ([#1221](https://github.com/Public-Vinyl-Radio/groovenet/issues/1221)) ([ec2e50a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ec2e50a91906e6a1f5545b0a20b7bd082f0338bf))
+* **ranking:** one ranker contract with per-signal score breakdown ([#1198](https://github.com/Public-Vinyl-Radio/groovenet/issues/1198)) ([ac5132a](https://github.com/Public-Vinyl-Radio/groovenet/commit/ac5132a6e6cf683ccf245e2f3e59b6a5af480518))
+* **ranking:** ranking profiles with Beatmatcher and Selector presets ([#1199](https://github.com/Public-Vinyl-Radio/groovenet/issues/1199)) ([81b68f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/81b68f541f40fa0e6b82ce8897ccbdd0749a098b))
+* **tracks:** show file genre and an owner-only lyrics panel ([#1176](https://github.com/Public-Vinyl-Radio/groovenet/issues/1176)) ([b305cd6](https://github.com/Public-Vinyl-Radio/groovenet/commit/b305cd6addc2e8028416ce6f2d882a43183cff3a))
+* **ui:** track page on phones — title, lyrics dialog, genre rows, file meta, scope toggle ([#1229](https://github.com/Public-Vinyl-Radio/groovenet/issues/1229)) ([55d4d35](https://github.com/Public-Vinyl-Radio/groovenet/commit/55d4d357753c758cacd49e8486af0e648706fdd1))
+
+
+### Bug Fixes
+
+* **albums:** run artist credit imports in the caller's transaction ([#1228](https://github.com/Public-Vinyl-Radio/groovenet/issues/1228)) ([a9ad8db](https://github.com/Public-Vinyl-Radio/groovenet/commit/a9ad8db53aeddfeeaf31c96a5e2f74965805b7fc))
+* **app:** keep lossless uploads as FLAC and run ffmpeg without a shell ([#1179](https://github.com/Public-Vinyl-Radio/groovenet/issues/1179)) ([6a68c4b](https://github.com/Public-Vinyl-Radio/groovenet/commit/6a68c4ba04a283c1a9cd3e16ab244d4514198a4b))
+* **discogs:** resume interrupted syncs and checkpoint the manifest ([#1183](https://github.com/Public-Vinyl-Radio/groovenet/issues/1183)) ([d8fe4fe](https://github.com/Public-Vinyl-Radio/groovenet/commit/d8fe4fe76190f1264092dc0b8f18909a8adea770))
+* **download-worker:** stop passing unsupported --audio-quality to gamdl ([#1154](https://github.com/Public-Vinyl-Radio/groovenet/issues/1154)) ([e03c3c6](https://github.com/Public-Vinyl-Radio/groovenet/commit/e03c3c6ac6e7beebf7674c9cec4f18ae2edbc388))
+* **ingest:** retryable response for an incomplete upload ([#1227](https://github.com/Public-Vinyl-Radio/groovenet/issues/1227)) ([17901aa](https://github.com/Public-Vinyl-Radio/groovenet/commit/17901aadcf3e5383da4e941c75f3a43251f38468))
+* **player:** retry a failed engine release instead of requiring a worker restart ([#1178](https://github.com/Public-Vinyl-Radio/groovenet/issues/1178)) ([5405f4b](https://github.com/Public-Vinyl-Radio/groovenet/commit/5405f4b140008650ea6d5bfd602d34c5830f0bab))
+* **ranking:** Camelot key rule reads stored key spellings ([#1220](https://github.com/Public-Vinyl-Radio/groovenet/issues/1220)) ([29534d1](https://github.com/Public-Vinyl-Radio/groovenet/commit/29534d1e3e894f6a8f253fe985abec9f2d7b00b7))
+* **ui:** menu items open their dialog after the menu closes ([#1236](https://github.com/Public-Vinyl-Radio/groovenet/issues/1236)) ([94164d6](https://github.com/Public-Vinyl-Radio/groovenet/commit/94164d6fc44445cd349993ee694a4bb613ed067f))
+* **ui:** UX polish batch 8 — row covers, player cover border, card title face, palette rows ([#1215](https://github.com/Public-Vinyl-Radio/groovenet/issues/1215)) ([152eb84](https://github.com/Public-Vinyl-Radio/groovenet/commit/152eb84d77c982c7626abe222f72dce75d7bffce))
+* **ui:** UX polish batch 9 — track page, ranking settings, playlist header and save, genre cells ([#1237](https://github.com/Public-Vinyl-Radio/groovenet/issues/1237)) ([2e96c99](https://github.com/Public-Vinyl-Radio/groovenet/commit/2e96c999b84b24f357ef072e1b278c948c0db4c9))
+* **worktree:** give each worktree its own Postgres password ([#1175](https://github.com/Public-Vinyl-Radio/groovenet/issues/1175)) ([7ee46c1](https://github.com/Public-Vinyl-Radio/groovenet/commit/7ee46c19d9ae6e13740361f726a849fed412aa2c))
+* **worktree:** never block setup on the 1Password approval prompt ([#1226](https://github.com/Public-Vinyl-Radio/groovenet/issues/1226)) ([3cf357a](https://github.com/Public-Vinyl-Radio/groovenet/commit/3cf357af94e58b578f433e4fc14504a95befa6ab))
+
 ## [0.3.19](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.18...v0.3.19) (2026-11-11)
 
 
