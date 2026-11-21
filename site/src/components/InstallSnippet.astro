@@ -5,8 +5,8 @@ const lines: Array<{ kind: "cmd" | "comment" | "out"; text: string }> = [
   { kind: "cmd", text: "git clone https://github.com/Public-Vinyl-Radio/groovenet" },
   { kind: "cmd", text: "cd groovenet && cp .env.example .env" },
   { kind: "comment", text: "# set POSTGRES_PASSWORD and DISCOGS_USER_TOKEN in .env" },
-  { kind: "cmd", text: "export COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml" },
-  { kind: "cmd", text: "docker compose up --build -d && docker compose run --rm migrate" },
+  { kind: "cmd", text: "export COMPOSE_FILE=docker-compose.yml:docker-compose.images.yml:docker-compose.local.yml" },
+  { kind: "cmd", text: "docker compose up -d" },
 ];
 const copyText = lines.filter((l) => l.kind === "cmd").map((l) => l.text).join("\n");
 ---

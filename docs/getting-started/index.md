@@ -15,7 +15,6 @@ cp .env.example .env
 # Edit .env: at minimum, set POSTGRES_PASSWORD and your Discogs values.
 
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
-docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate
 ```
 
 Open [http://localhost:3000](http://localhost:3000), then [import your Discogs collection](/docs/getting-started/discogs/). The stack stores its database, audio, exports, backups, and cookies in Docker volumes.
