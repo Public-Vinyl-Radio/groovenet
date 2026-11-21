@@ -41,3 +41,6 @@ flags:
   homebrew-formula:
     paths:
       - .github/scripts/update-homebrew-formula.mjs
+  mark-app-release-latest:
+    paths:
+      - .github/scripts/mark-app-release-latest.mjs
