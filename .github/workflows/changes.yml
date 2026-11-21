@@ -92,6 +92,14 @@ jobs:
           --test-reporter-destination=stdout
           --test-reporter-destination=${{ runner.temp }}/homebrew-formula.lcov
           .github/scripts/update-homebrew-formula.test.mjs
+      - name: Test the app latest release helper with coverage
+        run: >-
+          node --test --experimental-test-coverage
+          --test-coverage-include=.github/scripts/mark-app-release-latest.mjs
+          --test-reporter=spec --test-reporter=lcov
+          --test-reporter-destination=stdout
+          --test-reporter-destination=${{ runner.temp }}/mark-app-release-latest.lcov
+          .github/scripts/mark-app-release-latest.test.mjs
       - name: Detect affected components
         id: filter
         run: node .github/scripts/ci-changes.mjs
@@ -111,5 +119,14 @@ jobs:
         with:
           files: ${{ runner.temp }}/homebrew-formula.lcov
           flags: homebrew-formula
+          disable_search: true
+          fail_ci_if_error: false
+      - name: Upload app latest release helper coverage
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ${{ runner.temp }}/mark-app-release-latest.lcov
+          flags: mark-app-release-latest
           disable_search: true
           fail_ci_if_error: false

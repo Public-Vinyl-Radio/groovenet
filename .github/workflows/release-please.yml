@@ -27,13 +27,21 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Test app latest release helper
-        run: node --test .github/scripts/mark-app-release-latest.test.mjs
+
+  # Its own job so a failure here cannot skip install-bundle. The helper's unit
+  # test runs in changes.yml (with the other .github/scripts tests), not here.
+  mark-latest:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
       - name: Mark the app release as latest
-        if: steps.release.outputs.release_created == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
         run: node .github/scripts/mark-app-release-latest.mjs
 
   # An app release (vX.Y.Z) gets the install bundle that install.sh downloads.
