@@ -1,0 +1,85 @@
+name: clean-install
+
+# Clean-install smoke test (#1239): the README quick start on the published
+# release-candidate images, through migrations and the first Discogs import.
+# Not on every PR: it needs the images the main-branch push builds, and it is
+# slow. Run it by hand against any tag with workflow_dispatch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag: vX.Y.Z or sha-<short>. Empty: the latest release."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clean-install-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  clean-install:
+    runs-on: ubuntu-latest # amd64, which is all the images are built for
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # release tags, for the "latest release" default
+
+      - name: Resolve the image tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "tag=sha-${GITHUB_SHA:0:7}" >>"$GITHUB_OUTPUT"
+          else
+            echo "tag=${INPUT_TAG}" >>"$GITHUB_OUTPUT"
+          fi
+
+      # The push to main also starts docker-publish, which builds sha-<short>
+      # after its tests pass. Wait for the two images the test pulls.
+      - name: Wait for the candidate images
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          for svc in webapp webapp-migrate; do
+            src="ghcr.io/${owner}/${svc}:${TAG}"
+            for attempt in $(seq 1 90); do
+              docker buildx imagetools inspect "$src" >/dev/null 2>&1 && continue 2
+              echo "waiting for ${src} (attempt ${attempt}/90)..."
+              sleep 30
+            done
+            echo "::error::candidate image ${src} never appeared"
+            exit 1
+          done
+
+      - name: Note a missing Discogs token
+        env:
+          DISCOGS_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
+        run: |
+          if [[ -z "$DISCOGS_TOKEN" ]]; then
+            echo "::warning::Secret CLEAN_INSTALL_DISCOGS_TOKEN is not set, so the Discogs import step is skipped. Add it to cover the first import."
+          fi
+
+      - name: Clean-install test
+        env:
+          DISCOGS_USER_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
+          CLEAN_INSTALL_LOG_DIR: ${{ runner.temp }}/clean-install-logs
+          TAG: ${{ steps.tag.outputs.tag }}
+          REGISTRY: ghcr.io/public-vinyl-radio
+        run: ./scripts/clean-install-test.sh "$TAG"
+
+      - name: Upload compose logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clean-install-logs
+          path: ${{ runner.temp }}/clean-install-logs
+          if-no-files-found: ignore

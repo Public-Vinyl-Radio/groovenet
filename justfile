@@ -638,6 +638,14 @@ scripts-build: check-compose
 scripts-run *args: check-compose
   {{op_env}} {{compose_cmd}} -f docker-compose.yml run --rm scripts {{args}}
 
+# Clean-install smoke test (#1239): the README quick start on published images
+# (default: the latest release; or a tag / `sha-<short>` RC) in a throwaway
+# Compose project, through migrations and the first Discogs import. Needs
+# DISCOGS_USER_TOKEN for the import (`op run --env-file=... -- just clean-install-test`);
+# without it the import is skipped and says so. Always removes what it created.
+clean-install-test tag="":
+  ./scripts/clean-install-test.sh {{tag}}
+
 # Verify all migrations apply + roll back + re-apply on a throwaway pgvector db.
 migrate-test:
   #!/usr/bin/env bash
