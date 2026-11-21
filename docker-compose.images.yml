@@ -1,0 +1,22 @@
+# Published-image overlay for a fresh install: runs the release images from
+# GHCR instead of building from source, with no external volumes (unlike
+# docker-compose.prod.yml, which adopts an existing host's named volumes).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.images.yml -f docker-compose.local.yml up -d
+# `migrate` runs first on every `up`; `app` starts once it has exited 0.
+services:
+  app:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/webapp:${IMAGE_TAG:-latest}
+  # Must not share the app image tag (see docker-compose.prod.yml).
+  migrate:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/webapp-migrate:${IMAGE_TAG:-latest}
+  essentia:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/essentia-api:${IMAGE_TAG:-latest}
+  ga-service:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/ga-service:${IMAGE_TAG:-latest}
+  fingerprint-service:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/fingerprint-service:${IMAGE_TAG:-latest}
+  fingerprint-set-worker:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/fingerprint-service:${IMAGE_TAG:-latest}
+  download-worker:
+    image: ${REGISTRY:-ghcr.io/public-vinyl-radio}/download-worker:${IMAGE_TAG:-latest}

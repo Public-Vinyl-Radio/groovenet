@@ -36,8 +36,13 @@ services:
       B2_ACCOUNT_KEY: ${B2_ACCOUNT_KEY:-}
 
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+      # Migrations run on every `up`; a failed one keeps the app down.
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ${APP_AUDIO_MOUNT:-music_data:/app/audio}
       - db_dumps:/app/dumps
@@ -50,13 +55,13 @@ services:
       # mounts the same store read-only.
       - ${SET_RECORDINGS_MOUNT:-set_recordings:/app/set-recordings}
 
+  # One-shot init service: runs on every `up` and exits 0 (also when there is
+  # nothing to apply). `app` waits on it. No `restart:` - it must stay exited.
   migrate:
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
       target: migrator
-    profiles:
-      - migrate
     working_dir: /repo/my-collection-search
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
@@ -71,7 +76,8 @@ services:
 
   # One-off maintenance scripts (src/scripts/*.ts), e.g. backfill-key-confidence
   # (#524). Built on demand (`just scripts-build`), never by `docker compose up`
-  # (profile-gated like `migrate`) or by CI. No fixed command: `just scripts-run`
+  # (profile-gated) or by CI. It depends on `db` only, so `run --rm scripts` never
+  # triggers `migrate`. No fixed command: `just scripts-run`
   # supplies it, e.g. `just scripts-run npm run backfill-key-confidence -- --limit=5`.
   scripts:
     build:

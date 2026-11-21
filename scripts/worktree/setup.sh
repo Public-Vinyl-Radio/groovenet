@@ -58,8 +58,12 @@ if [[ -n "$REQUESTED_PROFILES" ]]; then
 fi
 write_caddy_fragment
 reload_caddy
-compose_exec up -d --remove-orphans
+# Only the datastores first: `app` waits on the one-shot `migrate` service, so
+# starting everything here would migrate the empty database before the seed
+# restore below, which only runs on a database with no tables.
+compose_exec up -d --remove-orphans db redis
 wait_for_db
+restore_assets=0
 
 seed_dir="$(seed_bundle_dir)"
 if [[ -n "$SEED_DIR_OVERRIDE" ]]; then
@@ -93,10 +97,7 @@ if database_is_empty; then
     ' <"$seed_dir/db.dump"
 
     if [[ -d "$seed_dir/app" || -d "$seed_dir/audio" || -d "$seed_dir/dumps" || -d "$seed_dir/public" ]]; then
-      app_container="$(app_container_id)"
-      "$APP_DIR/scripts/restore-restic-assets.sh" \
-        --restore-target "$seed_dir" \
-        --app-container "$app_container"
+      restore_assets=1
     fi
   elif [[ "$SEED_MODE" == "force" ]]; then
     usage_error "Seed requested, but no db.dump found at $seed_dir"
@@ -110,7 +111,17 @@ else
   echo "Warning: worktree-purge deletes this worktree's database and other Compose volumes."
 fi
 
+# Rebuild the migrator from this worktree's source, then bring up the rest of
+# the stack (`up` re-runs `migrate`, a no-op here).
 compose_exec run --rm --build migrate
+compose_exec up -d --remove-orphans
+
+if [[ "$restore_assets" == "1" ]]; then
+  app_container="$(app_container_id)"
+  "$APP_DIR/scripts/restore-restic-assets.sh" \
+    --restore-target "$seed_dir" \
+    --app-container "$app_container"
+fi
 
 echo
 echo "Worktree ready"

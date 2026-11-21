@@ -12,10 +12,9 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f
 # Stop the stack; your data remains in Docker volumes
 docker compose -f docker-compose.yml -f docker-compose.local.yml down
 
-# Update source, rebuild, and restart
+# Update source, rebuild, and restart (migrations run automatically)
 git pull
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
-docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate
 ```
 
 The local override binds the app to `127.0.0.1:3000`. Set `APP_PORT=3001` in `.env` to use another port. Put GrooveNet behind your own reverse proxy to make it available on a network or public domain.
@@ -38,13 +37,7 @@ These `just` Compose recipes use `op run --env-file=.env.tpl` and require the 1P
 docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.worktree.yml up --remove-orphans
 ```
 
-In another terminal, apply the database migrations:
-
-```bash
-just migrate-up
-```
-
-For the plaintext setup, use `docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.worktree.yml run --rm migrate` instead.
+Migrations run automatically on every `up`: a one-shot `migrate` service applies them and the app starts only once it succeeds. To apply or roll back migrations by hand, run `just migrate-up` or `just migrate-down`.
 
 `just compose-dev` combines the base, dev and worktree overrides. It mounts source and the host-built contracts and client packages. Rebuild those packages on the host after changing them. See the [contributor guide](https://github.com/Public-Vinyl-Radio/groovenet/blob/main/CLAUDE.md) for isolated worktree stacks.
 
