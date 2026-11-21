@@ -5,6 +5,20 @@ sidebar:
   order: 3
 ---
 
+## Installed with the script
+
+Run these from the install directory (`/srv/groovenet` or `~/groovenet`); its `.env` already selects the right compose files, so no `-f` flags are needed.
+
+```bash
+docker compose logs -f     # follow logs
+docker compose down        # stop; your data stays in Docker volumes
+curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh   # upgrade to the latest release
+```
+
+The installer rewrites the compose files and `IMAGE_TAG` on each run and leaves your `.env` otherwise alone. `.env.example` beside it is the current template, so `diff .env.example .env` shows settings added since you installed.
+
+## Installed from a clone
+
 ```bash
 # Follow service logs
 docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f

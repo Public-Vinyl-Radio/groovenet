@@ -37,6 +37,14 @@ repos:
       - id: ruff-format
         files: ^(download-worker|ga-service|essentia-api|fingerprint-service|packages/groovenet-python)/
 
+  # The installer is piped to `sh` on strangers' machines, so it is held to
+  # ShellCheck. Only the install scripts so far; older scripts are not enforced.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^(site/public/install\.sh|scripts/install/.*\.sh|scripts/lib/.*\.sh|scripts/clean-install-test\.sh|\.github/scripts/wait-for-images\.sh)$
+
   # Each local hook runs ESLint from the directory that owns its flat config.
   # App and package filenames are filtered into separate hooks for mixed batches.
   - repo: local

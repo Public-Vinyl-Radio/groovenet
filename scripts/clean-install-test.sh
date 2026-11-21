@@ -32,7 +32,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 registry="${REGISTRY:-ghcr.io/public-vinyl-radio}"
 discogs_user="${CLEAN_INSTALL_DISCOGS_USERNAME:-dj_shadow}"
+# shellcheck disable=SC2034 # read by scripts/lib/clean-install-checks.sh
 health_timeout="${CLEAN_INSTALL_HEALTH_TIMEOUT:-300}"
+# shellcheck disable=SC2034
 import_timeout="${CLEAN_INSTALL_IMPORT_TIMEOUT:-300}"
 
 step() { printf '\n==> %s\n' "$*"; }
@@ -151,36 +153,12 @@ base="http://127.0.0.1:$port"
 step "docker compose up -d (documented quick-start path)"
 compose up -d --quiet-pull || die "docker compose up failed (a failing migrate keeps the app down)"
 
-step "Waiting for $base/api/health (up to ${health_timeout}s)"
-deadline=$((SECONDS + health_timeout))
-until curl -fsS --max-time 5 "$base/api/health" >/dev/null 2>&1; do
-  ((SECONDS < deadline)) || die "the app did not become healthy within ${health_timeout}s"
-  sleep 3
-done
-ok "/api/health answers"
+# shellcheck disable=SC1091 # followed in scripts/lib/clean-install-checks.sh itself
+source "$repo_root/scripts/lib/clean-install-checks.sh"
 
-step "Core services only"
-running="$(compose ps --services --status running | sort | tr '\n' ' ')"
-[[ "$running" == "app db redis " ]] || die "expected exactly app, db and redis running, got: ${running:-none}"
-ok "running: $running"
-migrate_state="$(compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' migrate)"
-[[ "$migrate_state" == "migrate exited 0" ]] || die "migrate should have run and exited 0, got: ${migrate_state:-no migrate container (is it behind a profile?)}"
-ok "migrate exited 0"
-
-# --- Migrations --------------------------------------------------------------
-# The latest migration is the newest file in the image that ran them, so a
-# release tag older than this checkout is judged against its own migrations.
-step "Migrations applied"
-latest="$(docker run --rm --platform linux/amd64 --entrypoint sh "$registry/webapp-migrate:$tag" -c 'ls /repo/my-collection-search/migrations' | grep '\.js$' | sort | tail -n 1)"
-[[ -n "$latest" ]] || die "could not list migrations in $registry/webapp-migrate:$tag"
-latest="${latest%.js}"
-repo_latest="$(find "$repo_root/my-collection-search/migrations" -name '*.js' -exec basename {} .js \; | sort | tail -n 1)"
-# shellcheck disable=SC2016 # $POSTGRES_* expand inside the db container, on purpose
-psql_db() { compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tA' <<<"$1"; }
-applied="$(psql_db "SELECT count(*) FROM pgmigrations WHERE name = '$latest'" | tr -d '[:space:]')"
-[[ "$applied" == "1" ]] || die "pgmigrations has no row for the latest migration $latest"
-ok "pgmigrations contains $latest"
-[[ "$latest" == "$repo_latest" ]] || echo "    note: $tag's latest migration is $latest; this checkout's is $repo_latest"
+check_health
+check_services "app db redis"
+check_migrations
 
 # --- Discogs import ----------------------------------------------------------
 if [[ -z "$discogs_token" ]]; then
@@ -191,48 +169,8 @@ if [[ -z "$discogs_token" ]]; then
   exit 0
 fi
 
-step "Importing the Discogs collection of $discogs_user"
-import_out="$work/import.out"
-curl -fsS --max-time "$import_timeout" -N "$base/api/discogs?username=$discogs_user" >"$import_out" \
-  || die "GET /api/discogs failed (output: $(tail -c 500 "$import_out" 2>/dev/null))"
-grep -q "Sync complete for $discogs_user" "$import_out" || die "the import did not report completion; tail: $(tail -c 800 "$import_out")"
-if grep -Eq "❌|Album ingest error|failed to download" "$import_out"; then
-  die "the import reported errors: $(grep -E '❌|Album ingest error|Error for release|failed to download' "$import_out" | head -5)"
-fi
-grep -q "Auto-ingest complete" "$import_out" || die "auto-ingest did not complete; tail: $(tail -c 800 "$import_out")"
-ok "$(grep -E 'Sync complete for' "$import_out" | tail -n 1)"
-
-step "Albums and tracks landed in Postgres"
-albums="$(psql_db "SELECT count(*) FROM albums" | tr -d '[:space:]')"
-tracks="$(psql_db "SELECT count(*) FROM tracks" | tr -d '[:space:]')"
-((albums >= 1)) || die "no albums in Postgres after the import"
-((tracks >= 1)) || die "no tracks in Postgres after the import"
-ok "$albums albums, $tracks tracks"
-
-step "The app's API returns them"
-api_albums="$(curl -fsS --max-time 30 "$base/api/albums?limit=5")" || die "GET /api/albums failed"
-api_tracks="$(curl -fsS --max-time 30 "$base/api/tracks/search?limit=5")" || die "GET /api/tracks/search failed"
-check_api() {
-  python3 -I - "$api_albums" "$api_tracks" <<'PY'
-import json, sys
-
-def rows(body, *keys):
-    data = json.loads(body)
-    for key in keys:
-        if isinstance(data, dict) and isinstance(data.get(key), list):
-            return data[key]
-    raise SystemExit(f"no list under any of {keys} in {str(data)[:200]}")
-
-albums = rows(sys.argv[1], "albums", "results", "hits")
-tracks = rows(sys.argv[2], "tracks", "results", "hits")
-if not albums:
-    raise SystemExit("GET /api/albums returned no albums")
-if not tracks:
-    raise SystemExit("GET /api/tracks/search returned no tracks")
-print(f"    ok: /api/albums returned {len(albums)}, /api/tracks/search returned {len(tracks)}")
-PY
-}
-check_api || die "the album/track API did not return the imported data"
+run_import
+check_imported_data
 
 printf '\nPASS: clean install on %s works from the published images to the first Discogs import\n' "$tag"
 status=0

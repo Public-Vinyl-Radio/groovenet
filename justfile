@@ -647,6 +647,24 @@ scripts-run *args: check-compose
 clean-install-test tag="":
   ./scripts/clean-install-test.sh {{tag}}
 
+# One-line installer (#1072): builds the bundle from this checkout, installs
+# from `sha-`/release images into a throwaway directory and project, runs the
+# clean-install checks, reruns the installer (must change nothing) and tears
+# down. DISCOGS_USER_TOKEN adds the import: `op run --env-file=... -- just install-test sha-abc1234`.
+install-test tag:
+  ./scripts/install/e2e.sh {{tag}}
+
+# Installer unit tests: helpers under sh and dash, and the bundle builder.
+install-unit-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  ./scripts/install/unit_test.sh
+  if command -v dash >/dev/null 2>&1; then TEST_SH=dash ./scripts/install/unit_test.sh; fi
+
+# Build the release install bundle locally: just build-install-bundle v0.3.20 [out-dir]
+build-install-bundle version out="dist":
+  ./scripts/install/build-bundle.sh {{version}} {{out}}
+
 # Verify all migrations apply + roll back + re-apply on a throwaway pgvector db.
 migrate-test:
   #!/usr/bin/env bash
