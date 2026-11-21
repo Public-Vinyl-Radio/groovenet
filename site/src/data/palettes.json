@@ -266,6 +266,16 @@
           "id": "zilla-slab",
           "label": "Zilla Slab",
           "face": "zilla-slab"
+        },
+        {
+          "id": "space-grotesk",
+          "label": "Space Grotesk",
+          "face": "space-grotesk"
+        },
+        {
+          "id": "iosevka-charon",
+          "label": "Iosevka Charon",
+          "face": "iosevka-charon"
         }
       ]
     },
@@ -284,6 +294,16 @@
           "face": "inter"
         },
         {
+          "id": "space-grotesk",
+          "label": "Space Grotesk",
+          "face": "space-grotesk"
+        },
+        {
+          "id": "iosevka-charon",
+          "label": "Iosevka Charon",
+          "face": "iosevka-charon"
+        },
+        {
           "id": "plex-mono",
           "label": "IBM Plex Mono",
           "face": "plex-mono"
@@ -292,6 +312,46 @@
           "id": "jetbrains-mono",
           "label": "JetBrains Mono",
           "face": "jetbrains-mono"
+        },
+        {
+          "id": "space-mono",
+          "label": "Space Mono",
+          "face": "space-mono"
+        },
+        {
+          "id": "iosevka",
+          "label": "Iosevka",
+          "face": "iosevka"
+        },
+        {
+          "id": "iosevka-charon-mono",
+          "label": "Iosevka Charon Mono",
+          "face": "iosevka-charon-mono"
+        },
+        {
+          "id": "martian-mono",
+          "label": "Martian Mono",
+          "face": "martian-mono"
+        },
+        {
+          "id": "monaspace-xenon",
+          "label": "Monaspace Xenon",
+          "face": "monaspace-xenon"
+        },
+        {
+          "id": "commit-mono",
+          "label": "Commit Mono",
+          "face": "commit-mono"
+        },
+        {
+          "id": "courier-prime",
+          "label": "Courier Prime",
+          "face": "courier-prime"
+        },
+        {
+          "id": "dm-mono",
+          "label": "DM Mono",
+          "face": "dm-mono"
         }
       ]
     },
@@ -308,6 +368,46 @@
           "id": "jetbrains-mono",
           "label": "JetBrains Mono",
           "face": "jetbrains-mono"
+        },
+        {
+          "id": "space-mono",
+          "label": "Space Mono",
+          "face": "space-mono"
+        },
+        {
+          "id": "iosevka",
+          "label": "Iosevka",
+          "face": "iosevka"
+        },
+        {
+          "id": "iosevka-charon-mono",
+          "label": "Iosevka Charon Mono",
+          "face": "iosevka-charon-mono"
+        },
+        {
+          "id": "martian-mono",
+          "label": "Martian Mono",
+          "face": "martian-mono"
+        },
+        {
+          "id": "monaspace-xenon",
+          "label": "Monaspace Xenon",
+          "face": "monaspace-xenon"
+        },
+        {
+          "id": "commit-mono",
+          "label": "Commit Mono",
+          "face": "commit-mono"
+        },
+        {
+          "id": "courier-prime",
+          "label": "Courier Prime",
+          "face": "courier-prime"
+        },
+        {
+          "id": "dm-mono",
+          "label": "DM Mono",
+          "face": "dm-mono"
         }
       ]
     }
@@ -350,6 +450,42 @@
         }
       ],
       "licence": "OFL-ZillaSlab.txt"
+    },
+    "space-grotesk": {
+      "family": "Space Grotesk",
+      "files": [
+        {
+          "weight": 400,
+          "file": "SpaceGrotesk-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "SpaceGrotesk-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "SpaceGrotesk-600.woff2"
+        }
+      ],
+      "licence": "OFL-SpaceGrotesk.txt"
+    },
+    "iosevka-charon": {
+      "family": "Iosevka Charon",
+      "files": [
+        {
+          "weight": 400,
+          "file": "IosevkaCharon-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "IosevkaCharon-500.woff2"
+        },
+        {
+          "weight": 700,
+          "file": "IosevkaCharon-700.woff2"
+        }
+      ],
+      "licence": "OFL-IosevkaCharon.txt"
     },
     "inter": {
       "family": "Inter",
@@ -404,6 +540,138 @@
         }
       ],
       "licence": "OFL-JetBrainsMono.txt"
+    },
+    "space-mono": {
+      "family": "Space Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "SpaceMono-400.woff2"
+        },
+        {
+          "weight": 700,
+          "file": "SpaceMono-700.woff2"
+        }
+      ],
+      "licence": "OFL-SpaceMono.txt"
+    },
+    "iosevka": {
+      "family": "Iosevka",
+      "files": [
+        {
+          "weight": 400,
+          "file": "Iosevka-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "Iosevka-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "Iosevka-600.woff2"
+        }
+      ],
+      "licence": "OFL-Iosevka.txt"
+    },
+    "iosevka-charon-mono": {
+      "family": "Iosevka Charon Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "IosevkaCharonMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "IosevkaCharonMono-500.woff2"
+        },
+        {
+          "weight": 700,
+          "file": "IosevkaCharonMono-700.woff2"
+        }
+      ],
+      "licence": "OFL-IosevkaCharon.txt"
+    },
+    "martian-mono": {
+      "family": "Martian Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "MartianMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "MartianMono-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "MartianMono-600.woff2"
+        }
+      ],
+      "licence": "OFL-MartianMono.txt"
+    },
+    "monaspace-xenon": {
+      "family": "Monaspace Xenon",
+      "files": [
+        {
+          "weight": 400,
+          "file": "MonaspaceXenon-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "MonaspaceXenon-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "MonaspaceXenon-600.woff2"
+        }
+      ],
+      "licence": "OFL-MonaspaceXenon.txt"
+    },
+    "commit-mono": {
+      "family": "Commit Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "CommitMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "CommitMono-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "CommitMono-600.woff2"
+        }
+      ],
+      "licence": "OFL-CommitMono.txt"
+    },
+    "courier-prime": {
+      "family": "Courier Prime",
+      "files": [
+        {
+          "weight": 400,
+          "file": "CourierPrime-400.woff2"
+        },
+        {
+          "weight": 700,
+          "file": "CourierPrime-700.woff2"
+        }
+      ],
+      "licence": "OFL-CourierPrime.txt"
+    },
+    "dm-mono": {
+      "family": "DM Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "DMMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "DMMono-500.woff2"
+        }
+      ],
+      "licence": "OFL-DMMono.txt"
     }
   }
 }

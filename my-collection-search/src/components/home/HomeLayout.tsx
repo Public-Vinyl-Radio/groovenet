@@ -12,15 +12,22 @@ type Props = {
   month: React.ReactNode;
   /** #883: missing audio, missing BPM or key, due for cleaning, failed jobs. */
   attention?: React.ReactNode;
-  /** #884: the draft set and recent playlists, full width. */
+  /** #884: the draft set and recent playlists. */
   playlists?: React.ReactNode;
 };
 
 /**
  * Home's sections in the mock's order (HomeDesktop / HomePhone). From `lg` up,
- * two columns: New arrivals on the left, the month card over Needs attention
- * on the right, Playlists & sets across both. Phones read the same order in
- * one column.
+ * two columns: New arrivals over Playlists & sets on the left, the month card
+ * over Needs attention on the right, so neither column waits on the other.
+ * Phones read source order (New arrivals, month, attention, Playlists) in one
+ * column.
+ *
+ * The source order is the phone order and never changes. From `lg` the grid
+ * places the children explicitly: the right stack spans both rows of column 2,
+ * and the second row is `1fr` so spare height never opens a gap between the
+ * left cards. Without New arrivals, Playlists takes row 1 and the grid has one
+ * row.
  */
 export default function HomeLayout({
   header,
@@ -30,6 +37,7 @@ export default function HomeLayout({
   attention,
   playlists,
 }: Props) {
+  const leftRows = newArrivals && playlists ? 2 : 1;
   return (
     <Box pb={8}>
       {header}
@@ -40,15 +48,29 @@ export default function HomeLayout({
           templateColumns={{ base: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" }}
           columnGap="32px"
           rowGap={{ base: "22px", md: "28px" }}
+          templateRows={{ lg: leftRows === 2 ? "auto 1fr" : "auto" }}
           alignItems="start"
         >
-          {newArrivals ? <Box data-slot="new-arrivals">{newArrivals}</Box> : null}
-          <Stack gap={{ base: "22px", md: "28px" }} gridColumn={{ lg: 2 }}>
+          {newArrivals ? (
+            <Box data-slot="new-arrivals" gridColumn={{ lg: 1 }} gridRow={{ lg: 1 }}>
+              {newArrivals}
+            </Box>
+          ) : null}
+          <Stack
+            gap={{ base: "22px", md: "28px" }}
+            gridColumn={{ lg: 2 }}
+            gridRow={{ lg: `1 / span ${leftRows}` }}
+          >
             {month}
             {attention}
           </Stack>
           {playlists ? (
-            <Box data-slot="playlists" gridColumn="1 / -1">
+            <Box
+              data-slot="playlists"
+              gridColumn={{ lg: 1 }}
+              gridRow={{ lg: newArrivals ? 2 : 1 }}
+              minW={0}
+            >
               {playlists}
             </Box>
           ) : null}

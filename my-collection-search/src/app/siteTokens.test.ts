@@ -52,11 +52,23 @@ describe("siteTokens", () => {
       "IBM Plex Sans",
       "Barlow Condensed",
       "Zilla Slab",
+      "Space Grotesk",
+      "Iosevka Charon",
     ]);
     expect(tokens.fonts.label.choices.map((c) => c.label)).toEqual([
       "IBM Plex Mono",
       "JetBrains Mono",
+      "Space Mono",
+      "Iosevka",
+      "Iosevka Charon Mono",
+      "Martian Mono",
+      "Monaspace Xenon",
+      "Commit Mono",
+      "Courier Prime",
+      "DM Mono",
     ]);
+    expect(tokens.faces["iosevka-charon-mono"].licence).toBe("OFL-IosevkaCharon.txt");
+    expect(tokens.faces.iosevka.licence).toBe("OFL-Iosevka.txt");
     expect(tokens.faces["plex-sans"]).toEqual({
       family: "IBM Plex Sans",
       files: [

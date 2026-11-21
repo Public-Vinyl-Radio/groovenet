@@ -51,7 +51,22 @@ describe("fonts", () => {
   });
 
   it("commits a licence for each family", () => {
-    const licences = ["IBMPlex", "BarlowCondensed", "ZillaSlab", "Inter", "JetBrainsMono"];
+    const licences = [
+      "IBMPlex",
+      "BarlowCondensed",
+      "ZillaSlab",
+      "Inter",
+      "JetBrainsMono",
+      "SpaceGrotesk",
+      "SpaceMono",
+      "Iosevka",
+      "IosevkaCharon",
+      "MartianMono",
+      "MonaspaceXenon",
+      "CommitMono",
+      "CourierPrime",
+      "DMMono",
+    ];
     for (const family of licences) {
       const file = path.join(import.meta.dirname, `fonts/OFL-${family}.txt`);
       expect(existsSync(file), file).toBe(true);
@@ -61,7 +76,12 @@ describe("fonts", () => {
     for (const options of loaded) {
       for (const { path: file } of sources(options)) {
         const family = path.basename(file).split("-")[0];
-        const licence = family.startsWith("IBMPlex") ? "IBMPlex" : family;
+        // Charon and Charon Mono ship under one licence.
+        const licence = family.startsWith("IBMPlex")
+          ? "IBMPlex"
+          : family.startsWith("IosevkaCharon")
+            ? "IosevkaCharon"
+            : family;
         expect(licences, file).toContain(licence);
       }
     }

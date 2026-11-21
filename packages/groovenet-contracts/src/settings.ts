@@ -76,17 +76,41 @@ export const appearanceDisplayFontSchema = z.enum([
   "default",
   "barlow-condensed",
   "zilla-slab",
+  "space-grotesk",
+  "iosevka-charon",
   "system",
 ]);
 export const appearanceBodyFontSchema = z.enum([
   "default",
   "inter",
+  "space-grotesk",
+  "iosevka-charon",
   "plex-mono",
   "jetbrains-mono",
+  "space-mono",
+  "iosevka",
+  "iosevka-charon-mono",
+  "martian-mono",
+  "monaspace-xenon",
+  "commit-mono",
+  "courier-prime",
+  "dm-mono",
   "system-mono",
   "system",
 ]);
-export const appearanceLabelFontSchema = z.enum(["default", "jetbrains-mono", "system"]);
+export const appearanceLabelFontSchema = z.enum([
+  "default",
+  "jetbrains-mono",
+  "space-mono",
+  "iosevka",
+  "iosevka-charon-mono",
+  "martian-mono",
+  "monaspace-xenon",
+  "commit-mono",
+  "courier-prime",
+  "dm-mono",
+  "system",
+]);
 
 export const appearanceFontsShape = {
   display: appearanceDisplayFontSchema,
