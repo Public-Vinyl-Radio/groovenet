@@ -688,6 +688,29 @@ migrate-test:
   DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist" \
     {{mise_exec}} bash ./{{app_dir}}/scripts/migrate-test.sh
 
+# Verify migrate-preflight.sh's pgmigrations backfill against a throwaway postgres.
+migrate-preflight-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="groovenet-preflighttest-$$"
+  cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+  trap cleanup EXIT
+  echo "→ starting throwaway postgres ($name)"
+  docker run -d --name "$name" \
+    -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
+    pgvector/pgvector:pg15 >/dev/null
+  # TCP probe, for the initdb restart window described in migrate-test.
+  for i in $(seq 1 60); do
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    sleep 1
+  done
+  # Run inside the db container (it has psql); the host may not.
+  docker exec "$name" mkdir -p /work/scripts
+  docker cp ./{{app_dir}}/scripts/. "$name:/work/scripts"
+  docker cp ./{{app_dir}}/migrations "$name:/work/migrations"
+  docker exec -e DATABASE_URL="postgres://djplaylist:test@127.0.0.1:5432/djplaylist" \
+    "$name" bash /work/scripts/migrate-preflight-test.sh
+
 # Verify genre seed replay and taxonomy admin mutations against real Postgres.
 genres-test:
   #!/usr/bin/env bash

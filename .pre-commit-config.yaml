@@ -43,7 +43,7 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        files: ^(site/public/install\.sh|scripts/install/.*\.sh|scripts/lib/.*\.sh|scripts/clean-install-test\.sh|\.github/scripts/wait-for-images\.sh)$
+        files: ^(site/public/install\.sh|scripts/install/.*\.sh|scripts/lib/.*\.sh|scripts/clean-install-test\.sh|\.github/scripts/wait-for-images\.sh|my-collection-search/scripts/migrate-preflight(-test)?\.sh)$
 
   # Each local hook runs ESLint from the directory that owns its flat config.
   # App and package filenames are filtered into separate hooks for mixed batches.
