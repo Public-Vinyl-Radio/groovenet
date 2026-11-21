@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.21](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.20...v0.3.21) (2026-11-21)
+
+
+### Features
+
+* **compose:** run migrations on every docker compose up ([#1242](https://github.com/Public-Vinyl-Radio/groovenet/issues/1242)) ([1a99dbd](https://github.com/Public-Vinyl-Radio/groovenet/commit/1a99dbdcb51c753df95f8117f77fa6c3cd7e8e75))
+* **deploy:** one-line install script ([#1249](https://github.com/Public-Vinyl-Radio/groovenet/issues/1249)) ([80ad98e](https://github.com/Public-Vinyl-Radio/groovenet/commit/80ad98e04bca3abd6c8ba79e6682ce850d4fcbe4))
+
 ## [0.3.20](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.19...v0.3.20) (2026-11-19)
 
 
