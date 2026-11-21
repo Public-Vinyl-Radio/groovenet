@@ -83,7 +83,162 @@ const jetbrainsMono = localFont({
   fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
 });
 
+const spaceGrotesk = localFont({
+  src: [
+    { path: "./fonts/SpaceGrotesk-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/SpaceGrotesk-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/SpaceGrotesk-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-space-grotesk",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: "Arial",
+  fallback: ["Helvetica Neue", "Arial", "sans-serif"],
+});
+
+// Proportional (Charon Mono is its fixed-width sibling). Ships 400, 500 and 700: a
+// 600 request takes the real 700 cut, never a synthesised one.
+const iosevkaCharon = localFont({
+  src: [
+    { path: "./fonts/IosevkaCharon-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/IosevkaCharon-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/IosevkaCharon-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--face-iosevka-charon",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: "Arial",
+  fallback: ["Helvetica Neue", "Arial", "sans-serif"],
+});
+
+// Only 400 and 700 exist. The browser picks the nearest real cut for a request:
+// 500 takes 400 and 600 takes 700, so there is no faux bold.
+const spaceMono = localFont({
+  src: [
+    { path: "./fonts/SpaceMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/SpaceMono-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--face-space-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// The standard (not Term or Aile) Iosevka.
+const iosevka = localFont({
+  src: [
+    { path: "./fonts/Iosevka-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Iosevka-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Iosevka-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-iosevka",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// Ships 400, 500 and 700 (no 600 exists): 600 takes the real 700 cut.
+const iosevkaCharonMono = localFont({
+  src: [
+    { path: "./fonts/IosevkaCharonMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/IosevkaCharonMono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/IosevkaCharonMono-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--face-iosevka-charon-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// Variable source, instanced at normal width for each weight.
+const martianMono = localFont({
+  src: [
+    { path: "./fonts/MartianMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/MartianMono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/MartianMono-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-martian-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// The slab-serif Monaspace.
+const monaspaceXenon = localFont({
+  src: [
+    { path: "./fonts/MonaspaceXenon-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/MonaspaceXenon-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/MonaspaceXenon-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-monaspace-xenon",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+const commitMono = localFont({
+  src: [
+    { path: "./fonts/CommitMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/CommitMono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/CommitMono-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-commit-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// Only 400 and 700 exist: 500 takes 400, 600 takes 700 (no faux bold).
+const courierPrime = localFont({
+  src: [
+    { path: "./fonts/CourierPrime-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/CourierPrime-700.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--face-courier-prime",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
+// Ships 300, 400 and 500 (no 600 or 700): we keep 400 and 500, so a heavier
+// request takes the real 500 cut and is never synthesised bold.
+const dmMono = localFont({
+  src: [
+    { path: "./fonts/DMMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/DMMono-500.woff2", weight: "500", style: "normal" },
+  ],
+  variable: "--face-dm-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
 /** Class names that define the `--face-*` variables; put them on <html>. */
-export const fontClassName = [plexSans, plexMono, barlowCondensed, zillaSlab, inter, jetbrainsMono]
+export const fontClassName = [
+  plexSans,
+  plexMono,
+  barlowCondensed,
+  zillaSlab,
+  inter,
+  jetbrainsMono,
+  spaceGrotesk,
+  iosevkaCharon,
+  spaceMono,
+  iosevka,
+  iosevkaCharonMono,
+  martianMono,
+  monaspaceXenon,
+  commitMono,
+  courierPrime,
+  dmMono,
+]
   .map((font) => font.variable)
   .join(" ");

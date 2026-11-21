@@ -19,11 +19,10 @@ describe("font registry", () => {
   });
 
   it.each(fontRoleIds)(
-    "offers %s two to six choices, the default first and System last",
+    "offers %s at least two choices, the default first and System last",
     (role) => {
       const { choices } = fontRoles[role];
       expect(choices.length).toBeGreaterThanOrEqual(2);
-      expect(choices.length).toBeLessThanOrEqual(6);
       expect(choices[0].id).toBe(defaultFontChoiceId);
       expect(choices.at(-1)?.id).toBe("system");
       expect(new Set(choices.map((c) => c.id)).size).toBe(choices.length);
@@ -52,9 +51,19 @@ describe("font registry", () => {
       "plex-sans",
       "barlow-condensed",
       "zilla-slab",
+      "space-grotesk",
+      "iosevka-charon",
       "inter",
       "plex-mono",
       "jetbrains-mono",
+      "space-mono",
+      "iosevka",
+      "iosevka-charon-mono",
+      "martian-mono",
+      "monaspace-xenon",
+      "commit-mono",
+      "courier-prime",
+      "dm-mono",
     ]);
   });
 
@@ -77,8 +86,18 @@ describe("font registry", () => {
     expect(fontChoiceIdsFor("body")).toEqual([
       "default",
       "inter",
+      "space-grotesk",
+      "iosevka-charon",
       "plex-mono",
       "jetbrains-mono",
+      "space-mono",
+      "iosevka",
+      "iosevka-charon-mono",
+      "martian-mono",
+      "monaspace-xenon",
+      "commit-mono",
+      "courier-prime",
+      "dm-mono",
       "system-mono",
       "system",
     ]);
@@ -97,7 +116,33 @@ describe("font registry", () => {
   });
 
   it("lists a role's ids, default first", () => {
-    expect(fontChoiceIdsFor("label")).toEqual(["default", "jetbrains-mono", "system"]);
+    expect(fontChoiceIdsFor("label")).toEqual([
+      "default",
+      "jetbrains-mono",
+      "space-mono",
+      "iosevka",
+      "iosevka-charon-mono",
+      "martian-mono",
+      "monaspace-xenon",
+      "commit-mono",
+      "courier-prime",
+      "dm-mono",
+      "system",
+    ]);
+  });
+
+  it("offers only proportional faces for Display and no sans face for Labels", () => {
+    const faces = (role: "display" | "label") =>
+      fontRoles[role].choices.flatMap((c) => ("face" in c ? [c.face] : []));
+    expect(faces("display")).toEqual([
+      "plex-sans",
+      "barlow-condensed",
+      "zilla-slab",
+      "space-grotesk",
+      "iosevka-charon",
+    ]);
+    expect(faces("label")).not.toContain("space-grotesk");
+    expect(faces("label")).not.toContain("iosevka-charon");
   });
 
   it("turns a face into its own variable with the role's stack behind it", () => {

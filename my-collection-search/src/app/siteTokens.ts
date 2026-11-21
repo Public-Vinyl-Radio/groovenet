@@ -50,9 +50,10 @@ export function faceFiles(family: string, listing: readonly string[]): SiteFace 
     .map((file) => file.match(new RegExp(`^${prefix}-(\\d{3})\\.woff2$`)))
     .flatMap((match) => (match ? [{ weight: Number(match[1]), file: match[0] }] : []))
     .sort((a, b) => a.weight - b.weight);
-  const licence = listing.find(
-    (file) => /^OFL-.+\.txt$/.test(file) && prefix.startsWith(file.slice(4, -4)),
-  );
+  // The longest match: "IosevkaCharon" takes OFL-IosevkaCharon.txt, not OFL-Iosevka.txt.
+  const licence = listing
+    .filter((file) => /^OFL-.+\.txt$/.test(file) && prefix.startsWith(file.slice(4, -4)))
+    .sort((a, b) => b.length - a.length)[0];
   if (files.length === 0) throw new Error(`No woff2 files for ${family} (${prefix}-<weight>)`);
   if (!licence) throw new Error(`No OFL licence for ${family}`);
   return { family, files, licence };

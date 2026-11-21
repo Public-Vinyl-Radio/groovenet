@@ -33,6 +33,20 @@ export interface FontRole {
   choices: readonly FontChoice[];
 }
 
+// Mono faces offered for both Labels and Body, after JetBrains Mono. Each is
+// self-contained (its own localFont, files and licence), so dropping one is a
+// delete here, in fonts.ts and under fonts/.
+const extraMonoChoices = [
+  { id: "space-mono", label: "Space Mono", face: "space-mono" },
+  { id: "iosevka", label: "Iosevka", face: "iosevka" },
+  { id: "iosevka-charon-mono", label: "Iosevka Charon Mono", face: "iosevka-charon-mono" },
+  { id: "martian-mono", label: "Martian Mono", face: "martian-mono" },
+  { id: "monaspace-xenon", label: "Monaspace Xenon", face: "monaspace-xenon" },
+  { id: "commit-mono", label: "Commit Mono", face: "commit-mono" },
+  { id: "courier-prime", label: "Courier Prime", face: "courier-prime" },
+  { id: "dm-mono", label: "DM Mono", face: "dm-mono" },
+] as const satisfies readonly FontChoice[];
+
 export const fontRoles = {
   display: {
     label: "Display",
@@ -43,6 +57,8 @@ export const fontRoles = {
       { id: "default", label: "IBM Plex Sans", face: "plex-sans" },
       { id: "barlow-condensed", label: "Barlow Condensed", face: "barlow-condensed" },
       { id: "zilla-slab", label: "Zilla Slab", face: "zilla-slab" },
+      { id: "space-grotesk", label: "Space Grotesk", face: "space-grotesk" },
+      { id: "iosevka-charon", label: "Iosevka Charon", face: "iosevka-charon" },
       { id: "system", label: "System", stack: systemSans },
     ],
   },
@@ -54,9 +70,12 @@ export const fontRoles = {
     choices: [
       { id: "default", label: "IBM Plex Sans", face: "plex-sans" },
       { id: "inter", label: "Inter", face: "inter" },
+      { id: "space-grotesk", label: "Space Grotesk", face: "space-grotesk" },
+      { id: "iosevka-charon", label: "Iosevka Charon", face: "iosevka-charon" },
       // The Labels role's mono faces, offered for body text too (same files).
       { id: "plex-mono", label: "IBM Plex Mono", face: "plex-mono" },
       { id: "jetbrains-mono", label: "JetBrains Mono", face: "jetbrains-mono" },
+      ...extraMonoChoices,
       { id: "system-mono", label: "System mono", stack: monoFallback },
       { id: "system", label: "System", stack: systemSans },
     ],
@@ -69,6 +88,7 @@ export const fontRoles = {
     choices: [
       { id: "default", label: "IBM Plex Mono", face: "plex-mono" },
       { id: "jetbrains-mono", label: "JetBrains Mono", face: "jetbrains-mono" },
+      ...extraMonoChoices,
       { id: "system", label: "System mono", stack: monoFallback },
     ],
   },

@@ -63,6 +63,9 @@ function DraftCard({ set }: { set: DraftSet }) {
   );
 }
 
+/** Card width from which a row shows "created · tracks · duration"; below it, the track count. */
+const FULL_META_MIN_WIDTH = "480px";
+
 function PlaylistRow({
   playlist,
   created,
@@ -93,21 +96,22 @@ function PlaylistRow({
           </Text>
           <Text
             as="span"
-            display={{ base: "inline", md: "none" }}
             fontFamily="mono"
             fontSize="11px"
             color="fg.muted"
             flexShrink={0}
+            css={{ [`@container (min-width: ${FULL_META_MIN_WIDTH})`]: { display: "none" } }}
           >
             {tracksLabel(playlist.track_count)}
           </Text>
           <Text
             as="span"
-            display={{ base: "none", md: "inline" }}
+            display="none"
             fontFamily="mono"
             fontSize="12px"
             color="fg.muted"
             flexShrink={0}
+            css={{ [`@container (min-width: ${FULL_META_MIN_WIDTH})`]: { display: "inline" } }}
           >
             {created} · {tracksAndDuration(playlist)}
           </Text>
@@ -189,6 +193,9 @@ export function PlaylistsSection({ playlists, loading, error, now }: Props) {
       borderColor="border.ink"
       boxShadow="md"
       overflow="clip"
+      // Rows size their meta line to this card, not the viewport: half width on
+      // desktop (#1245) is narrower than a tablet's full width.
+      containerType="inline-size"
     >
       <SectionLabel
         variant="header"
