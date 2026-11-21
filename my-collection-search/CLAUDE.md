@@ -432,10 +432,15 @@ trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
   buttons, tags, overlines, nav, IDs such as LP-342). **Display is for page titles
   (`PageHeader.Title`) and section headings (`SectionHeading`) only**: anything repeated
   in a list (card, row and tile titles) uses Body and gets its hierarchy from weight and
-  size, so a Display or Body choice never makes a grid read as headlines. Each role lists 2 to 6
-  choices; the first (`default`) is the app's own face and the last is
+  size, so a Display or Body choice never makes a grid read as headlines. Each role lists a curated
+  set of choices (Labels and Body run long, #1245); the first (`default`) is the app's own face and the last is
   `system` (`system-ui` / `ui-monospace`, no file). Body also offers the mono
-  faces (`plex-mono`, `jetbrains-mono`, `system-mono`); ids are unique per role. `fontRoleIds`,
+  faces (`plex-mono`, `jetbrains-mono`, `space-mono`, `iosevka`, `iosevka-charon-mono`,
+  `martian-mono`, `monaspace-xenon`, `commit-mono`, `courier-prime`, `dm-mono`, `system-mono`) and the
+  proportional `space-grotesk` and `iosevka-charon`; ids are unique per role. A face with fewer
+  weights than the role uses (Space Mono and Courier Prime: 400/700; Charon: 400/500/700) is
+  declared with only the cuts that exist, so the browser picks the nearest real one and never
+  synthesises bold. `fontRoleIds`,
   `isFontChoiceId`, `resolveFontChoice(role, value)` (unknown, missing or
   another role's id is the default) and `fontChoiceIdsFor(role)` derive from it,
   and so do the `PUT /api/settings/appearance` validation, the OpenAPI enums,
