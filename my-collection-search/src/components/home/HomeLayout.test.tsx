@@ -39,4 +39,15 @@ describe("HomeLayout", () => {
     expect(order()).toEqual(["slot-header", "slot-month"]);
     expect(container.querySelector("[data-slot]")).toBeNull();
   });
+
+  it("keeps the phone order with playlists but no new arrivals", () => {
+    renderWithProviders(
+      <HomeLayout
+        header={<div data-testid="slot-header" />}
+        month={<div data-testid="slot-month" />}
+        playlists={<div data-testid="slot-playlists" />}
+      />,
+    );
+    expect(order()).toEqual(["slot-header", "slot-month", "slot-playlists"]);
+  });
 });
