@@ -1,12 +1,28 @@
 name: clean-install
 
-# Clean-install smoke test (#1239): the README quick start on the published
-# release-candidate images, through migrations and the first Discogs import.
-# Not on every PR: it needs the images the main-branch push builds, and it is
-# slow. Run it by hand against any tag with workflow_dispatch.
+# Clean-install smoke tests on the published release-candidate images, through
+# migrations and the first Discogs import:
+#   clean-install  the README quick start (#1239)
+#   install-script the one-line installer (#1072), then a rerun that must be a no-op
+# They need the images the main-branch push builds and are slow, so PRs run only
+# the installer job, and only when the installer or its inputs change (against
+# the images of main's tip). Run either by hand against any tag with
+# workflow_dispatch.
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - .github/workflows/clean-install.yml
+      - .github/scripts/wait-for-images.sh
+      - site/public/install.sh
+      - scripts/install/**
+      - scripts/lib/clean-install-checks.sh
+      - scripts/clean-install-test.sh
+      - docker-compose.yml
+      - docker-compose.images.yml
+      - docker-compose.local.yml
+      - .env.example
   workflow_dispatch:
     inputs:
       tag:
@@ -23,6 +39,7 @@ concurrency:
 
 jobs:
   clean-install:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest # amd64, which is all the images are built for
     timeout-minutes: 30
     steps:
@@ -41,24 +58,9 @@ jobs:
             echo "tag=${INPUT_TAG}" >>"$GITHUB_OUTPUT"
           fi
 
-      # The push to main also starts docker-publish, which builds sha-<short>
-      # after its tests pass. Wait for the two images the test pulls.
       - name: Wait for the candidate images
         if: github.event_name == 'push'
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          owner="${GITHUB_REPOSITORY_OWNER,,}"
-          for svc in webapp webapp-migrate; do
-            src="ghcr.io/${owner}/${svc}:${TAG}"
-            for attempt in $(seq 1 90); do
-              docker buildx imagetools inspect "$src" >/dev/null 2>&1 && continue 2
-              echo "waiting for ${src} (attempt ${attempt}/90)..."
-              sleep 30
-            done
-            echo "::error::candidate image ${src} never appeared"
-            exit 1
-          done
+        run: .github/scripts/wait-for-images.sh "${{ steps.tag.outputs.tag }}"
 
       - name: Note a missing Discogs token
         env:
@@ -82,4 +84,63 @@ jobs:
         with:
           name: clean-install-logs
           path: ${{ runner.temp }}/clean-install-logs
+          if-no-files-found: ignore
+
+  install-script:
+    runs-on: ubuntu-latest # amd64; also has Docker, sudo and /srv, like a fresh VPS
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # origin/main and release tags
+
+      - name: ShellCheck
+        run: |
+          shellcheck site/public/install.sh scripts/install/*.sh scripts/lib/*.sh scripts/clean-install-test.sh .github/scripts/wait-for-images.sh
+
+      - name: Installer unit tests (bash and dash)
+        run: |
+          scripts/install/unit_test.sh
+          TEST_SH=dash scripts/install/unit_test.sh
+
+      - name: Resolve the image tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          case "$GITHUB_EVENT_NAME" in
+            push) echo "tag=sha-${GITHUB_SHA:0:7}" >>"$GITHUB_OUTPUT" ;;
+            pull_request) echo "tag=sha-$(git rev-parse --short=7 origin/main)" >>"$GITHUB_OUTPUT" ;;
+            *) echo "tag=${INPUT_TAG}" >>"$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Wait for the candidate images
+        if: github.event_name != 'workflow_dispatch'
+        run: .github/scripts/wait-for-images.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: Note a missing Discogs token
+        env:
+          DISCOGS_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
+        run: |
+          if [[ -z "$DISCOGS_TOKEN" ]]; then
+            echo "::warning::Secret CLEAN_INSTALL_DISCOGS_TOKEN is not set (it is not on fork PRs), so the Discogs import is skipped."
+          fi
+
+      # Installs with the installer's own defaults (project groovenet, port 3000,
+      # /srv/groovenet), checks the stack, reruns the installer and checks it
+      # changed nothing, then removes everything.
+      - name: Installer end to end
+        env:
+          DISCOGS_USER_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
+          CLEAN_INSTALL_LOG_DIR: ${{ runner.temp }}/install-script-logs
+          INSTALL_TEST_DEFAULTS: "1"
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: scripts/install/e2e.sh "$TAG"
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-script-logs
+          path: ${{ runner.temp }}/install-script-logs
           if-no-files-found: ignore

@@ -53,12 +53,20 @@ GrooveNet imports your Discogs collection, enriches it with streaming metadata, 
 ## Quick start
 
 ```bash
+curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh
+```
+
+On Linux, or a Mac with Docker already running. It installs from the published images into `/srv/groovenet` or `~/groovenet`, asks for your Discogs credentials, runs migrations, waits for the app and offers to import your collection. Run it again to upgrade; it keeps `.env` and your data. Open the app at <http://localhost:3000>. [Read the script first](site/public/install.sh), or see the [setup guide](https://groovenet.publicvinylradio.com/docs/getting-started/) for its options.
+
+Without the script, the same install by hand:
+
+```bash
 cp .env.example .env   # set POSTGRES_PASSWORD, DISCOGS_USER_TOKEN and DISCOGS_USERNAME
 export COMPOSE_FILE=docker-compose.yml:docker-compose.images.yml:docker-compose.local.yml
 docker compose up -d
 ```
 
-This pulls the published images and applies database migrations on every `up` (a one-shot `migrate` service runs first; the app starts only if it succeeds). Open the app at <http://localhost:3000>. See the [setup guide](https://groovenet.publicvinylradio.com/docs/getting-started/) for configuration, importing a Discogs collection, and updates.
+This pulls the published images and applies database migrations on every `up` (a one-shot `migrate` service runs first; the app starts only if it succeeds).
 
 ## What's in the repo
 

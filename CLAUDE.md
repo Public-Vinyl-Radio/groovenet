@@ -214,6 +214,9 @@ Automated via release-please — see `RELEASING.md`.
 2. release-please opens a Release PR bumping the version and `CHANGELOG.md`.
 3. Merging it tags `vX.Y.Z`, and `docker-publish.yml` publishes
    `ghcr.io/public-vinyl-radio/*` images.
+   `install-bundle.yml` also attaches `groovenet-compose-vX.Y.Z.tar.gz` (+ `.sha256`),
+   which `site/public/install.sh` (served at `/install.sh`) downloads. Test the
+   installer with `just install-test sha-<short>` and `just install-unit-test`.
 4. Deploy with `just deploy vX.Y.Z`.
 
 To test before releasing, `just deploy-rc` deploys the tip of `main` as a

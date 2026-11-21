@@ -1,0 +1,63 @@
+name: install-bundle
+
+# Attaches the install bundle (#1072) to an app release: the compose files with
+# the image tag pinned, .env.example and a checksum, which install.sh downloads
+# instead of a checkout. See scripts/install/build-bundle.sh.
+#
+# Called by release-please.yml when it creates an app release (vX.Y.Z). Run it
+# by hand to attach a bundle to a release that predates this, or to repair one.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "App release tag, vX.Y.Z"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "App release tag, vX.Y.Z"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # Only app releases get a bundle. Component releases carry a prefix
+      # (groovenet-cli-v3.15.0) and never match.
+      - name: Check the tag is an app release
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not an app release tag (vX.Y.Z); no bundle is built for it"
+            exit 1
+          fi
+
+      # The builder comes from the default branch; the compose files come from
+      # the release tag, so the bundle is exactly what that release shipped.
+      - uses: actions/checkout@v7
+        with:
+          path: builder
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          path: release
+
+      - name: Build the bundle
+        env:
+          TAG: ${{ inputs.tag }}
+        run: builder/scripts/install/build-bundle.sh "$TAG" dist release
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release upload "$TAG" "dist/groovenet-compose-${TAG}.tar.gz" "dist/groovenet-compose-${TAG}.tar.gz.sha256" \
+            --clobber --repo "$GITHUB_REPOSITORY"

@@ -12,6 +12,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-24.04
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -32,3 +35,15 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
         run: node .github/scripts/mark-app-release-latest.mjs
+
+  # An app release (vX.Y.Z) gets the install bundle that install.sh downloads.
+  # release_created is the root package's output, so a CLI or client release
+  # does not trigger this; install-bundle.yml also rejects any prefixed tag.
+  install-bundle:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/install-bundle.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}

@@ -1,12 +1,10 @@
 ---
-// The README's self-hosted install, as a terminal with a copy button. The
-// comment line is shown but not copied: zsh treats a pasted `#` as a command.
+// The one-line installer (#1072). The comment lines are shown but not copied:
+// zsh treats a pasted `#` as a command. The manual Compose steps are in the docs.
 const lines: Array<{ kind: "cmd" | "comment" | "out"; text: string }> = [
-  { kind: "cmd", text: "git clone https://github.com/Public-Vinyl-Radio/groovenet" },
-  { kind: "cmd", text: "cd groovenet && cp .env.example .env" },
-  { kind: "comment", text: "# set POSTGRES_PASSWORD and DISCOGS_USER_TOKEN in .env" },
-  { kind: "cmd", text: "export COMPOSE_FILE=docker-compose.yml:docker-compose.images.yml:docker-compose.local.yml" },
-  { kind: "cmd", text: "docker compose up -d" },
+  { kind: "comment", text: "# Linux, or a Mac with Docker running. Read it first:" },
+  { kind: "comment", text: "# curl -fsSL groovenet.publicvinylradio.com/install.sh | less" },
+  { kind: "cmd", text: "curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh" },
 ];
 const copyText = lines.filter((l) => l.kind === "cmd").map((l) => l.text).join("\n");
 ---
