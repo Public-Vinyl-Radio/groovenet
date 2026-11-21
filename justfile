@@ -642,7 +642,8 @@ scripts-run *args: check-compose
 # (default: the latest release; or a tag / `sha-<short>` RC) in a throwaway
 # Compose project, through migrations and the first Discogs import. Needs
 # DISCOGS_USER_TOKEN for the import (`op run --env-file=... -- just clean-install-test`);
-# without it the import is skipped and says so. Always removes what it created.
+# without it the import is skipped and says so. Removes what it created, unless
+# CLEAN_INSTALL_KEEP=1 and it passed (then it prints the URL and how to remove it).
 clean-install-test tag="":
   ./scripts/clean-install-test.sh {{tag}}
 

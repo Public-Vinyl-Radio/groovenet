@@ -23,6 +23,10 @@
 #   CLEAN_INSTALL_LOG_DIR                Keep compose logs here (default: a temp dir).
 #   CLEAN_INSTALL_HEALTH_TIMEOUT         Seconds to wait for the app (default 300).
 #   CLEAN_INSTALL_IMPORT_TIMEOUT         Seconds the import may take (default 300).
+#   CLEAN_INSTALL_KEEP=1                 On success, leave the stack running to look
+#                                        at in a browser, and print the URL and the
+#                                        command that removes it. A failure always
+#                                        tears down.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -79,6 +83,7 @@ compose() {
   docker compose --project-directory "$repo_root" --env-file "$work/.env" -p "$project" "$@"
 }
 
+base=""
 status=1
 cleaned=0
 cleanup() {
@@ -93,6 +98,12 @@ cleanup() {
       compose logs --no-color --timestamps "$svc" >"$log_dir/$svc.log" 2>&1
     done
     compose ps -a >"$log_dir/ps.txt" 2>&1
+    if [[ "${CLEAN_INSTALL_KEEP:-}" == "1" && $status -eq 0 && $rc -eq 0 ]]; then
+      step "Keeping $project running (CLEAN_INSTALL_KEEP=1)"
+      echo "    Open:   $base"
+      echo "    Remove: COMPOSE_FILE=$COMPOSE_FILE docker compose --project-directory $repo_root --env-file $work/.env -p $project down -v --remove-orphans && rm -rf $work"
+      exit 0
+    fi
     step "Tearing down $project"
     compose down -v --remove-orphans >/dev/null 2>&1
   fi
