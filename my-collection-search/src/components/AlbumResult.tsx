@@ -12,7 +12,7 @@ import { useAlbum } from "@/hooks/useAlbum";
 import { useAlbumActions } from "@/hooks/useAlbumActions";
 import { discogsGenreBadges } from "@/lib/genres/links";
 import { useGenreLookup } from "@/hooks/useGenreTaxonomyQuery";
-import GenreBadge, { GenreBadgeList } from "@/components/GenreBadge";
+import GenreBadge, { FittedGenreList } from "@/components/GenreBadge";
 import ArtistLink from "@/components/ArtistLink";
 import { RatingStars, TRACK_CARD_COVER_SIZE, LIST_ROW_COVER_SIZE } from "@/components/TrackResult";
 
@@ -165,7 +165,23 @@ function FullAlbumResult({
     resolvedAlbum.effective_styles ?? resolvedAlbum.styles,
     genreLookup,
   );
-  const hasGenres = displayGenres.length > 0 || displayStyles.length > 0;
+  // Genres first, then styles. A label in both (Reggae as genre and as style)
+  // shows once, as the genre; FUNK / SOUL, FUNK and SOUL stay three terms.
+  const cardGenres = (() => {
+    const seen = new Set(displayGenres.map(({ label }) => label.toLowerCase()));
+    return [
+      ...displayGenres.map((item) => ({ item, kind: "discogs-genre" as const })),
+      ...displayStyles
+        .filter(({ label }) => {
+          const key = label.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((item) => ({ item, kind: "discogs-style" as const })),
+    ];
+  })();
+  const hasGenres = cardGenres.length > 0;
   const albumHref = `/albums/${resolvedAlbum.release_id}?friend_id=${resolvedAlbum.friend_id}`;
   const trackCount = resolvedAlbum.track_count;
   const tracksText = `${trackCount} track${trackCount !== 1 ? "s" : ""}`;
@@ -179,19 +195,9 @@ function FullAlbumResult({
     });
   };
 
-  const genreBadges = (badgeSize: "xs" | "sm") => (
-    <>
-      <GenreBadgeList items={displayGenres} kind="discogs-genre" size={badgeSize} />
-      <GenreBadgeList items={displayStyles} kind="discogs-style" size={badgeSize} />
-    </>
-  );
-
-  // A card shows the first two tags and counts the rest; a row has the room for all.
+  // A card shows the first two tags and counts the rest. A list row fits whole
+  // tags to its cell's width (FittedGenreList) and counts the rest the same way.
   const MAX_CARD_GENRES = 2;
-  const cardGenres = [
-    ...displayGenres.map((item) => ({ item, kind: "discogs-genre" as const })),
-    ...displayStyles.map((item) => ({ item, kind: "discogs-style" as const })),
-  ];
   const hiddenGenres = cardGenres.slice(MAX_CARD_GENRES);
   const cardGenreBadges = (
     <>
@@ -311,10 +317,8 @@ function FullAlbumResult({
         >
           {trackCount > 0 ? trackCount : ""}
         </Table.Cell>
-        <Table.Cell {...cell}>
-          <Flex gap={1.5} flexWrap="wrap">
-            {genreBadges("sm")}
-          </Flex>
+        <Table.Cell {...cell} minW={0} overflow="hidden">
+          <FittedGenreList data-testid="album-genres" items={cardGenres} />
         </Table.Cell>
         <Table.Cell {...cell}>
           <RatingStars value={rating} onChange={handleRatingChange} />

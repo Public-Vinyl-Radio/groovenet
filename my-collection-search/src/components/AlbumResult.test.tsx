@@ -304,6 +304,9 @@ describe("AlbumResult card", () => {
   });
 });
 
+const measuredTags = (cell: HTMLElement) =>
+  [...cell.querySelectorAll("[data-measure-tag]")].map((tag) => tag.textContent);
+
 describe("AlbumResult row", () => {
   it("sizes the cover with the shared list-row constant", () => {
     renderWithProviders(
@@ -317,7 +320,7 @@ describe("AlbumResult row", () => {
     expect(getComputedStyle(cover).width).toBe(LIST_ROW_COVER_SIZE);
   });
 
-  it("keeps every genre tag", () => {
+  it("fits the genre cell to one clipped line, genres before styles", () => {
     renderWithProviders(
       <AlbumTable>
         <AlbumResult
@@ -326,9 +329,31 @@ describe("AlbumResult row", () => {
         />
       </AlbumTable>,
     );
-    const row = screen.getByTestId("album-row").textContent;
-    expect(row).toContain("Downtempo");
-    expect(screen.queryByLabelText(/more genres/)).toBeNull();
+    const cell = screen.getByTestId("album-genres");
+    expect(measuredTags(cell)).toEqual(["Electronic", "Rock", "Trip Hop", "Downtempo"]);
+    expect(getComputedStyle(cell).overflow).toBe("hidden");
+  });
+
+  it("shows a label once when it is both a genre and a style, but keeps similar terms", () => {
+    renderWithProviders(
+      <AlbumTable>
+        <AlbumResult
+          album={{
+            ...full,
+            genres: ["Reggae", "Funk / Soul"],
+            styles: ["reggae", "Funk", "Soul", "Dub"],
+          }}
+          layout="row"
+        />
+      </AlbumTable>,
+    );
+    expect(measuredTags(screen.getByTestId("album-genres"))).toEqual([
+      "Reggae",
+      "Funk / Soul",
+      "Funk",
+      "Soul",
+      "Dub",
+    ]);
   });
 
   it("renders the table cells with tags for each active Missing filter", () => {
