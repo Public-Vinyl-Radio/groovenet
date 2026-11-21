@@ -93,8 +93,18 @@ describe("settings contracts", () => {
     expect(APPEARANCE_FONT_CHOICES.body).toEqual([
       "default",
       "inter",
+      "space-grotesk",
+      "iosevka-charon",
       "plex-mono",
       "jetbrains-mono",
+      "space-mono",
+      "iosevka",
+      "iosevka-charon-mono",
+      "martian-mono",
+      "monaspace-xenon",
+      "commit-mono",
+      "courier-prime",
+      "dm-mono",
       "system-mono",
       "system",
     ]);
