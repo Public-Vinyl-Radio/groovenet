@@ -29,7 +29,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY fingerprint-service/ ./
 
-RUN mkdir -p /app/audio-ingest
+# Not root (#1074): uid/gid 1001, shared by every Groovenet image so the ingest
+# and audio volumes need no group tricks. The mount points exist here so a fresh
+# volume starts out owned by this user; existing ones are re-owned by the
+# `volume-perms` service.
+RUN groupadd --gid 1001 groovenet && \
+    useradd --uid 1001 --gid 1001 --create-home --shell /usr/sbin/nologin groovenet && \
+    mkdir -p /app/audio-ingest /app/audio /app/set-recordings && \
+    chown groovenet:groovenet /app/audio-ingest /app/audio /app/set-recordings
 
 # Fail the build rather than the first job if the native library is missing:
 # `pyacoustid` imports fine without it and only raises when asked to work.
@@ -40,4 +47,5 @@ RUN python -c "import chromaprint; print('libchromaprint', chromaprint._libchrom
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD python -m fingerprint_service.healthcheck
 
+USER groovenet
 CMD ["python", "-m", "fingerprint_service.main"]

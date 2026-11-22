@@ -1076,9 +1076,11 @@ Two things to keep if you touch it:
   not write, the handler stopped reading and never answered, and the CLI hung
   at ~12 MB. `pipeline` also waits for every stream to close, so a file
   opened mid-failure cannot outlive the caller's cleanup.
-- **The app must own `/app/set-recordings`.** `entrypoint.sh` chowns it with
-  the other writable volumes before dropping to `nextjs`; a new volume the app
-  writes to needs adding there too.
+- **The app must own `/app/set-recordings`.** The app runs as `nextjs` (1001) and
+  the `volume-perms` service in `docker-compose.yml` chowns the writable volumes
+  to it on every `up`; a new volume the app writes to needs adding to that
+  service's mounts and loops too (`entrypoint.sh` still does it for the dev
+  target, which starts as root).
 
 ## Now playing (MQTT)
 

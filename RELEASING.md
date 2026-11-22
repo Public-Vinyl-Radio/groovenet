@@ -189,6 +189,32 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm migrate
 Rollback = `just deploy v1.1.0` (the previous tag). Images are immutable, so
 rollback is exact.
 
+### Upgrading to the non-root images (#1074)
+
+Every image now runs as a non-root user: uid/gid 1001 for the app and the four
+Python services (the uid `entrypoint.sh` has always chowned the app's volumes to),
+and the stock `postgres` and `redis` users for the database and Redis. There is no
+manual step. `docker compose up` (so `just deploy`, `just deploy-rc` and the
+installer) now starts a one-shot `volume-perms` service first, like `migrate`, which
+the app, download worker and fingerprint services wait for. It re-owns what older
+root containers left behind: the small metadata volumes (dumps, Discogs exports,
+cookies, essentia-data, covers) in full, and for the media volumes (audio, ingest,
+set recordings) the top level plus any file owned by root. A file owned by anyone
+else, such as a host music library bind-mounted in, is left alone. It takes tens of
+milliseconds once nothing is left to fix, and exits 0.
+
+- The database and Redis volumes need nothing: their files already belong to
+  `postgres` and `redis`, which is who the stock images dropped to.
+- `WORKER_AUDIO_MOUNT` is not fixed separately. If it points somewhere other than
+  `APP_AUDIO_MOUNT`, make that directory writable by uid 1001 yourself.
+- Rolling back to an older tag is safe: root containers read and write
+  1001-owned files, and `volume-perms` leaves ownership consistent for the next
+  upgrade. `volume-perms` pulls `alpine` on first use (`VOLUME_PERMS_IMAGE` pins
+  another).
+- Check after deploying: `docker compose ps -a` shows `volume-perms` exited 0, and
+  `docker exec <container> id -u` is `1001` for the app, worker, essentia,
+  ga-service and fingerprint services, `999` for db and redis.
+
 ## Testing a release candidate on the box
 
 Every push to `main` already builds and pushes **all six** images as

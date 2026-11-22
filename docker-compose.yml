@@ -19,10 +19,6 @@ services:
   app:
     <<: *hardening
     mem_limit: ${APP_MEM_LIMIT:-1536m}
-    # entrypoint.sh starts as root, re-owns the mounted volumes (CHOWN, with
-    # DAC_OVERRIDE/FOWNER for files other uids created) and drops to nextjs with
-    # gosu (SETUID, SETGID). Drops out once the image runs as nextjs from the start.
-    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -66,6 +62,8 @@ services:
       # Migrations run on every `up`; a failed one keeps the app down.
       migrate:
         condition: service_completed_successfully
+      volume-perms:
+        condition: service_completed_successfully
     volumes:
       - ${APP_AUDIO_MOUNT:-music_data:/app/audio}
       - db_dumps:/app/dumps
@@ -76,6 +74,55 @@ services:
       - audio_ingest:/app/audio-ingest
       # Set recordings the CLI uploads (#282). Read-write here; the set worker
       # mounts the same store read-only.
+      - ${SET_RECORDINGS_MOUNT:-set_recordings:/app/set-recordings}
+
+  # One-shot init service, like `migrate`: runs on every `up`, exits 0, and the
+  # services that write to the shared volumes wait for it (#1074). Every Groovenet
+  # image runs as uid/gid 1001, but volumes made by older (root) images hold
+  # root-owned files, and a bind-mounted host directory belongs to whoever made it.
+  # This is the only container that still runs as root, with just the capabilities
+  # chown needs. Idempotent and fast: it only chowns what is not already 1001,
+  # and walks stat-only once nothing is left to fix. Small metadata directories
+  # are re-owned whatever their owner. Media directories (hundreds of GB) get
+  # their top level plus anything owned by root, which is what the old root
+  # worker wrote and the new one must be able to overwrite; files owned by any
+  # other user, such as a host music library bind-mounted in, are left alone.
+  volume-perms:
+    <<: *hardening
+    image: ${VOLUME_PERMS_IMAGE:-alpine:3.22}
+    user: "0:0"
+    mem_limit: ${VOLUME_PERMS_MEM_LIMIT:-64m}
+    # CHOWN to change owners; DAC_OVERRIDE and FOWNER because the files being
+    # fixed belong to other users (root, or uid 1001 on a host directory).
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        set -u
+        fix_tree() {
+          [ -d "$$1" ] || return 0
+          find "$$1" -xdev \( ! -user 1001 -o ! -group 1001 \) -exec chown -h 1001:1001 {} + \
+            || echo "volume-perms: could not fix everything under $$1 (continuing)"
+        }
+        fix_media() {
+          [ -d "$$1" ] || return 0
+          chown 1001:1001 "$$1" || echo "volume-perms: could not fix $$1 (continuing)"
+          find "$$1" -xdev -user 0 -exec chown -h 1001:1001 {} + \
+            || echo "volume-perms: could not fix root-owned files under $$1 (continuing)"
+        }
+        for d in /app/dumps /app/discogs_exports /app/cookies /app/essentia-data /app/public/uploads/album-covers; do fix_tree "$$d"; done
+        for d in /app/audio /app/audio-ingest /app/set-recordings; do fix_media "$$d"; done
+        exit 0
+    volumes:
+      - ${APP_AUDIO_MOUNT:-music_data:/app/audio}
+      - db_dumps:/app/dumps
+      - discogs_exports:/app/discogs_exports
+      - cookie_data:/app/cookies
+      - album_covers:/app/public/uploads/album-covers
+      - essentia_data:/app/essentia-data
+      - audio_ingest:/app/audio-ingest
       - ${SET_RECORDINGS_MOUNT:-set_recordings:/app/set-recordings}
 
   # One-shot init service: runs on every `up` and exits 0 (also when there is
@@ -125,11 +172,10 @@ services:
   db:
     <<: *hardening
     mem_limit: ${DB_MEM_LIMIT:-1g}
-    # The official image's entrypoint starts as root, chowns and chmods the data
-    # directory (CHOWN, FOWNER, DAC_OVERRIDE) and drops to postgres with gosu
-    # (SETUID, SETGID). Each was verified: without FOWNER or DAC_OVERRIDE the
-    # entrypoint logs "chmod ... Operation not permitted" on /var/lib/postgresql/data.
-    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    # Not root (#1074): the official entrypoint only chowns and drops privileges
+    # when it starts as root, so running as postgres needs no capabilities. The
+    # data directory is already postgres's on every existing install.
+    user: postgres
     image: pgvector/pgvector:pg15
     restart: always
     command: ["postgres", "-c", "maintenance_work_mem=256MB"]
@@ -174,10 +220,8 @@ services:
   redis:
     <<: *hardening
     mem_limit: ${REDIS_MEM_LIMIT:-256m}
-    # The official image's entrypoint drops to redis with su-exec (SETUID,
-    # SETGID) after chowning any file in /data not already owned by redis
-    # (CHOWN), e.g. a restored volume.
-    cap_add: [CHOWN, SETUID, SETGID]
+    # Not root (#1074), for the same reason as db. /data is already redis's.
+    user: redis
     image: redis:7-alpine
     restart: always
     volumes:
@@ -192,11 +236,6 @@ services:
   download-worker:
     <<: *hardening
     mem_limit: ${DOWNLOAD_WORKER_MEM_LIMIT:-1536m}
-    # The worker runs as root and the app re-owns the shared volumes to uid 1001
-    # (nextjs) at startup, so without DAC_OVERRIDE it cannot write the audio,
-    # cookie, essentia-data or cover directories. Drops out once every image
-    # runs as the same non-root user.
-    cap_add: [DAC_OVERRIDE]
     profiles: [downloads, all]
     build:
       context: .
@@ -213,8 +252,12 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-0.3.2}
       SENTRY_SERVICE: download-worker
     depends_on:
-      - redis
-      - db
+      redis:
+        condition: service_started
+      db:
+        condition: service_started
+      volume-perms:
+        condition: service_completed_successfully
     volumes:
       - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}
       - album_covers:/app/public/uploads/album-covers
@@ -254,7 +297,10 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-0.3.2}
       SENTRY_SERVICE: fingerprint-service
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      volume-perms:
+        condition: service_completed_successfully
     volumes:
       # Mounted directly, unlike essentia-api, so chunks never have to be
       # re-served over HTTP to reach the service that needs them.

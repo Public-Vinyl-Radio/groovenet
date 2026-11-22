@@ -16,6 +16,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY essentia_api.py observability.py ./
 
+# Not root (#1074): uid/gid 1001, the same in every Groovenet image. The service
+# is stateless and only writes to /tmp.
+RUN addgroup -g 1001 groovenet && adduser -D -u 1001 -G groovenet groovenet
+USER groovenet
+
 EXPOSE 8001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
