@@ -95,6 +95,8 @@ export const fontRoles = {
 } as const satisfies Record<string, FontRole>;
 
 export type FontRoleId = keyof typeof fontRoles;
+/** The ids one role accepts. */
+export type FontRoleChoice<R extends FontRoleId> = (typeof fontRoles)[R]["choices"][number]["id"];
 export type FontChoiceId = (typeof fontRoles)[FontRoleId]["choices"][number]["id"];
 export type FontSelection = Record<FontRoleId, FontChoiceId>;
 

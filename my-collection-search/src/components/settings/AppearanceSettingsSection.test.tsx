@@ -16,12 +16,23 @@ vi.mock("@/services/internalApi/settings", () => api);
 vi.mock("@/components/ui/toaster", () => ({ toaster: toast }));
 
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
+import { useSyncAppearance } from "@/hooks/useAppearanceSettings";
+import { reloadAppearanceOverride } from "@/lib/appearanceOverrideStore";
+import { appearanceOverrideKey } from "@/app/appearanceOverride";
+
+// The app mounts this in the providers; the section only writes the override.
+function Section() {
+  useSyncAppearance();
+  return <AppearanceSettingsSection />;
+}
 
 const defaults = { display: "default", body: "default", label: "default" };
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  reloadAppearanceOverride();
+  document.getElementById("gn-custom-palette")?.remove();
   const { dataset } = document.documentElement;
   dataset.palette = "sleeve";
   dataset.corners = "square";
@@ -46,10 +57,18 @@ beforeEach(() => {
   });
 });
 
+const stored = () => JSON.parse(localStorage.getItem(appearanceOverrideKey) ?? "null");
+const group = (role: string) => within(screen.getByRole("radiogroup", { name: `${role} font` }));
+const checked = (role: string, name: string) =>
+  group(role)
+    .getByRole("radio", { name: new RegExp(name, "i") })
+    .getAttribute("aria-checked");
+const scope = (container: HTMLElement, title: string) =>
+  container.querySelector(`section[aria-label="${title}"] [data-scope]`)?.textContent;
+
 describe("AppearanceSettingsSection palette", () => {
   it("shows a card per registered palette, with the saved one selected", async () => {
-    renderWithProviders(<AppearanceSettingsSection />);
-
+    renderWithProviders(<Section />);
     const sleeveCard = await screen.findByRole("radio", { name: /sleeve/i });
     await waitFor(() => expect(sleeveCard.getAttribute("aria-checked")).toBe("true"));
     for (const id of paletteIds) {
@@ -58,120 +77,70 @@ describe("AppearanceSettingsSection palette", () => {
   });
 
   it("paints each card's swatches from the palette in the current mode", async () => {
-    renderWithProviders(<AppearanceSettingsSection />);
-
+    renderWithProviders(<Section />);
     const card = await screen.findByRole("radio", { name: /riso/i });
-    const ground = card.querySelector<HTMLElement>("[title=Ground]");
-    expect(ground?.style.backgroundColor).toBe("rgb(251, 241, 222)");
+    expect(card.querySelector<HTMLElement>("[title=Ground]")?.style.backgroundColor).toBe(
+      "rgb(251, 241, 222)",
+    );
     expect(card.querySelectorAll("[title]")).toHaveLength(4);
   });
 
-  it("lists every palette in the registry and applies the chosen one at once", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
-
-    await user.click(screen.getByRole("radio", { name: /riso/i }));
+  it("applies the chosen palette to this device only, never calling the API", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("radio", { name: /riso/i }));
 
     expect(document.documentElement.dataset.palette).toBe("riso");
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "riso" }),
-    );
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /riso/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
-    expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-      "false",
-    );
-  });
-
-  it("selects the card as soon as it is clicked, before the save returns", async () => {
-    let finish: (value: unknown) => void = () => {};
-    api.updateAppearanceSettings.mockReturnValue(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
-
-    await user.click(screen.getByRole("radio", { name: /riso/i }));
-
-    expect(screen.getByRole("radio", { name: /riso/i }).getAttribute("aria-checked")).toBe("true");
-    finish({ palette: "riso", fonts: defaults });
-    await waitFor(() => expect(api.updateAppearanceSettings).toHaveBeenCalled());
-  });
-
-  it("doesn't save when the selected palette is clicked again", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
-
-    await user.click(screen.getByRole("radio", { name: /sleeve/i }));
-
+    expect(stored().palette).toBe("riso");
     expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
+    expect(screen.getByRole("radio", { name: /riso/i }).getAttribute("aria-checked")).toBe("true");
   });
 
-  it("puts the page back and says so when saving fails", async () => {
-    api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
+  it("shows an override as overridden, and resets it to the saved palette", async () => {
+    localStorage.setItem(appearanceOverrideKey, JSON.stringify({ v: 1, palette: "midnight" }));
+    reloadAppearanceOverride();
+    const { container, user } = renderWithProviders(<Section />);
+    await waitFor(() => expect(scope(container, "Palette")).toBe("Overridden on this device"));
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe("midnight"));
 
-    await user.click(screen.getByRole("radio", { name: /riso/i }));
+    await user.click(screen.getByRole("button", { name: "Reset palette to the default" }));
 
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "error", description: "db down" }),
-      ),
-    );
-    expect(document.documentElement.dataset.palette).toBe("sleeve");
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe("sleeve"));
+    expect(scope(container, "Palette")).toBe("Default");
+    expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
   });
 
-  it("reports a non-Error failure by its text", async () => {
-    api.updateAppearanceSettings.mockRejectedValue("nope");
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await user.click(await screen.findByRole("radio", { name: /riso/i }));
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ description: "nope" })),
-    );
+  it("falls back to the saved palette when the stored one is unknown", async () => {
+    localStorage.setItem(appearanceOverrideKey, JSON.stringify({ v: 1, palette: "gone" }));
+    reloadAppearanceOverride();
+    renderWithProviders(<Section />);
+    const sleeve = await screen.findByRole("radio", { name: /sleeve/i });
+    await waitFor(() => expect(sleeve.getAttribute("aria-checked")).toBe("true"));
   });
 
-  it("falls back to the default selection when the saved id is unknown", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({ palette: "retired", fonts: defaults });
-    renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() =>
-      expect(screen.getByRole("radio", { name: /sleeve/i }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
-    );
+  it("keeps the device's choice over a different saved default", async () => {
+    localStorage.setItem(appearanceOverrideKey, JSON.stringify({ v: 1, palette: "riso" }));
+    reloadAppearanceOverride();
+    api.fetchAppearanceSettings.mockResolvedValue({
+      palette: "mono",
+      fonts: defaults,
+      corners: "square",
+    });
+    renderWithProviders(<Section />);
+    const riso = await screen.findByRole("radio", { name: /riso/i });
+    await waitFor(() => expect(riso.getAttribute("aria-checked")).toBe("true"));
+    expect(document.documentElement.dataset.palette).toBe("riso");
   });
 
   it("says when the saved palette can't be loaded", async () => {
     api.fetchAppearanceSettings.mockRejectedValue(new Error("down"));
-    renderWithProviders(<AppearanceSettingsSection />);
-    expect(await screen.findByText(/failed to load the saved appearance/i)).toBeTruthy();
+    renderWithProviders(<Section />);
+    expect(await screen.findByText("Failed to load the saved appearance.")).toBeTruthy();
   });
 });
 
 describe("AppearanceSettingsSection mode", () => {
   it("offers light, dark and system, and remembers the choice on this device", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    const { user } = renderWithProviders(<Section />);
 
     const mode = within(screen.getByLabelText("Colour mode"));
     await user.click(mode.getByText("Dark"));
@@ -189,7 +158,7 @@ describe("AppearanceSettingsSection mode", () => {
 
   it("shows swatches for the current mode", async () => {
     localStorage.setItem("theme", "dark");
-    renderWithProviders(<AppearanceSettingsSection />);
+    renderWithProviders(<Section />);
 
     const card = await screen.findByRole("radio", { name: /riso/i });
     await waitFor(() =>
@@ -201,162 +170,67 @@ describe("AppearanceSettingsSection mode", () => {
 });
 
 describe("AppearanceSettingsSection typography", () => {
-  const group = (role: string) => within(screen.getByRole("radiogroup", { name: `${role} font` }));
-  const checked = (role: string, name: string) =>
-    group(role)
-      .getByRole("radio", { name: new RegExp(name, "i") })
-      .getAttribute("aria-checked");
-
   it("shows a group per role with every registered choice, the saved one selected", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
       palette: "sleeve",
       fonts: { display: "barlow-condensed", body: "default", label: "system" },
     });
-    renderWithProviders(<AppearanceSettingsSection />);
+    renderWithProviders(<Section />);
 
     await waitFor(() => expect(checked("Display", "barlow condensed")).toBe("true"));
     for (const role of fontRoleIds) {
       const { label, choices } = fontRoles[role];
       expect(group(label).getAllByRole("radio")).toHaveLength(choices.length);
     }
-    expect(checked("Display", "ibm plex sans")).toBe("false");
     expect(checked("Body", "ibm plex sans")).toBe("true");
     expect(checked("Labels", "system mono")).toBe("true");
   });
 
   it("renders each option in its own face", async () => {
-    renderWithProviders(<AppearanceSettingsSection />);
+    renderWithProviders(<Section />);
     const card = await group("Body").findByRole("radio", { name: /inter/i });
-
     expect(card.style.fontFamily).toContain("--face-inter");
     expect(group("Body").getByRole("radio", { name: "System" }).style.fontFamily).toMatch(
       /^system-ui/,
     );
-    expect(group("Body").getByRole("radio", { name: "System mono" }).style.fontFamily).toMatch(
-      /^ui-monospace/,
-    );
-    expect(group("Body").getByRole("radio", { name: "IBM Plex Mono" }).style.fontFamily).toContain(
-      "--face-plex-mono",
-    );
-    expect(group("Labels").getByRole("radio", { name: /jetbrains/i }).style.fontFamily).toContain(
-      "--face-jetbrains-mono",
-    );
   });
 
-  it.each([
-    ["IBM Plex Mono", "plex-mono"],
-    ["JetBrains Mono", "jetbrains-mono"],
-    ["System mono", "system-mono"],
-  ])("applies and saves %s as the body font", async (name, id) => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+  it("applies a chosen font to this device, only for that role", async () => {
+    const { user } = renderWithProviders(<Section />);
     await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
 
-    await user.click(group("Body").getByRole("radio", { name }));
+    await user.click(group("Body").getByRole("radio", { name: "JetBrains Mono" }));
 
-    expect(document.documentElement.dataset.fontBody).toBe(id);
+    expect(document.documentElement.dataset.fontBody).toBe("jetbrains-mono");
     expect(document.documentElement.dataset.fontLabel).toBe("default");
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: id } }),
-    );
-  });
-
-  it("shows no repeated sample sentence", async () => {
-    const { container } = renderWithProviders(<AppearanceSettingsSection />);
-    await screen.findByRole("radiogroup", { name: "Body font" });
-    expect(container.querySelector("[data-preview]")).toBeNull();
-    expect(screen.queryByText(/Water No Get Enemy · 104/)).toBeNull();
-  });
-
-  it("applies a chosen font at once, saves only that role", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
-
-    await user.click(group("Body").getByRole("radio", { name: /inter/i }));
-
-    expect(document.documentElement.dataset.fontBody).toBe("inter");
-    expect(document.documentElement.dataset.fontDisplay).toBe("default");
-    expect(document.documentElement.dataset.palette).toBe("sleeve");
-    expect(checked("Body", "inter")).toBe("true");
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } }),
-    );
-  });
-
-  it("keeps two quick changes to different roles", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
-
-    await user.click(group("Body").getByRole("radio", { name: /inter/i }));
-    await user.click(group("Display").getByRole("radio", { name: /zilla/i }));
-
-    await waitFor(() => expect(api.updateAppearanceSettings).toHaveBeenCalledTimes(2));
-    expect(document.documentElement.dataset.fontBody).toBe("inter");
-    expect(document.documentElement.dataset.fontDisplay).toBe("zilla-slab");
-    await waitFor(() => expect(checked("Display", "zilla")).toBe("true"));
-  });
-
-  it("doesn't save when the selected font is clicked again", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() => expect(checked("Labels", "ibm plex mono")).toBe("true"));
-
-    await user.click(group("Labels").getByRole("radio", { name: /ibm plex mono/i }));
-
+    expect(stored().fonts).toEqual({ body: "jetbrains-mono" });
     expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
   });
 
-  it("puts the face back and says so when saving fails", async () => {
-    api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() => expect(checked("Display", "ibm plex sans")).toBe("true"));
-
-    await user.click(group("Display").getByRole("radio", { name: /barlow/i }));
-
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "error",
-          title: "Failed to save display font",
-          description: "db down",
-        }),
-      ),
+  it("resets one role without touching the others", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, fonts: { body: "inter", label: "system" } }),
     );
-    expect(document.documentElement.dataset.fontDisplay).toBe("default");
-    await waitFor(() => expect(checked("Display", "ibm plex sans")).toBe("true"));
-    expect(checked("Display", "barlow")).toBe("false");
-  });
+    reloadAppearanceOverride();
+    const { user } = renderWithProviders(<Section />);
+    await waitFor(() => expect(checked("Body", "inter")).toBe("true"));
 
-  it("rolls back only the role that failed", async () => {
-    api.updateAppearanceSettings.mockRejectedValueOnce(new Error("nope"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    await user.click(screen.getByRole("button", { name: "Reset body font to the default" }));
+
     await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
-    document.documentElement.dataset.palette = "riso";
-
-    await user.click(group("Body").getByRole("radio", { name: /inter/i }));
-
-    await waitFor(() => expect(toast.create).toHaveBeenCalled());
-    expect(document.documentElement.dataset.fontBody).toBe("default");
-    expect(document.documentElement.dataset.palette).toBe("riso");
+    expect(stored().fonts).toEqual({ label: "system" });
+    expect(document.documentElement.dataset.fontLabel).toBe("system");
   });
 
-  it("still applies and saves a change made before the saved setting has loaded", async () => {
-    api.fetchAppearanceSettings.mockReturnValue(new Promise(() => {}));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-
-    await user.click(group("Body").getByRole("radio", { name: /inter/i }));
-
-    expect(document.documentElement.dataset.fontBody).toBe("inter");
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { body: "inter" } }),
+  it("falls back to the saved font for a retired stored id", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, fonts: { body: "papyrus", display: "barlow-condensed" } }),
     );
-  });
-
-  it("falls back to the default selection for an unknown saved font", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({
-      palette: "sleeve",
-      fonts: { display: "retired", body: "zilla-slab", label: "default" },
-    });
-    renderWithProviders(<AppearanceSettingsSection />);
-    await waitFor(() => expect(checked("Display", "ibm plex sans")).toBe("true"));
+    reloadAppearanceOverride();
+    renderWithProviders(<Section />);
+    await waitFor(() => expect(checked("Display", "barlow condensed")).toBe("true"));
     expect(checked("Body", "ibm plex sans")).toBe("true");
   });
 });
@@ -365,244 +239,266 @@ describe("AppearanceSettingsSection custom palette", () => {
   const custom = customFromPreset("riso");
   const styleEl = () => document.getElementById("gn-custom-palette");
 
-  beforeEach(() => {
-    styleEl()?.remove();
-  });
-
   it("offers to create one when none is saved, and has no Custom card", async () => {
-    renderWithProviders(<AppearanceSettingsSection />);
+    renderWithProviders(<Section />);
     expect(await screen.findByText("Create custom palette")).toBeTruthy();
     expect(screen.queryByRole("radio", { name: /^custom$/i })).toBeNull();
   });
 
-  it("creates, saves and applies a palette, with its style in the page", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+  it("saves a palette on this device, with its style in the page", async () => {
+    const { user } = renderWithProviders(<Section />);
     await user.click(await screen.findByText("Create custom palette"));
-    expect(screen.getByTestId("custom-palette-editor")).toBeTruthy();
-
     await user.click(screen.getByText("Save custom palette"));
 
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({
-        palette: "custom",
-        customPalette: expect.objectContaining({ base: "sleeve" }),
-      }),
-    );
-    expect(document.documentElement.dataset.palette).toBe("custom");
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe("custom"));
     expect(styleEl()?.textContent).toContain(':root[data-palette="custom"]{');
+    expect(stored().customPalette).toEqual(expect.objectContaining({ base: "sleeve" }));
+    expect(stored().customCss).toContain(':root[data-palette="custom"]');
+    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
   });
 
-  it("shows the saved palette as a card with swatches, and selects it like a preset", async () => {
+  it("shows the saved palette as a card and selects it like a preset", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
       palette: "sleeve",
       fonts: defaults,
+      corners: "square",
       customPalette: custom,
     });
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-
+    const { user } = renderWithProviders(<Section />);
     const card = await screen.findByRole("radio", { name: /^custom$/i });
-    expect(card.querySelectorAll("[title]")).toHaveLength(4);
-    expect(screen.getByText("Edit custom palette")).toBeTruthy();
-
     await user.click(card);
-
     expect(document.documentElement.dataset.palette).toBe("custom");
     expect(styleEl()).not.toBeNull();
-    await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ palette: "custom" }),
-    );
   });
 
-  it("rolls back a failed selection of the custom card", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({
-      palette: "sleeve",
-      fonts: defaults,
-      customPalette: custom,
-    });
-    api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-
-    await user.click(await screen.findByRole("radio", { name: /^custom$/i }));
-
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })),
+  it("removes the device's own palette without touching the saved one", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, palette: "custom", customPalette: custom }),
     );
-    expect(document.documentElement.dataset.palette).toBe("sleeve");
+    reloadAppearanceOverride();
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByText("Edit custom palette"));
+    await user.click(screen.getByText("Remove from this device"));
+
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe("sleeve"));
+    expect(styleEl()).toBeNull();
+    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
   });
 
-  it("deletes it, falling back to the default palette and removing the style", async () => {
+  it("deletes the saved palette for everyone only from the editor, and says so", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
       palette: "custom",
       fonts: defaults,
+      corners: "square",
       customPalette: custom,
     });
     api.updateAppearanceSettings.mockResolvedValue({
       palette: "sleeve",
       fonts: defaults,
+      corners: "square",
       customPalette: null,
     });
-    document.documentElement.dataset.palette = "custom";
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-
+    const { user } = renderWithProviders(<Section />);
     await user.click(await screen.findByText("Edit custom palette"));
-    await user.click(screen.getByText("Delete custom palette"));
+    await user.click(screen.getByText("Delete for everyone"));
 
     await waitFor(() =>
       expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ customPalette: null }),
     );
-    expect(document.documentElement.dataset.palette).toBe("sleeve");
-    expect(styleEl()).toBeNull();
-    await waitFor(() => expect(screen.queryByTestId("custom-palette-editor")).toBeNull());
-    expect(screen.queryByRole("radio", { name: /^custom$/i })).toBeNull();
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Custom palette deleted for everyone" }),
+      ),
+    );
   });
 
-  it("restores the palette and the style when deleting fails", async () => {
+  it("reports a failed shared delete", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
       palette: "custom",
       fonts: defaults,
+      corners: "square",
       customPalette: custom,
     });
     api.updateAppearanceSettings.mockRejectedValue(new Error("nope"));
-    document.documentElement.dataset.palette = "custom";
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-
+    const { user } = renderWithProviders(<Section />);
     await user.click(await screen.findByText("Edit custom palette"));
-    await user.click(screen.getByText("Delete custom palette"));
-
+    await user.click(screen.getByText("Delete for everyone"));
     await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(expect.objectContaining({ type: "error" })),
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Failed to delete the custom palette",
+          description: "nope",
+        }),
+      ),
     );
     expect(document.documentElement.dataset.palette).toBe("custom");
-    expect(styleEl()).not.toBeNull();
-  });
-
-  it("closes the editor", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await user.click(await screen.findByText("Create custom palette"));
-    await user.click(screen.getByText("Close"));
-    expect(screen.queryByTestId("custom-palette-editor")).toBeNull();
-    expect(screen.getByText("Create custom palette")).toBeTruthy();
-  });
-
-  it("reports a non-Error failure by its text, on save and on delete", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({
-      palette: "sleeve",
-      fonts: defaults,
-      customPalette: custom,
-    });
-    api.updateAppearanceSettings.mockRejectedValue("offline");
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await user.click(await screen.findByText("Edit custom palette"));
-    await user.click(screen.getByText("Save custom palette"));
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: "offline",
-          title: "Failed to save the custom palette",
-        }),
-      ),
-    );
-    await user.click(screen.getByText("Delete custom palette"));
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          description: "offline",
-          title: "Failed to delete the custom palette",
-        }),
-      ),
-    );
-  });
-
-  it("reports a failed save", async () => {
-    api.updateAppearanceSettings.mockRejectedValue(new Error("bad colours"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await user.click(await screen.findByText("Create custom palette"));
-    await user.click(screen.getByText("Save custom palette"));
-    await waitFor(() =>
-      expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Failed to save the custom palette",
-          description: "bad colours",
-        }),
-      ),
-    );
-    expect(document.documentElement.dataset.palette).toBe("sleeve");
   });
 });
 
 describe("AppearanceSettingsSection corners and scope", () => {
   it("says where each part applies", async () => {
-    const { container } = renderWithProviders(<AppearanceSettingsSection />);
+    const { container } = renderWithProviders(<Section />);
     await screen.findByRole("radiogroup", { name: "Body font" });
-
-    const scope = (title: string) =>
-      container.querySelector(`section[aria-label="${title}"] [data-scope]`)?.textContent;
-    expect(scope("Palette")).toBe("Every device");
-    expect(scope("Corners")).toBe("Every device");
-    expect(scope("Type")).toBe("Every device");
-    expect(scope("Light or dark")).toBe("This device");
-    expect(screen.getByText("System follows this device's setting.")).toBeTruthy();
+    expect(scope(container, "Palette")).toBe("Default");
+    expect(scope(container, "Corners")).toBe("Default");
+    expect(scope(container, "Type")).toBe("Default");
+    expect(scope(container, "Light or dark")).toBe("This device");
   });
 
-  it("shows the saved corners with a live preview", async () => {
-    api.fetchAppearanceSettings.mockResolvedValue({
-      palette: "sleeve",
-      fonts: defaults,
-      corners: "rounded",
-    });
-    renderWithProviders(<AppearanceSettingsSection />);
-
-    const rounded = await screen.findByRole("radio", { name: "Rounded" });
-    await waitFor(() => expect((rounded as HTMLInputElement).checked).toBe(true));
-    expect(screen.getByTestId("corners-preview")).toBeTruthy();
-  });
-
-  it("applies the chosen corners at once and saves only them", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await screen.findByRole("radiogroup", { name: "Body font" });
-
-    await user.click(
-      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Rounded"),
-    );
-
+  it("applies the chosen corners to this device and resets them", async () => {
+    const { container, user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("radio", { name: "Rounded" }));
     expect(document.documentElement.dataset.corners).toBe("rounded");
+    expect(stored().corners).toBe("rounded");
+    expect(scope(container, "Corners")).toBe("Overridden on this device");
+
+    await user.click(screen.getByRole("button", { name: "Reset corners to the default" }));
+    await waitFor(() => expect(document.documentElement.dataset.corners).toBe("square"));
+  });
+
+  it("shows a live preview", async () => {
+    renderWithProviders(<Section />);
+    expect(await screen.findByTestId("corners-preview")).toBeTruthy();
+  });
+});
+
+describe("AppearanceSettingsSection default for everyone and reset", () => {
+  const overrideAll = () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, palette: "riso", corners: "rounded", fonts: { body: "inter" } }),
+    );
+    reloadAppearanceOverride();
+  };
+
+  it("disables both actions while the device overrides nothing", async () => {
+    renderWithProviders(<Section />);
+    const button = await screen.findByRole("button", { name: "Use as the default for everyone" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Reset this device" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("saves the overridden fields as the default, then follows it again", async () => {
+    overrideAll();
+    const { container, user } = renderWithProviders(<Section />);
+    await user.click(
+      await screen.findByRole("button", { name: "Use as the default for everyone" }),
+    );
+
     await waitFor(() =>
-      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ corners: "rounded" }),
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({
+        palette: "riso",
+        corners: "rounded",
+        fonts: { body: "inter" },
+      }),
+    );
+    await waitFor(() => expect(localStorage.getItem(appearanceOverrideKey)).toBeNull());
+    expect(document.documentElement.dataset.palette).toBe("riso");
+    expect(scope(container, "Palette")).toBe("Default");
+    expect(toast.create).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Saved as the default for everyone" }),
     );
   });
 
-  it("doesn't save when the current corners are chosen again", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await screen.findByRole("radiogroup", { name: "Body font" });
-
+  it("keeps the override and says so when saving the default fails", async () => {
+    overrideAll();
+    api.updateAppearanceSettings.mockRejectedValue(new Error("offline"));
+    const { user } = renderWithProviders(<Section />);
     await user.click(
-      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Square"),
-    );
-
-    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
-  });
-
-  it("puts the corners back and says so when saving fails", async () => {
-    api.updateAppearanceSettings.mockRejectedValue(new Error("db down"));
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
-    await screen.findByRole("radiogroup", { name: "Body font" });
-
-    await user.click(
-      within(screen.getByRole("radiogroup", { name: "Corners" })).getByText("Rounded"),
+      await screen.findByRole("button", { name: "Use as the default for everyone" }),
     );
 
     await waitFor(() =>
       expect(toast.create).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Failed to save corners", description: "db down" }),
+        expect.objectContaining({ title: "Failed to save the default", description: "offline" }),
       ),
     );
-    await waitFor(() => expect(document.documentElement.dataset.corners).toBe("square"));
+    expect(stored().palette).toBe("riso");
+    expect(document.documentElement.dataset.palette).toBe("riso");
+  });
+
+  it("resets the whole device to the saved setting", async () => {
+    overrideAll();
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("button", { name: "Reset this device" }));
+
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe("sleeve"));
+    expect(document.documentElement.dataset.corners).toBe("square");
+    expect(document.documentElement.dataset.fontBody).toBe("default");
+    expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
+  });
+
+  it("doesn't write when the current value is chosen again", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("radio", { name: /sleeve/i }));
+    await user.click(group("Body").getByRole("radio", { name: "IBM Plex Sans" }));
+    await user.click(screen.getByRole("radio", { name: "Square" }));
+    expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
+  });
+
+  it("resets every font role from the Type part", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, fonts: { body: "inter", display: "zilla-slab" } }),
+    );
+    reloadAppearanceOverride();
+    const { container, user } = renderWithProviders(<Section />);
+    await waitFor(() => expect(scope(container, "Type")).toBe("Overridden on this device"));
+    await user.click(screen.getByRole("button", { name: "Reset type to the default" }));
+    await waitFor(() => expect(scope(container, "Type")).toBe("Default"));
+    expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
+  });
+
+  it("sends the device's custom palette with the default, and reports a non-Error failure", async () => {
+    const custom = customFromPreset("riso");
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, palette: "custom", customPalette: custom }),
+    );
+    reloadAppearanceOverride();
+    api.updateAppearanceSettings.mockRejectedValueOnce("plain text");
+    const { user } = renderWithProviders(<Section />);
+    await user.click(
+      await screen.findByRole("button", { name: "Use as the default for everyone" }),
+    );
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({
+        palette: "custom",
+        customPalette: custom,
+      }),
+    );
+    await waitFor(() =>
+      expect(toast.create).toHaveBeenCalledWith(
+        expect.objectContaining({ description: "plain text" }),
+      ),
+    );
+  });
+
+  it("closes the custom palette editor", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByText("Create custom palette"));
+    expect(screen.getByTestId("custom-palette-editor")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /close|cancel/i }));
+    expect(screen.queryByTestId("custom-palette-editor")).toBeNull();
+  });
+
+  it("still works when storage throws: the change lasts for the page", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("radio", { name: /midnight/i }));
+    expect(document.documentElement.dataset.palette).toBe("midnight");
+    setItem.mockRestore();
   });
 });
 
 describe("AppearanceSettingsSection tab bar labels", () => {
   it("defaults to Always and saves the choice on this device only", async () => {
-    const { user } = renderWithProviders(<AppearanceSettingsSection />);
+    const { user } = renderWithProviders(<Section />);
     const group = await screen.findByRole("radiogroup", { name: "Tab bar labels" });
     expect((within(group).getByLabelText("Always") as HTMLInputElement).checked).toBe(true);
 

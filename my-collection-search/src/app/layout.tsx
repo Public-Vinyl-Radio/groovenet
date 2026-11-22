@@ -1,5 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { cache } from "react";
 import type { ReactNode } from "react";
 import ClientProviders from "./providers"; // <- client wrapper
@@ -10,6 +11,8 @@ import { developerToolsEnabled } from "@/lib/developerTools";
 import AnalyticsInit from "@/components/AnalyticsInit";
 import { getClientAnalyticsConfig } from "@/lib/analytics/config";
 import { fontClassName } from "./fonts";
+import { appearanceScript } from "./appearanceScript";
+import { resolveAppearance } from "./appearanceOverride";
 import { defaultFontChoiceId } from "./fontChoices";
 import { defaultCornerId, resolveCorners } from "./corners";
 import { defaultPaletteId } from "./palettes";
@@ -89,10 +92,14 @@ const readAppearance = cache(async (): Promise<Appearance> => {
 });
 
 // The data-* attributes are server-rendered so the palette and fonts are in
-// place before first paint. Light/dark is per device (localStorage) and applied
-// client-side.
+// place before first paint for a device with no override; one with an override
+// gets it from the inline script in <head>. Light/dark is per device
+// (localStorage) and applied client-side.
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const { palette, fonts, customPalette, corners } = await readAppearance();
+  const appearance = await readAppearance();
+  const { palette, fonts, customPalette, corners } = appearance;
+  // A Content-Security-Policy that carries a nonce sets it on the request as `x-nonce`.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -104,20 +111,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       className={fontClassName}
       suppressHydrationWarning
     >
-      {palette === customPaletteId && customPalette ? (
-        <head>
-          {/* Built only from validated #rrggbb values, so it carries no user text. */}
+      <head>
+        {palette === customPaletteId && customPalette ? (
+          // Built only from validated #rrggbb values, so it carries no user text.
           <style
             id={customPaletteStyleId}
+            nonce={nonce}
             dangerouslySetInnerHTML={{ __html: customPaletteCss(customPalette) }}
           />
-        </head>
-      ) : null}
+        ) : null}
+        {/* After the style above, so an override's palette replaces it in place. Applies this
+            device's saved override before first paint; see appearanceScript.ts. */}
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: appearanceScript }} />
+      </head>
       <body>
         <AnalyticsInit config={getClientAnalyticsConfig()} />
         <EmotionRegistry>
           <DisplayTimeZoneProvider timeZone={getDisplayTimeZone()}>
-            <ClientProviders>
+            <ClientProviders appearance={resolveAppearance(appearance)}>
               <Toaster />
               <AppShell developerToolsEnabled={developerToolsEnabled()}>{children}</AppShell>
             </ClientProviders>

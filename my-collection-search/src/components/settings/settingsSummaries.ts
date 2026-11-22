@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ThemeSetting } from "@/components/ui/color-mode";
 import { useColorMode } from "@/components/ui/color-mode";
-import { resolveAppearancePalette } from "@/app/palettes/custom";
-import { useAppearanceSettingsQuery } from "@/hooks/useAppearanceSettings";
+import { resolveAppearance } from "@/app/appearanceOverride";
+import { useAppearanceOverride, useAppearanceSettingsQuery } from "@/hooks/useAppearanceSettings";
 import { useCookieStatus } from "@/hooks/useCookieManagement";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { useVersionInfo } from "@/hooks/useSystemInfo";
@@ -53,6 +53,7 @@ export function aboutSummary(version: string): string {
 
 export function useSettingsSummaries(): SettingsSummaries {
   const appearance = useAppearanceSettingsQuery();
+  const appearanceOverride = useAppearanceOverride();
   const { colorModeSetting } = useColorMode();
   const { friends, friendsLoading } = useFriendsQuery({ showCurrentUser: true });
   const { friend } = useUsername();
@@ -69,7 +70,7 @@ export function useSettingsSummaries(): SettingsSummaries {
   return {
     appearance: appearance.data
       ? appearanceSummary(
-          resolveAppearancePalette(appearance.data.palette, appearance.data.customPalette ?? null),
+          resolveAppearance(appearance.data, appearanceOverride).palette,
           colorModeSetting,
         )
       : undefined,

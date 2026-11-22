@@ -3,12 +3,11 @@
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import { Box, Button, chakra, Flex, Input, SegmentGroup, Spinner, Text } from "@chakra-ui/react";
-import { resolveCorners, type CornerId } from "@/app/corners";
+import { type CornerId } from "@/app/corners";
 import {
   fontChoiceFamily,
   fontRoleIds,
   fontRoles,
-  resolveFontChoice,
   type FontChoiceId,
   type FontRoleId,
 } from "@/app/fontChoices";
@@ -16,20 +15,16 @@ import { palettes, paletteIds, defaultPaletteId } from "@/app/palettes";
 import {
   customPaletteId,
   derivePalette,
-  resolveAppearancePalette,
   type AppearancePaletteId,
   type CustomPalette,
 } from "@/app/palettes/custom";
 import CustomPaletteEditor from "./CustomPaletteEditor";
-import { CategoryTag } from "@/components/ui/RoleTags";
+import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
+import type { OverriddenField } from "@/app/appearanceOverride";
 import { toaster } from "@/components/ui/toaster";
 import { useColorMode, type ThemeSetting } from "@/components/ui/color-mode";
 import { TAB_BAR_LABELS, isTabBarLabels, useTabBarLabels } from "@/lib/tabBarLabels";
-import {
-  useAppearanceSettingsQuery,
-  useUpdateAppearanceSettings,
-  type AppearancePatch,
-} from "@/hooks/useAppearanceSettings";
+import { useDeviceAppearance } from "@/hooks/useAppearanceSettings";
 
 const MODES: { value: ThemeSetting; label: string }[] = [
   { value: "light", label: "Light" },
@@ -56,9 +51,12 @@ const resolveBase = (selected: AppearancePaletteId) =>
 
 const paletteName = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
 
-/** Where a setting applies: every device that uses the server, or only this one. */
-function Scope({ device }: { device: "every" | "this" }) {
-  return (
+/** Phones need a 44px target; desktop keeps the compact button. */
+const touchTarget = { base: "44px", md: "auto" } as const;
+
+/** Whether this device sets its own value, or follows the saved default. */
+function Scope({ overridden }: { overridden?: boolean }) {
+  return overridden === undefined ? (
     <Text
       as="span"
       fontFamily="label"
@@ -66,30 +64,61 @@ function Scope({ device }: { device: "every" | "this" }) {
       letterSpacing="0.05em"
       textTransform="uppercase"
       color="fg.muted"
-      data-scope={device}
+      data-scope="device-only"
     >
-      {device === "every" ? "Every device" : "This device"}
+      This device
+    </Text>
+  ) : overridden ? (
+    <StatusTag tone="neutral" size="sm" data-scope="device">
+      Overridden on this device
+    </StatusTag>
+  ) : (
+    <Text
+      as="span"
+      fontFamily="label"
+      fontSize="xs"
+      letterSpacing="0.05em"
+      textTransform="uppercase"
+      color="fg.muted"
+      data-scope="default"
+    >
+      Default
     </Text>
   );
 }
 
-/** A titled part of the page: its name, where it applies, then what it holds. */
+/** A titled part of the page: its name, whether this device overrides it, then what it holds. */
 function Part({
   title,
-  device,
+  overridden,
+  onReset,
   help,
   children,
 }: {
   title: string;
-  device: "every" | "this";
+  /** Absent for a setting that is always this device's own. */
+  overridden?: boolean;
+  onReset?: () => void;
   help?: string;
   children: React.ReactNode;
 }) {
   return (
     <Box as="section" aria-label={title} mb={6}>
-      <Flex align="baseline" gap={3} mb={1} flexWrap="wrap">
+      <Flex align="center" gap={3} mb={1} flexWrap="wrap">
         <SectionHeading level={3}>{title}</SectionHeading>
-        <Scope device={device} />
+        <Scope overridden={overridden} />
+        {overridden && onReset ? (
+          <Button
+            size="xs"
+            variant="ghost"
+            color="fg.muted"
+            minH={touchTarget}
+            onClick={onReset}
+            aria-label={`Reset ${title.toLowerCase()} to the default`}
+          >
+            Reset
+          </Button>
+        ) : null}
       </Flex>
       {help ? (
         <Text color="fg.muted" fontSize="sm" mb={3}>
@@ -147,77 +176,71 @@ function CornersPreview(): React.JSX.Element {
   );
 }
 
-/** The shared palette and this device's light/dark choice. */
+/** This device's appearance over the saved default, and its light/dark choice. */
 export default function AppearanceSettingsSection(): React.JSX.Element {
-  const settings = useAppearanceSettingsQuery();
-  const update = useUpdateAppearanceSettings();
+  const device = useDeviceAppearance();
+  const { saved: settings, override, resolved, overridden } = device;
   const { colorMode, colorModeSetting, setColorModeSetting } = useColorMode();
   const [tabBarLabels, setTabBarLabels] = useTabBarLabels();
 
-  // The cached setting already holds a change that is still saving, so the
-  // selection follows the click at once.
-  const customPalette = settings.data?.customPalette ?? null;
-  const selected: AppearancePaletteId = resolveAppearancePalette(
-    settings.data?.palette,
-    customPalette,
-  );
+  const customPalette = resolved.customPalette;
+  const selected: AppearancePaletteId = resolved.palette;
   const [editing, setEditing] = React.useState(false);
+  const isOverridden = (field: OverriddenField) => overridden.includes(field);
 
-  const save = (patch: AppearancePatch, what: string) =>
-    update.mutate(patch, {
-      onError: (err) =>
-        toaster.create({
-          title: `Failed to save ${what}`,
-          description: err instanceof Error ? err.message : String(err),
-          type: "error",
-        }),
+  const fail = (title: string) => (err: unknown) =>
+    toaster.create({
+      title,
+      description: err instanceof Error ? err.message : String(err),
+      type: "error",
     });
 
   const choose = (palette: AppearancePaletteId) => {
-    if (palette !== selected) save({ palette }, "palette");
+    if (palette !== selected) device.set({ palette });
   };
 
-  const saveCustom = (palette: CustomPalette) =>
-    update.mutate(
-      { customPalette: palette, palette: customPaletteId },
-      {
-        onSuccess: () => toaster.create({ title: "Custom palette saved", type: "success" }),
-        onError: (err) =>
-          toaster.create({
-            title: "Failed to save the custom palette",
-            description: err instanceof Error ? err.message : String(err),
-            type: "error",
-          }),
-      },
-    );
+  const saveCustom = (palette: CustomPalette) => {
+    device.set({ customPalette: palette, palette: customPaletteId });
+    toaster.create({ title: "Custom palette saved on this device", type: "success" });
+  };
 
-  const deleteCustom = () =>
-    update.mutate(
+  // The device's own palette is removed here; the shared one is only ever
+  // deleted from the editor when this device has none of its own.
+  const ownCustom = override.customPalette !== undefined;
+  const deleteCustom = () => {
+    if (ownCustom) {
+      device.set({ customPalette: null });
+      setEditing(false);
+      toaster.create({ title: "Custom palette removed from this device", type: "success" });
+      return;
+    }
+    device.updateShared.mutate(
       { customPalette: null },
       {
         onSuccess: () => {
           setEditing(false);
-          toaster.create({ title: "Custom palette deleted", type: "success" });
+          toaster.create({ title: "Custom palette deleted for everyone", type: "success" });
         },
-        onError: (err) =>
-          toaster.create({
-            title: "Failed to delete the custom palette",
-            description: err instanceof Error ? err.message : String(err),
-            type: "error",
-          }),
+        onError: fail("Failed to delete the custom palette"),
       },
     );
+  };
 
   const chooseFont = (role: FontRoleId, choice: FontChoiceId) => {
-    if (choice !== resolveFontChoice(role, settings.data?.fonts[role])) {
-      save({ fonts: { [role]: choice } }, `${fontRoles[role].label.toLowerCase()} font`);
-    }
+    if (choice !== resolved.fonts[role]) device.set({ fonts: { [role]: choice } });
   };
 
-  const corners = resolveCorners(settings.data?.corners);
+  const corners = resolved.corners;
   const chooseCorners = (value: CornerId) => {
-    if (value !== corners) save({ corners: value }, "corners");
+    if (value !== corners) device.set({ corners: value });
   };
+
+  const setAsDefault = () =>
+    device.setAsDefault({
+      onSuccess: () =>
+        toaster.create({ title: "Saved as the default for everyone", type: "success" }),
+      onError: fail("Failed to save the default"),
+    });
 
   const swatchCard = (
     key: string,
@@ -262,7 +285,45 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
 
   return (
     <Box>
-      <Part title="Palette" device="every" help="Colours for the whole app.">
+      <Flex
+        gap={2}
+        align={{ base: "stretch", md: "center" }}
+        direction={{ base: "column", md: "row" }}
+        flexWrap="wrap"
+        mb={6}
+      >
+        <Text color="fg.muted" fontSize="sm" flex="1" minW="240px">
+          {overridden.length > 0
+            ? "Changes here apply to this device only. The default is what new devices see."
+            : "Changes here apply to this device only. This device follows the default."}
+        </Text>
+        <Button
+          size="sm"
+          variant="outline"
+          minH={touchTarget}
+          onClick={setAsDefault}
+          disabled={overridden.length === 0}
+          loading={device.savingDefault}
+        >
+          Use as the default for everyone
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          minH={touchTarget}
+          onClick={device.resetAll}
+          disabled={overridden.length === 0}
+        >
+          Reset this device
+        </Button>
+      </Flex>
+
+      <Part
+        title="Palette"
+        overridden={isOverridden("palette")}
+        onReset={() => device.reset({ palette: null, customPalette: null })}
+        help="Colours for the whole app."
+      >
         <Flex gap={3} align="stretch" flexWrap="wrap" role="radiogroup" aria-label="Palette" mb={2}>
           {paletteIds.map((id) =>
             swatchCard(
@@ -289,7 +350,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
               {customPalette ? "Edit custom palette" : "Create custom palette"}
             </Button>
           ) : null}
-          {update.isPending || settings.isPending ? <Spinner size="sm" /> : null}
+          {device.savingDefault || settings.isPending ? <Spinner size="sm" /> : null}
           {settings.error ? (
             <Text fontSize="sm" color="fg.error">
               Failed to load the saved appearance.
@@ -300,7 +361,8 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
           <CustomPaletteEditor
             saved={customPalette}
             initialBase={resolveBase(selected)}
-            saving={update.isPending}
+            saving={device.updateShared.isPending}
+            deleteLabel={ownCustom ? "Remove from this device" : "Delete for everyone"}
             onSave={saveCustom}
             onDelete={deleteCustom}
             onClose={() => setEditing(false)}
@@ -310,7 +372,8 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
 
       <Part
         title="Corners"
-        device="every"
+        overridden={isOverridden("corners")}
+        onReset={() => device.reset({ corners: null })}
         help="Square is sharp; rounded softens controls and cards."
       >
         <Flex gap={4} align="flex-start" flexWrap="wrap">
@@ -327,10 +390,15 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
         </Flex>
       </Part>
 
-      <Part title="Type" device="every" help="System uses the font your device already has.">
+      <Part
+        title="Type"
+        overridden={fontRoleIds.some((role) => isOverridden(`font:${role}`))}
+        onReset={() => device.reset({ fonts: { display: null, body: null, label: null } })}
+        help="System uses the font your device already has."
+      >
         {fontRoleIds.map((role) => {
           const { label, description, choices } = fontRoles[role];
-          const current = resolveFontChoice(role, settings.data?.fonts[role]);
+          const current = resolved.fonts[role];
           return (
             <Flex
               key={role}
@@ -346,6 +414,23 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
                 <Text color="fg.muted" fontSize="xs">
                   {description}
                 </Text>
+                {isOverridden(`font:${role}`) ? (
+                  <Flex align="center" gap={2} flexWrap="wrap">
+                    <StatusTag tone="neutral" size="xs" data-scope="device">
+                      Overridden
+                    </StatusTag>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      color="fg.muted"
+                      minH={touchTarget}
+                      onClick={() => device.reset({ fonts: { [role]: null } })}
+                      aria-label={`Reset ${label.toLowerCase()} font to the default`}
+                    >
+                      Reset
+                    </Button>
+                  </Flex>
+                ) : null}
               </Box>
               <Flex gap={2} flexWrap="wrap" role="radiogroup" aria-label={`${label} font`}>
                 {choices.map(({ id, label: choiceLabel }) => {
@@ -377,7 +462,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
         })}
       </Part>
 
-      <Part title="Light or dark" device="this" help="System follows this device's setting.">
+      <Part title="Light or dark" help="System follows this device's setting.">
         <SegmentGroup.Root
           size="sm"
           value={colorModeSetting}
@@ -389,11 +474,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
         </SegmentGroup.Root>
       </Part>
 
-      <Part
-        title="Tab bar labels"
-        device="this"
-        help="On phones. Hide the labels to give the bar less height."
-      >
+      <Part title="Tab bar labels" help="On phones. Hide the labels to give the bar less height.">
         <SegmentGroup.Root
           size="sm"
           value={tabBarLabels}

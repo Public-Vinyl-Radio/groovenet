@@ -1,6 +1,22 @@
 "use client";
 
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  overriddenFields,
+  resolveAppearance,
+  type AppearanceOverride,
+  type AppearanceOverridePatch,
+  type ResolvedAppearance,
+} from "@/app/appearanceOverride";
+import {
+  getAppearanceOverride,
+  getServerAppearanceOverride,
+  refreshStoredAppearanceOverride,
+  resetAppearanceOverride,
+  subscribeAppearanceOverride,
+  updateAppearanceOverride,
+} from "@/lib/appearanceOverrideStore";
 import { resolveCorners } from "@/app/corners";
 import { fontRoleIds, resolveFontChoice } from "@/app/fontChoices";
 import {
@@ -140,4 +156,99 @@ export function useUpdateAppearanceSettings() {
       queryClient.setQueryData(key, saved);
     },
   });
+}
+
+// --- This device's override --------------------------------------------------
+
+/** This device's override, live: it follows writes here and in other tabs. */
+export function useAppearanceOverride(): AppearanceOverride {
+  return useSyncExternalStore(
+    subscribeAppearanceOverride,
+    getAppearanceOverride,
+    getServerAppearanceOverride,
+  );
+}
+
+/** Put a whole resolved appearance in the page. */
+export function applyResolvedAppearance(resolved: ResolvedAppearance) {
+  applyCustomPaletteStyle(resolved.customPalette);
+  applyAppearance(resolved);
+}
+
+/** What the override clears once its value is the saved default. */
+function clearingPatch(patch: AppearancePatch): AppearanceOverridePatch {
+  const clear: AppearanceOverridePatch = {};
+  if (patch.palette) clear.palette = null;
+  if (patch.corners) clear.corners = null;
+  if (patch.customPalette) clear.customPalette = null;
+  for (const role of fontRoleIds) {
+    if (patch.fonts?.[role]) clear.fonts = { ...clear.fonts, [role]: null };
+  }
+  return clear;
+}
+
+/** The saved setting's fields that this device overrides, as a PUT body. */
+export function overrideAsDefaultPatch(override: AppearanceOverride): AppearancePatch {
+  const patch: AppearancePatch = {};
+  if (override.palette) patch.palette = override.palette;
+  if (override.corners) patch.corners = override.corners;
+  if (override.customPalette) patch.customPalette = override.customPalette;
+  if (override.fonts && Object.keys(override.fonts).length > 0) patch.fonts = { ...override.fonts };
+  return patch;
+}
+
+/**
+ * The saved setting, this device's override, and what resolves from them. Edits
+ * go to the device; `setAsDefault` is the shared PUT, after which this device
+ * follows the new default again.
+ */
+export function useDeviceAppearance() {
+  const saved = useAppearanceSettingsQuery();
+  const override = useAppearanceOverride();
+  const update = useUpdateAppearanceSettings();
+  const resolved = useMemo(
+    () => resolveAppearance(saved.data ?? {}, override),
+    [saved.data, override],
+  );
+  const overridden = useMemo(() => overriddenFields(override), [override]);
+
+  const setAsDefault = (options?: Parameters<typeof update.mutate>[1]) => {
+    const patch = overrideAsDefaultPatch(override);
+    update.mutate(patch, {
+      ...options,
+      onSuccess: (...args) => {
+        updateAppearanceOverride(clearingPatch(patch));
+        options?.onSuccess?.(...args);
+      },
+    });
+  };
+
+  return {
+    saved,
+    override,
+    resolved,
+    overridden,
+    set: updateAppearanceOverride,
+    reset: updateAppearanceOverride,
+    resetAll: resetAppearanceOverride,
+    setAsDefault,
+    updateShared: update,
+    savingDefault: update.isPending,
+  };
+}
+
+/**
+ * Keeps <html> on the resolved appearance. The pre-paint script already did this
+ * before first paint; this covers edits, another tab's, and a saved default that
+ * changed under a mounted page. It also refreshes the stored record once.
+ */
+export function useSyncAppearance() {
+  const saved = useAppearanceSettingsQuery().data;
+  const override = useAppearanceOverride();
+  useEffect(() => {
+    refreshStoredAppearanceOverride();
+  }, []);
+  useEffect(() => {
+    if (saved) applyResolvedAppearance(resolveAppearance(saved, override));
+  }, [saved, override]);
 }

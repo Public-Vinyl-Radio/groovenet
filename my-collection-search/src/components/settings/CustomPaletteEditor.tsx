@@ -268,6 +268,8 @@ export interface CustomPaletteEditorProps {
   saving: boolean;
   onSave: (palette: CustomPalette) => void;
   onDelete: () => void;
+  /** The delete button's label: what deleting does depends on where the palette lives. */
+  deleteLabel?: string;
   onClose: () => void;
 }
 
@@ -279,6 +281,7 @@ export default function CustomPaletteEditor({
   saving,
   onSave,
   onDelete,
+  deleteLabel = "Delete custom palette",
   onClose,
 }: CustomPaletteEditorProps): React.JSX.Element {
   const [draft, setDraft] = React.useState<CustomPalette>(
@@ -514,7 +517,7 @@ export default function CustomPaletteEditor({
             onClick={onDelete}
             disabled={saving}
           >
-            Delete custom palette
+            {deleteLabel}
           </Button>
         ) : null}
         <Button size="sm" variant="ghost" onClick={onClose}>

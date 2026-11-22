@@ -6,6 +6,12 @@ import { customFromPreset } from "./palettes/custom";
 
 const service = vi.hoisted(() => ({ getAppearance: vi.fn() }));
 vi.mock("@/server/services/settingsService", () => ({ settingsService: service }));
+const requestHeaders = vi.hoisted(() => ({ nonce: null as string | null }));
+vi.mock("next/headers", () => ({
+  headers: async () => ({
+    get: (name: string) => (name === "x-nonce" ? requestHeaders.nonce : null),
+  }),
+}));
 vi.mock("./fonts", () => ({ fontClassName: "face-a face-b" }));
 vi.mock("./providers", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -34,12 +40,39 @@ const render = async (children: React.ReactNode = "content") =>
   renderToStaticMarkup(await RootLayout({ children }));
 
 beforeEach(() => {
+  requestHeaders.nonce = null;
   service.getAppearance.mockReset();
   service.getAppearance.mockResolvedValue(saved());
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("root layout appearance script", () => {
+  it("puts the pre-paint script in <head>", async () => {
+    const html = await render();
+    expect(html).toMatch(/<head>.*<script>\(function\(c\)\{.*gn-appearance.*<\/script><\/head>/s);
+  });
+
+  it("puts it after the saved custom palette's style, so an override replaces that in place", async () => {
+    service.getAppearance.mockResolvedValue(
+      saved({ palette: "custom", customPalette: customFromPreset("sleeve") }),
+    );
+    const html = await render();
+    expect(html.indexOf('id="gn-custom-palette"')).toBeGreaterThan(-1);
+    expect(html.indexOf('id="gn-custom-palette"')).toBeLessThan(html.indexOf("<script"));
+  });
+
+  it("carries the request's CSP nonce on the script and the style", async () => {
+    requestHeaders.nonce = "abc123";
+    service.getAppearance.mockResolvedValue(
+      saved({ palette: "custom", customPalette: customFromPreset("sleeve") }),
+    );
+    const html = await render();
+    expect(html).toMatch(/<script nonce="abc123"/);
+    expect(html).toMatch(/<style[^>]*nonce="abc123"/);
+  });
 });
 
 describe("root layout", () => {
