@@ -102,7 +102,7 @@ services:
   # other user, such as a host music library bind-mounted in, are left alone.
   volume-perms:
     <<: *hardening
-    image: alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
+    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     user: "0:0"
     mem_limit: ${VOLUME_PERMS_MEM_LIMIT:-64m}
     # CHOWN to change owners; DAC_OVERRIDE and FOWNER because the files being
