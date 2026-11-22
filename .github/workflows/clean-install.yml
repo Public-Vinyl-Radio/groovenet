@@ -114,11 +114,29 @@ jobs:
             *) echo "tag=${INPUT_TAG}" >>"$GITHUB_OUTPUT" ;;
           esac
 
+      # On a PR the end-to-end run pairs main's published images with the PR's
+      # compose files. That is wrong when the PR changes an image and its compose
+      # together (e.g. the user a container runs as), and the images are only
+      # built from main. So skip it when the PR touches an image's build inputs;
+      # the push to main still runs it against the images built from that code.
+      - name: Does this PR change image build inputs?
+        id: images
+        run: |
+          skip=false
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            if git diff --name-only origin/main...HEAD | grep -Eq '(^|/)(Dockerfile[^/]*|entrypoint\.sh|link-volumes\.sh)$'; then
+              skip=true
+              echo "::notice::This PR changes image build inputs, so the end-to-end install is skipped here; it runs on the push to main against the images built from this code."
+            fi
+          fi
+          echo "skip=$skip" >>"$GITHUB_OUTPUT"
+
       - name: Wait for the candidate images
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && steps.images.outputs.skip != 'true'
         run: .github/scripts/wait-for-images.sh "${{ steps.tag.outputs.tag }}"
 
       - name: Note a missing Discogs token
+        if: steps.images.outputs.skip != 'true'
         env:
           DISCOGS_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
         run: |
@@ -130,6 +148,7 @@ jobs:
       # /srv/groovenet), checks the stack, reruns the installer and checks it
       # changed nothing, then removes everything.
       - name: Installer end to end
+        if: steps.images.outputs.skip != 'true'
         env:
           DISCOGS_USER_TOKEN: ${{ secrets.CLEAN_INSTALL_DISCOGS_TOKEN }}
           CLEAN_INSTALL_LOG_DIR: ${{ runner.temp }}/install-script-logs
