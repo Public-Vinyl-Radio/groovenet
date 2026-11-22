@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.22](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.21...v0.3.22) (2026-11-22)
+
+
+### Features
+
+* **security:** compose guardrails, capability drops and memory limits ([#1263](https://github.com/Public-Vinyl-Radio/groovenet/issues/1263)) ([dccd756](https://github.com/Public-Vinyl-Radio/groovenet/commit/dccd75666a086b394caec3d037df8cd8d1054310))
+* **security:** read-only root filesystems ([#1265](https://github.com/Public-Vinyl-Radio/groovenet/issues/1265)) ([52d32c6](https://github.com/Public-Vinyl-Radio/groovenet/commit/52d32c6edc986a4c9b9cca2176cc5ae2f06358ea))
+* **security:** response security headers and Redis rate limiting ([#1266](https://github.com/Public-Vinyl-Radio/groovenet/issues/1266)) ([fcb53c0](https://github.com/Public-Vinyl-Radio/groovenet/commit/fcb53c0957f2fc54f324e51ace22b9f47828c88b))
+* **security:** run every image as a non-root user ([#1264](https://github.com/Public-Vinyl-Radio/groovenet/issues/1264)) ([1bdd142](https://github.com/Public-Vinyl-Radio/groovenet/commit/1bdd142f3ede30fb4b8f9c6c9afd60716a4d45ac))
+* **ui:** per-device appearance overrides, with the saved setting as the default ([#1262](https://github.com/Public-Vinyl-Radio/groovenet/issues/1262)) ([a17e378](https://github.com/Public-Vinyl-Radio/groovenet/commit/a17e3786054383cf4dbb730e5bcc1d370f8fdfaf))
+
+
+### Bug Fixes
+
+* **ci:** release-please job runs without a checkout, skipping mark-latest and the install bundle ([#1254](https://github.com/Public-Vinyl-Radio/groovenet/issues/1254)) ([02df833](https://github.com/Public-Vinyl-Radio/groovenet/commit/02df833a9a276590a84c18e824626ff5ff9aba1a))
+* **migrate:** preflight backfill finds migrations in the migrator image ([#1255](https://github.com/Public-Vinyl-Radio/groovenet/issues/1255)) ([9a71f54](https://github.com/Public-Vinyl-Radio/groovenet/commit/9a71f54b40f432e9df57ab89b158a5dda9b3ac93))
+* **ui:** UX polish batch 10 — album row tags, home layout, more font choices ([#1250](https://github.com/Public-Vinyl-Radio/groovenet/issues/1250)) ([5003b15](https://github.com/Public-Vinyl-Radio/groovenet/commit/5003b15fddc884b72968cd7626a341676b7657f1))
+
 ## [0.3.21](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.20...v0.3.21) (2026-11-21)
 
 

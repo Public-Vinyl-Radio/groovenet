@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.10.0...groovenet-contracts-v1.10.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **ui:** UX polish batch 10 — album row tags, home layout, more font choices ([#1250](https://github.com/Public-Vinyl-Radio/groovenet/issues/1250)) ([5003b15](https://github.com/Public-Vinyl-Radio/groovenet/commit/5003b15fddc884b72968cd7626a341676b7657f1))
+
 ## [1.10.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.9.0...groovenet-contracts-v1.10.0) (2026-11-19)
 
 

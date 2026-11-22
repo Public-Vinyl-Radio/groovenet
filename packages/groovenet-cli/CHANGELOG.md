@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.15.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.15.0...groovenet-cli-v3.15.1) (2026-11-22)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.14.0 to ^3.14.1
+    * @groovenet/contracts bumped from 1.10.0 to 1.10.1
+    * @groovenet/player bumped from 0.1.14 to 0.1.15
+
 ## [3.15.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.14.0...groovenet-cli-v3.15.0) (2026-11-19)
 
 
