@@ -108,6 +108,8 @@ WORKDIR /repo/my-collection-search
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY my-collection-search/tsconfig.json my-collection-search/next.config.mjs ./
+# next.config.mjs imports this; Storybook's webpack loads the config too (#1074).
+COPY my-collection-search/config/securityHeaders.mjs ./config/securityHeaders.mjs
 COPY --exclude=app --exclude=server --exclude=scripts --exclude=workers \
      --exclude=test --exclude=instrumentation.ts --exclude=instrumentation-client.ts \
      --exclude=**/__tests__ --exclude=**/*.test.* --exclude=**/*.spec.* \

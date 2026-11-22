@@ -1,3 +1,4 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextRequest, NextResponse } from "next/server";
 import {
   genreReconciliationRunBodySchema,
@@ -11,7 +12,7 @@ import { parseBody, reconciliationError } from "@/server/genres/reconciliationRo
  * exists; the work happens in the background, so poll
  * GET /api/genres/reconciliation/runs/{id}.
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   const body = await parseBody(request, genreReconciliationRunBodySchema);
   if ("response" in body) return body.response;
   try {
@@ -21,3 +22,5 @@ export async function POST(request: NextRequest) {
     return reconciliationError(error);
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.paidApi, handlePost);

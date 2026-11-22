@@ -4,6 +4,8 @@ import path from "path";
 export default defineConfig({
   test: {
     environment: "node",
+    // Route tests call handlers directly; none of them has Redis for the limiter.
+    env: { RATE_LIMIT_DISABLED: "true" },
     // Suites that opt into jsdom need a non-opaque origin for localStorage.
     environmentOptions: {
       jsdom: { url: "http://localhost" },

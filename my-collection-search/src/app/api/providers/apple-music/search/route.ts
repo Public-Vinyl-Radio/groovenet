@@ -1,3 +1,4 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 import { generateAppleMusicDeveloperToken } from "@/server/services/appleMusicCatalogService";
 
@@ -18,7 +19,7 @@ interface Song {
   attributes: SongAttributes;
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   try {
     const { title, artist, album, isrc } = await req.json();
     const developerToken = generateAppleMusicDeveloperToken();
@@ -62,3 +63,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to search Apple Music" }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.paidApi, handlePost);

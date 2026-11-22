@@ -804,6 +804,34 @@ metadata saves, friend isolation, effective consumers and taxonomy merges agains
 Postgres. `scripts/test-generated-album-overrides.py` round-trips the generated
 Python contracts using the bootstrapped download-worker environment.
 
+## Security headers and rate limiting (#1074)
+
+- **Headers** come from `next.config.mjs` `headers()`, built in `config/securityHeaders.mjs`
+  (plain ESM, because the config loads it and the Docker build copies `config/` first).
+  Enforced on every route: `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`,
+  `Referrer-Policy`, `Permissions-Policy`, and a CSP of just `frame-ancestors 'self'`,
+  `base-uri`, `form-action` and `object-src 'none'`. HSTS only when the request carries
+  `X-Forwarded-Proto: https` (a `has` condition), six months, no `includeSubDomains`.
+- **The full CSP is `Content-Security-Policy-Report-Only`**, deliberately: there are no
+  nonces, so `script-src` needs `'unsafe-inline'` for Next's bootstrap and `style-src`
+  for emotion, and a missed host would break a page. Pages, the track page, settings
+  and Storybook report nothing today. To enforce it, move the string to
+  `Content-Security-Policy` in `securityHeaderRules`. Anything that loads from a new
+  host needs the directive widened first: check the browser console for
+  `[Report Only]` lines. `/api/docs` alone may load Swagger UI from unpkg.
+- **Rate limits** are `withRateLimit(RATE_LIMIT_POLICIES.<policy>, handler)` from
+  `src/server/security/rateLimit.ts`: a fixed window counted in Redis per client,
+  429 with `Retry-After`, **fail open** if Redis is slow or down. Applied to the Discogs
+  import, album download enqueueing, `POST /api/audio/ingest` and the paid APIs
+  (OpenAI, Apple Music, YouTube, genre reconciliation, embedding backfill). A new route
+  that spends money or can be abused wraps its handler the same way. The client key is
+  `clientKey(req)`: the address a trusted proxy saw (`TRUSTED_PROXY_HOPS`, default 1);
+  **#569: return `user:<id>` there** once requests carry a login, and use the `login`
+  policy on the sign-in route. `RATE_LIMIT_DISABLED=true` turns it off (the vitest
+  config sets it, so route tests need no Redis).
+- A listener that gets a 429 from the ingest route should treat it as retryable, like
+  any unknown status.
+
 ## Background work
 
 `src/instrumentation.ts` is where anything periodic starts, once per server

@@ -1,10 +1,11 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 import {
   generateTrackMetadata,
   TrackMetadataError,
 } from "@/server/services/trackMetadataAiService";
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   try {
     const { prompt, friend_id, track_id } = await req.json();
     const result = await generateTrackMetadata({
@@ -21,3 +22,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to fetch AI metadata" }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.paidApi, handlePost);

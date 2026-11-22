@@ -1,6 +1,7 @@
 // pages/api/discogs/sync.js
 // Next.js API route to sync Discogs collection, only downloading new releases
 
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import {
   saveManifest,
   getReleaseWritePath,
@@ -33,7 +34,7 @@ function getUsernameFromRequest(request: NextRequest) {
   return params.get("username") || process.env.DISCOGS_USERNAME;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const username = getUsernameFromRequest(request);
   if (!DISCOGS_USER_TOKEN || !username) {
     return new Response(JSON.stringify({ error: "Discogs credentials not set in environment" }), {
@@ -439,3 +440,5 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+
+export const GET = withRateLimit(RATE_LIMIT_POLICIES.discogsImport, handleGet);

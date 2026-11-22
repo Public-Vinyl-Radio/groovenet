@@ -1,3 +1,4 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 import { acceptedIngestSchema } from "@/api-contract/schemas";
 import { logIngestEvent, type IngestLogFields } from "@/lib/ingestLog";
@@ -27,7 +28,7 @@ export const runtime = "nodejs";
  * raises, so "chunks rejected, by reason" has exactly one place to come from
  * (#280). The accepted line is the service's, which knows what ffprobe found.
  */
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const startedAt = Date.now();
   ingestMetricsService.chunkReceived();
   // What is known about the chunk so far, for whichever line ends up written.
@@ -177,3 +178,5 @@ function stageOf(code: IngestErrorCode): "upload" | "validation" {
 function reject(error: IngestErrorCode, message: string, status: number) {
   return NextResponse.json({ error, message }, { status });
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.audioIngest, handlePost);
