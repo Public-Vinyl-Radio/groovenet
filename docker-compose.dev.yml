@@ -6,6 +6,9 @@ services:
     build:
       target: dev
     working_dir: /app
+    # `next dev` compiles on demand and needs far more than the production
+    # server's default.
+    mem_limit: ${APP_MEM_LIMIT:-4g}
     environment:
       NODE_ENV: development
       NPM_CONFIG_CACHE: /tmp/.npm
