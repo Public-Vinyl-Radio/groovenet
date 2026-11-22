@@ -1,0 +1,115 @@
+name: image-scan
+
+# Vulnerability scan of the images we build (#1074). Fails on a CRITICAL finding that
+# has a fixed version available; anything else is reported, not blocking. See
+# .trivyignore.yaml for how to allowlist a finding.
+#
+# Runs when an image's inputs change, on every push to main, and weekly: a new CVE
+# lands without any change to this repo, and the weekly run is how it gets noticed.
+on:
+  pull_request:
+    paths:
+      - "**/Dockerfile"
+      - docker-compose*.yml
+      - "**/uv.lock"
+      - package-lock.json
+      - my-collection-search/package-lock.json
+      - .trivyignore.yaml
+      - .github/workflows/image-scan.yml
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: scan (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Same builds as docker-publish.yml, and the same cache scopes (read only).
+          - {
+              name: webapp,
+              context: .,
+              file: my-collection-search/Dockerfile,
+              target: runner,
+              scope: webapp,
+            }
+          - {
+              name: webapp-migrate,
+              context: .,
+              file: my-collection-search/Dockerfile,
+              target: migrator,
+              scope: webapp-migrate,
+            }
+          - {
+              name: essentia-api,
+              context: essentia-api,
+              file: essentia-api/Dockerfile,
+              target: "",
+              scope: essentia-api,
+            }
+          - {
+              name: ga-service,
+              context: ga-service,
+              file: ga-service/Dockerfile,
+              target: "",
+              scope: ga-service,
+            }
+          - {
+              name: download-worker,
+              context: .,
+              file: download-worker/Dockerfile,
+              target: "",
+              scope: download-worker,
+            }
+          - {
+              name: fingerprint-service,
+              context: .,
+              file: fingerprint-service/Dockerfile,
+              target: "",
+              scope: fingerprint-service,
+            }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build ${{ matrix.name }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: scan/${{ matrix.name }}:ci
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.scope }}
+          build-args: |
+            OPENAI_API_KEY=dummy
+
+      # Pinned to a commit: this action runs with the job's token. v0.36.0.
+      - name: Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: scan/${{ matrix.name }}:ci
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore.yaml
+          format: table

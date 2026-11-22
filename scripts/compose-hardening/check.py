@@ -14,6 +14,11 @@ when a service breaks a rule. Rules, with the reason for each:
                    each one justified in docker-compose.yml.
   mem-limit        Every service has a memory limit, so one runaway analysis
                    cannot take the host down.
+  pinned-image     Base images are pinned by digest (`name:tag@sha256:...`): every
+                   external `FROM` in a built service's Dockerfile, and every stock
+                   image in compose (Postgres, Redis, alpine). Our own published
+                   images are tagged per release and exempt. Dependabot bumps the
+                   tag and digest together.
   read-only        `read_only: true`: the root filesystem is read-only, with
                    a tmpfs or volume for whatever a service writes.
   user             No service runs as root: its effective user (the compose
@@ -46,6 +51,9 @@ from pathlib import Path
 
 PUBLISHER = "app"
 EXEMPT_PROFILE = "players"
+# Our own published images (docker-compose.images.yml, docker-compose.prod.yml).
+OWN_IMAGE_PREFIX = "ghcr.io/public-vinyl-radio/"
+
 # The one service allowed to run as root (see the module docstring).
 ROOT_ALLOWED = {"volume-perms"}
 
@@ -152,6 +160,22 @@ def dockerfile_user(dockerfile: Path, target: str | None) -> str | None:
     return None
 
 
+def unpinned_from(dockerfile: Path) -> list[str]:
+    """External images a Dockerfile builds FROM without a digest."""
+    stages: set[str] = set()
+    bad: list[str] = []
+    for line in dockerfile.read_text().splitlines():
+        m = FROM_RE.match(line.strip())
+        if not m:
+            continue
+        ref = m.group(1)
+        if ref.lower() != "scratch" and ref.lower() not in stages and "@sha256:" not in ref:
+            bad.append(ref)
+        if m.group(2):
+            stages.add(m.group(2).lower())
+    return bad
+
+
 def is_root_user(user: str | None) -> bool:
     if not user:
         return True
@@ -202,6 +226,14 @@ def check_service(name: str, svc: dict, relaxed: bool = False) -> list[str]:
         problems.append("missing cap_drop: [ALL]")
     if not svc.get("mem_limit"):
         problems.append("missing mem_limit")
+    image = str(svc.get("image") or "")
+    if image and not image.startswith(OWN_IMAGE_PREFIX) and "@sha256:" not in image:
+        problems.append(f"image {image} is not pinned by digest")
+    build = svc.get("build")
+    if build:
+        dockerfile = Path(build.get("context", ".")) / build.get("dockerfile", "Dockerfile")
+        for ref in unpinned_from(dockerfile):
+            problems.append(f"{dockerfile.parent.name}/{dockerfile.name} builds FROM {ref}, not pinned by digest")
     if relaxed:
         return problems
     if svc.get("read_only") is not True:

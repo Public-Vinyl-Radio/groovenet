@@ -209,8 +209,7 @@ milliseconds once nothing is left to fix, and exits 0.
   `APP_AUDIO_MOUNT`, make that directory writable by uid 1001 yourself.
 - Rolling back to an older tag is safe: root containers read and write
   1001-owned files, and `volume-perms` leaves ownership consistent for the next
-  upgrade. `volume-perms` pulls `alpine` on first use (`VOLUME_PERMS_IMAGE` pins
-  another).
+  upgrade. `volume-perms` pulls `alpine` on first use.
 - Root filesystems are read-only (#1074 part 3). Two new disposable volumes appear on
   first `up`, `worker_downloads` and `worker_tmp`: the download worker's scratch
   space, which used to live in the container. Nothing to configure; they only need

@@ -35,6 +35,23 @@ updates:
       - docker
 
   - package-ecosystem: docker
+    directory: /fingerprint-service
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
+
+  # The stock images in the compose files (Postgres, Redis, alpine), pinned by digest.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
     directory: /download-worker
     schedule:
       interval: weekly

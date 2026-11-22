@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
+# uv is pinned too (a tag and its digest); a FROM line so Dependabot can update it.
+FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
+
 # Build context: project root (shared Python client is a path dependency).
-FROM python:3.14-slim
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 
 # ffmpeg decodes ingested chunks to PCM; libchromaprint fingerprints them.
 # Both are native, and keeping them in this image rather than the web one is
@@ -13,7 +16,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libchromaprint1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=uv /uv /bin/uv
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

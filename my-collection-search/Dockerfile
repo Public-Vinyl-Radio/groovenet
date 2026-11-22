@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.19
 
 # OS layers never depend on a package manifest or source file.
-FROM node:26-bookworm-slim AS os-base
+# Base images are pinned by digest (#1074); Dependabot's docker ecosystem bumps the tag and digest together.
+FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS os-base
 # Every image runs as this user, uid/gid 1001 (#1074). 1001 is what entrypoint.sh
 # has always chowned the app's volumes to, so existing volumes already match; the
 # Python images use the same number so a volume they share needs no group tricks.

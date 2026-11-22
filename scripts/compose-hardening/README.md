@@ -100,3 +100,30 @@ analysis, a fingerprint index job, an ingest chunk, a 300-track playlist optimis
 Essentia's peak grows with track length, about 1 GB for 30 minutes of WAV, so it has the
 largest limit. A limit that is too low shows up as an OOM-killed container
 (`docker inspect -f '{{.State.OOMKilled}}'`), and `restart: unless-stopped` brings it back.
+
+## Pinned and scanned images
+
+Every external base image carries a digest (`python:3.14-slim@sha256:...`), in the
+Dockerfiles (`node`, `python`, the Essentia base, and `uv`, which is its own `FROM ... AS uv`
+stage so Dependabot sees it) and for the stock images in compose (`pgvector`, `redis`,
+`alpine`). `check.py` fails an unpinned one. The digests are the multi-arch index, so they
+resolve on amd64 and arm64.
+
+**Updates:** Dependabot's `docker` ecosystem (one entry per Dockerfile directory, now including
+`fingerprint-service`) and `docker-compose` ecosystem bump the tag and digest together, weekly.
+The download worker's Python stays held on 3.13 by the existing `ignore` rule. The `# syntax=`
+line of a Dockerfile is not pinned: Dependabot does not update it.
+
+**Scanning:** `.github/workflows/image-scan.yml` builds each image (`webapp`, `webapp-migrate`,
+`essentia-api`, `ga-service`, `download-worker`, `fingerprint-service`) and runs Trivy with
+`--severity CRITICAL --ignore-unfixed`, failing when a critical vulnerability has a fixed
+version. It runs when an image's inputs change, on every push to main and weekly, because a new CVE
+needs no change in this repo to turn a build red. Lower severities and unfixed findings do not fail.
+The stock `db` and `redis` images are not scanned: they are upstream's to fix, and the digest
+bump is how we pick up their rebuilds.
+
+**To allowlist a finding**, add it to `.trivyignore.yaml` with its `id`, the `paths` it was found
+at, a `statement` saying why it is safe and what removes it, and an `expired_at` date. The date
+makes the entry stop working, so an exception cannot be forgotten. Prefer a fix (bump the
+dependency, or `apk upgrade` / `apt-get upgrade` the package). To run the scan locally, see the
+comment at the top of that file.
