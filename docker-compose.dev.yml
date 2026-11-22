@@ -14,6 +14,11 @@ services:
     # uids made) and drops to nextjs with gosu (SETUID, SETGID). The production
     # image is non-root and needs none of this.
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    # `next dev` writes everywhere under the bind-mounted checkout (.next, caches,
+    # node_modules), so the root filesystem stays writable here, and the
+    # production image's tmpfs mounts would only create stray directories in it.
+    read_only: false
+    tmpfs: !reset []
     environment:
       NODE_ENV: development
       NPM_CONFIG_CACHE: /tmp/.npm

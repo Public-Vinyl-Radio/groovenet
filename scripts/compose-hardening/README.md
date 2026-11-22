@@ -55,6 +55,27 @@ One scheme: **uid/gid 1001** in every Groovenet image (`nextjs:nodejs` in the we
 The `volume-perms` one-shot service (see `RELEASING.md`) fixes ownership of existing
 volumes on every `up`.
 
+## Read-only root filesystems
+
+Every service sets `read_only: true`. What a service writes outside its volumes, found
+with `docker diff` after a full workload (download, analysis, fingerprint index and
+ingest, optimise, backup with restic, a page sweep):
+
+| Service              | Writable paths                                                                         | Why                                                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `app`                | tmpfs `/tmp` (256m), `.next/cache` (128m)                                              | Next's image cache; `RESTIC_CACHE_DIR=/tmp/restic-cache`. The links to the volumes are made at image build (`link-volumes.sh`). |
+| `db`                 | tmpfs `/tmp`, `/var/run/postgresql`                                                    | the Unix socket and its lock file                                                                                               |
+| `redis`              | none                                                                                   | `/data` is a volume                                                                                                             |
+| `essentia`           | tmpfs `/tmp` (`ESSENTIA_TMP_SIZE`, 1g)                                                 | each track is downloaded there before analysis, so this caps the file size; counts toward the memory limit                      |
+| `ga-service`         | tmpfs `/tmp` (32m)                                                                     | nothing in practice                                                                                                             |
+| `download-worker`    | volumes `worker_downloads` (`/app/downloads`) and `worker_tmp` (`/tmp`), tmpfs `$HOME` | downloads are staged on disk (gigabytes for lossless albums), `$HOME` holds yt-dlp and gamdl caches                             |
+| `fingerprint-*`      | tmpfs `/tmp` (64m)                                                                     | ffmpeg's buffered stderr                                                                                                        |
+| `migrate`, `scripts` | tmpfs `/tmp`, `$HOME`                                                                  | npm's logs and update check                                                                                                     |
+| `volume-perms`       | none                                                                                   |                                                                                                                                 |
+
+tmpfs memory counts toward the service's `mem_limit`. Left writable: only the `app` in
+the dev overlay (`next dev` writes all over its bind-mounted checkout).
+
 ## Memory limits
 
 `mem_limit` is what plain `docker compose` enforces. Each reads an env var

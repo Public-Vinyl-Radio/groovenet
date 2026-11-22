@@ -61,6 +61,7 @@ RUN mkdir -p /app/my-collection-search /app/cookies /app/dumps /app/discogs_expo
     chown -R nextjs:nodejs /app
 
 COPY --chmod=755 my-collection-search/entrypoint.sh /entrypoint.sh
+COPY --chmod=755 my-collection-search/link-volumes.sh /usr/local/bin/link-volumes.sh
 
 # Dev installs into its persistent volume at startup; it needs no app build.
 FROM runtime-base AS dev
@@ -149,6 +150,11 @@ ENV HOSTNAME=0.0.0.0
 COPY --from=builder --chown=nextjs:nodejs /repo/my-collection-search/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /repo/my-collection-search/.next/static ./my-collection-search/.next/static
 COPY --from=builder --chown=nextjs:nodejs /repo/my-collection-search/public ./my-collection-search/public
+
+# Link the server's working directory to the volumes now: at runtime the root
+# filesystem is read-only (#1074). Still as root, before USER nextjs below; the
+# links name volume paths, which are nextjs's by then.
+RUN link-volumes.sh
 
 # Build metadata surfaced by the About page (/api/version). Kept last so these
 # per-commit values don't invalidate the cache of the COPY/apt layers above.

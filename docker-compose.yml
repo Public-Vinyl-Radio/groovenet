@@ -2,6 +2,9 @@
 # scripts/compose-hardening/check.py (a CI job) fails any service that does not.
 #   no-new-privileges  a process can never gain privileges through setuid
 #                      binaries or file capabilities.
+#   read_only          the root filesystem is read-only; whatever a service
+#                      writes outside its volumes gets a tmpfs (or, for large
+#                      scratch space, a volume), listed next to the service.
 #   cap_drop: ALL      services start with no Linux capabilities. A service
 #                      adds back only what it was shown to need, with the reason
 #                      next to its `cap_add`.
@@ -10,6 +13,7 @@
 # limit reads a variable from `.env`, so a small VPS can shrink them; see the
 # "Memory limits" table in docs or .env.example for measured usage.
 x-hardening: &hardening
+  read_only: true
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -19,6 +23,11 @@ services:
   app:
     <<: *hardening
     mem_limit: ${APP_MEM_LIMIT:-1536m}
+    # Writable scratch: /tmp, Next's cache (image optimiser; rebuilt on demand) and
+    # restic's cache (RESTIC_CACHE_DIR below). Counts toward the memory limit.
+    tmpfs:
+      - /tmp:size=256m
+      - /app/my-collection-search/my-collection-search/.next/cache:size=128m,uid=1001,gid=1001
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -48,6 +57,7 @@ services:
       STORYBOOK_URL: ${STORYBOOK_URL-/storybook/index.html}
       RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
       RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      RESTIC_CACHE_DIR: /tmp/restic-cache
       BACKUP_HEALTH_MAX_AGE_HOURS: ${BACKUP_HEALTH_MAX_AGE_HOURS:-12}
       RECORD_CLEANING_OVERDUE_DAYS: ${RECORD_CLEANING_OVERDUE_DAYS:-365}
       GROOVENET_TIME_ZONE: ${GROOVENET_TIME_ZONE:-UTC}
@@ -130,6 +140,10 @@ services:
   migrate:
     <<: *hardening
     mem_limit: ${MIGRATE_MEM_LIMIT:-512m}
+    # npm writes its logs and update check under HOME.
+    tmpfs:
+      - /tmp:size=32m
+      - /home/nextjs:size=32m,uid=1001,gid=1001
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -154,6 +168,9 @@ services:
   scripts:
     <<: *hardening
     mem_limit: ${SCRIPTS_MEM_LIMIT:-1g}
+    tmpfs:
+      - /tmp:size=256m
+      - /home/nextjs:size=128m,uid=1001,gid=1001
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -172,6 +189,10 @@ services:
   db:
     <<: *hardening
     mem_limit: ${DB_MEM_LIMIT:-1g}
+    # The Unix socket and lock file; Postgres writes nothing else outside PGDATA.
+    tmpfs:
+      - /tmp:size=64m
+      - /var/run/postgresql:uid=999,gid=999,mode=2775,size=1m
     # Not root (#1074): the official entrypoint only chowns and drops privileges
     # when it starts as root, so running as postgres needs no capabilities. The
     # data directory is already postgres's on every existing install.
@@ -196,6 +217,11 @@ services:
   essentia:
     <<: *hardening
     mem_limit: ${ESSENTIA_MEM_LIMIT:-2g}
+    # The service downloads each track to /tmp before analysing it, so its size
+    # caps the file it can analyse (the worker sends a WAV, about 10 MB a minute).
+    # Counts toward the memory limit.
+    tmpfs:
+      - /tmp:size=${ESSENTIA_TMP_SIZE:-1g}
     profiles: [analysis, downloads, all]
     build:
       context: essentia-api
@@ -208,6 +234,8 @@ services:
   ga-service:
     <<: *hardening
     mem_limit: ${GA_MEM_LIMIT:-512m}
+    tmpfs:
+      - /tmp:size=32m
     profiles: [optimize, all]
     build:
       context: ga-service
@@ -236,6 +264,11 @@ services:
   download-worker:
     <<: *hardening
     mem_limit: ${DOWNLOAD_WORKER_MEM_LIMIT:-1536m}
+    # Downloads are staged in /app/downloads and tracks fetched for local analysis
+    # land in /tmp: gigabytes for lossless albums, so these are volumes on disk,
+    # not tmpfs. HOME holds the yt-dlp and gamdl caches.
+    tmpfs:
+      - /home/groovenet:size=64m,uid=1001,gid=1001,mode=0700
     profiles: [downloads, all]
     build:
       context: .
@@ -259,6 +292,8 @@ services:
       volume-perms:
         condition: service_completed_successfully
     volumes:
+      - worker_downloads:/app/downloads
+      - worker_tmp:/tmp
       - ${WORKER_AUDIO_MOUNT:-music_data:/app/audio}
       - album_covers:/app/public/uploads/album-covers
       - cookie_data:/app/cookies # Shared cookie storage with app service
@@ -270,6 +305,9 @@ services:
   fingerprint-service:
     <<: *hardening
     mem_limit: ${FINGERPRINT_MEM_LIMIT:-768m}
+    # ffmpeg's stderr is buffered in a temporary file.
+    tmpfs:
+      - /tmp:size=64m
     profiles: [fingerprint, all]
     build:
       context: .
@@ -336,3 +374,6 @@ volumes:
   essentia_data:
   audio_ingest:
   set_recordings:
+  # Scratch space for download-worker (see its tmpfs comment). Disposable.
+  worker_downloads:
+  worker_tmp:

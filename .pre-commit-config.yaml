@@ -19,6 +19,9 @@ repos:
         # Losslessly compressed 2x product captures can exceed 1 MiB (#912).
         exclude: '^site/src/assets/screenshots/.*\.png$'
       - id: check-yaml
+        # Uses Compose's `!reset` tag, which plain YAML cannot construct; `docker
+        # compose config` (the compose-hardening check) parses it instead.
+        exclude: '^docker-compose\.dev\.yml$'
       - id: check-json
         # tsconfig.json is JSONC — TypeScript allows comments, strict JSON does not.
         exclude: '(^|/)tsconfig(\..+)?\.json$'
