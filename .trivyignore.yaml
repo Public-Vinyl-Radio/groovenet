@@ -22,3 +22,15 @@ vulnerabilities:
       image copies the whole workspace; nothing there runs node-gyp or extracts archives.
       Remove by slimming the migrator's copy of /repo, or when dbus-next moves off node-gyp 7.
     expired_at: 2027-02-01
+
+  - id: CVE-2026-99362
+    purls:
+      - "pkg:deb/debian/linux-libc-dev"
+    statement: >-
+      A kernel nfsd out-of-bounds write, reported against linux-libc-dev. That package is
+      the kernel's C headers (installed by build-essential in the download-worker image
+      for wheel builds): it holds no kernel code, and a container runs the host's kernel,
+      so nothing in the image can be exploited through it. Debian's fixed version also
+      lands on a rebuild with a fresh apt layer. Remove by dropping build-essential from
+      the final image (a multi-stage build), or once a rebuild picks up 6.12.117-1.
+    expired_at: 2027-02-01
