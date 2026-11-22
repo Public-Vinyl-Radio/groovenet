@@ -14,6 +14,12 @@ when a service breaks a rule. Rules, with the reason for each:
                    each one justified in docker-compose.yml.
   mem-limit        Every service has a memory limit, so one runaway analysis
                    cannot take the host down.
+  user             No service runs as root: its effective user (the compose
+                   `user:`, else the last USER of its Dockerfile target) is set
+                   and is not root or uid 0. Only `volume-perms` is allowed,
+                   because chowning old root-owned volumes needs root. The dev
+                   overlay (`next dev`) is checked without this rule: its
+                   entrypoint adopts the checkout's uid and needs root.
 
 Exempt: services in the `players` profile (docker-compose.players.yml). Those
 are the OwnTone/AirPlay player engines of a homelab overlay and need
@@ -29,12 +35,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 PUBLISHER = "app"
 EXEMPT_PROFILE = "players"
+# The one service allowed to run as root (see the module docstring).
+ROOT_ALLOWED = {"volume-perms"}
 
 # Overlay combinations. Each is a list of -f files, in order.
 COMBOS: dict[str, list[str]] = {
@@ -63,6 +72,9 @@ COMBOS: dict[str, list[str]] = {
         "docker-compose.players.yml",
     ],
 }
+
+# Combinations that run `next dev` as root; the user rule is skipped for them.
+DEV_COMBOS = {"worktree", "worktree-mac"}
 
 # Dummy values for the variables compose requires, so `config` renders.
 RENDER_ENV = {
@@ -102,11 +114,63 @@ def render(compose_dir: Path, files: list[str]) -> dict:
     return json.loads(out.stdout)
 
 
+FROM_RE = re.compile(r"^FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+(\S+))?\s*$", re.I)
+USER_RE = re.compile(r"^USER\s+(\S+)", re.I)
+
+
+def dockerfile_user(dockerfile: Path, target: str | None) -> str | None:
+    """The USER an image built from `target` ends up with, or None for root.
+
+    A stage inherits the user of the stage it is FROM; a stage FROM an external
+    image is taken to start as root (we cannot know better without pulling it).
+    """
+    stages: dict[str, dict] = {}
+    order: list[str] = []
+    for line in dockerfile.read_text().splitlines():
+        line = line.strip()
+        m = FROM_RE.match(line)
+        if m:
+            name = (m.group(2) or f"#{len(order)}").lower()
+            stages[name] = {"base": m.group(1).lower(), "user": None}
+            order.append(name)
+            continue
+        m = USER_RE.match(line)
+        if m and order:
+            stages[order[-1]]["user"] = m.group(1)
+    name = (target or (order[-1] if order else "")).lower()
+    seen = set()
+    while name in stages and name not in seen:
+        seen.add(name)
+        if stages[name]["user"]:
+            return stages[name]["user"]
+        name = stages[name]["base"]
+    return None
+
+
+def is_root_user(user: str | None) -> bool:
+    if not user:
+        return True
+    uid = str(user).split(":")[0].strip().lower()
+    return uid in {"", "root", "0"}
+
+
+def effective_user(svc: dict) -> str | None:
+    """The user a service runs as: compose `user:`, else the image's USER."""
+    if svc.get("user"):
+        return str(svc["user"])
+    build = svc.get("build")
+    if build:
+        context = Path(build.get("context", "."))
+        dockerfile = context / build.get("dockerfile", "Dockerfile")
+        return dockerfile_user(dockerfile, build.get("target"))
+    return None
+
+
 def is_exempt(service: dict) -> bool:
     return EXEMPT_PROFILE in (service.get("profiles") or [])
 
 
-def check_service(name: str, svc: dict) -> list[str]:
+def check_service(name: str, svc: dict, check_user: bool = False) -> list[str]:
     """Return one message per rule the service breaks."""
     problems: list[str] = []
 
@@ -133,13 +197,17 @@ def check_service(name: str, svc: dict) -> list[str]:
         problems.append("missing cap_drop: [ALL]")
     if not svc.get("mem_limit"):
         problems.append("missing mem_limit")
+    if check_user and name not in ROOT_ALLOWED and is_root_user(effective_user(svc)):
+        problems.append(
+            "runs as root: set USER in its Dockerfile (or `user:` for a stock image)"
+        )
     return problems
 
 
-def check_config(config: dict) -> dict[str, list[str]]:
+def check_config(config: dict, check_user: bool = False) -> dict[str, list[str]]:
     result = {}
     for name, svc in (config.get("services") or {}).items():
-        problems = check_service(name, svc)
+        problems = check_service(name, svc, check_user)
         if problems:
             result[name] = problems
     return result
@@ -154,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     failed = False
     for combo, files in COMBOS.items():
         config = render(compose_dir, files)
-        problems = check_config(config)
+        problems = check_config(config, combo not in DEV_COMBOS)
         count = len(config.get("services") or {})
         if not problems:
             print(f"ok    {combo} ({count} services)")

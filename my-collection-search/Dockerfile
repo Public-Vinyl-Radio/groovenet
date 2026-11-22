@@ -2,6 +2,11 @@
 
 # OS layers never depend on a package manifest or source file.
 FROM node:26-bookworm-slim AS os-base
+# Every image runs as this user, uid/gid 1001 (#1074). 1001 is what entrypoint.sh
+# has always chowned the app's volumes to, so existing volumes already match; the
+# Python images use the same number so a volume they share needs no group tricks.
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs -m nextjs
 
 FROM os-base AS base
 # All stages inherit the app's exact npm pin, checked against mise in CI.
@@ -36,8 +41,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # The stock Node image's npm/npx symlinks already point into this directory.
 COPY --from=base /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 COPY --from=base /tmp/npm-toolchain.json /tmp/npm-toolchain.json
-RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 --gid nodejs -m nextjs
 
 # Every path a named volume mounts over has to exist here first. Docker seeds a
 # new volume's ownership from the image, so a path missing from this list is
@@ -161,6 +164,10 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+# Not root (#1074). entrypoint.sh only re-owns volumes and drops privileges when
+# it is started as root, which the dev target still is; the `volume-perms`
+# service fixes volume ownership on upgrade.
+USER nextjs
 ENTRYPOINT ["/entrypoint.sh"]
 # outputFileTracingRoot (next.config.mjs) points at the monorepo root, so
 # Next's standalone output nests this app's own server.js one level deeper
@@ -187,6 +194,7 @@ COPY my-collection-search/migrations ./migrations
 COPY my-collection-search/scripts ./scripts
 COPY my-collection-search/src/server/genres/taxonomySeed.js ./src/server/genres/taxonomySeed.js
 COPY my-collection-search/src/lib/artists/slug.js ./src/lib/artists/slug.js
+USER nextjs
 
 # Verify every migration can load in the deployed image before publishing it.
 # Database-only tests on the checkout cannot detect missing image dependencies.
@@ -205,3 +213,4 @@ COPY --from=contracts /repo/packages/groovenet-contracts /repo/packages/groovene
 COPY --from=contracts /repo/packages/groovenet-client /repo/packages/groovenet-client
 COPY my-collection-search/package*.json my-collection-search/tsconfig.json ./
 COPY my-collection-search/src ./src
+USER nextjs

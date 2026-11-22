@@ -26,7 +26,7 @@ check_health() {
   ok "/api/health answers"
 }
 
-# check_services "app db redis": exactly these run, and migrate exited 0.
+# check_services "app db redis": exactly these run, and migrate and volume-perms exited 0.
 check_services() {
   local expected="$1"
   step "Only the expected services run"
@@ -38,6 +38,10 @@ check_services() {
   migrate_state="$(compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' migrate)"
   [[ "$migrate_state" == "migrate exited 0" ]] || die "migrate should have run and exited 0, got: ${migrate_state:-no migrate container (is it behind a profile?)}"
   ok "migrate exited 0"
+  local perms_state
+  perms_state="$(compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' volume-perms)"
+  [[ "$perms_state" == "volume-perms exited 0" ]] || die "volume-perms should have run and exited 0, got: ${perms_state:-no volume-perms container}"
+  ok "volume-perms exited 0"
 }
 
 # shellcheck disable=SC2016 # $POSTGRES_* expand inside the db container, on purpose

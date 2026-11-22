@@ -23,18 +23,37 @@ Run it with `just compose-hardening-check`. Services in the `players` profile
 the port and hardening rules: AirPlay and mDNS need `network_mode: host`. They are
 still checked for the Docker socket and `privileged`.
 
-## Capabilities added back
+## Capabilities
 
-Every service drops all capabilities. Each add-back was verified by removing it and
-watching the service fail.
+Every service drops all capabilities. Once every image is non-root (below), the
+only service that adds any back is `volume-perms`:
 
-| Service           | `cap_add`                                   | Why                                                                                                                                                                                                        |
-| ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `db`              | CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID | Official entrypoint starts as root, chowns/chmods the data dir, drops to `postgres`. Without FOWNER/DAC_OVERRIDE it logs `chmod ... Operation not permitted`; FOWNER alone exits with `Permission denied`. |
-| `redis`           | CHOWN, SETUID, SETGID                       | Entrypoint drops to `redis` (`su-exec`) after chowning stray files in `/data`. SETUID/SETGID were the only ones needed on a fresh volume; CHOWN stays for restored volumes.                                |
-| `app`             | CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID | `entrypoint.sh` starts as root, re-owns the volumes and drops to `nextjs` with `gosu`.                                                                                                                     |
-| `download-worker` | DAC_OVERRIDE                                | Runs as root, volumes are owned by uid 1001. Without it, writes to `/app/audio` fail with `Permission denied`.                                                                                             |
-| everything else   | none                                        | `essentia`, `ga-service`, `fingerprint-*`, `migrate`, `scripts` ran every workload with no capabilities.                                                                                                   |
+| Service         | `cap_add`                                   | Why                                                                                                               |
+| --------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `volume-perms`  | CHOWN, DAC_OVERRIDE, FOWNER                 | Re-owns volumes that older root containers (or a host) left with other owners. Runs, then exits.                  |
+| `app` (dev)     | CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID | The `next dev` target still starts as root to adopt the checkout's uid, then drops with `gosu`. Dev overlay only. |
+| everything else | none                                        | Verified by running every workload with none.                                                                     |
+
+While the images were still root, each add-back was checked by removing it: Postgres
+needed CHOWN, DAC_OVERRIDE, FOWNER, SETUID and SETGID (without FOWNER or DAC_OVERRIDE
+its entrypoint logs `chmod ... Operation not permitted`), Redis SETUID and SETGID
+(plus CHOWN for restored volumes), the download worker DAC_OVERRIDE to write the
+volumes the app owned. Running as the stock `postgres` and `redis` users skips those
+entrypoints, so none of them are needed now.
+
+## Users
+
+One scheme: **uid/gid 1001** in every Groovenet image (`nextjs:nodejs` in the web image,
+`groovenet:groovenet` in the Python and Essentia ones), and the stock `postgres` and
+`redis` users through `user:` for the two official images. Why 1001:
+
+- It is what `entrypoint.sh` has always chowned the app's volumes to, so existing
+  volumes already match and need almost no migration.
+- One uid across services means shared volumes (audio, cookies, essentia-data, covers,
+  the ingest volume) work without group permissions or ACLs.
+
+The `volume-perms` one-shot service (see `RELEASING.md`) fixes ownership of existing
+volumes on every `up`.
 
 ## Memory limits
 

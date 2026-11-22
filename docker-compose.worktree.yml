@@ -5,6 +5,11 @@ services:
     volumes:
       - ${APP_AUDIO_MOUNT:-worktree_audio:/app/audio}
 
+  # Same audio volume as the app, so the init step fixes the right one.
+  volume-perms:
+    volumes:
+      - ${APP_AUDIO_MOUNT:-worktree_audio:/app/audio}
+
   download-worker:
     volumes:
       - ${WORKER_AUDIO_MOUNT:-worktree_audio:/app/audio}

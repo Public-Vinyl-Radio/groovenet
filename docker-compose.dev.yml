@@ -9,6 +9,11 @@ services:
     # `next dev` compiles on demand and needs far more than the production
     # server's default.
     mem_limit: ${APP_MEM_LIMIT:-4g}
+    # The dev target still starts as root: entrypoint.sh adopts the checkout's
+    # uid, re-owns the volumes (CHOWN, with DAC_OVERRIDE/FOWNER for files other
+    # uids made) and drops to nextjs with gosu (SETUID, SETGID). The production
+    # image is non-root and needs none of this.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
     environment:
       NODE_ENV: development
       NPM_CONFIG_CACHE: /tmp/.npm

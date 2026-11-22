@@ -37,7 +37,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY download-worker/ /app/download-worker/
 
-RUN mkdir -p /app/audio /app/downloads
+# Not root (#1074). uid/gid 1001 is shared by every Groovenet image, so the
+# volumes the worker shares with the app (audio, covers, cookies, essentia-data)
+# are writable without group tricks. Existing volumes are re-owned on upgrade by
+# the `volume-perms` service. HOME holds the gamdl and yt-dlp caches.
+RUN groupadd --gid 1001 groovenet && \
+    useradd --uid 1001 --gid 1001 --create-home --shell /usr/sbin/nologin groovenet && \
+    mkdir -p /app/audio /app/downloads /app/cookies /app/essentia-data /app/public/uploads/album-covers && \
+    chown groovenet:groovenet /app/audio /app/downloads /app/cookies /app/essentia-data /app/public/uploads/album-covers
+USER groovenet
 
 # The worker has no HTTP server; liveness is a recent heartbeat key in Redis
 # refreshed by the main loop (worker.healthcheck reads it).

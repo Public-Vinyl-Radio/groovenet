@@ -14,6 +14,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . .
 
+# Not root (#1074): uid/gid 1001, the same in every Groovenet image.
+RUN groupadd --gid 1001 groovenet && \
+    useradd --uid 1001 --gid 1001 --create-home --shell /usr/sbin/nologin groovenet
+USER groovenet
+
 EXPOSE 8002
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
