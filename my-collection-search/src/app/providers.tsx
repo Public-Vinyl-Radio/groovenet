@@ -15,6 +15,9 @@ import { JobWatcherProvider } from "@/providers/JobWatcherProvider";
 import ThemeColorSync from "@/components/ThemeColorSync";
 import { InAppNavigationProvider } from "@/providers/InAppNavigationProvider";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { useSyncAppearance } from "@/hooks/useAppearanceSettings";
+import { queryKeys } from "@/lib/queryKeys";
+import type { AppearanceSettingsResponse } from "@/services/internalApi/settings";
 
 const ReactQueryDevtools: React.ComponentType<{ initialIsOpen?: boolean }> =
   process.env.NODE_ENV === "development"
@@ -27,8 +30,25 @@ const ReactQueryDevtools: React.ComponentType<{ initialIsOpen?: boolean }> =
       )
     : () => null;
 
-export default function ClientProviders({ children }: { children: React.ReactNode }) {
-  const [client] = useState(() => new QueryClient());
+/** Keeps <html> on this device's appearance; renders nothing. */
+function AppearanceSync() {
+  useSyncAppearance();
+  return null;
+}
+
+export default function ClientProviders({
+  children,
+  appearance,
+}: {
+  children: React.ReactNode;
+  /** The saved appearance the layout rendered, so the first render knows the default. */
+  appearance?: AppearanceSettingsResponse;
+}) {
+  const [client] = useState(() => {
+    const queryClient = new QueryClient();
+    if (appearance) queryClient.setQueryData(queryKeys.appearance(), appearance);
+    return queryClient;
+  });
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
     setIsDesktop(window.innerWidth >= 768);
@@ -38,6 +58,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
     <ChakraProvider>
       <ThemeColorSync />
       <QueryClientProvider client={client}>
+        <AppearanceSync />
         <CommandPaletteProvider>
           <JobWatcherProvider>
             <UsernameProvider>

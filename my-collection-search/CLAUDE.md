@@ -219,6 +219,18 @@ an invalid value the browser drops, so it fails silently.
     scopes the draft by setting `--gn-*` inline on its wrapper, so the page is
     untouched until Save. Catppuccin/Nord presets (#689), Classic (#672),
     import/export and several saved palettes are out of scope.
+- **Per-device appearance (#1251):** the saved palette, corners, custom palette
+  and fonts are the _default_; each device may override any field in one
+  versioned localStorage key (`gn-appearance`, `src/app/appearanceOverride.ts`).
+  Resolution per field: override, then saved, then built-in default; an invalid
+  stored field is dropped alone (validated by the same registries and
+  `parseCustomPalette`). An inline `<head>` script (`appearanceScript.ts`, after
+  the server's custom `<style>`) applies it before first paint; it takes the
+  request's `x-nonce` and accepts a stored custom-palette stylesheet only if it
+  matches `customCssPattern` (hex declarations only). `useDeviceAppearance`
+  edits the device; "Use as the default for everyone" is the existing PUT, then
+  clears those fields. Storage that throws falls back to the saved value, and
+  writes then live in memory for the page. The API and OpenAPI are unchanged.
 - **Status** tokens `status.{missing,analysis,genre,success}.{fg,subtle,border}`
   carry the badge meanings below.
 - **House style (#667):** the whole look lives in `src/app/houseStyle.ts`
