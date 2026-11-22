@@ -1,3 +1,4 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 
 type YouTubeSearchItem = {
@@ -11,7 +12,7 @@ type YouTubeSearchItem = {
   };
 };
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   try {
     const { title, artist } = await req.json();
     const query = [title, artist].filter(Boolean).join(" ");
@@ -38,3 +39,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "YouTube search failed" }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.paidApi, handlePost);

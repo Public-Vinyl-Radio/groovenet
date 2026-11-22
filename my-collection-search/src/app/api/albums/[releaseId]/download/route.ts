@@ -1,10 +1,11 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 import { queueAlbumDownloadsResponseSchema } from "@/api-contract/schemas";
 import { redisJobService } from "@/server/services/redisJobService";
 import { analytics } from "@/lib/analytics/server";
 import { albumRepository } from "@/server/repositories/albumRepository";
 
-export async function POST(
+async function handlePost(
   request: Request,
   { params }: { params: Promise<{ releaseId: string }> },
 ) {
@@ -78,3 +79,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.downloadEnqueue, handlePost);

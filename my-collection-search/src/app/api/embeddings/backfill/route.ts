@@ -1,3 +1,4 @@
+import { RATE_LIMIT_POLICIES, withRateLimit } from "@/server/security/rateLimit";
 import { NextResponse } from "next/server";
 import { embeddingsBackfillBodySchema } from "@/api-contract/schemas";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
@@ -47,7 +48,7 @@ async function resolveCandidates(
  * never completing synchronously even for a single release. Progress is
  * read back from `/api/embeddings/backfill/{runId}`.
  */
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   try {
     let raw: unknown = {};
     try {
@@ -92,3 +93,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export const POST = withRateLimit(RATE_LIMIT_POLICIES.paidApi, handlePost);
