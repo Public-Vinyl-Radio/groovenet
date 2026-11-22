@@ -18,14 +18,28 @@ if [ "$PGMIG_COUNT" != "0" ]; then
   exit 0
 fi
 
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-$(dirname "$0")/../migrations}"
+
+# Fail before touching the database if there is nothing to backfill from: an
+# unmatched glob would otherwise insert a bogus '*' row.
+set -- "$MIGRATIONS_DIR"/*.js
+if [ ! -e "$1" ]; then
+  echo "migrate-preflight: no migration files found in $MIGRATIONS_DIR" >&2
+  exit 1
+fi
+
 echo "Schema exists but pgmigrations is empty — backfilling migration records..."
-for f in /app/migrations/*.js; do
+# One multi-row INSERT in a single statement: it applies fully or not at all.
+# Migration names are timestamp_slug, so they carry no quote characters.
+values=""
+for f in "$@"; do
   name=$(basename "$f" .js)
-  psql "$DATABASE_URL" -c \
-    "INSERT INTO pgmigrations (name, run_on) VALUES ('$name', NOW()) ON CONFLICT DO NOTHING" \
-    > /dev/null
+  values="${values:+$values, }('$name', NOW())"
 done
-echo "Backfilled $(ls /app/migrations/*.js | wc -l) migration records."
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+  "INSERT INTO pgmigrations (name, run_on) VALUES $values ON CONFLICT DO NOTHING" \
+  > /dev/null
+echo "Backfilled $# migration records."
 
 DEFAULT_LIBRARY_TABLE_EXISTS=$(psql "$DATABASE_URL" -tAc \
   "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='default_library_settings')" \
