@@ -10,6 +10,8 @@ GOOD = {
     "security_opt": ["no-new-privileges:true"],
     "cap_drop": ["ALL"],
     "mem_limit": "100",
+    "read_only": True,
+    "user": "1001",
 }
 
 
@@ -54,7 +56,13 @@ class CheckServiceTest(unittest.TestCase):
 
     def test_missing_hardening_fails(self):
         out = check.check_service("db", {})
-        self.assertEqual(len(out), 3)
+        self.assertEqual(len(out), 5)
+        self.assertTrue(any("read_only" in m for m in out))
+        self.assertTrue(any("runs as root" in m for m in out))
+
+    def test_read_only_must_be_true(self):
+        out = check.check_service("db", svc(read_only=False))
+        self.assertEqual(out, ["missing read_only: true"])
 
     def test_cap_drop_case_insensitive(self):
         self.assertEqual(check.check_service("db", svc(cap_drop=["all"])), [])
@@ -111,19 +119,21 @@ class UserRuleTest(unittest.TestCase):
     def test_stock_image_without_user_is_root(self):
         self.assertIsNone(check.effective_user({"image": "redis"}))
 
-    def test_service_running_as_root_fails_only_when_checked(self):
+    def test_service_running_as_root_fails_unless_relaxed(self):
         self.assertEqual(check.check_service("db", svc()), [])
-        out = check.check_service("db", svc(), check_user=True)
+        self.assertEqual(check.check_service("db", {**svc(user="0")}, relaxed=True), [])
+        out = check.check_service("db", svc(user="root"))
         self.assertIn("runs as root", out[0])
 
     def test_non_root_and_volume_perms_pass(self):
-        self.assertEqual(check.check_service("db", svc(user="postgres"), check_user=True), [])
-        self.assertEqual(check.check_service("volume-perms", svc(user="0:0"), check_user=True), [])
+        self.assertEqual(check.check_service("db", svc(user="postgres")), [])
+        self.assertEqual(check.check_service("volume-perms", svc(user="0:0")), [])
 
     def test_dockerfile_target_is_used(self):
         path = self.dockerfile("FROM a AS runner\nUSER app\nFROM a AS dev\n")
         build = {"context": str(path.parent), "target": "dev"}
-        out = check.check_service("app", svc(build=build), check_user=True)
+        service = {k: v for k, v in svc(build=build).items() if k != "user"}
+        out = check.check_service("app", service)
         self.assertIn("runs as root", out[0])
 
 
@@ -132,10 +142,11 @@ class CheckConfigTest(unittest.TestCase):
         config = {"services": {"ok": svc(), "bad": {}}}
         self.assertEqual(list(check.check_config(config)), ["bad"])
 
-    def test_user_rule_is_opt_in(self):
-        config = {"services": {"db": svc()}}
-        self.assertEqual(check.check_config(config), {})
-        self.assertEqual(list(check.check_config(config, check_user=True)), ["db"])
+    def test_dev_relaxes_only_the_app(self):
+        root = svc(user="root", read_only=False)
+        config = {"services": {"app": root, "db": root}}
+        self.assertEqual(list(check.check_config(config)), ["app", "db"])
+        self.assertEqual(list(check.check_config(config, dev=True)), ["db"])
 
     def test_empty_config(self):
         self.assertEqual(check.check_config({}), {})
@@ -191,12 +202,12 @@ class MainTest(unittest.TestCase):
     def test_passes_on_clean_config(self):
         self.assertEqual(self.run_main({"services": {"db": svc(user="postgres")}}), 0)
 
-    def test_dev_combos_skip_the_user_rule(self):
+    def test_dev_combos_relax_the_dev_app(self):
         seen = []
 
         def fake_render(_dir, files):
             seen.append(files)
-            return {"services": {"app": svc()}}
+            return {"services": {"app": svc(user="root", read_only=False)}}
 
         with mock.patch.object(check, "render", side_effect=fake_render):
             with mock.patch("builtins.print") as out:

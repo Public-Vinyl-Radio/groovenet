@@ -14,12 +14,16 @@ when a service breaks a rule. Rules, with the reason for each:
                    each one justified in docker-compose.yml.
   mem-limit        Every service has a memory limit, so one runaway analysis
                    cannot take the host down.
+  read-only        `read_only: true`: the root filesystem is read-only, with
+                   a tmpfs or volume for whatever a service writes.
   user             No service runs as root: its effective user (the compose
                    `user:`, else the last USER of its Dockerfile target) is set
                    and is not root or uid 0. Only `volume-perms` is allowed,
-                   because chowning old root-owned volumes needs root. The dev
-                   overlay (`next dev`) is checked without this rule: its
-                   entrypoint adopts the checkout's uid and needs root.
+                   because chowning old root-owned volumes needs root.
+
+The `app` service in the dev overlay (`next dev`) is checked without the `user`
+and `read-only` rules: it writes all over the bind-mounted checkout and its
+entrypoint adopts the checkout's uid, which needs root.
 
 Exempt: services in the `players` profile (docker-compose.players.yml). Those
 are the OwnTone/AirPlay player engines of a homelab overlay and need
@@ -73,7 +77,8 @@ COMBOS: dict[str, list[str]] = {
     ],
 }
 
-# Combinations that run `next dev` as root; the user rule is skipped for them.
+# Combinations whose `app` is the `next dev` target; it is exempt from the
+# user and read-only rules (see the module docstring).
 DEV_COMBOS = {"worktree", "worktree-mac"}
 
 # Dummy values for the variables compose requires, so `config` renders.
@@ -170,7 +175,7 @@ def is_exempt(service: dict) -> bool:
     return EXEMPT_PROFILE in (service.get("profiles") or [])
 
 
-def check_service(name: str, svc: dict, check_user: bool = False) -> list[str]:
+def check_service(name: str, svc: dict, relaxed: bool = False) -> list[str]:
     """Return one message per rule the service breaks."""
     problems: list[str] = []
 
@@ -197,17 +202,21 @@ def check_service(name: str, svc: dict, check_user: bool = False) -> list[str]:
         problems.append("missing cap_drop: [ALL]")
     if not svc.get("mem_limit"):
         problems.append("missing mem_limit")
-    if check_user and name not in ROOT_ALLOWED and is_root_user(effective_user(svc)):
+    if relaxed:
+        return problems
+    if svc.get("read_only") is not True:
+        problems.append("missing read_only: true")
+    if name not in ROOT_ALLOWED and is_root_user(effective_user(svc)):
         problems.append(
             "runs as root: set USER in its Dockerfile (or `user:` for a stock image)"
         )
     return problems
 
 
-def check_config(config: dict, check_user: bool = False) -> dict[str, list[str]]:
+def check_config(config: dict, dev: bool = False) -> dict[str, list[str]]:
     result = {}
     for name, svc in (config.get("services") or {}).items():
-        problems = check_service(name, svc, check_user)
+        problems = check_service(name, svc, relaxed=dev and name == PUBLISHER)
         if problems:
             result[name] = problems
     return result
@@ -222,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     failed = False
     for combo, files in COMBOS.items():
         config = render(compose_dir, files)
-        problems = check_config(config, combo not in DEV_COMBOS)
+        problems = check_config(config, dev=combo in DEV_COMBOS)
         count = len(config.get("services") or {})
         if not problems:
             print(f"ok    {combo} ({count} services)")

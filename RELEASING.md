@@ -211,6 +211,10 @@ milliseconds once nothing is left to fix, and exits 0.
   1001-owned files, and `volume-perms` leaves ownership consistent for the next
   upgrade. `volume-perms` pulls `alpine` on first use (`VOLUME_PERMS_IMAGE` pins
   another).
+- Root filesystems are read-only (#1074 part 3). Two new disposable volumes appear on
+  first `up`, `worker_downloads` and `worker_tmp`: the download worker's scratch
+  space, which used to live in the container. Nothing to configure; they only need
+  free disk for a download in flight.
 - Check after deploying: `docker compose ps -a` shows `volume-perms` exited 0, and
   `docker exec <container> id -u` is `1001` for the app, worker, essentia,
   ga-service and fingerprint services, `999` for db and redis.

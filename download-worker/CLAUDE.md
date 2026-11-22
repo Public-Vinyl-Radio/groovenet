@@ -119,4 +119,8 @@ Two things worth knowing when adding tests:
   the container look unhealthy — and it must stay under `SOCKET_TIMEOUT`, or
   the socket read times out racing the server-side block and the loop takes a
   `TimeoutError` on every idle cycle. Both live in `config.py` for that reason.
+- **The root filesystem is read-only** (#1074). Write only to the volumes
+  (`/app/audio`, `/app/cookies`, `/app/essentia-data`, covers), `/app/downloads`
+  and `/tmp` (both disk-backed scratch volumes) and `$HOME` (a tmpfs). Anything
+  else raises `Read-only file system`.
 - Ruff runs over this directory in pre-commit; config is the root `ruff.toml`.
