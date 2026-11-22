@@ -1,0 +1,36 @@
+name: compose-hardening
+
+# Container hardening rules (#1074): fails when a Compose service publishes a
+# port (other than app), mounts the Docker socket, or lacks no-new-privileges,
+# cap_drop or a memory limit. See scripts/compose-hardening/README.md.
+on:
+  pull_request:
+    paths:
+      - docker-compose*.yml
+      - scripts/compose-hardening/**
+      - .github/workflows/compose-hardening.yml
+  push:
+    branches: [main]
+    paths:
+      - docker-compose*.yml
+      - scripts/compose-hardening/**
+      - .github/workflows/compose-hardening.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compose-hardening-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unit-test the checker
+        working-directory: scripts/compose-hardening
+        run: python3 -m unittest -v test_check
+      - name: Check every overlay combination
+        run: python3 scripts/compose-hardening/check.py

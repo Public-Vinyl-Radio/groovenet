@@ -1,5 +1,28 @@
+# Container hardening (#1074). Every service merges this block, and
+# scripts/compose-hardening/check.py (a CI job) fails any service that does not.
+#   no-new-privileges  a process can never gain privileges through setuid
+#                      binaries or file capabilities.
+#   cap_drop: ALL      services start with no Linux capabilities. A service
+#                      adds back only what it was shown to need, with the reason
+#                      next to its `cap_add`.
+# Memory limits use `mem_limit`, which plain `docker compose` enforces (the
+# `deploy.resources` form is ignored outside Swarm on older Compose). Every
+# limit reads a variable from `.env`, so a small VPS can shrink them; see the
+# "Memory limits" table in docs or .env.example for measured usage.
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
 services:
   app:
+    <<: *hardening
+    mem_limit: ${APP_MEM_LIMIT:-1536m}
+    # entrypoint.sh starts as root, re-owns the mounted volumes (CHOWN, with
+    # DAC_OVERRIDE/FOWNER for files other uids created) and drops to nextjs with
+    # gosu (SETUID, SETGID). Drops out once the image runs as nextjs from the start.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -58,6 +81,8 @@ services:
   # One-shot init service: runs on every `up` and exits 0 (also when there is
   # nothing to apply). `app` waits on it. No `restart:` - it must stay exited.
   migrate:
+    <<: *hardening
+    mem_limit: ${MIGRATE_MEM_LIMIT:-512m}
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -80,6 +105,8 @@ services:
   # triggers `migrate`. No fixed command: `just scripts-run`
   # supplies it, e.g. `just scripts-run npm run backfill-key-confidence -- --limit=5`.
   scripts:
+    <<: *hardening
+    mem_limit: ${SCRIPTS_MEM_LIMIT:-1g}
     build:
       context: .
       dockerfile: my-collection-search/Dockerfile
@@ -96,6 +123,13 @@ services:
       - db
 
   db:
+    <<: *hardening
+    mem_limit: ${DB_MEM_LIMIT:-1g}
+    # The official image's entrypoint starts as root, chowns and chmods the data
+    # directory (CHOWN, FOWNER, DAC_OVERRIDE) and drops to postgres with gosu
+    # (SETUID, SETGID). Each was verified: without FOWNER or DAC_OVERRIDE the
+    # entrypoint logs "chmod ... Operation not permitted" on /var/lib/postgresql/data.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
     image: pgvector/pgvector:pg15
     restart: always
     command: ["postgres", "-c", "maintenance_work_mem=256MB"]
@@ -114,6 +148,8 @@ services:
       start_period: 20s
 
   essentia:
+    <<: *hardening
+    mem_limit: ${ESSENTIA_MEM_LIMIT:-2g}
     profiles: [analysis, downloads, all]
     build:
       context: essentia-api
@@ -124,6 +160,8 @@ services:
       SENTRY_SERVICE: essentia-api
 
   ga-service:
+    <<: *hardening
+    mem_limit: ${GA_MEM_LIMIT:-512m}
     profiles: [optimize, all]
     build:
       context: ga-service
@@ -134,6 +172,12 @@ services:
       SENTRY_SERVICE: ga-service
 
   redis:
+    <<: *hardening
+    mem_limit: ${REDIS_MEM_LIMIT:-256m}
+    # The official image's entrypoint drops to redis with su-exec (SETUID,
+    # SETGID) after chowning any file in /data not already owned by redis
+    # (CHOWN), e.g. a restored volume.
+    cap_add: [CHOWN, SETUID, SETGID]
     image: redis:7-alpine
     restart: always
     volumes:
@@ -146,6 +190,13 @@ services:
       start_period: 10s
 
   download-worker:
+    <<: *hardening
+    mem_limit: ${DOWNLOAD_WORKER_MEM_LIMIT:-1536m}
+    # The worker runs as root and the app re-owns the shared volumes to uid 1001
+    # (nextjs) at startup, so without DAC_OVERRIDE it cannot write the audio,
+    # cookie, essentia-data or cover directories. Drops out once every image
+    # runs as the same non-root user.
+    cap_add: [DAC_OVERRIDE]
     profiles: [downloads, all]
     build:
       context: .
@@ -174,6 +225,8 @@ services:
   # Queue-driven: pops fingerprint_queue, decodes the chunk, matches it, and
   # reports back over the app's REST API. No published port on purpose.
   fingerprint-service:
+    <<: *hardening
+    mem_limit: ${FINGERPRINT_MEM_LIMIT:-768m}
     profiles: [fingerprint, all]
     build:
       context: .
@@ -216,6 +269,7 @@ services:
   fingerprint-set-worker:
     profiles: [fingerprint, all]
     extends: fingerprint-service
+    mem_limit: ${FINGERPRINT_SET_MEM_LIMIT:-768m}
     environment:
       FINGERPRINT_QUEUES: fingerprint_set_queue
       FINGERPRINT_HEARTBEAT_KEY: fingerprint:heartbeat:set

@@ -665,6 +665,11 @@ install-unit-test:
 build-install-bundle version out="dist":
   ./scripts/install/build-bundle.sh {{version}} {{out}}
 
+# Container hardening rules (#1074): published ports, docker.sock, caps, memory limits.
+compose-hardening-check:
+  python3 scripts/compose-hardening/check.py
+  cd scripts/compose-hardening && python3 -m unittest test_check
+
 # Verify all migrations apply + roll back + re-apply on a throwaway pgvector db.
 migrate-test:
   #!/usr/bin/env bash
