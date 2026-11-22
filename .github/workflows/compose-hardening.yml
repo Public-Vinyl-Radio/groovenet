@@ -2,7 +2,7 @@ name: compose-hardening
 
 # Container hardening rules (#1074): fails when a Compose service publishes a
 # port (other than app), mounts the Docker socket, or lacks no-new-privileges,
-# cap_drop or a memory limit. See docs/container-hardening.md.
+# cap_drop or a memory limit. See scripts/compose-hardening/README.md.
 on:
   pull_request:
     paths:
