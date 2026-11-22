@@ -130,11 +130,55 @@ class UserRuleTest(unittest.TestCase):
         self.assertEqual(check.check_service("volume-perms", svc(user="0:0")), [])
 
     def test_dockerfile_target_is_used(self):
-        path = self.dockerfile("FROM a AS runner\nUSER app\nFROM a AS dev\n")
+        path = self.dockerfile("FROM a@sha256:1 AS runner\nUSER app\nFROM a@sha256:1 AS dev\n")
         build = {"context": str(path.parent), "target": "dev"}
         service = {k: v for k, v in svc(build=build).items() if k != "user"}
         out = check.check_service("app", service)
         self.assertIn("runs as root", out[0])
+
+
+class PinnedImageTest(unittest.TestCase):
+    def dockerfile(self, text):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "Dockerfile"
+        path.write_text(text)
+        return path
+
+    def test_digest_pinned_from_passes(self):
+        path = self.dockerfile("FROM python:3.13-slim@sha256:abc\n")
+        self.assertEqual(check.unpinned_from(path), [])
+
+    def test_unpinned_external_from_is_reported(self):
+        path = self.dockerfile("FROM python:3.13-slim\nFROM node@sha256:1 AS n\n")
+        self.assertEqual(check.unpinned_from(path), ["python:3.13-slim"])
+
+    def test_stage_references_and_scratch_need_no_digest(self):
+        path = self.dockerfile(
+            "FROM node@sha256:1 AS base\nFROM base AS build\nFROM scratch\nFROM Build AS out\n"
+        )
+        self.assertEqual(check.unpinned_from(path), [])
+
+    def test_stock_image_must_carry_a_digest(self):
+        out = check.check_service("db", svc(image="redis:7-alpine"))
+        self.assertEqual(out, ["image redis:7-alpine is not pinned by digest"])
+        self.assertEqual(check.check_service("db", svc(image="redis:7@sha256:abc")), [])
+
+    def test_our_own_release_images_are_exempt(self):
+        image = "ghcr.io/public-vinyl-radio/webapp:v1.2.3"
+        self.assertEqual(check.check_service("app", svc(image=image)), [])
+
+    def test_a_built_service_with_an_unpinned_from_fails(self):
+        path = self.dockerfile("FROM python:3.14-slim\n")
+        build = {"context": str(path.parent)}
+        out = check.check_service("ga-service", svc(build=build))
+        self.assertEqual(len(out), 1)
+        self.assertIn("python:3.14-slim", out[0])
+
+    def test_a_pinned_build_passes(self):
+        path = self.dockerfile("FROM python:3.14-slim@sha256:abc\n")
+        build = {"context": str(path.parent)}
+        self.assertEqual(check.check_service("ga-service", svc(build=build)), [])
 
 
 class CheckConfigTest(unittest.TestCase):

@@ -1,9 +1,14 @@
 # syntax=docker/dockerfile:1.7
-FROM ghcr.io/mgoltzsche/essentia
+# uv is pinned too (a tag and its digest); a FROM line so Dependabot can update it.
+FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
 
-RUN apk add --no-cache python3
+FROM ghcr.io/mgoltzsche/essentia@sha256:789fd48047b95a8184cab4d51bd581bea04bab85a38f58615711b5f5e1809f65
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# The base image is Alpine 3.19.0, which ships a libxml2 with CVE-2024-56171 (critical,
+# fixed in 2.11.8-r1). Upgrade just that package until the base image is rebuilt.
+RUN apk add --no-cache python3 && apk upgrade --no-cache libxml2
+
+COPY --from=uv /uv /bin/uv
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

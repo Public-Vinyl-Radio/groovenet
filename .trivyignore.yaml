@@ -1,0 +1,36 @@
+# Allowlist for the image-scan workflow (#1074). CI fails on a CRITICAL vulnerability
+# that has a fixed version; this file is how to accept one deliberately.
+#
+# To allowlist a finding, add an entry with:
+#   id          the CVE or advisory id from the failing job's table
+#   paths       (recommended) where it was found, so the same CVE elsewhere still fails
+#   statement   why it is safe or not reachable, and what would remove it
+#   expired_at  a date, at most a few months out: the entry stops working then and the
+#               scan fails again, so an exception cannot be forgotten
+# Prefer fixing: bump the dependency, or `apk upgrade`/`apt-get upgrade` the package.
+# Check an entry locally with:
+#   docker save <image> -o x.tar && docker run --rm -v $PWD:/in -v $PWD/.trivyignore.yaml:/.trivyignore.yaml \
+#     aquasec/trivy image --input /in/x.tar --severity CRITICAL --ignore-unfixed --ignorefile /.trivyignore.yaml
+vulnerabilities:
+  - id: CVE-2026-59873
+    paths:
+      - "repo/node_modules/tar/package.json"
+    statement: >-
+      node-tar 6.2.1 (denial of service on a crafted gzip bomb) reached through
+      @groovenet/player -> dbus-next -> usocket -> node-gyp@7, an old optional native
+      build chain with no newer release. It is in the migrator image only because that
+      image copies the whole workspace; nothing there runs node-gyp or extracts archives.
+      Remove by slimming the migrator's copy of /repo, or when dbus-next moves off node-gyp 7.
+    expired_at: 2027-02-01
+
+  - id: CVE-2026-99362
+    purls:
+      - "pkg:deb/debian/linux-libc-dev"
+    statement: >-
+      A kernel nfsd out-of-bounds write, reported against linux-libc-dev. That package is
+      the kernel's C headers (installed by build-essential in the download-worker image
+      for wheel builds): it holds no kernel code, and a container runs the host's kernel,
+      so nothing in the image can be exploited through it. Debian's fixed version also
+      lands on a rebuild with a fresh apt layer. Remove by dropping build-essential from
+      the final image (a multi-stage build), or once a rebuild picks up 6.12.117-1.
+    expired_at: 2027-02-01

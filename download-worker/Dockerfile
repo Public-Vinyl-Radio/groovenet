@@ -1,11 +1,14 @@
 # syntax=docker/dockerfile:1.7
+# uv is pinned too (a tag and its digest); a FROM line so Dependabot can update it.
+FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
+
 # Build context: project root (needed to access packages/groovenet-python)
 # Keep on Python 3.13. gamdl's pywidevine/protobuf dependency crashes at import
 # on 3.14 ("TypeError: Metaclasses with custom tp_new are not supported"), which
 # fails every Apple Music download. Dependabot must NOT bump this: it is ignored
 # in .github/dependabot.yml, and docker-publish.yml smoke-tests `gamdl --help`
 # in the built image. Revisit once gamdl/pywidevine/protobuf support 3.14.
-FROM python:3.13-slim
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
@@ -18,7 +21,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=uv /uv /bin/uv
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

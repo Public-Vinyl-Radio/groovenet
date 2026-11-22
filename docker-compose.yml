@@ -102,7 +102,7 @@ services:
   # other user, such as a host music library bind-mounted in, are left alone.
   volume-perms:
     <<: *hardening
-    image: ${VOLUME_PERMS_IMAGE:-alpine:3.22}
+    image: alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
     user: "0:0"
     mem_limit: ${VOLUME_PERMS_MEM_LIMIT:-64m}
     # CHOWN to change owners; DAC_OVERRIDE and FOWNER because the files being
@@ -200,7 +200,7 @@ services:
     # when it starts as root, so running as postgres needs no capabilities. The
     # data directory is already postgres's on every existing install.
     user: postgres
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg15@sha256:e0b617fffc06dd37323ee99873c7a8683f19f1dce34633670262b0113ce32638
     restart: always
     command: ["postgres", "-c", "maintenance_work_mem=256MB"]
     environment:
@@ -253,7 +253,7 @@ services:
     mem_limit: ${REDIS_MEM_LIMIT:-256m}
     # Not root (#1074), for the same reason as db. /data is already redis's.
     user: redis
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     restart: always
     volumes:
       - redis_data:/data

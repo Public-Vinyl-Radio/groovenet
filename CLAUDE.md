@@ -235,6 +235,11 @@ Version source of truth is the root `package.json`, mirrored into
   Run `just generate-spec` to validate API changes, but keep the output ignored
   and out of commits and PRs.
 
+- **Base images are pinned by digest** (`FROM python:3.14-slim@sha256:...`, and
+  the stock images in compose); Dependabot bumps tag and digest together, and
+  `just compose-hardening-check` fails an unpinned one. `image-scan.yml` runs Trivy on
+  every image and fails on a CRITICAL with a fix; allowlist one in `.trivyignore.yaml`
+  with an expiry. See `scripts/compose-hardening/README.md`.
 - **Don't run `next dev` or `next build` on the host.** It corrupts the `.next`
   directory shared with the dev container.
 - **Storybook:** `just storybook` runs the separate component dev server (6006);
