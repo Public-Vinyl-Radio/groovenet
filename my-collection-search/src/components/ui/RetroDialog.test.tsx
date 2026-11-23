@@ -44,6 +44,14 @@ describe("RetroDialog", () => {
     expect(getComputedStyle(close).position).toBe("static");
   });
 
+  it("puts header actions between the title and the close button", async () => {
+    renderDialog({ headerActions: <button>Settings</button> });
+    const settings = await screen.findByRole("button", { name: "Settings" });
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(settings.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(close.parentElement).toBe(settings.parentElement);
+  });
+
   it("pins a footer under the body", async () => {
     renderDialog({ footer: <button>Apply</button> });
     expect(await screen.findByRole("button", { name: "Apply" })).toBeTruthy();

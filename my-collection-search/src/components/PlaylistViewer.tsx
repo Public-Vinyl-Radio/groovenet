@@ -3,12 +3,12 @@
 import { usePaletteScope } from "@/providers/CommandPaletteProvider";
 
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Box, EmptyState, Flex, VStack, Skeleton, Text } from "@chakra-ui/react";
+import { Box, EmptyState, Flex, IconButton, VStack, Skeleton, Text } from "@chakra-ui/react";
 import { CategoryTag, StatusTag } from "@/components/ui/RoleTags";
 import PlaylistUnsavedBar from "@/components/PlaylistUnsavedBar";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useQueryClient } from "@tanstack/react-query";
-import { FiHeadphones, FiSave } from "react-icons/fi";
+import { FiHeadphones, FiSave, FiZap } from "react-icons/fi";
 
 import { useTrackViewMode } from "@/hooks/useTrackViewMode";
 import DraggableTrackList from "@/components/DraggableTrackList";
@@ -36,9 +36,13 @@ import { queryKeys } from "@/lib/queryKeys";
 import SetDetailsPanel from "@/components/SetDetailsPanel";
 import { useLiveSet } from "@/hooks/useLiveSet";
 import PageHeader from "@/components/layout/PageHeader";
+import { SUGGESTIONS_DOCK_GAP } from "@/hooks/useSuggestionsForm";
 import { useRankingProfile } from "@/hooks/useRankingProfiles";
+import { useTrackStore } from "@/stores/trackStore";
 
-const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
+// Keyed by playlist (below), so moving to another playlist starts from the skeleton and a
+// changed track list within one keeps the page, and the Suggestions panel, mounted (#1233).
+const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
   const { playlistCounts } = useSearchResults({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -113,6 +117,11 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameName, setRenameName] = useState("");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  // The block holding the list and the docked panel; its width decides the panel's form.
+  const splitRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // The row just added, to bring into view once it is on the page.
+  const revealKey = useRef<string | null>(null);
   // The track suggestions follow; null suggests for the whole playlist.
   const [suggestionSeed, setSuggestionSeed] = useState<SuggestionSeedRef | null>(null);
   // Suggestions added since the last save, marked "Just added" in the list.
@@ -317,6 +326,12 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
     setSuggestionsOpen(true);
   }, []);
 
+  // From the page menu the panel starts on the whole playlist, never on a silently chosen track.
+  const openSuggestions = () => {
+    setSuggestionSeed(null);
+    setSuggestionsOpen(true);
+  };
+
   // Render function for playlist item menu buttons
   const renderPlaylistButtons = React.useCallback(
     (track: Track | undefined, idx: number) => {
@@ -330,9 +345,34 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
         <React.Fragment key="menu">
           {isSeed && <CategoryTag size="sm">Suggesting after</CategoryTag>}
           {isNew && (
-            <StatusTag size="sm" tone="success">
-              Just added
-            </StatusTag>
+            <span data-just-added={`${track.track_id}:${track.friend_id}`}>
+              <StatusTag size="sm" tone="success">
+                Just added
+              </StatusTag>
+            </span>
+          )}
+          {/* Desktop rows offer it on hover or focus; everywhere else it is in the menu. */}
+          {layout === "row" && !isSeed && track.friend_id != null && (
+            <IconButton
+              variant="ghost"
+              color="fg.muted"
+              boxSize="36px"
+              minW="36px"
+              className="track-result-quick-add"
+              aria-label={`Suggest after ${track.title}`}
+              title="Suggest after"
+              display={{ base: "none", md: "inline-flex" }}
+              opacity={0}
+              transition="opacity 0.12s ease"
+              _focusVisible={{ opacity: 1 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                suggestAfter(track);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <FiZap />
+            </IconButton>
           )}
           <PlaylistItemMenu
             idx={idx}
@@ -354,13 +394,28 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       suggestionsOpen,
       suggestionSeed,
       justAdded,
+      layout,
     ],
   );
 
   const addSuggestion = (track: Track, index: number) => {
+    // The row is drawn from the store while the longer list loads, so it needs the track now.
+    useTrackStore.getState().setTracks([track]);
     insertTrack(track, index);
+    revealKey.current = `${track.track_id}:${track.friend_id}`;
     setJustAdded((list) => [...list, `${track.track_id}:${track.friend_id}`]);
   };
+
+  // Bring the added row into view only when it is off screen; the sticky panel stays put.
+  useEffect(() => {
+    const key = revealKey.current;
+    if (!key) return;
+    const row = listRef.current?.querySelector<HTMLElement>(`[data-just-added="${key}"]`);
+    if (!row) return;
+    revealKey.current = null;
+    const { top, bottom } = row.getBoundingClientRect();
+    if (top < 0 || bottom > window.innerHeight) row.scrollIntoView?.({ block: "nearest" });
+  }, [justAdded]);
 
   // Import JSON and append to this playlist
   const handleImportJson = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -475,7 +530,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
       isCohesiveBlocksSorting={isCohesiveBlocksSorting}
       onDuplicate={playlistId ? () => setDuplicateDialogOpen(true) : undefined}
       onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
-      onOpenRecommendations={() => setSuggestionsOpen(true)}
+      onOpenRecommendations={openSuggestions}
       onCreateSet={playlistId && !liveSet.loading && !liveSet.set ? liveSet.create : undefined}
       enqueuePlaylist={() =>
         replacePlaylist(tracks, {
@@ -554,7 +609,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
 
   if (trackIdsLoading || tracksLoading) {
     return (
-      <Box>
+      <Box data-testid="playlist-skeleton">
         {header}
         {/* Header skeleton */}
         <Flex align="flex-start" w="100%" pt={3} mb={2} gap={3}>
@@ -608,8 +663,8 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
   return (
     <>
       {header}
-      <Flex direction={{ base: "column", xl: "row" }} align="flex-start" gap={4} w="100%">
-        <Box flex="1" minW={{ xl: "560px" }} w="100%">
+      <Flex ref={splitRef} align="flex-start" gap={`${SUGGESTIONS_DOCK_GAP}px`} w="100%">
+        <Box flex="1" minW={0} w="100%">
           {/* One bar while unsaved, holding the sort's result; once saved, the
               profile stays as a quiet note (#1231). */}
           {hasUnsavedChanges ? (
@@ -635,7 +690,7 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
           )}
           {playlistId && <SetDetailsPanel playlistId={playlistId} liveSet={liveSet} />}
           <PlaylistStatsPanel tracks={tracks} />
-          <Box overflowY="auto">
+          <Box overflowY="auto" ref={listRef}>
             <DraggableTrackList
               tracksPlaylist={tracksPlaylist}
               tracks={tracks}
@@ -696,11 +751,16 @@ const PlaylistViewer = ({ playlistId }: { playlistId?: number }) => {
             onSeedChange={setSuggestionSeed}
             onAdd={addSuggestion}
             onClose={() => setSuggestionsOpen(false)}
+            containerRef={splitRef}
           />
         )}
       </Flex>
     </>
   );
 };
+
+const PlaylistViewer = (props: { playlistId?: number }) => (
+  <PlaylistViewerPage key={props.playlistId ?? "new"} {...props} />
+);
 
 export default PlaylistViewer;

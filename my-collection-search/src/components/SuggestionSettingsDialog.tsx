@@ -38,8 +38,9 @@ const SCOPE_LABELS: Record<RecommendationScope, string> = {
 };
 
 /**
- * A suggestion list's settings on phones (#1231): Ranking and Libraries in a
- * `RetroDialog`, kept out of the space above the list. Each change applies at
+ * A suggestion list's settings (#1231, #1233): Ranking and Libraries in a
+ * `RetroDialog`, kept out of the space above the list: the track page's phone list and the
+ * playlist Suggestions panel in every form. Each change applies at
  * once through the caller's own setter, so its stored value and analytics are
  * the list's; the dialog has a close button and no Save. A list passes only
  * the settings it has.
@@ -90,8 +91,17 @@ export default function SuggestionSettingsDialog({
   );
 }
 
-/** The settings button for a suggestion list's heading row on phones: 44px, sliders icon. */
-export function SuggestionSettingsButton({ onClick }: { onClick: () => void }) {
+/**
+ * The settings button for a suggestion list's heading row: 44px, sliders icon. `onInk` draws it
+ * on a dialog's ink label strip, as the Suggestions modal's header does (#1233).
+ */
+export function SuggestionSettingsButton({
+  onClick,
+  onInk = false,
+}: {
+  onClick: () => void;
+  onInk?: boolean;
+}) {
   return (
     <IconButton
       aria-label="Suggestion settings"
@@ -101,6 +111,7 @@ export function SuggestionSettingsButton({ onClick }: { onClick: () => void }) {
       minW="44px"
       flexShrink={0}
       onClick={onClick}
+      {...(onInk ? { color: "bg", _hover: { bg: "transparent", opacity: 0.75 } } : {})}
     >
       <FiSliders />
     </IconButton>

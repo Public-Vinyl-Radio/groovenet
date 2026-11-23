@@ -64,3 +64,14 @@ describe("SuggestionSettingsDialog (#1231)", () => {
     expect(suggestionSettingsSummary({})).toBe("");
   });
 });
+
+describe("SuggestionSettingsButton on ink", () => {
+  it("draws on the dialog strip, and still opens the settings", async () => {
+    const onClick = vi.fn();
+    const { user } = renderWithProviders(<SuggestionSettingsButton onInk onClick={onClick} />);
+    const button = screen.getByRole("button", { name: "Suggestion settings" });
+    expect(getComputedStyle(button).height).toBe("44px");
+    await user.click(button);
+    expect(onClick).toHaveBeenCalled();
+  });
+});

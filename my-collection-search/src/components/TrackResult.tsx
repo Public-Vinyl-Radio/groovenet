@@ -63,9 +63,9 @@ const TRACK_ROW_GRID_BASE = "minmax(150px, 2fr) 112px 48px 56px";
 /** Key beside BPM and Genre, no Rating: Track is capped so the spare width goes to Genre. */
 const TRACK_ROW_GRID_MID = "minmax(200px, 1.2fr) 112px 48px 112px minmax(140px, 1fr)";
 /** Width of the list block at which the key joins BPM and Genre returns. */
-const TRACK_ROW_MID_MIN_WIDTH = "780px";
+export const TRACK_ROW_MID_MIN_WIDTH = "780px";
 /** Width at which Rating has room too. */
-const TRACK_ROW_FULL_MIN_WIDTH = "1040px";
+export const TRACK_ROW_FULL_MIN_WIDTH = "1040px";
 
 /**
  * Styles for the grid in a row and in the header. Columns drop off the right as the

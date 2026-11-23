@@ -370,6 +370,35 @@ describe("PlaylistViewer suggestions panel", () => {
     expect(screen.queryByText("Suggesting after")).toBeNull();
   });
 
+  it("opens from the menu on the whole playlist, even after following a track", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("item menu"))[1]);
+    expect(await screen.findByText("seed b")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "close panel" }));
+    await user.click(screen.getAllByTestId("actions-menu")[0]);
+    expect(await screen.findByText("seed none")).toBeTruthy();
+    expect(screen.queryByText("Suggesting after")).toBeNull();
+  });
+
+  it("offers Suggest after on a desktop row, and the seed row carries the tag instead", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    // Display-none on phones (the menu carries it there), so jsdom gives it no accessible name.
+    const offer = () => screen.getAllByTitle("Suggest after");
+    await screen.findAllByText("item menu");
+    expect(offer()).toHaveLength(2);
+    await user.click(offer()[1]);
+    expect(await screen.findByText("seed b")).toBeTruthy();
+    // The row being followed shows its tag; the action moves to the other rows only.
+    expect(screen.getByText("Suggesting after")).toBeTruthy();
+    expect(offer()).toHaveLength(1);
+  });
+
+  it("leaves the hover action off the card layout, where the menu carries it", async () => {
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("view grid"))[0]);
+    expect(screen.queryByTitle("Suggest after")).toBeNull();
+  });
+
   it("inserts an added suggestion, marks it until saved, and keeps the panel open", async () => {
     const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
     await user.click((await screen.findAllByText("item menu"))[0]);

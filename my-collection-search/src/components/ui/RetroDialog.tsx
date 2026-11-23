@@ -29,6 +29,8 @@ type Props = {
   title?: string;
   /** Replaces the title in the strip; it must contain a `Dialog.Title`. */
   header?: React.ReactNode;
+  /** Controls in the strip between the title and the close button, drawn on the ink. */
+  headerActions?: React.ReactNode;
   /** False while work is pending: Esc, the backdrop and the close button stop closing it. */
   dismissible?: boolean;
   /** The element to focus on open; defaults to the first focusable. */
@@ -55,6 +57,7 @@ export default function RetroDialog({
   role = "dialog",
   title,
   header,
+  headerActions,
   dismissible = true,
   initialFocusEl,
   maxW = "sm",
@@ -141,6 +144,7 @@ export default function RetroDialog({
                     {title}
                   </Dialog.Title>
                 )}
+                {headerActions}
                 <Dialog.CloseTrigger asChild>
                   <IconButton
                     ref={closeButtonRef}

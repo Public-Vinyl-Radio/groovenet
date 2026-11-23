@@ -1,26 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Box,
-  Button,
-  Drawer,
-  Flex,
-  IconButton,
-  SegmentGroup,
-  Text,
-  useBreakpointValue,
-} from "@chakra-ui/react";
+import React, { useEffect, useRef, useState, type RefObject } from "react";
+import { Box, Button, Drawer, Flex, IconButton, Text } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import SuggestionRow, { SuggestionFoldRow, SuggestionList } from "@/components/SuggestionRow";
 import RetroDialog from "@/components/ui/RetroDialog";
-import RankingProfilePicker from "@/components/RankingProfilePicker";
-import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
+import SuggestionSettingsDialog, {
+  SuggestionSettingsButton,
+  suggestionSettingsSummary,
+} from "@/components/SuggestionSettingsDialog";
 import { useRankingProfile } from "@/hooks/useRankingProfiles";
 import { suggestionFilterLabels } from "@/lib/ranking/configs";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useRecommendationsQuery } from "@/hooks/useRecommendations";
 import { useSuggestionScope } from "@/hooks/useSuggestionScope";
+import { SUGGESTIONS_PANEL_MIN_WIDTH, useSuggestionsForm } from "@/hooks/useSuggestionsForm";
 import {
   trackSuggestionAction,
   trackSuggestionsExpanded,
@@ -41,42 +35,57 @@ export interface SuggestionsPanelProps {
   /** Insert the track at this index of the playlist. */
   onAdd: (track: Track, index: number) => void;
   onClose: () => void;
+  /**
+   * The block that holds the list and this panel. Its width decides the form (#1233); without
+   * one the window's width stands in.
+   */
+  containerRef?: RefObject<HTMLElement | null>;
 }
 
 const PAGE = 20;
-const SEGMENTS = [
-  { value: "track", label: "After a track" },
-  { value: "playlist", label: "Whole playlist" },
-];
 
 const keyOf = (t: Pick<Track, "track_id" | "friend_id">) => `${t.track_id}:${t.friend_id}`;
 
-/** Suggestions docked beside the playlist: stays open while you add and edit. */
+type AddedState = {
+  key: string;
+  tracks: Track[];
+  /** The latest add and the track it went after, for the confirmation. */
+  last: { title: string; after: string } | null;
+};
+
+/**
+ * Suggestions for a playlist: docked beside the list when there is room, a modal when there is
+ * not, a bottom sheet on phones. It stays open while you add and edit.
+ */
 export default function SuggestionsPanel({
   playlist,
   seed,
   onSeedChange,
   onAdd,
   onClose,
+  containerRef,
 }: SuggestionsPanelProps) {
-  // Phones get a bottom sheet, tablets and small desktops a modal, wide screens the docked panel.
-  const form = useBreakpointValue({ base: "sheet", md: "modal", xl: "panel" }) ?? "panel";
+  const ownRef = useRef<HTMLElement | null>(null);
+  const form = useSuggestionsForm(containerRef ?? ownRef);
   const isSheet = form === "sheet";
   const { scope, libraryFriendId, ready, setScope } = useSuggestionScope();
   const [compatibleKey, setCompatibleKey] = useState(true);
   const [bpmWithinSixPercent, setBpmWithinSixPercent] = useState(true);
   const [visible, setVisible] = useState(PAGE);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const seedTrack = seed ? playlist.find((t) => keyOf(t) === keyOf(seed)) : undefined;
   const seedKey = seedTrack ? keyOf(seedTrack) : "playlist";
 
   // Adds belong to the seed they were made against; a new seed starts clean.
-  const [addedState, setAddedState] = useState<{ key: string; tracks: Track[] }>({
+  const [addedState, setAddedState] = useState<AddedState>({
     key: seedKey,
     tracks: [],
+    last: null,
   });
   const added = addedState.key === seedKey ? addedState.tracks : [];
+  const lastAdd = addedState.key === seedKey ? addedState.last : null;
   const addedKeys = new Set(added.map(keyOf));
 
   // Rank against the playlist as it was before these adds, so added rows stay put.
@@ -90,14 +99,6 @@ export default function SuggestionsPanel({
   );
   const ranking = useRankingProfile("suggestions");
   const labels = suggestionFilterLabels(ranking.config);
-  const picker = (
-    <RankingProfilePicker
-      id="suggestions"
-      value={ranking.profile.id}
-      options={ranking.options}
-      onChange={ranking.choose}
-    />
-  );
   const ranked = rankSeed
     ? rankSuggestions(recs, {
         seed: rankSeed,
@@ -144,40 +145,112 @@ export default function SuggestionsPanel({
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [more, shownCount, remaining, surface, seedTrackId]);
+    // `form`: the sentinel mounts once the form is known and moves when the form changes.
+  }, [form, more, shownCount, remaining, surface, seedTrackId]);
 
   const handleAdd = (track: Track) => {
     const index = seedTrack
       ? playlist.findIndex((t) => keyOf(t) === keyOf(seedTrack)) + 1 + added.length
       : playlist.length;
-    setAddedState({ key: seedKey, tracks: [...added, track] });
+    // An add needs a playlist to rank against, so the slot before `index` is always a track.
+    const after = playlist[index - 1].title;
+    setAddedState({ key: seedKey, tracks: [...added, track], last: { title: track.title, after } });
     onAdd(track, index);
-  };
-
-  const setMode = (mode: string) => {
-    if (mode === "playlist") onSeedChange(null);
-    else {
-      const last = playlist.at(-1);
-      if (last && last.friend_id != null)
-        onSeedChange({ track_id: last.track_id, friend_id: last.friend_id });
-    }
   };
 
   const camelot = rankSeed ? camelotOf(rankSeed.key) : null;
   const facts = rankSeed
     ? [rankSeed.bpm ? `${rankSeed.bpm} BPM` : null, camelot].filter(Boolean).join(" · ")
     : "";
+  const touch = form !== "panel";
 
-  const status = ranked && (
-    <Text fontSize="12px" color="fg.muted" role="status">
-      {ranked.tracks.length} suggestions
-      {ranked.hiddenByFilters > 0 ? ` · ${ranked.hiddenByFilters} hidden by filters` : ""}
+  // What the suggestions follow and where an add goes: the one line that names the target (#1233).
+  const seedPosition = seedTrack ? playlist.findIndex((t) => keyOf(t) === keyOf(seedTrack)) + 1 : 0;
+  const targetLine = (
+    <Flex align="center" gap={1} minH="24px" data-testid="suggestions-target">
+      <Text fontSize="12px" lineHeight="16px" flex={1} minW={0} overflowWrap="anywhere">
+        {seedTrack ? (
+          <>
+            Suggesting after:{" "}
+            <Text as="span" fontWeight="semibold" color="fg">
+              “{seedTrack.title}” ({seedPosition})
+            </Text>{" "}
+            · adds after it
+          </>
+        ) : (
+          <>
+            Suggesting for:{" "}
+            <Text as="span" fontWeight="semibold" color="fg">
+              whole playlist
+            </Text>{" "}
+            · adds to the end
+          </>
+        )}
+      </Text>
+      {seedTrack && (
+        <IconButton
+          aria-label="Suggest for the whole playlist"
+          title="Suggest for the whole playlist"
+          variant="ghost"
+          size="xs"
+          flexShrink={0}
+          minW={{ base: "44px", md: "32px" }}
+          h={{ base: "44px", md: "32px" }}
+          onClick={() => onSeedChange(null)}
+        >
+          <FiX />
+        </IconButton>
+      )}
+    </Flex>
+  );
+
+  // One summary line: the count and the seed's facts, then the settings that are in the dialog,
+  // so a choice made there is never hidden.
+  const summaryParts = ranked
+    ? [
+        `${ranked.tracks.length} ${ranked.tracks.length === 1 ? "suggestion" : "suggestions"}`,
+        facts,
+        ranked.hiddenByFilters > 0 ? `${ranked.hiddenByFilters} hidden by filters` : "",
+        suggestionSettingsSummary({ rankingName: ranking.profile.name, scope }),
+      ].filter(Boolean)
+    : [];
+  const summary = ranked && (
+    <Text
+      fontSize="12px"
+      lineHeight="16px"
+      color="fg.muted"
+      role="status"
+      data-testid="suggestions-summary"
+    >
+      {summaryParts.join(" · ")}
     </Text>
+  );
+  const filters = (labels.compatibleKey || labels.bpmWithinSixPercent) && (
+    <Flex gap={2} wrap="wrap" align="center" role="group" aria-label="Filters">
+      {labels.compatibleKey && (
+        <FilterButton
+          touch={touch}
+          pressed={compatibleKey}
+          onClick={() => setCompatibleKey((v) => !v)}
+        >
+          {labels.compatibleKey}
+        </FilterButton>
+      )}
+      {labels.bpmWithinSixPercent && (
+        <FilterButton
+          touch={touch}
+          pressed={bpmWithinSixPercent}
+          onClick={() => setBpmWithinSixPercent((v) => !v)}
+        >
+          {labels.bpmWithinSixPercent}
+        </FilterButton>
+      )}
+    </Flex>
   );
   const empty = ready && !isLoading && rankSeed && shownCount === 0 && (
     <Text color="fg.muted" fontSize="sm">
       {scope === "library"
-        ? "No suggestions in this library. Try All libraries."
+        ? "No suggestions in this library. Try All libraries in the settings."
         : "No suggestions found."}
     </Text>
   );
@@ -217,153 +290,115 @@ export default function SuggestionsPanel({
       {more && <div ref={sentinel} data-testid="suggestions-sentinel" />}
     </>
   );
-  const seedLine = rankSeed && (
-    <Text fontSize="12px" color="fg.muted">
-      {facts ? `${facts}. ` : ""}
-      {seedTrack ? `Adds go after “${seedTrack.title}”.` : "Adds go to the end of the playlist."}
-    </Text>
+  const settingsDialog = (
+    <SuggestionSettingsDialog
+      open={settingsOpen}
+      onOpenChange={setSettingsOpen}
+      id="playlist-suggestions"
+      ranking={{
+        value: ranking.profile.id,
+        options: ranking.options,
+        onChange: ranking.choose,
+      }}
+      scope={{ value: scope, onChange: setScope }}
+    />
   );
+
+  // Until the form is measured (before the first paint) there is nothing to show.
+  if (form === null) return null;
 
   if (form !== "panel") {
     const shared = {
       onClose,
-      seedLine: (
+      onOpenSettings: () => setSettingsOpen(true),
+      lead: (
         <>
-          {seedLine}
-          {picker}
+          {targetLine}
+          {summary}
+          {filters}
         </>
       ),
-      chips: (
-        <>
-          <Chip pressed={!seedTrack} onClick={() => setMode(seedTrack ? "playlist" : "track")}>
-            Whole playlist
-          </Chip>
-          {labels.compatibleKey && (
-            <Chip pressed={compatibleKey} onClick={() => setCompatibleKey((v) => !v)}>
-              {labels.compatibleKey}
-            </Chip>
-          )}
-          {labels.bpmWithinSixPercent && (
-            <Chip pressed={bpmWithinSixPercent} onClick={() => setBpmWithinSixPercent((v) => !v)}>
-              {labels.bpmWithinSixPercent}
-            </Chip>
-          )}
-          {SCOPES.map((s) => (
-            <Chip key={s.value} pressed={scope === s.value} onClick={() => setScope(s.value)}>
-              {s.label}
-            </Chip>
-          ))}
-        </>
-      ),
-      footer: `${added.length} added after ${seedTrack ? seedTrack.title : "the playlist"}`,
+      footer: lastAdd
+        ? `Added “${lastAdd.title}” after “${lastAdd.after}” · ${added.length} added`
+        : "Nothing added yet",
       children: (
         <>
-          {status}
           {empty}
           {list}
         </>
       ),
     };
-    return isSheet ? <SuggestionsSheet {...shared} /> : <SuggestionsModal {...shared} />;
+    return (
+      <>
+        {isSheet ? <SuggestionsSheet {...shared} /> : <SuggestionsModal {...shared} />}
+        {settingsDialog}
+      </>
+    );
   }
 
   return (
-    <Box
-      as="aside"
-      aria-label="Suggestions"
-      data-testid="suggestions-panel"
-      flex={{ xl: "0 0 clamp(360px, 30%, 460px)" }}
-      position={{ xl: "sticky" }}
-      top={{ xl: 4 }}
-      alignSelf="flex-start"
-      maxH={{ xl: "calc(100vh - 32px)" }}
-      overflowY="auto"
-      borderWidth="outline"
-      borderColor="border.ink"
-      boxShadow="md"
-      bg="bg.panel"
-      w={{ base: "100%", xl: "auto" }}
-    >
-      <Flex align="center" justify="space-between" px={3} py={2} borderBottomWidth="rule">
-        <SectionLabel variant="overline">Suggestions</SectionLabel>
-        <IconButton
-          aria-label="Close suggestions"
-          variant="ghost"
-          size="xs"
-          minW="44px"
-          h="44px"
-          onClick={onClose}
-        >
-          <FiX />
-        </IconButton>
-      </Flex>
-      <Flex direction="column" gap={3} p={3}>
-        <SegmentGroup.Root
-          size="sm"
-          value={seedTrack ? "track" : "playlist"}
-          aria-label="Suggest for"
-          onValueChange={(details) => setMode(details.value as string)}
-        >
-          <SegmentGroup.Indicator />
-          <SegmentGroup.Items items={SEGMENTS} />
-        </SegmentGroup.Root>
-        {seedLine}
-        <Flex gap={2} wrap="wrap" align="center">
-          {labels.compatibleKey && (
-            <Button
+    <>
+      <Box
+        as="aside"
+        aria-label="Suggestions"
+        data-testid="suggestions-panel"
+        flex={`0 0 clamp(${SUGGESTIONS_PANEL_MIN_WIDTH}px, 30%, 460px)`}
+        position="sticky"
+        top={4}
+        alignSelf="flex-start"
+        maxH="calc(100vh - 32px)"
+        overflowY="auto"
+        borderWidth="outline"
+        borderColor="border.ink"
+        boxShadow="md"
+        bg="bg.panel"
+      >
+        <Flex align="center" justify="space-between" gap={1} px={3} py={2} borderBottomWidth="rule">
+          <SectionLabel variant="overline">Suggestions</SectionLabel>
+          <Flex align="center">
+            <SuggestionSettingsButton onClick={() => setSettingsOpen(true)} />
+            <IconButton
+              aria-label="Close suggestions"
+              variant="ghost"
               size="xs"
-              aria-pressed={compatibleKey}
-              variant={compatibleKey ? "solid" : "outline"}
-              colorPalette="neutral"
-              onClick={() => setCompatibleKey((v) => !v)}
+              minW="44px"
+              h="44px"
+              onClick={onClose}
             >
-              {labels.compatibleKey}
-            </Button>
-          )}
-          {labels.bpmWithinSixPercent && (
-            <Button
-              size="xs"
-              aria-pressed={bpmWithinSixPercent}
-              variant={bpmWithinSixPercent ? "solid" : "outline"}
-              colorPalette="neutral"
-              onClick={() => setBpmWithinSixPercent((v) => !v)}
-            >
-              {labels.bpmWithinSixPercent}
-            </Button>
-          )}
+              <FiX />
+            </IconButton>
+          </Flex>
         </Flex>
-        {picker}
-        {/* The scope toggle sits at the right end of the summary line (#1214). */}
-        <Flex align="center" gap={2} minH="24px">
-          {status}
-          <SuggestionScopeToggle value={scope} onChange={setScope} />
+        <Flex direction="column" gap={3} p={3}>
+          {targetLine}
+          {summary}
+          {filters}
+          {empty}
+          {list}
         </Flex>
-        {empty}
-        {list}
-      </Flex>
-    </Box>
+      </Box>
+      {settingsDialog}
+    </>
   );
 }
 
-const SCOPES = [
-  { value: "library", label: "This library" },
-  { value: "all", label: "All libraries" },
-] as const;
-
-function Chip({
+function FilterButton({
   pressed,
+  touch,
   onClick,
   children,
 }: {
   pressed: boolean;
+  /** 44px tall on the sheet and the modal; compact in the docked panel. */
+  touch: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
     <Button
-      size="sm"
+      size={touch ? "sm" : "xs"}
       flexShrink={0}
-      minH="44px"
+      minH={touch ? "44px" : undefined}
       aria-pressed={pressed}
       variant={pressed ? "solid" : "outline"}
       colorPalette="neutral"
@@ -374,14 +409,21 @@ function Chip({
   );
 }
 
-/** "N added · Done": the same footer for the sheet and the modal. */
+/** The confirmation and "Done": the same footer for the sheet and the modal. */
 function SuggestionsFooter({ footer, onClose }: { footer: string; onClose: () => void }) {
   return (
     <>
-      <Text fontSize="sm" role="status" data-testid="suggestions-count">
+      <Text
+        fontSize="sm"
+        role="status"
+        data-testid="suggestions-count"
+        minW={0}
+        truncate
+        title={footer}
+      >
         {footer}
       </Text>
-      <Button minH="44px" colorPalette="neutral" onClick={onClose}>
+      <Button minH="44px" flexShrink={0} colorPalette="neutral" onClick={onClose}>
         Done
       </Button>
     </>
@@ -390,19 +432,27 @@ function SuggestionsFooter({ footer, onClose }: { footer: string; onClose: () =>
 
 type SuggestionsFormProps = {
   onClose: () => void;
-  seedLine: React.ReactNode;
-  chips: React.ReactNode;
+  onOpenSettings: () => void;
+  /** The target line, the summary line and the filters. */
+  lead: React.ReactNode;
   footer: string;
   children: React.ReactNode;
 };
 
 /** The tablet and small-desktop form: a modal; one tap adds and it stays open. */
-function SuggestionsModal({ onClose, seedLine, chips, footer, children }: SuggestionsFormProps) {
+function SuggestionsModal({
+  onClose,
+  onOpenSettings,
+  lead,
+  footer,
+  children,
+}: SuggestionsFormProps) {
   return (
     <RetroDialog
       open
       onOpenChange={(open) => !open && onClose()}
       title="Suggestions"
+      headerActions={<SuggestionSettingsButton onInk onClick={onOpenSettings} />}
       maxW="2xl"
       footer={
         <Flex align="center" justify="space-between" gap={3} px={3} py={2}>
@@ -414,13 +464,10 @@ function SuggestionsModal({ onClose, seedLine, chips, footer, children }: Sugges
         direction="column"
         data-testid="suggestions-modal"
         h="min(80dvh, 760px)"
-        // The list scrolls inside the modal; the seed line and filters stay put.
+        // The list scrolls inside the modal; the target, summary and filters stay put.
       >
         <Flex direction="column" gap={2} p={3} borderBottomWidth="rule" flexShrink={0}>
-          {seedLine}
-          <Flex gap={2} wrap="wrap" role="group" aria-label="Filters">
-            {chips}
-          </Flex>
+          {lead}
         </Flex>
         <Flex
           direction="column"
@@ -442,7 +489,13 @@ function SuggestionsModal({ onClose, seedLine, chips, footer, children }: Sugges
 const DISMISS_DRAG = 96;
 
 /** The phone form: about 75% of the screen, over the playlist, one tap to add and it stays open. */
-function SuggestionsSheet({ onClose, seedLine, chips, footer, children }: SuggestionsFormProps) {
+function SuggestionsSheet({
+  onClose,
+  onOpenSettings,
+  lead,
+  footer,
+  children,
+}: SuggestionsFormProps) {
   const [drag, setDrag] = useState(0);
   const startY = useRef<number | null>(null);
 
@@ -500,21 +553,21 @@ function SuggestionsSheet({ onClose, seedLine, chips, footer, children }: Sugges
               <Drawer.Title m={0}>
                 <SectionLabel variant="overline">Suggestions</SectionLabel>
               </Drawer.Title>
-              <IconButton
-                aria-label="Close suggestions"
-                variant="ghost"
-                size="xs"
-                minW="44px"
-                h="44px"
-                onClick={onClose}
-              >
-                <FiX />
-              </IconButton>
+              <Flex align="center">
+                <SuggestionSettingsButton onClick={onOpenSettings} />
+                <IconButton
+                  aria-label="Close suggestions"
+                  variant="ghost"
+                  size="xs"
+                  minW="44px"
+                  h="44px"
+                  onClick={onClose}
+                >
+                  <FiX />
+                </IconButton>
+              </Flex>
             </Flex>
-            {seedLine}
-            <Flex gap={2} overflowX="auto" role="group" aria-label="Filters">
-              {chips}
-            </Flex>
+            {lead}
           </Flex>
           <Flex
             direction="column"
