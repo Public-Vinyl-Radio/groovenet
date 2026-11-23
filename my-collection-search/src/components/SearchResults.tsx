@@ -70,6 +70,8 @@ import {
   writeTrackFiltersToParams,
 } from "@/lib/trackFilters";
 import { useUsername } from "@/providers/UsernameProvider";
+import EmptyLibrary from "@/components/onboarding/EmptyLibrary";
+import { useLibraryEmpty } from "@/hooks/useLibraryEmpty";
 
 const TrackResultItem: React.FC<{
   trackId: string;
@@ -107,6 +109,7 @@ const SearchResults: React.FC = () => {
   const searchParams = useSearchParams();
   const searchParamsString = React.useMemo(() => searchParams?.toString() ?? "", [searchParams]);
   const { friend: currentUserFriend, isHydrated } = useUsername();
+  const emptiness = useLibraryEmpty();
 
   // Filter state - applied immediately (no modal)
   const [activeFilters, setActiveFilters] = React.useState<TracksFilter>(createEmptyFilters());
@@ -527,10 +530,13 @@ const SearchResults: React.FC = () => {
           }
         />
       </PageHeader>
-      {!isHydrated || !currentUserFriend ? (
+      {emptiness === "loading" ? (
         <Flex justify="center" py={8}>
           <Spinner />
         </Flex>
+      ) : emptiness === "empty" || !currentUserFriend ? (
+        // No library yet, or one with no tracks (#1246): say so, not a spinner.
+        <EmptyLibrary />
       ) : (
         <>
           <PageHeader.Toolbar>

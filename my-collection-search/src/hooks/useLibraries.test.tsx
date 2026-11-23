@@ -22,7 +22,7 @@ beforeEach(() => vi.resetAllMocks());
 
 describe("useLibrariesQuery", () => {
   it("loads the libraries", async () => {
-    const body = { results: [], account_username: "owner" };
+    const body = { results: [], account_username: "owner", discogs_token_set: true };
     api.fetchLibraries.mockResolvedValue(body);
     const { result } = renderHook(() => useLibrariesQuery(), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.data).toEqual(body));

@@ -12,7 +12,7 @@ beforeEach(() => {
 
 describe("fetchLibraries", () => {
   it("reads every library with its stats, uncached", async () => {
-    const body = { results: [], account_username: null };
+    const body = { results: [], account_username: null, discogs_token_set: false };
     httpMock.mockResolvedValue(body);
     await expect(fetchLibraries()).resolves.toBe(body);
     expect(httpMock).toHaveBeenCalledWith("/api/friends/libraries", {

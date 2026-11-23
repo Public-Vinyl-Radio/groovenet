@@ -89,6 +89,7 @@ describe("FriendService.listLibraries", () => {
 
   afterEach(() => {
     delete process.env.DISCOGS_USERNAME;
+    delete process.env.DISCOGS_USER_TOKEN;
   });
 
   it("puts the server's account first, flagged, with each library's last sync", async () => {
@@ -100,6 +101,7 @@ describe("FriendService.listLibraries", () => {
 
     await expect(friendService.listLibraries()).resolves.toEqual({
       account_username: "owner",
+      discogs_token_set: false,
       results: [
         {
           id: 1,
@@ -120,6 +122,19 @@ describe("FriendService.listLibraries", () => {
     expect(account_username).toBeNull();
     expect(results.map((r) => r.is_account)).toEqual([false, false, false]);
     expect(results.map((r) => r.username)).toEqual(["bob", "owner", "alice"]);
+  });
+
+  it("reports whether the Discogs token is set, never the token", async () => {
+    mockListFriendsWithReleaseCounts.mockResolvedValue(rows);
+    expect((await friendService.listLibraries()).discogs_token_set).toBe(false);
+
+    process.env.DISCOGS_USER_TOKEN = "   ";
+    expect((await friendService.listLibraries()).discogs_token_set).toBe(false);
+
+    process.env.DISCOGS_USER_TOKEN = "s3cret-token";
+    const body = await friendService.listLibraries();
+    expect(body.discogs_token_set).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("s3cret-token");
   });
 });
 

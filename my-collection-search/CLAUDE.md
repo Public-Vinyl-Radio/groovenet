@@ -116,6 +116,17 @@
   phones: Body face, semibold, 20/26, wrapping to at most 3 lines, never a
   heading. Pages that don't pass it are unchanged. Artist and genre names stay
   in the bar.
+- **Empty library (#1246):** `useLibraryEmpty` answers "loading", "empty" or "ready" from the
+  libraries list (never from a page's search or filters), and Home, Albums and Tracks render the
+  one shared `EmptyLibrary` for "empty": no library selected yet, or one with no albums. It
+  carries the Discogs import (the same `useSyncDiscogs` and stream as Settings → Libraries, via
+  `useDiscogsImport`), says what is missing when `GET /api/friends/libraries` reports
+  `discogs_token_set: false` or no username, and offers "Resume import" after a failure. The sync
+  streams' providers sit at the root (`app/providers.tsx`), so progress outlives the page that
+  started it. After an import started there, Home shows `FirstImportChecklist` until dismissed
+  (per device, `lib/firstImport.ts`); its steps come from `firstImportSteps.ts`, which reads
+  `/api/status` for Essentia, the GA service and embeddings and names the key or profile each
+  needs.
 - **Section headings (#995):** use `SectionHeading` for display-face section
   titles at 18/24, with `level` choosing h2 or h3. Use `SectionLabel` for
   Labels-face strips, overlines and bars; choose its variant and explicit line

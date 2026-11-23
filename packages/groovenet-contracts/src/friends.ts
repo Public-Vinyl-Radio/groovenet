@@ -32,6 +32,8 @@ export const librariesListResponseSchema = z.object({
   results: z.array(libraryWithStatsSchema),
   /** `DISCOGS_USERNAME`, or null when the server has none. */
   account_username: z.string().nullable(),
+  /** Whether `DISCOGS_USER_TOKEN` is set. A flag only: the token itself is never returned. */
+  discogs_token_set: z.boolean(),
 });
 
 /** The library new sessions open on; null until one is chosen. */
