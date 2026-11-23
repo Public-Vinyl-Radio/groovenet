@@ -4,14 +4,21 @@ import {
   createServerPlayerSchema,
   serverPlayerCommandSchema,
   type CreateServerPlayer,
+  type LostOutput,
   type ServerPlayer,
+  type ServerPlayerErrorState,
   type ServerPlayerCommand,
   type ServerPlayerCommandResult,
   type ServerPlayerDevice,
   type SpeakerObservation,
 } from "@groovenet/contracts";
 import { audioSource } from "../resolver.js";
-import { PlayerError, type PlaybackBackend } from "../types.js";
+import {
+  PlayerError,
+  type AudioDevice,
+  type OutputFailureReason,
+  type PlaybackBackend,
+} from "../types.js";
 import { advanceProgress, initialProgress, isPlay, type ListenProgress } from "../playThreshold.js";
 import { ServerPlayerError, type PlayerStore, type ServerPlay } from "./store.js";
 
@@ -44,6 +51,84 @@ export interface ServerPlayerErrorEvent {
   engine_id: string;
   code: string;
   message: string;
+  /** The lost speaker, when the error is an output loss (#1241). */
+  output?: LostOutput;
+}
+/** Emitted as "player-recovery" when a lost output is listed again or retried. */
+export interface ServerPlayerRecoveryEvent {
+  at: string;
+  player_id: string;
+  engine_id: string;
+  output_id: string;
+  action: "back" | "retry" | "retry_failed";
+}
+/**
+ * Lost-output recovery (#1241). The worker only ever *lists* outputs while it
+ * watches; it never selects one except through the single retry below.
+ *
+ * The retry window comes from the 2026-11-20 lounge timeline: OwnTone reported
+ * output_lost at 01:47:41Z and the receiver's DAC was back at 01:48:02Z, 21 s
+ * later (Shairport's emergency exit, its systemd restart, then 3.6 s for the
+ * wake hook to power the DAC). 30 s covers that with margin; a return later
+ * than that is a real outage, and the player only says the speaker is back.
+ */
+export const LOST_OUTPUT_RETRY_WINDOW_MS = 30_000;
+/**
+ * A returning output must stay listed this long before the retry. Shairport
+ * re-advertises as soon as it restarts, before its DAC is powered (3.6 s on
+ * the lounge receiver), and a flapping receiver should not be retried mid-flap.
+ */
+export const LOST_OUTPUT_RETRY_SETTLE_MS = 5_000;
+/** Polling while a retry is still possible, then slower until the watch ends. */
+export const LOST_OUTPUT_POLL_MS = 1_000;
+export const LOST_OUTPUT_SLOW_POLL_MS = 5_000;
+/** After this the worker stops polling; a device listing still notices a return. */
+export const LOST_OUTPUT_WATCH_MS = 10 * 60_000;
+export interface OutputRecoveryOptions {
+  retryWindowMs?: number;
+  settleMs?: number;
+  pollMs?: number;
+  slowPollMs?: number;
+  watchMs?: number;
+}
+type LossReason = OutputFailureReason | "engine_timeout";
+const LOSS_DETAIL: Record<LossReason, string> = {
+  output_lost: "OwnTone reported the output lost during playback",
+  disconnected: "OwnTone showed the output disconnected or deselected",
+  not_listed: "OwnTone no longer lists the output",
+  activation_failed: "OwnTone could not activate the output",
+  engine_timeout: "OwnTone stopped answering, usually while it waits on the receiver",
+};
+/** Losses during playback, which the receiver's return may undo with one retry. */
+const playbackLoss = (reason: string) => reason === "output_lost" || reason === "disconnected";
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+/** The whole story in the message too, so clients that predate `output` show it. */
+export function lostOutputMessage(output: LostOutput): string {
+  const who = output.name ?? "the speaker";
+  if (output.back_at) return `${capitalised(who)} is back — press play to resume.`;
+  const again = output.retried ? `Tried once more after ${who} came back; it failed again. ` : "";
+  switch (output.reason) {
+    case "not_listed":
+      return `${again}${capitalised(who)} isn't listed by OwnTone right now. Wait for the receiver to come back, or choose a speaker in Play on → Speaker details.`;
+    case "activation_failed":
+      return `${again}OwnTone couldn't start ${who}. It may be listed without a working audio device: check the receiver, then press play, or choose another speaker.`;
+    case "engine_timeout":
+      return `${again}OwnTone stopped answering while reaching ${who}; it is usually waiting on the receiver. Check the receiver, then press play.`;
+    default:
+      return `${again}${capitalised(who)} went away during playback. The queue has not advanced; press play once it is back.`;
+  }
+}
+interface Loss {
+  outputId: string;
+  lostAt: string;
+  retried: boolean;
+  /** Revision saved with a loss during playback; retry only if nothing changed since. */
+  retryRevision?: number;
+  /** Seen missing, unanswered or refused since the loss: a listing is then a return. */
+  gone: boolean;
+  listedSince: number | null;
+  acting: boolean;
+  timer?: NodeJS.Timeout;
 }
 export interface ServerPlayLogging {
   ownerFriendId: number;
@@ -69,14 +154,27 @@ export class ServerPlayerManager extends EventEmitter {
   private progress = new Map<string, { listened: ListenProgress; startedAt: Date }>();
   private queuedPlays = new Set<string>();
   private retrying = false;
+  private losses = new Map<string, Loss>();
+  private outputNames = new Map<string, string>();
+  /** Players the worker retried for; no further retry until a person sends a command. */
+  private autoRetried = new Set<string>();
+  private readonly recovery: Required<OutputRecoveryOptions>;
 
   constructor(
     private readonly store: PlayerStore,
     private readonly engines: Record<string, PlayerEngine>,
     private readonly observe: SpeakerObserver = async () => unknownSpeaker(),
     private readonly playLogging?: ServerPlayLogging,
+    recovery: OutputRecoveryOptions = {},
   ) {
     super();
+    this.recovery = {
+      retryWindowMs: recovery.retryWindowMs ?? LOST_OUTPUT_RETRY_WINDOW_MS,
+      settleMs: recovery.settleMs ?? LOST_OUTPUT_RETRY_SETTLE_MS,
+      pollMs: recovery.pollMs ?? LOST_OUTPUT_POLL_MS,
+      slowPollMs: recovery.slowPollMs ?? LOST_OUTPUT_SLOW_POLL_MS,
+      watchMs: recovery.watchMs ?? LOST_OUTPUT_WATCH_MS,
+    };
   }
 
   /** Retry durable deliveries independently of queue changes and playback. */
@@ -122,7 +220,10 @@ export class ServerPlayerManager extends EventEmitter {
       player.assigned_output = null;
       player.state.status = "stopped";
       player.state.checkpoint = true;
-      this.players.set(player.id, await this.store.save(player, saved.revision));
+      const restored = await this.store.save(player, saved.revision);
+      this.players.set(player.id, restored);
+      // A restored loss is still reported and watched, but never retried.
+      this.syncLoss(restored);
     }
   }
 
@@ -171,6 +272,8 @@ export class ServerPlayerManager extends EventEmitter {
     const backend = runtime?.backend ?? this.engine(player).create();
     try {
       const outputs = await backend.listDevices();
+      this.rememberNames(outputs);
+      this.noteOutputs(id, outputs);
       const nameCounts = new Map<string, number>();
       for (const output of outputs)
         nameCounts.set(output.name, (nameCounts.get(output.name) ?? 0) + 1);
@@ -196,6 +299,8 @@ export class ServerPlayerManager extends EventEmitter {
       this.available();
       const command = serverPlayerCommandSchema.parse(input);
       let player = this.get(id);
+      // A flapping receiver gets one automatic retry, not one per loss.
+      this.autoRetried.delete(id);
       if (command.expected_revision !== undefined) this.revision(player, command.expected_revision);
       if (command.type === "output.transfer") return this.transfer(player, command);
       try {
@@ -460,6 +565,19 @@ export class ServerPlayerManager extends EventEmitter {
         "OUTPUT_ASSIGNED",
         "Speaker belongs to another player; use explicit transfer",
       );
+    const loss = this.losses.get(player.id);
+    if (loss?.outputId === output) {
+      // After a loss, one listing answers "is it there?" before any engine
+      // write: a missing speaker fails in one request, not after a chain of
+      // timeouts, and a listed one is reselected and claimed below.
+      const outputs = await this.listOutputs(player);
+      if (!outputs.some((candidate) => candidate.id === output)) {
+        loss.gone = true;
+        throw new PlayerError("DEVICE_UNAVAILABLE", "OwnTone output is unavailable", {
+          reason: "not_listed",
+        });
+      }
+    }
     const needsReconnect =
       (player.state.status === "paused" || player.state.status === "error") &&
       (await this.runtimes.get(player.id)?.backend.outputConnection?.()) !== "connected";
@@ -571,6 +689,8 @@ export class ServerPlayerManager extends EventEmitter {
     );
     backend.on("error", (error) =>
       this.enqueueEvent(player.id, runtime, async (current) => {
+        // Only audio that was actually going may come back on its own.
+        const wasPlaying = current.state.status === "playing";
         current.state.status = "error";
         current.state.error = this.playbackError(current, error);
         try {
@@ -578,7 +698,11 @@ export class ServerPlayerManager extends EventEmitter {
         } catch {
           /* retain the uncertain claim */
         }
-        await this.save(current);
+        const saved = await this.save(current);
+        const loss = this.losses.get(saved.id);
+        const output = saved.state.error?.output;
+        if (wasPlaying && loss && output && playbackLoss(output.reason) && !loss.retried)
+          loss.retryRevision = saved.revision;
       }),
     );
     try {
@@ -610,14 +734,248 @@ export class ServerPlayerManager extends EventEmitter {
     }
   }
 
-  private playbackError(player: ServerPlayer, error: unknown) {
+  private playbackError(player: ServerPlayer, error: unknown): ServerPlayerErrorState {
     const value = errorValue(error);
-    return value.code === "DEVICE_BUSY"
-      ? {
-          code: value.code,
-          message: `${player.name} / ${player.engine_id} is busy. Something else is playing or paused there. Choose “Stop engine and take over”.`,
-        }
-      : value;
+    if (value.code === "DEVICE_BUSY")
+      return {
+        code: value.code,
+        message: `${player.name} / ${player.engine_id} is busy. Something else is playing or paused there. Choose “Stop engine and take over”.`,
+      };
+    const output = this.recordLoss(player, error);
+    return output ? { ...value, message: lostOutputMessage(output), output } : value;
+  }
+
+  /**
+   * Names the speaker an output failure took away, keeping the first loss time
+   * across later failures of the same output (output_lost, then a timeout, then
+   * "unavailable" is one outage). Null when the error is not about the output.
+   */
+  private recordLoss(player: ServerPlayer, error: unknown): LostOutput | null {
+    const id = player.assigned_output ?? player.state.desired_output;
+    if (!id || !(error instanceof PlayerError)) return null;
+    const previous = this.losses.get(player.id);
+    const known = previous?.outputId === id ? previous : undefined;
+    const reason: LossReason | undefined =
+      error.reason ?? (error.code === "ENGINE_TIMEOUT" && known ? "engine_timeout" : undefined);
+    if (!reason) return null;
+    if (known?.timer) clearTimeout(known.timer);
+    const loss: Loss = known ?? {
+      outputId: id,
+      lostAt: new Date().toISOString(),
+      retried: false,
+      gone: false,
+      listedSince: null,
+      acting: false,
+    };
+    loss.timer = undefined;
+    loss.listedSince = null;
+    if (!playbackLoss(reason)) loss.gone = true;
+    this.losses.set(player.id, loss);
+    return {
+      id,
+      name: this.outputNames.get(id) ?? null,
+      lost_at: loss.lostAt,
+      reason,
+      detail: LOSS_DETAIL[reason],
+      back_at: null,
+      ...(loss.retried ? { retried: true } : {}),
+    };
+  }
+
+  /** The persisted error decides whether a loss is watched; memory follows it. */
+  private syncLoss(player: ServerPlayer): void {
+    const output = player.state.error?.output;
+    let loss = this.losses.get(player.id);
+    if (output && !output.back_at && !this.stopping) {
+      if (!loss || loss.outputId !== output.id) {
+        if (loss?.timer) clearTimeout(loss.timer);
+        // Restored after a worker restart: report it, never retry it.
+        loss = {
+          outputId: output.id,
+          lostAt: output.lost_at,
+          retried: output.retried ?? false,
+          gone: !playbackLoss(output.reason),
+          listedSince: null,
+          acting: false,
+        };
+        this.losses.set(player.id, loss);
+      }
+      this.watch(player.id);
+      return;
+    }
+    if (loss?.timer) clearTimeout(loss.timer);
+    if (loss) loss.timer = undefined;
+    // A play in progress keeps the loss so its failure is the same outage.
+    if (!output && player.state.status !== "loading" && player.state.status !== "error")
+      this.losses.delete(player.id);
+  }
+
+  private watch(id: string): void {
+    const loss = this.losses.get(id);
+    if (!loss || loss.timer || this.stopping) return;
+    const elapsed = Date.now() - Date.parse(loss.lostAt);
+    if (!(elapsed <= this.recovery.watchMs)) return;
+    const delay =
+      elapsed < this.recovery.retryWindowMs ? this.recovery.pollMs : this.recovery.slowPollMs;
+    loss.timer = setTimeout(() => {
+      loss.timer = undefined;
+      void this.pollLoss(id, loss);
+    }, delay);
+    loss.timer.unref?.();
+  }
+
+  private async pollLoss(id: string, loss: Loss): Promise<void> {
+    const output = this.players.get(id)?.state.error?.output;
+    if (this.stopping || this.losses.get(id) !== loss || output?.id !== loss.outputId) return;
+    try {
+      this.noteOutputs(id, await this.listOutputs(this.players.get(id)!));
+    } catch {
+      // An engine that cannot answer is, in practice, stuck on the receiver.
+      loss.gone = true;
+      loss.listedSince = null;
+    }
+    if (this.losses.get(id) === loss && !loss.acting) this.watch(id);
+  }
+
+  private async listOutputs(player: ServerPlayer): Promise<AudioDevice[]> {
+    const runtime = this.runtimes.get(player.id);
+    const backend = runtime?.backend ?? this.engine(player).create();
+    try {
+      const outputs = await backend.listDevices();
+      this.rememberNames(outputs);
+      return outputs;
+    } finally {
+      if (!runtime) await backend.close();
+    }
+  }
+
+  private rememberNames(outputs: AudioDevice[]): void {
+    for (const output of outputs) if (output.name) this.outputNames.set(output.id, output.name);
+  }
+
+  /** Every listing while a loss is open feeds this; it decides back, retry or wait. */
+  private noteOutputs(id: string, outputs: AudioDevice[]): void {
+    const loss = this.losses.get(id);
+    const player = this.players.get(id);
+    const output = player?.state.error?.output;
+    if (!loss || loss.acting || !output || output.id !== loss.outputId || output.back_at) return;
+    const listed = outputs.find((candidate) => candidate.id === loss.outputId);
+    if (!listed) {
+      loss.gone = true;
+      loss.listedSince = null;
+      return;
+    }
+    // Never seen gone: a listing proves nothing, so the loss message stands,
+    // though it can now name the speaker.
+    if (!loss.gone) {
+      if (!output.name && listed.name) this.act(loss, () => this.nameLoss(id, loss, listed.name));
+      return;
+    }
+    const now = Date.now();
+    loss.listedSince ??= now;
+    const retry =
+      loss.retryRevision !== undefined &&
+      !loss.retried &&
+      !this.autoRetried.has(id) &&
+      player!.revision === loss.retryRevision &&
+      now - Date.parse(loss.lostAt) <= this.recovery.retryWindowMs;
+    if (retry && now - loss.listedSince < this.recovery.settleMs) return;
+    this.act(loss, () =>
+      retry ? this.retryLoss(id, loss, listed.name) : this.markBack(id, loss, listed.name),
+    );
+  }
+
+  private act(loss: Loss, action: () => Promise<void>): void {
+    loss.acting = true;
+    void this.serial(action)
+      .catch(() => {
+        /* reported in the player's state; never a worker fault */
+      })
+      .finally(() => {
+        loss.acting = false;
+      });
+  }
+
+  private async nameLoss(id: string, loss: Loss, name: string): Promise<void> {
+    const player = this.current(id, loss);
+    if (!player || player.state.error!.output!.name) return;
+    const error = player.state.error!;
+    const output: LostOutput = { ...error.output!, name };
+    player.state.error = { ...error, message: lostOutputMessage(output), output };
+    const named = player.revision;
+    const saved = await this.save(player);
+    // Naming is the worker's own edit; it must not cancel a pending retry.
+    if (loss.retryRevision === named) loss.retryRevision = saved.revision;
+  }
+
+  private current(id: string, loss: Loss): ServerPlayer | null {
+    const player = this.players.get(id) ? this.get(id) : null;
+    const output = player?.state.error?.output;
+    return this.stopping ||
+      this.losses.get(id) !== loss ||
+      !output ||
+      output.id !== loss.outputId ||
+      output.back_at
+      ? null
+      : player;
+  }
+
+  private async markBack(id: string, loss: Loss, name: string): Promise<void> {
+    const player = this.current(id, loss);
+    if (!player) return;
+    const error = player.state.error!;
+    const output: LostOutput = {
+      ...error.output!,
+      name: name || error.output!.name,
+      back_at: new Date().toISOString(),
+    };
+    player.state.error = { ...error, message: lostOutputMessage(output), output };
+    await this.save(player);
+    this.recovered(player, loss, "back");
+  }
+
+  /** At most once per loss, and only if nothing has touched the player since. */
+  private async retryLoss(id: string, loss: Loss, name: string): Promise<void> {
+    const player = this.current(id, loss);
+    if (!player || loss.retried || player.revision !== loss.retryRevision) {
+      await this.markBack(id, loss, name);
+      return;
+    }
+    loss.retried = true;
+    this.autoRetried.add(id);
+    this.recovered(player, loss, "retry");
+    try {
+      // The same policy as queue advance: never takes over another sender.
+      await this.play(player, player.state.current_entry_id ?? undefined, {
+        allow_unknown: true,
+        takeover: false,
+      });
+    } catch (error) {
+      this.recovered(player, loss, "retry_failed");
+      if (error instanceof ServerPlayerError) {
+        // Refused before any engine effect (occupied, assigned): just say it's back.
+        await this.markBack(id, loss, name);
+        return;
+      }
+      // play() saves before any engine effect and records its own failures; a
+      // failure before that (its one listing) leaves the revision unchanged.
+      const failed = this.get(id);
+      if (failed.revision === player.revision) {
+        failed.state.status = "error";
+        failed.state.error = this.playbackError(failed, error);
+        await this.save(failed);
+      }
+    }
+  }
+
+  private recovered(player: ServerPlayer, loss: Loss, action: ServerPlayerRecoveryEvent["action"]) {
+    this.emit("player-recovery", {
+      at: new Date().toISOString(),
+      player_id: player.id,
+      engine_id: player.engine_id,
+      output_id: loss.outputId,
+      action,
+    } satisfies ServerPlayerRecoveryEvent);
   }
 
   private configureRecovery(player: ServerPlayer, backend: PlaybackBackend): void {
@@ -775,6 +1133,7 @@ export class ServerPlayerManager extends EventEmitter {
 
   async shutdown(): Promise<void> {
     this.stopping = true;
+    for (const loss of this.losses.values()) clearTimeout(loss.timer);
     await this.serial(async () => {
       for (const player of this.list()) {
         try {
@@ -897,7 +1256,9 @@ export class ServerPlayerManager extends EventEmitter {
         engine_id: saved.engine_id,
         code: error.code,
         message: error.message,
+        ...(error.output ? { output: error.output } : {}),
       } satisfies ServerPlayerErrorEvent);
+    this.syncLoss(saved);
     this.publish(saved);
     return clone(saved);
   }

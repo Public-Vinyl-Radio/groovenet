@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { device, player } from "@/test/serverPlayerFixtures";
+import { device, lostSpeakerPlayer, player } from "@/test/serverPlayerFixtures";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
 import { playerApi } from "@/services/internalApi/players";
 
@@ -168,6 +168,47 @@ describe("ServerNotice", () => {
     expect(actions.reportProblem).toHaveBeenCalledWith(null);
   });
 
+  it("names a lost speaker, when it went, and offers choosing one without opening the picker itself", async () => {
+    server({ player: lostSpeakerPlayer() });
+    const { user } = renderWithProviders(<ServerNotice />);
+    const notice = screen.getByRole("alert");
+    expect(notice.textContent).toContain(
+      "Playback error: Lounge Room Audio went away during playback. The queue has not advanced; press play once it is back.",
+    );
+    expect(screen.getByTestId("server-notice-detail").textContent).toMatch(
+      /^Lounge Room Audio · lost .+ · OwnTone reported the output lost during playback$/,
+    );
+    expect(usePlaybackTargetDialog.getState().open).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Choose speaker" }));
+    expect(usePlaybackTargetDialog.getState().open).toBe(true);
+    expect(controller.command).not.toHaveBeenCalled();
+  });
+
+  it("replaces the stale error with the speaker being back, and plays on request", async () => {
+    server({ player: lostSpeakerPlayer({ back: true }) });
+    const { user, rerender } = renderWithProviders(<ServerNotice />);
+    const notice = screen.getByRole("status");
+    expect(notice.textContent).toContain("Lounge Room Audio is back — press play to resume.");
+    expect(notice.textContent).not.toContain("Playback error");
+    expect(screen.getByTestId("server-notice-detail").textContent).toMatch(
+      /^Lounge Room Audio · lost .+ · back .+$/,
+    );
+    await user.click(screen.getByRole("button", { name: "Play" }));
+    expect(controller.command).toHaveBeenCalledWith({ type: "play" });
+    server({ player: lostSpeakerPlayer({ back: true }), busy: true });
+    rerender(<ServerNotice />);
+    expect(screen.getByRole("button", { name: "Play" })).toHaveProperty("disabled", true);
+  });
+
+  it("offers no actions on a lost speaker without control", () => {
+    server({ player: lostSpeakerPlayer({ back: true }) }, { controller: null });
+    const { rerender } = renderWithProviders(<ServerNotice />);
+    expect(screen.queryByRole("button")).toBeNull();
+    server({ player: lostSpeakerPlayer() }, { controller: null });
+    rerender(<ServerNotice />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("renders a notice it is handed instead of its own", () => {
     target.value = { target: "" };
     renderWithProviders(<ServerNotice notice={{ tone: "error", text: "Handed in" }} />);
@@ -275,6 +316,23 @@ describe("SpeakerDetails", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain("Unable to read the source player"),
     );
+  });
+
+  it("shows the speaker a session lost, and when it came back", () => {
+    server({ player: lostSpeakerPlayer() });
+    const { rerender } = renderWithProviders(<SpeakerDetails onBack={vi.fn()} />);
+    expect(screen.getByText("Desired: 202481586338774")).toBeTruthy();
+    expect(screen.getByTestId("speaker-loss").textContent).toMatch(
+      /^Lost: Lounge Room Audio · lost /,
+    );
+    server({ player: lostSpeakerPlayer({ back: true }) });
+    rerender(<SpeakerDetails onBack={vi.fn()} />);
+    expect(screen.getByTestId("speaker-loss").textContent).toMatch(
+      /^Back: Lounge Room Audio · lost .+ · back /,
+    );
+    server({ player: player() });
+    rerender(<SpeakerDetails onBack={vi.fn()} />);
+    expect(screen.queryByTestId("speaker-loss")).toBeNull();
   });
 
   it("says when no outputs are reported", () => {

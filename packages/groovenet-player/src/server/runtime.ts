@@ -2,7 +2,12 @@ import { Pool } from "pg";
 import { z } from "zod";
 import { OwnToneBackend } from "../ownToneBackend.js";
 import { playerIdSchema } from "@groovenet/contracts";
-import { ServerPlayerManager, type PlayerEngine, type ServerPlayerErrorEvent } from "./manager.js";
+import {
+  ServerPlayerManager,
+  type PlayerEngine,
+  type ServerPlayerErrorEvent,
+  type ServerPlayerRecoveryEvent,
+} from "./manager.js";
 import type { ServerPlay } from "./store.js";
 import { PostgresPlayerStore } from "./store.js";
 import { homeAssistantObserver } from "./observer.js";
@@ -127,6 +132,9 @@ export async function runPlayerWorker(
   // Engine error messages carry no credentials or source paths.
   const logPlayerError = (event: ServerPlayerErrorEvent) =>
     console.error(`Player error ${JSON.stringify(event)}`);
+  // A lost speaker listed again, or the worker's single retry (#1241).
+  const logRecovery = (event: ServerPlayerRecoveryEvent) =>
+    console.log(`Player recovery ${JSON.stringify(event)}`);
   let stopping = false;
   let shutdownPromise: Promise<void> | undefined;
   let heartbeat: NodeJS.Timeout | undefined;
@@ -146,6 +154,7 @@ export async function runPlayerWorker(
       } finally {
         manager.off("fault", failStop);
         manager.off("player-error", logPlayerError);
+        manager.off("player-recovery", logRecovery);
         await store.release();
       }
     })();
@@ -164,6 +173,7 @@ export async function runPlayerWorker(
     await store.acquire(failStop);
     manager.on("fault", failStop);
     manager.on("player-error", logPlayerError);
+    manager.on("player-recovery", logRecovery);
     await manager.initialize();
     if (stopping) throw new Error("Player worker lost its lease during initialization");
     let checking = false;

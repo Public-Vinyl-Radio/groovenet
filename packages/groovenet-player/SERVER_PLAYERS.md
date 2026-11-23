@@ -419,9 +419,10 @@ When a receiver or input fails, the worker stops, clears and releases only a
 verified failed engine session. It rechecks the engine instance, queue version,
 item and terminal failure sequence, and refuses to clean up a resumed/replaced
 session or another selected output. The named player's queue/current entry and
-checkpoint remain intact; it never automatically resumes or advances after a
-failure. Once the receiver is ready, explicitly play again (with any required
-availability acknowledgement). Queue and settings edits preserve the playback
+checkpoint remain intact; it never advances after a failure, and resumes on its
+own only through the single quick-return retry in
+[Lost speakers](#lost-speakers). Once the receiver is ready, explicitly play
+again (with any required availability acknowledgement). Queue and settings edits preserve the playback
 error until a successful transport action leaves the error state.
 
 If engine cleanup fails, an uncertain assignment remains reserved and commands
@@ -431,7 +432,8 @@ connectivity before retrying. Do not run a second worker to bypass a lease error
 
 Some receivers ignore AirPlay volume. The saved volume is the requested sender
 value, not a measured loudness guarantee. The implementation does not promise
-synchronization, automatic recovery after receiver outages, or Sonos validation.
+synchronization, recovery from receiver outages beyond the one quick-return
+retry, or Sonos validation.
 
 Validation and the successful two-room hardware results are recorded in
 [evaluations/693](../../../evaluations/693/README.md).
@@ -453,3 +455,163 @@ the reviewed `expected_revision`; it stops/clears the engine and loads the curre
 queue entry after normal audio/output preflight. Speaker availability checks still
 apply. The browser offers this command for `DEVICE_BUSY` behind a confirmation
 naming the player and engine. A changed player revision invalidates the confirm.
+
+## Lost speakers
+
+When a session loses its output, `state.error.output` says which one, when,
+and what OwnTone last reported (#1241). The field is optional and nested in
+`error`, so older clients and the Brick ignore it, and `message` carries the
+whole story for them:
+
+```json
+{
+  "code": "PLAYBACK_INTERRUPTED",
+  "message": "Lounge Room Audio went away during playback. The queue has not advanced; press play once it is back.",
+  "output": {
+    "id": "202481586338774",
+    "name": "Lounge Room Audio",
+    "lost_at": "2026-11-21T01:47:41.000Z",
+    "reason": "output_lost",
+    "detail": "OwnTone reported the output lost during playback",
+    "back_at": null
+  }
+}
+```
+
+`reason` is `output_lost` (the terminal extension's reason), `disconnected`
+(deselected or disconnected while selected), `not_listed` (missing from
+`/api/outputs`), `activation_failed` (OwnTone could not select it) or
+`engine_timeout` (OwnTone stopped answering during the same outage). Later
+failures of the same output keep the first `lost_at`. OwnTone's log lines
+("Connection refused", "failed to activate") are not on its JSON API, so
+`detail` is the nearest signal the API gives; read the engine log for the rest.
+
+While a loss is open the worker **lists** outputs, read-only, every second
+during the retry window, then every 5 s, for 10 minutes; after that, any device
+listing (the web and TUI fetch one with each snapshot) still notices a return.
+It never selects an output while watching. Once the output has been seen
+missing, unanswered or refused and is then listed again, the error reads
+"Lounge Room Audio is back — press play to resume." with `back_at` set. A
+listing that was never interrupted proves nothing, so the loss message stays.
+
+**Play reclaims the remembered output.** After a loss `assigned_output` is
+null and `desired_output` is kept. `play` and `resume` first list outputs once:
+if the desired output is missing the command fails at once with
+`DEVICE_UNAVAILABLE` and "… isn't listed by OwnTone right now. Wait for the
+receiver to come back, or choose a speaker in Play on → Speaker details.",
+without any engine writes. If it is listed, play selects and claims it as
+usual. If OwnTone lists it but cannot activate it, the error says so and
+suggests checking the receiver. Clients offer **Choose speaker**; nothing opens
+the picker by itself.
+
+**One retry on a quick return.** If a loss during playback (`output_lost` or
+`disconnected`, while `playing`) is followed by the output reappearing, staying
+listed for `LOST_OUTPUT_RETRY_SETTLE_MS` (5 s), within
+`LOST_OUTPUT_RETRY_WINDOW_MS` (30 s) of the loss, the worker plays the same
+entry once, from its checkpoint, with the queue-advance policy
+(`allow_unknown`, never `takeover`). The window comes from the 2026-11-20
+timeline: `output_lost` at 01:47:41Z, the DAC back at 01:48:02Z (Shairport's
+emergency exit, its 5 s systemd restart, then 3.6 s for the wake hook). The
+settle time covers Shairport advertising before its DAC is powered. There is no
+retry if anyone sent a command since the loss, the loss happened while paused,
+or the worker already retried for this player since the last command, so a
+flapping receiver gets one retry, not a loop. A failed retry reports "Tried once
+more after … came back; it failed again." and its return only says "is back".
+The worker logs `Player recovery {"action":"back"|"retry"|"retry_failed",…}`.
+
+### Busy commands
+
+The web and TUI hold one command at a time per player (the client's `busy`
+lock), and the worker runs commands serially. A connecting command can wait
+for several OwnTone requests, each with a 5 s timeout, when OwnTone itself is
+waiting on a receiver (`No response to GET /info`): about 20 s on 2026-11-20.
+The lock still refuses an overlapping command, but now says what it waits on:
+"Still waiting for Play (22 s) while the server reaches the speaker." After a
+loss, the play preflight above answers in one request.
+
+### Receiver health
+
+The worker cannot tell in advance that a receiver advertises AirPlay with no
+working audio device. Home Assistant's **Fosi ZD3 Status** sensor (from
+`dac_status.py` on pi-cam) reports the DAC on USB, but the ZD3 automation
+powers the DAC off after three idle minutes and Shairport's wake hook powers it
+on during play, so "disconnected" before a play is the normal state, not a
+fault. A useful warning needs the receiver to publish a failed wake (the hook's
+30 s timeout) or a USB error mid-track. That is follow-up work, not this
+worker.
+
+## Troubleshooting a lost speaker
+
+The 2026-11-20 lounge failure, end to end:
+
+| Where              | What it logged                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| Receiver kernel    | `usb 1-1.5: … err -110`, `clock source 41 is not valid` (DAC off the bus or unpowered)     |
+| Receiver Shairport | `Unable to set hw parameters … Connection timed out` or `output_device_error_19`, exit     |
+| systemd (receiver) | `shairport-sync-airplay2` restart; the output drops from mDNS, then reappears              |
+| Engine (OwnTone)   | `Send error for 'Lounge Room Audio': Connection refused`, `No response to GET /info`       |
+| Engine (OwnTone)   | `The AirPlay 2 device 'Lounge Room Audio' failed to activate`                              |
+| Worker             | `Player error {"code":"PLAYBACK_INTERRUPTED","output":{"reason":"output_lost",…}}`         |
+| Worker, on play    | `ENGINE_TIMEOUT` (OwnTone stuck on the receiver), then `DEVICE_UNAVAILABLE` (`not_listed`) |
+| Worker, on return  | `Player recovery {"action":"back"}` or `{"action":"retry"}`                                |
+
+**Where each log lives.** From the production checkout on the Docker host,
+with the Compose command from [Deployment](#deployment) (`-p dj-playlist` plus
+all three files and `--profile players`):
+
+```sh
+# Worker: player errors and recovery, one JSON line each.
+docker compose … logs --since 1h player-worker | grep -E 'Player (error|recovery)'
+# Engine: primary is player-engine-a, secondary -b, tertiary -c.
+docker compose … logs --since 1h player-engine-a | grep -iE "airplay|output|activate|refused"
+```
+
+On the receiver (the lounge is `pi-cam`, running Shairport Sync as **Lounge
+Room Audio**):
+
+```sh
+journalctl -u shairport-sync-airplay2 --since -1h --no-pager   # Shairport, wake hook
+journalctl -u shairport-sync-airplay2 | grep shairport-dac-wake
+systemctl show shairport-sync-airplay2 -p NRestarts -p Result    # start-limit-hit = gave up
+journalctl -k --since -1h --no-pager | grep -iE 'usb|clock source' # DAC on the USB bus
+aplay -l                                                          # is the ZD3 card there?
+```
+
+The Shairport unit restarts after 5 s, at most three times in 60 s; past that
+systemd stops trying (`start-limit-hit`) and the output stays gone until
+`systemctl restart shairport-sync-airplay2`.
+
+**Resolving the receiver over mDNS.** From a Mac on the LAN:
+
+```sh
+dns-sd -B _airplay._tcp local                       # is it advertised at all?
+dns-sd -L "Lounge Room Audio" _airplay._tcp local   # host, port and TXT record
+```
+
+On Linux, `avahi-browse -rt _airplay._tcp`. An advertised receiver can still
+have no audio device behind it; compare with `aplay -l` on the receiver.
+`groovenet player devices --remote lounge` shows what OwnTone itself lists.
+
+**Reading the player's state.** `groovenet player --remote lounge status`
+prints the error and a `Speaker:` line (name, lost and back times, OwnTone's
+last word); `--json` has `state.error.output`. The TUI shows the same on its
+status line and the web player in its notice and Speaker details.
+
+**Receiver-side mitigations** (outside this repository, in the receiver's
+infrastructure):
+
+- Wake the DAC before Shairport opens it. `shairport-dac-wake` runs as
+  `run_this_before_play_begins`, but on 2026-11-20 Shairport opened the card
+  first and exited, so the first play after the DAC powers off still failed
+  once. Check whether the AirPlay 2 build opens ALSA at session setup.
+- Check the Home Assistant automation that powers the ZD3 off. The 17:33 failure
+  (USB `-110`, invalid clock source mid-track) looks like the DAC losing power
+  or entering standby during playback.
+- If the ZD3 drops off the bus and `usbreset` fails, it needs a power cycle: a
+  Pi 3 reboot does not cut USB power. A powered hub or `uhubctl` would make
+  that remote. Reseat or replace the USB cable if it recurs.
+
+**Resuming.** Once the receiver is back (the player says "… is back"), press
+play, or `groovenet player --remote lounge play`. Play reselects the remembered
+output. If the output has a new ID or a different speaker is wanted, choose it
+in **Play on → Speaker details** or with `output.select`.

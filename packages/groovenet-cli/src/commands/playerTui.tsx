@@ -38,6 +38,7 @@ import { queuePlaylist, usePlayerPlaylists } from "./playerTuiPlaylistsState.js"
 import { SearchView, searchHints } from "./playerTuiSearch.js";
 import { queueSearchTracks, usePlayerSearch, modeLabel } from "./playerTuiSearchState.js";
 import { openFullView } from "./playerTuiFullView.js";
+import { errorSegments } from "./playerTuiError.js";
 import { useQueueMetadata } from "./playerTuiMetadata.js";
 import { ArtworkProvider } from "../tui/artworkSlot.js";
 import { artworkSource } from "../tui/artwork.js";
@@ -737,7 +738,7 @@ export function PlayerTui({
         : message
           ? [{ text: message, role: "warn" }]
           : snapshot.error
-            ? [{ text: `${snapshot.error.code}: ${snapshot.error.message}`, role: "error" }]
+            ? errorSegments(snapshot.error)
             : searchMessage
               ? [{ text: searchMessage, role: "muted" }]
               : null;

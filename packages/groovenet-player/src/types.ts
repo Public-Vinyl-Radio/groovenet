@@ -74,13 +74,22 @@ export type PlayerErrorCode =
   | "DEVICE_AUTH"
   | "PLAYBACK_INTERRUPTED";
 
+/**
+ * Why a selected output stopped working, when the backend can tell. The server
+ * worker uses it to name the lost speaker and to watch for its return.
+ */
+export type OutputFailureReason =
+  "output_lost" | "disconnected" | "not_listed" | "activation_failed";
+
 export class PlayerError extends Error {
+  readonly reason?: OutputFailureReason;
   constructor(
     readonly code: PlayerErrorCode,
     message: string,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { reason?: OutputFailureReason },
   ) {
     super(message, options);
     this.name = "PlayerError";
+    if (options?.reason) this.reason = options.reason;
   }
 }

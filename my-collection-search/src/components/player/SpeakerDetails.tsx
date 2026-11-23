@@ -7,6 +7,7 @@ import type { ServerPlayer } from "@groovenet/contracts";
 import { usePlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { playerApi } from "@/services/internalApi/players";
 import { overline } from "@/components/ui/RetroModalParts";
+import { describePlayerError } from "@groovenet/client/player-session";
 
 /**
  * Output routing for the connected server, out of the everyday player: the
@@ -28,6 +29,8 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
   const device = devices.find((item) => item.id === output);
   const sourceId = device?.assigned_player_id;
   const availability = device?.observed.availability;
+  // The speaker this session lost, if any (#1241): Play reclaims it once it is back.
+  const loss = player?.state.error?.output ? describePlayerError(player.state.error) : null;
   const prepareTransfer = async (id: string) => {
     setPreparing(true);
     setTransferProblem(null);
@@ -59,6 +62,11 @@ export default function SpeakerDetails({ onBack }: { onBack: () => void }) {
         {label("Output")}
         <Text>Desired: {player?.state.desired_output ?? "None"}</Text>
         <Text>Assigned: {player?.assigned_output ?? "None"}</Text>
+        {loss && (
+          <Text data-testid="speaker-loss">
+            {loss.back ? "Back" : "Lost"}: {loss.detail}
+          </Text>
+        )}
         <Text color="fg.muted">
           Requested sender volume {player?.state.volume ?? 0}%. Some receivers ignore sender volume.
         </Text>

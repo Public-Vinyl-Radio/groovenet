@@ -193,7 +193,9 @@ describe("shared player commands", () => {
     );
     const pending = session.command({ type: "queue.remove", entry_id: entryB });
     await session.command({ type: "next" });
-    expect(session.getSnapshot().problem).toContain("in progress");
+    expect(session.getSnapshot().problem).toMatch(
+      /^Still waiting for The last command \(0 s\)\. Try again when it finishes\.$/,
+    );
     snapshot(8, 4);
     resolve({ player: player("lounge", 4) });
     await pending;
@@ -673,5 +675,40 @@ it("sends an explicit engine takeover with the confirmed revision and retains sp
     takeover: true,
     allow_unknown: true,
     expected_revision: 3,
+  });
+});
+
+describe("what the busy lock waits on (#1241)", () => {
+  it("names the in-flight command and how long it has waited", async () => {
+    vi.setSystemTime(new Date("2026-11-21T01:47:41.000Z"));
+    snapshot();
+    let answer!: (value: unknown) => void;
+    api.command.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const first = session.command({ type: "play" });
+    expect(session.getSnapshot()).toMatchObject({
+      busy: true,
+      pending: { type: "play", since: Date.parse("2026-11-21T01:47:41.000Z") },
+    });
+    vi.setSystemTime(new Date("2026-11-21T01:48:03.000Z"));
+    // A second command still never overlaps the first.
+    expect(await session.command({ type: "output.select", output_id: "speaker" })).toBeNull();
+    expect(api.command).toHaveBeenCalledTimes(1);
+    expect(session.getSnapshot().problem).toBe(
+      "Still waiting for Play (22 s) while the server reaches the speaker. Try again when it finishes.",
+    );
+    answer({ player: player("lounge", 4) });
+    await first;
+    expect(session.getSnapshot()).toMatchObject({ busy: false, pending: null });
+  });
+
+  it("tracks execute() too", async () => {
+    snapshot();
+    let answer!: (value: unknown) => void;
+    api.command.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    const running = session.execute({ type: "pause" }, 3);
+    expect(session.getSnapshot().pending?.type).toBe("pause");
+    answer({ player: player("lounge", 4) });
+    await running;
+    expect(session.getSnapshot().pending).toBeNull();
   });
 });

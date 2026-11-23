@@ -128,6 +128,43 @@ describe("remote player CLI", () => {
     });
     await run("--remote", "room", "status");
     expect(log).toHaveBeenCalledWith("PLAYBACK_INTERRUPTED: Speaker lost");
+    // A lost speaker (#1241): named in text, and every field in --json.
+    const lostOutput = {
+      id: "202481586338774",
+      name: "Lounge Room Audio",
+      lost_at: "2026-11-21T01:47:41.000Z",
+      reason: "output_lost",
+      detail: "OwnTone reported the output lost during playback",
+      back_at: null,
+    };
+    api.getServerPlayer.mockResolvedValue({
+      ...state,
+      state: {
+        ...state.state,
+        status: "error",
+        error: {
+          code: "PLAYBACK_INTERRUPTED",
+          message: "Lounge Room Audio went away.",
+          output: lostOutput,
+        },
+      },
+    });
+    await run("--remote", "room", "status");
+    expect(log).toHaveBeenCalledWith("PLAYBACK_INTERRUPTED: Lounge Room Audio went away.");
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Speaker: Lounge Room Audio · lost .+ · OwnTone reported the output lost during playback$/,
+      ),
+    );
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    await run("--remote", "room", "status", "--json");
+    const printed = JSON.parse(stdout.mock.calls.map((call) => String(call[0])).join(""));
+    stdout.mockRestore();
+    expect(printed.error).toEqual({
+      code: "PLAYBACK_INTERRUPTED",
+      message: "Lounge Room Audio went away.",
+      output: lostOutput,
+    });
     await run("--remote", "room", "stop");
     expect(api.commandServerPlayer).toHaveBeenLastCalledWith("room", {
       type: "stop",

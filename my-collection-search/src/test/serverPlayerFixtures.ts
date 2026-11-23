@@ -39,3 +39,36 @@ export const device: ServerPlayerDevice = {
     sender_identity: "unknown",
   },
 };
+/** The lounge after its AirPlay receiver dropped out (#1241): error, assigned null, desired kept. */
+export function lostSpeakerPlayer({ back = false } = {}): ServerPlayer {
+  const lost = player();
+  lost.state.status = "error";
+  lost.state.desired_output = "202481586338774";
+  lost.state.error = back
+    ? {
+        code: "DEVICE_UNAVAILABLE",
+        message: "Lounge Room Audio is back — press play to resume.",
+        output: {
+          id: "202481586338774",
+          name: "Lounge Room Audio",
+          lost_at: "2026-11-21T01:47:41.000Z",
+          reason: "not_listed",
+          detail: "OwnTone no longer lists the output",
+          back_at: "2026-11-21T01:48:05.000Z",
+        },
+      }
+    : {
+        code: "PLAYBACK_INTERRUPTED",
+        message:
+          "Lounge Room Audio went away during playback. The queue has not advanced; press play once it is back.",
+        output: {
+          id: "202481586338774",
+          name: "Lounge Room Audio",
+          lost_at: "2026-11-21T01:47:41.000Z",
+          reason: "output_lost",
+          detail: "OwnTone reported the output lost during playback",
+          back_at: null,
+        },
+      };
+  return lost;
+}

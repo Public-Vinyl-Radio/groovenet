@@ -6,7 +6,62 @@ import {
   playerJsonSchemas,
   speakerObservationSchema,
   serverPlayersStreamEventSchema,
+  serverPlayerSchema,
+  playerErrorSchema,
 } from "./players.js";
+import { z } from "zod";
+const lostPlayer = (error: unknown) => ({
+  id: "lounge",
+  name: "Lounge",
+  engine_id: "primary",
+  availability_policy: "ask",
+  revision: 4,
+  assigned_output: null,
+  state: {
+    queue: [],
+    current_entry_id: null,
+    status: "error",
+    position: 0,
+    duration: null,
+    volume: 50,
+    desired_output: "202481586338774",
+    checkpoint: false,
+    error,
+  },
+});
+describe("lost output details (#1241)", () => {
+  const output = {
+    id: "202481586338774",
+    name: "Lounge Room Audio",
+    lost_at: "2026-11-21T01:47:41.000Z",
+    reason: "output_lost",
+    detail: "OwnTone reported the output lost during playback",
+    back_at: "2026-11-21T01:48:05.000Z",
+    retried: true,
+  };
+  it("round-trips the loss on the player error", () => {
+    const error = { code: "PLAYBACK_INTERRUPTED", message: "gone", output };
+    expect(serverPlayerSchema.parse(lostPlayer(error)).state.error).toEqual(error);
+    expect(
+      playerErrorSchema.parse({ ...error, output: { ...output, reason: "a_new_reason" } }),
+    ).toBeTruthy();
+  });
+  it("keeps errors without the field valid, and nullable", () => {
+    const plain = { code: "DEVICE_UNAVAILABLE", message: "OwnTone output is unavailable" };
+    expect(serverPlayerSchema.parse(lostPlayer(plain)).state.error).toEqual(plain);
+    expect(playerErrorSchema.parse({ ...plain, output: null }).output).toBeNull();
+    const { back_at: _back, retried: _retried, ...minimal } = output;
+    expect(playerErrorSchema.parse({ ...plain, output: minimal }).output).toEqual(minimal);
+    expect(playerErrorSchema.safeParse({ ...plain, output: { ...output, id: "" } }).success).toBe(
+      false,
+    );
+  });
+  it("is stripped, not rejected, by a client built before the field existed", () => {
+    // The pre-#1241 error shape: a plain object, so unknown keys are dropped.
+    const before = z.object({ code: z.string(), message: z.string() });
+    expect(before.parse({ code: "X", message: "m", output })).toEqual({ code: "X", message: "m" });
+  });
+});
 describe("server-player contracts", () => {
   it("accepts persistent names and configured engine identifiers, not client-supplied URLs", () => {
     expect(
