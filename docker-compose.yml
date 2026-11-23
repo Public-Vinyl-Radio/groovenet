@@ -253,7 +253,7 @@ services:
     mem_limit: ${REDIS_MEM_LIMIT:-256m}
     # Not root (#1074), for the same reason as db. /data is already redis's.
     user: redis
-    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+    image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     restart: always
     volumes:
       - redis_data:/data
