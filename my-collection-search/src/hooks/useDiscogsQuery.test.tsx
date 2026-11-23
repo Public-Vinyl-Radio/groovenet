@@ -44,6 +44,38 @@ beforeEach(() => {
 });
 
 describe("useSyncDiscogs", () => {
+  it("refreshes every page that reads the library when a sync ends, so they leave their empty states", async () => {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useSyncDiscogs(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await act(() => result.current.mutateAsync({ showDialog: false }));
+    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual([
+      ["friends"],
+      ["settings", "default-library"],
+      ["home"],
+      ["albums"],
+      ["tracks"],
+    ]);
+  });
+
+  it("refreshes them after a failed sync too: whatever it saved is kept", async () => {
+    mocks.syncDiscogsStream.mockRejectedValue(new Error("connection lost"));
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useSyncDiscogs(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await act(() => result.current.mutateAsync({}).catch(() => null));
+    expect(invalidate).toHaveBeenCalledTimes(5);
+    expect(mocks.setDiscogsError).toHaveBeenCalledWith("connection lost");
+  });
+
   it("opens the progress dialog by default", async () => {
     const { result } = render();
     await act(() => result.current.mutateAsync({ username: "dj" }));

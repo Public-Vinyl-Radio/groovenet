@@ -45,11 +45,14 @@ import AlbumSearchMenu, { AlbumOptionsMenu } from "@/components/AlbumSearchMenu"
 import AlbumSortMenu, { DEFAULT_ALBUM_SORT, albumSortOption } from "@/components/AlbumSortMenu";
 import { useGenreTaxonomyQuery } from "@/hooks/useGenreTaxonomyQuery";
 import { useUsername } from "@/providers/UsernameProvider";
+import EmptyLibrary from "@/components/onboarding/EmptyLibrary";
+import { useLibraryEmpty } from "@/hooks/useLibraryEmpty";
 
 function AlbumsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { friend: currentUserFriend, isHydrated } = useUsername();
+  const { friend: currentUserFriend } = useUsername();
+  const emptiness = useLibraryEmpty();
 
   // Rows/Cards, shared with the tracks page; phones always get cards.
   const { viewMode, setViewMode, layout } = useTrackViewMode();
@@ -241,10 +244,13 @@ function AlbumsPageContent() {
         />
       </PageHeader>
       <Flex gap={3} direction="column">
-        {!isHydrated || !currentUserFriend ? (
+        {emptiness === "loading" ? (
           <Flex justify="center" py={8}>
             <Spinner />
           </Flex>
+        ) : emptiness === "empty" || !currentUserFriend ? (
+          // No library yet, or one with no albums (#1246): say so, not a spinner.
+          <EmptyLibrary />
         ) : (
           <>
             <PageHeader.Toolbar>

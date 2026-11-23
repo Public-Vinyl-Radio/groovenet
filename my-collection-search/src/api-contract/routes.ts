@@ -5416,7 +5416,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     method: "get",
     path: "/api/friends/libraries",
     summary:
-      "List libraries with album counts, last sync and which is the server's Discogs account",
+      "List libraries with album counts, last sync, which is the server's Discogs account and whether its token is set",
     tags: ["Friends"],
     successSchema: librariesListResponseSchema,
     errorSchema: apiErrorSchema,

@@ -88,6 +88,7 @@ import LibrariesSettingsSection, {
 
 const LIBRARIES: LibrariesListResponse = {
   account_username: "owner",
+  discogs_token_set: true,
   results: [
     {
       id: 1,
@@ -194,7 +195,7 @@ describe("LibrariesSettingsSection: the list", () => {
   });
 
   it("invites adding one when there are none", () => {
-    mocks.libraries.data = { account_username: null, results: [] };
+    mocks.libraries.data = { account_username: null, discogs_token_set: false, results: [] };
     mocks.defaultFriend = null;
     renderWithProviders(<Section />);
     expect(screen.getByText("No libraries yet. Add one to start syncing.")).toBeTruthy();

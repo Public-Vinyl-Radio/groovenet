@@ -51,6 +51,7 @@ describe("friend and library settings contracts", () => {
   it("validates libraries with their stats and the server account", () => {
     const body = {
       account_username: null,
+      discogs_token_set: false,
       results: [
         { id: 1, username: "owner", is_account: true, release_count: 4, last_synced_at: null },
       ],
@@ -65,6 +66,7 @@ describe("friend and library settings contracts", () => {
     expect(friendJsonSchemas.LibrariesListResponse.required).toEqual([
       "results",
       "account_username",
+      "discogs_token_set",
     ]);
   });
 });

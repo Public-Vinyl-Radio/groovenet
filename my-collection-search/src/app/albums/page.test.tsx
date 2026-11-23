@@ -2,9 +2,14 @@
 import React from "react";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 import { PaletteScopeControls } from "@/test/PaletteScopeControls";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
+
+const library = vi.hoisted(() => ({
+  emptiness: "ready" as "loading" | "empty" | "ready",
+  friend: { id: 7 } as { id: number } | null,
+}));
 
 const paletteMocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -18,7 +23,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: paletteMocks.push, replace: vi.fn() }),
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
-  useUsername: () => ({ friend: { id: 7 }, isHydrated: true }),
+  useUsername: () => ({ friend: library.friend, isHydrated: true }),
+}));
+vi.mock("@/hooks/useLibraryEmpty", () => ({ useLibraryEmpty: () => library.emptiness }));
+vi.mock("@/components/onboarding/EmptyLibrary", () => ({
+  default: () => <div data-testid="empty-library">empty library</div>,
 }));
 vi.mock("@/hooks/useGenreTaxonomyQuery", () => ({ useGenreTaxonomyQuery: () => ({ genres: [] }) }));
 vi.mock("@/components/AlbumSearchResults", () => ({ default: () => <div>results</div> }));
@@ -36,6 +45,45 @@ vi.mock("@/components/GenreFilter", () => ({
 }));
 
 import AlbumsPage from "./page";
+
+beforeEach(() => {
+  library.emptiness = "ready";
+  library.friend = { id: 7 };
+});
+
+describe("AlbumsPage empty library (#1246)", () => {
+  it("shows the empty state, not results or a spinner, for a library with nothing in it", async () => {
+    library.emptiness = "empty";
+    renderWithProviders(<AlbumsPage />);
+    expect(await screen.findByTestId("empty-library")).toBeTruthy();
+    expect(screen.queryByText("results")).toBeNull();
+    expect(document.querySelector(".chakra-spinner")).toBeNull();
+    // The header stays, so the page still reads as Albums.
+    expect(screen.getByRole("heading", { level: 1, name: "Albums" })).toBeTruthy();
+  });
+
+  it("shows it when no library is selected yet", async () => {
+    library.emptiness = "empty";
+    library.friend = null;
+    renderWithProviders(<AlbumsPage />);
+    expect(await screen.findByTestId("empty-library")).toBeTruthy();
+  });
+
+  it("still shows a spinner while the library is loading", async () => {
+    library.emptiness = "loading";
+    renderWithProviders(<AlbumsPage />);
+    await screen.findByRole("heading", { level: 1, name: "Albums" });
+    expect(document.querySelector(".chakra-spinner")).toBeTruthy();
+    expect(screen.queryByTestId("empty-library")).toBeNull();
+    expect(screen.queryByText("results")).toBeNull();
+  });
+
+  it("shows the results, not the empty state, for a library with albums", async () => {
+    renderWithProviders(<AlbumsPage />);
+    expect(await screen.findByText("results")).toBeTruthy();
+    expect(screen.queryByTestId("empty-library")).toBeNull();
+  });
+});
 
 describe("AlbumsPage", () => {
   it("titles the page through the shared header", async () => {

@@ -15,6 +15,8 @@ import { JobWatcherProvider } from "@/providers/JobWatcherProvider";
 import ThemeColorSync from "@/components/ThemeColorSync";
 import { InAppNavigationProvider } from "@/providers/InAppNavigationProvider";
 import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
+import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
+import { SyncStreamsProvider } from "@/providers/SyncStreamsProvider";
 import { useSyncAppearance } from "@/hooks/useAppearanceSettings";
 import { queryKeys } from "@/lib/queryKeys";
 import type { AppearanceSettingsResponse } from "@/services/internalApi/settings";
@@ -66,7 +68,12 @@ export default function ClientProviders({
                 <PlaylistsProvider>
                   <PlaylistPlayerProvider>
                     <PlaybackTargetProvider>
-                      <InAppNavigationProvider>{children}</InAppNavigationProvider>
+                      {/* The Discogs sync's progress outlives the page that started it. */}
+                      <SettingsDialogsProvider>
+                        <SyncStreamsProvider>
+                          <InAppNavigationProvider>{children}</InAppNavigationProvider>
+                        </SyncStreamsProvider>
+                      </SettingsDialogsProvider>
                       <PlaylistPlayer />
                     </PlaybackTargetProvider>
                   </PlaylistPlayerProvider>

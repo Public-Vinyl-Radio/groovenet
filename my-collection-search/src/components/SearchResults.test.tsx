@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   toastCreate: vi.fn(),
   loadMore: vi.fn(),
   listArtists: vi.fn(),
+  emptiness: "ready" as "loading" | "empty" | "ready",
+  friend: { id: 1, username: "dj" } as { id: number; username: string } | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -31,7 +33,11 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("@/providers/UsernameProvider", () => ({
-  useUsername: () => ({ friend: { id: 1, username: "dj" }, isHydrated: true }),
+  useUsername: () => ({ friend: mocks.friend, isHydrated: true }),
+}));
+vi.mock("@/hooks/useLibraryEmpty", () => ({ useLibraryEmpty: () => mocks.emptiness }));
+vi.mock("@/components/onboarding/EmptyLibrary", () => ({
+  default: () => <div data-testid="empty-library">empty library</div>,
 }));
 vi.mock("@/hooks/useSearchResults", () => ({ useSearchResults: mocks.useSearchResults }));
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: mocks.track } }));
@@ -168,6 +174,8 @@ const genreNode = (id: string, name: string, parent_id: string | null = null) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.emptiness = "ready";
+  mocks.friend = { id: 1, username: "dj" };
   setViewportWidth(1280);
   localStorage.clear();
   useTrackStore.getState().clearTracks();
@@ -196,6 +204,35 @@ beforeEach(() => {
     loadingMore: false,
     addedGenres: [],
   }));
+});
+
+describe("SearchResults empty library (#1246)", () => {
+  it("shows the empty state, with no spinner or search row, for a library with nothing in it", () => {
+    mocks.emptiness = "empty";
+    renderWithProviders(<SearchResults />);
+    expect(screen.getByTestId("empty-library")).toBeTruthy();
+    expect(document.querySelector(".chakra-spinner")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  it("shows it when no library is selected yet", () => {
+    mocks.emptiness = "empty";
+    mocks.friend = null;
+    renderWithProviders(<SearchResults />);
+    expect(screen.getByTestId("empty-library")).toBeTruthy();
+  });
+
+  it("still shows a spinner while the library is loading", () => {
+    mocks.emptiness = "loading";
+    renderWithProviders(<SearchResults />);
+    expect(document.querySelector(".chakra-spinner")).toBeTruthy();
+    expect(screen.queryByTestId("empty-library")).toBeNull();
+  });
+
+  it("shows no empty state for a library with tracks", () => {
+    renderWithProviders(<SearchResults />);
+    expect(screen.queryByTestId("empty-library")).toBeNull();
+  });
 });
 
 describe("SearchResults search mode", () => {

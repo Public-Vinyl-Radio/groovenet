@@ -5,6 +5,9 @@ import PageContainer from "@/components/layout/PageContainer";
 import { useHomeQuery } from "@/hooks/useHomeQuery";
 import { useCommandPalette } from "@/providers/CommandPaletteProvider";
 import { useUsername } from "@/providers/UsernameProvider";
+import EmptyLibrary from "@/components/onboarding/EmptyLibrary";
+import FirstImportChecklist from "@/components/onboarding/FirstImportChecklist";
+import { useLibraryEmpty } from "@/hooks/useLibraryEmpty";
 import HomeHeader from "./HomeHeader";
 import HomeLayout from "./HomeLayout";
 import HomeMonthCard from "./MonthCard";
@@ -21,13 +24,26 @@ import { PlaylistsSection } from "./PlaylistsSection";
 export default function HomePage() {
   const { friend, isHydrated } = useUsername();
   const friendId = friend?.id ?? 0;
-  const enabled = isHydrated && friendId > 0;
+  const emptiness = useLibraryEmpty();
+  const enabled = isHydrated && friendId > 0 && emptiness !== "empty";
   const { home, isPending, error } = useHomeQuery({ friend_id: friendId }, { enabled });
   const { setPaletteOpen } = useCommandPalette();
+
+  // No library yet, or one with nothing in it (#1246): the header and one way forward, no
+  // grey placeholders, dashes or sections that would never fill.
+  if (emptiness === "empty") {
+    return (
+      <PageContainer>
+        <HomeHeader counts={null} onSearch={() => setPaletteOpen(true)} />
+        <EmptyLibrary />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
       <HomeLayout
+        checklist={<FirstImportChecklist />}
         header={<HomeHeader counts={home?.counts ?? null} onSearch={() => setPaletteOpen(true)} />}
         nowPlaying={<HomeNowPlaying />}
         newArrivals={

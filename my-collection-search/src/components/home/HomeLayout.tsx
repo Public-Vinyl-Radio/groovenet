@@ -5,6 +5,8 @@ import { Box, Grid, Stack } from "@chakra-ui/react";
 
 type Props = {
   header: React.ReactNode;
+  /** #1246: what to try after the first import; absent once dismissed. */
+  checklist?: React.ReactNode;
   /** Renders nothing when nothing is playing; the gap closes up. */
   nowPlaying?: React.ReactNode;
   /** #882: albums added in the last 30 days. */
@@ -31,6 +33,7 @@ type Props = {
  */
 export default function HomeLayout({
   header,
+  checklist,
   nowPlaying,
   newArrivals,
   month,
@@ -43,6 +46,7 @@ export default function HomeLayout({
       {header}
       {/* PageHeader brings 16px below it; desktop tops that up to the mock's 28px. */}
       <Stack gap={{ base: "22px", md: "28px" }} mt={{ md: 3 }}>
+        {checklist}
         {nowPlaying}
         <Grid
           templateColumns={{ base: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" }}

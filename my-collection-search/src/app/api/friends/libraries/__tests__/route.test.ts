@@ -11,6 +11,7 @@ describe("GET /api/friends/libraries", () => {
   it("lists libraries with their stats and the account", async () => {
     const body = {
       account_username: "owner",
+      discogs_token_set: true,
       results: [
         { id: 1, username: "owner", is_account: true, release_count: 4, last_synced_at: null },
       ],

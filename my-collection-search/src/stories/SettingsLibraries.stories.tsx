@@ -21,6 +21,7 @@ import type { LibrariesListResponse } from "@/services/internalApi/friends";
 
 const LIBRARIES: LibrariesListResponse = {
   account_username: "collector-1",
+  discogs_token_set: true,
   results: [
     {
       id: 1,

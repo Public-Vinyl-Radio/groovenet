@@ -1,6 +1,8 @@
 // hooks/useDiscogsQuery.ts
 "use client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { queryKeys } from "@/lib/queryKeys";
 
 import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
 import { useSyncStreams } from "@/providers/SyncStreamsProvider";
@@ -42,9 +44,21 @@ export function useSyncDiscogs(
 ) {
   const { setDiscogsSyncOpen } = useSettingsDialogs();
   const { resetDiscogs, pushDiscogsLine, setDiscogsDone, setDiscogsError } = useSyncStreams();
+  const qc = useQueryClient();
 
   // `showDialog: false` streams without the progress dialog, for a row that shows its own progress.
   return useMutation<SyncResult | null, Error, { username?: string; showDialog?: boolean }>({
+    // Whatever the sync saved, however it ended: every page reads it afresh and the
+    // first library becomes the default. Set on the hook, not on `mutate`, so it still
+    // runs after the page that started the sync has been left (#1246).
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.friends() }),
+        qc.invalidateQueries({ queryKey: queryKeys.defaultLibrary() }),
+        qc.invalidateQueries({ queryKey: queryKeys.homeRoot() }),
+        qc.invalidateQueries({ queryKey: queryKeys.albumsRoot() }),
+        qc.invalidateQueries({ queryKey: queryKeys.tracksRoot() }),
+      ]),
     mutationFn: async ({ username, showDialog = true }) => {
       resetDiscogs();
       if (showDialog) setDiscogsSyncOpen(true);

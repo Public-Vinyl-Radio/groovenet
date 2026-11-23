@@ -22,6 +22,7 @@ export class FriendService {
   async listLibraries(): Promise<{
     results: LibraryWithStats[];
     account_username: string | null;
+    discogs_token_set: boolean;
   }> {
     const account = process.env.DISCOGS_USERNAME?.trim() || null;
     const rows = await friendRepository.listFriendsWithReleaseCounts();
@@ -32,7 +33,9 @@ export class FriendService {
     }));
     // Stable sort: the account first, the rest in their existing order.
     results.sort((a, b) => Number(b.is_account) - Number(a.is_account));
-    return { results, account_username: account };
+    // A flag only: the token never leaves the server.
+    const discogsTokenSet = Boolean(process.env.DISCOGS_USER_TOKEN?.trim());
+    return { results, account_username: account, discogs_token_set: discogsTokenSet };
   }
 
   async addFriend(username: string): Promise<void> {

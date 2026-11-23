@@ -6,12 +6,23 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 import { HOME_COUNTS } from "@/stories/fixtures/home";
 import { OCTOBER_RECAP } from "@/stories/fixtures/spinRecap";
 import { CommandPaletteProvider, useCommandPalette } from "@/providers/CommandPaletteProvider";
+import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
+import { SyncStreamsProvider } from "@/providers/SyncStreamsProvider";
 
 const friend = vi.hoisted(() => ({ value: { id: 7, username: "dj" } as null | object }));
 vi.mock("@/providers/UsernameProvider", () => ({
   useUsername: () => ({ friend: friend.value, isHydrated: true }),
 }));
 vi.mock("@/services/internalApi/home", () => ({ getHome: vi.fn() }));
+vi.mock("@/services/internalApi/friends", () => ({
+  fetchLibraries: vi.fn().mockResolvedValue({
+    account_username: "dj",
+    discogs_token_set: true,
+    results: [{ id: 7, username: "dj", is_account: true, release_count: 3, last_synced_at: null }],
+  }),
+  fetchFriends: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/hooks/useSystemInfo", () => ({ useStatusInfo: () => ({ data: undefined }) }));
 vi.mock("@/services/internalApi/spins", () => ({ getSpinRecap: vi.fn() }));
 // Now playing has its own suite; here it stands for "another section".
 vi.mock("@/components/home/HomeNowPlaying", () => ({
@@ -30,7 +41,11 @@ function PaletteState() {
 const renderPage = () =>
   renderWithProviders(
     <CommandPaletteProvider>
-      <HomePage />
+      <SettingsDialogsProvider>
+        <SyncStreamsProvider>
+          <HomePage />
+        </SyncStreamsProvider>
+      </SettingsDialogsProvider>
       <PaletteState />
     </CommandPaletteProvider>,
   );
@@ -85,11 +100,24 @@ describe("HomePage", () => {
     ).toHaveProperty("textContent", "Couldn't load needs attention · HTTP 500");
   });
 
-  it("waits for a library before asking for anything", () => {
+  it("keeps search in the header of an empty library", async () => {
+    friend.value = null;
+    const { user } = renderPage();
+    await user.click(
+      screen.getByRole("button", { name: "Search tracks, albums, artists", hidden: true }),
+    );
+    expect(screen.getByTestId("palette").textContent).toBe("open");
+  });
+
+  it("asks for nothing and offers the import while no library exists (#1246)", async () => {
     friend.value = null;
     renderPage();
     expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Your library is empty" })).toBeTruthy();
     expect(getHome).not.toHaveBeenCalled();
     expect(getSpinRecap).not.toHaveBeenCalled();
+    // Not the summary's blank cards, dashes or never-ending "Loading".
+    expect(screen.queryByText(/Loading needs attention/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "NEW ARRIVALS" })).toBeNull();
   });
 });
