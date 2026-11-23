@@ -11,8 +11,11 @@ vi.mock("@/services/internalApi/tracks", () => ({
   fetchTracksByIds: fetchTracksByIdsMock,
 }));
 
+const keepPreviousDataMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@tanstack/react-query", () => ({
   useQuery: useQueryMock,
+  keepPreviousData: keepPreviousDataMock,
 }));
 
 vi.mock("@/stores/trackStore", () => ({
@@ -60,5 +63,11 @@ describe("usePlaylistTracksQuery", () => {
     expect(fetchTracksByIdsMock).toHaveBeenCalledWith(trackRefs, {
       includeVectors: true,
     });
+  });
+
+  it("keeps the previous list while a changed one loads, so the page never drops to skeletons", () => {
+    renderToString(<Harness trackRefs={[{ track_id: "t1", friend_id: 1 }]} />);
+    const queryOptions = useQueryMock.mock.calls[0][0] as { placeholderData: unknown };
+    expect(queryOptions.placeholderData).toBe(keepPreviousDataMock);
   });
 });

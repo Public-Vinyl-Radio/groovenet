@@ -34,6 +34,15 @@ vi.mock("@/providers/PlaybackTargetProvider", () => ({
 vi.mock("@/hooks/useRecommendations", () => ({ useRecommendationsQuery: mocks.recommendations }));
 
 import SuggestionsPanel, { type SuggestionSeedRef } from "./SuggestionsPanel";
+import { SUGGESTIONS_DOCK_MIN_WIDTH, suggestionsFormFor } from "@/hooks/useSuggestionsForm";
+
+/** The window's width, as the media queries and the panel's fallback measure it. */
+function setWidth(width: number) {
+  setViewportWidth(width);
+  Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
+}
+const target = () => screen.getByTestId("suggestions-target").textContent;
+const summary = () => screen.getByTestId("suggestions-summary").textContent;
 
 const t = (id: string, extra: Partial<Track> = {}) =>
   ({
@@ -61,6 +70,7 @@ let observed: IntersectionObserverCallback | null = null;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setWidth(1280);
   analytics = new MemoryAnalyticsProvider();
   setAnalyticsProvider(analytics);
   observed = null;
@@ -123,8 +133,8 @@ describe("SuggestionsPanel", () => {
     const { user } = renderWithProviders(
       <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
     );
-    expect(screen.getByText(/Adds go after “Title p1”/)).toBeTruthy();
-    expect(screen.getByText(/120 BPM · 8A/)).toBeTruthy();
+    expect(target()).toBe("Suggesting after: “Title p1” (1) · adds after it");
+    expect(summary()).toMatch(/^3 suggestions · 120 BPM · 8A/);
 
     for (const id of ["r1", "r2", "r3"]) {
       await user.click(screen.getByRole("button", { name: `Add Title ${id} after Title p1` }));
@@ -139,7 +149,7 @@ describe("SuggestionsPanel", () => {
   it("appends in Whole playlist mode, ranked against the last track", async () => {
     const onAdd = vi.fn();
     const { user } = renderWithProviders(<Harness onAdd={onAdd} />);
-    expect(screen.getByText(/Adds go to the end of the playlist/)).toBeTruthy();
+    expect(target()).toBe("Suggesting for: whole playlist · adds to the end");
 
     await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p3" }));
     await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p3" }));
@@ -162,25 +172,29 @@ describe("SuggestionsPanel", () => {
     expect(mocks.recommendations.mock.calls.at(-1)?.[0]).toEqual([p1, p2, p3]);
   });
 
-  it("switches seed with the segments, and a new seed starts its adds clean", async () => {
+  it("clears the seed with the × on the target line, and a new seed starts its adds clean", async () => {
     const { user } = renderWithProviders(
       <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
     );
     await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
     expect(screen.getByText("ADDED", { exact: false })).toBeTruthy();
 
-    await user.click(screen.getByText("Whole playlist"));
-    expect(screen.getByText(/Adds go to the end/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Suggest for the whole playlist" }));
+    expect(target()).toBe("Suggesting for: whole playlist · adds to the end");
+    // The × is the way back, so it is gone once the target is the whole playlist.
+    expect(screen.queryByRole("button", { name: "Suggest for the whole playlist" })).toBeNull();
     // r1 is in the playlist now, so it no longer suggests itself.
     expect(screen.queryByRole("button", { name: /Add Title r1/ })).toBeNull();
+  });
 
-    await user.click(screen.getByText("After a track"));
-    expect(screen.getByText(/Adds go after “Title r1”|Adds go after “Title p3”/)).toBeTruthy();
+  it("numbers the followed track by its place in the playlist", () => {
+    renderWithProviders(<Harness initialSeed={{ track_id: "p3", friend_id: 4 }} />);
+    expect(target()).toBe("Suggesting after: “Title p3” (3) · adds after it");
   });
 
   it("falls back to the whole playlist when the seed is gone", () => {
     renderWithProviders(<Harness initialSeed={{ track_id: "gone", friend_id: 4 }} />);
-    expect(screen.getByText(/Adds go to the end/)).toBeTruthy();
+    expect(target()).toBe("Suggesting for: whole playlist · adds to the end");
   });
 
   it("toggles the key and BPM filters and counts what they hide", async () => {
@@ -189,25 +203,37 @@ describe("SuggestionsPanel", () => {
       isLoading: false,
     });
     const { user } = renderWithProviders(<Harness />);
-    expect(screen.getByText(/1 suggestions · 2 hidden by filters/)).toBeTruthy();
+    expect(summary()).toMatch(/^1 suggestion · 120 BPM · 8A · 2 hidden by filters/);
 
     const key = screen.getByRole("button", { name: "Compatible key" });
     const bpm = screen.getByRole("button", { name: "BPM ±6%" });
     expect(key.getAttribute("aria-pressed")).toBe("true");
     await user.click(key);
     expect(key.getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByText(/2 suggestions · 1 hidden by filters/)).toBeTruthy();
+    expect(summary()).toMatch(/^2 suggestions · .* 1 hidden by filters/);
     await user.click(bpm);
     expect(bpm.getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByText("3 suggestions")).toBeTruthy();
+    expect(summary()).toMatch(/^3 suggestions/);
+    expect(summary()).not.toMatch(/hidden/);
   });
 
-  it("changes scope, and explains an empty library", async () => {
+  it("changes scope in the settings dialog, and explains an empty library", async () => {
     mocks.recommendations.mockReturnValue({ data: [], isLoading: false });
     const { user } = renderWithProviders(<Harness />);
-    expect(screen.getByText("No suggestions in this library. Try All libraries.")).toBeTruthy();
-    await user.click(screen.getByText("All libraries"));
+    expect(
+      screen.getByText("No suggestions in this library. Try All libraries in the settings."),
+    ).toBeTruthy();
+    // Ranking and Libraries live in the dialog, not in the panel.
+    expect(screen.queryByLabelText("Ranking")).toBeNull();
+    expect(screen.queryByRole("button", { name: "All libraries" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+    await user.click(await screen.findByText("All libraries"));
     expect(mocks.scope.setScope).toHaveBeenCalledWith("all");
+  });
+
+  it("names the ranking and libraries on the summary line, so a choice made in the dialog shows", () => {
+    renderWithProviders(<Harness />);
+    expect(summary()).toMatch(/ · Default · This library$/);
   });
 
   it("says plainly when nothing is found across all libraries", () => {
@@ -263,24 +289,35 @@ describe("SuggestionsPanel", () => {
         onClose={onClose}
       />,
     );
-    expect(screen.queryByText(/Adds go/)).toBeNull();
+    expect(target()).toBe("Suggesting for: whole playlist · adds to the end");
+    // Nothing to rank against, so no count.
+    expect(screen.queryByTestId("suggestions-summary")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Close suggestions" }));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("tells the parent which seed the segment picks, and has none to pick when empty", async () => {
+  it("tells the parent to go back to the whole playlist", async () => {
     const onSeedChange = vi.fn();
     const { user } = renderWithProviders(
       <SuggestionsPanel
         playlist={[p1, p2]}
-        seed={null}
+        seed={{ track_id: "p1", friend_id: 4 }}
         onSeedChange={onSeedChange}
         onAdd={vi.fn()}
         onClose={vi.fn()}
       />,
     );
-    await user.click(screen.getByText("After a track"));
-    expect(onSeedChange).toHaveBeenCalledWith({ track_id: "p2", friend_id: 4 });
+    await user.click(screen.getByRole("button", { name: "Suggest for the whole playlist" }));
+    expect(onSeedChange).toHaveBeenCalledWith(null);
+  });
+
+  it("opens settings from the header, which holds only the title, settings and close", async () => {
+    const { user } = renderWithProviders(<Harness />);
+    const panel = screen.getByTestId("suggestions-panel");
+    expect(within(panel).getByRole("button", { name: "Suggestion settings" })).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: "Close suggestions" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+    expect(await screen.findByText("Libraries")).toBeTruthy();
   });
 });
 
@@ -395,20 +432,36 @@ describe("SuggestionsPanel preview", () => {
 });
 
 describe("SuggestionsPanel as a phone sheet", () => {
-  beforeEach(() => setViewportWidth(390));
-  afterEach(() => setViewportWidth(1280));
+  beforeEach(() => setWidth(390));
+  afterEach(() => setWidth(1280));
 
   const seedP1 = { track_id: "p1", friend_id: 4 };
 
-  it("opens as a sheet with the chips in one row, not the docked panel", async () => {
+  it("opens as a sheet with only the two filters inline, not the docked panel", async () => {
     renderWithProviders(<Harness initialSeed={seedP1} />);
     expect(await screen.findByTestId("suggestions-sheet")).toBeTruthy();
     expect(screen.queryByTestId("suggestions-panel")).toBeNull();
     const filters = screen.getByRole("group", { name: "Filters" });
-    for (const name of ["Whole playlist", "Compatible key", "BPM ±6%", "This library"]) {
-      expect(within(filters).getByRole("button", { name })).toBeTruthy();
-    }
-    expect(screen.queryByText("After a track")).toBeNull();
+    expect(
+      within(filters)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Compatible key", "BPM ±6%"]);
+    expect(target()).toBe("Suggesting after: “Title p1” (1) · adds after it");
+  });
+
+  it("keeps the ×, the filters and settings at 44px for a thumb", async () => {
+    renderWithProviders(<Harness initialSeed={seedP1} />);
+    await screen.findByTestId("suggestions-sheet");
+    const clear = screen.getByRole("button", { name: "Suggest for the whole playlist" });
+    expect(getComputedStyle(clear).minWidth).toBe("44px");
+    expect(getComputedStyle(clear).height).toBe("44px");
+    expect(getComputedStyle(screen.getByRole("button", { name: "Compatible key" })).minHeight).toBe(
+      "44px",
+    );
+    expect(
+      getComputedStyle(screen.getByRole("button", { name: "Suggestion settings" })).height,
+    ).toBe("44px");
   });
 
   it("adds without closing and counts the adds in the footer", async () => {
@@ -417,15 +470,18 @@ describe("SuggestionsPanel as a phone sheet", () => {
       <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
     );
     await screen.findByTestId("suggestions-sheet");
-    expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after Title p1");
+    expect(screen.getByTestId("suggestions-count").textContent).toBe("Nothing added yet");
     await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
     await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p1" }));
-    expect(screen.getByTestId("suggestions-count").textContent).toBe("2 added after Title p1");
+    // The confirmation names the latest add and what it went after, and counts them.
+    expect(screen.getByTestId("suggestions-count").textContent).toBe(
+      "Added “Title r2” after “Title r1” · 2 added",
+    );
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByTestId("suggestions-sheet")).toBeTruthy();
   });
 
-  it("switches to the whole playlist and back with the chip", async () => {
+  it("goes back to the whole playlist from the × on the target line", async () => {
     const onSeedChange = vi.fn();
     const { user, rerender } = renderWithProviders(
       <SuggestionsPanel
@@ -436,7 +492,7 @@ describe("SuggestionsPanel as a phone sheet", () => {
         onClose={vi.fn()}
       />,
     );
-    await user.click(await screen.findByRole("button", { name: "Whole playlist" }));
+    await user.click(await screen.findByRole("button", { name: "Suggest for the whole playlist" }));
     expect(onSeedChange).toHaveBeenLastCalledWith(null);
     rerender(
       <SuggestionsPanel
@@ -447,12 +503,11 @@ describe("SuggestionsPanel as a phone sheet", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after the playlist");
-    await user.click(screen.getByRole("button", { name: "Whole playlist" }));
-    expect(onSeedChange).toHaveBeenLastCalledWith({ track_id: "p2", friend_id: 4 });
+    expect(target()).toBe("Suggesting for: whole playlist · adds to the end");
+    expect(screen.getByTestId("suggestions-count").textContent).toBe("Nothing added yet");
   });
 
-  it("toggles filters and scope from the chips", async () => {
+  it("toggles the filters inline and opens Ranking and Libraries from the settings button", async () => {
     const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
     const key = await screen.findByRole("button", { name: "Compatible key" });
     expect(key.getAttribute("aria-pressed")).toBe("true");
@@ -461,7 +516,8 @@ describe("SuggestionsPanel as a phone sheet", () => {
     const bpm = screen.getByRole("button", { name: "BPM ±6%" });
     await user.click(bpm);
     expect(bpm.getAttribute("aria-pressed")).toBe("false");
-    await user.click(screen.getByRole("button", { name: "All libraries" }));
+    await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+    await user.click(await screen.findByText("All libraries"));
     expect(mocks.scope.setScope).toHaveBeenCalledWith("all");
   });
 
@@ -517,15 +573,27 @@ describe("SuggestionsPanel as a phone sheet", () => {
 });
 
 describe("SuggestionsPanel by width", () => {
-  afterEach(() => setViewportWidth(1280));
+  afterEach(() => setWidth(1280));
   const seedP1 = { track_id: "p1", friend_id: 4 };
+
+  it("docks only where the list keeps its columns and the panel gets 400px (#1233)", () => {
+    // List block at its mid width (780px) + gap + the panel's 400px.
+    expect(SUGGESTIONS_DOCK_MIN_WIDTH).toBe(1196);
+    const form = (width: number, phone = false) => suggestionsFormFor({ phone, width });
+    expect(form(390, true)).toBe("sheet");
+    expect(form(1195)).toBe("modal");
+    expect(form(1196)).toBe("panel");
+    // Phones get the sheet whatever the container is.
+    expect(form(1600, true)).toBe("sheet");
+  });
 
   it.each([
     [390, "suggestions-sheet"],
     [1024, "suggestions-modal"],
+    [1195, "suggestions-modal"],
     [1440, "suggestions-panel"],
   ])("at %ipx renders %s", async (width, testId) => {
-    setViewportWidth(width);
+    setWidth(width);
     renderWithProviders(<Harness initialSeed={seedP1} />);
     expect(await screen.findByTestId(testId)).toBeTruthy();
     for (const other of ["suggestions-sheet", "suggestions-modal", "suggestions-panel"]) {
@@ -533,12 +601,64 @@ describe("SuggestionsPanel by width", () => {
     }
   });
 
+  it("measures the block that holds the list, not the window", async () => {
+    // A wide window with the queue panel and sidebar taking most of it: the container is narrow.
+    setWidth(1600);
+    const spy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        return { width: this.dataset.testid === "split" ? 1000 : 0 } as DOMRect;
+      });
+    function Split() {
+      const ref = React.useRef<HTMLDivElement>(null);
+      const [open, setOpen] = useState(false);
+      return (
+        <div ref={ref} data-testid="split">
+          <button onClick={() => setOpen(true)}>Open suggestions</button>
+          {open && (
+            <SuggestionsPanel
+              containerRef={ref}
+              playlist={[p1, p2, p3]}
+              seed={seedP1}
+              onSeedChange={vi.fn()}
+              onAdd={vi.fn()}
+              onClose={vi.fn()}
+            />
+          )}
+        </div>
+      );
+    }
+    const { user } = renderWithProviders(<Split />);
+    await user.click(screen.getByRole("button", { name: "Open suggestions" }));
+    expect(await screen.findByTestId("suggestions-modal")).toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it("never renders another form first: the panel is the only form added at 1440px", () => {
+    setWidth(1440);
+    const observer = new MutationObserver(() => {});
+    observer.observe(document.body, { childList: true, subtree: true });
+    renderWithProviders(<Harness initialSeed={seedP1} />);
+    const seen = new Set<string>();
+    for (const record of observer.takeRecords()) {
+      record.addedNodes.forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        const hits = [node, ...node.querySelectorAll<HTMLElement>("[data-testid]")];
+        hits.forEach((el) => el.dataset.testid && seen.add(el.dataset.testid));
+      });
+    }
+    observer.disconnect();
+    expect(seen.has("suggestions-panel")).toBe(true);
+    expect(seen.has("suggestions-modal")).toBe(false);
+    expect(seen.has("suggestions-sheet")).toBe(false);
+  });
+
   it("scrolls the list inside the sheet and the modal, not the page", async () => {
     for (const [width, testId] of [
       [390, "suggestions-sheet"],
       [1024, "suggestions-modal"],
     ] as const) {
-      setViewportWidth(width);
+      setWidth(width);
       const { unmount } = renderWithProviders(<Harness initialSeed={seedP1} />);
       await screen.findByTestId(testId);
       const scroller = screen.getByTestId("suggestions-scroll");
@@ -549,18 +669,41 @@ describe("SuggestionsPanel by width", () => {
   });
 
   describe("as a modal", () => {
-    beforeEach(() => setViewportWidth(1024));
+    beforeEach(() => setWidth(1024));
 
-    it("adds without closing, and counts the adds", async () => {
+    it("stays open across adds and confirms each one", async () => {
       const onClose = vi.fn();
       const { user } = renderWithProviders(
         <SuggestionsPanelHarness onClose={onClose} initialSeed={seedP1} />,
       );
       await screen.findByTestId("suggestions-modal");
-      expect(screen.getByTestId("suggestions-count").textContent).toBe("0 added after Title p1");
+      expect(screen.getByTestId("suggestions-count").textContent).toBe("Nothing added yet");
       await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p1" }));
-      expect(screen.getByTestId("suggestions-count").textContent).toBe("1 added after Title p1");
+      expect(screen.getByTestId("suggestions-count").textContent).toBe(
+        "Added “Title r1” after “Title p1” · 1 added",
+      );
+      await user.click(screen.getByRole("button", { name: "Add Title r2 after Title p1" }));
+      expect(screen.getByTestId("suggestions-count").textContent).toBe(
+        "Added “Title r2” after “Title r1” · 2 added",
+      );
+      expect(screen.getByTestId("suggestions-modal")).toBeTruthy();
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("confirms an add to the whole playlist by the track it followed", async () => {
+      const { user } = renderWithProviders(<Harness />);
+      await screen.findByTestId("suggestions-modal");
+      await user.click(screen.getByRole("button", { name: "Add Title r1 after Title p3" }));
+      expect(screen.getByTestId("suggestions-count").textContent).toBe(
+        "Added “Title r1” after “Title p3” · 1 added",
+      );
+    });
+
+    it("holds the title, settings and close in the header, and opens the settings dialog", async () => {
+      const { user } = renderWithProviders(<Harness initialSeed={seedP1} />);
+      await screen.findByTestId("suggestions-modal");
+      await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+      expect(await screen.findByText("Libraries")).toBeTruthy();
     });
 
     it("closes with Done, the close button and Escape", async () => {
@@ -633,7 +776,7 @@ describe("SuggestionsPanel ranking profile (#1192)", () => {
 
   const shown = () =>
     screen
-      .getAllByRole("button", { name: /^Add Title \w+ after Title p1$/ })
+      .getAllByRole("button", { name: /^Add Title \w+ after Title p1$/, hidden: true })
       .map((b) => b.getAttribute("aria-label")?.split(" ")[2]);
 
   it("switching Beatmatcher and Selector changes the suggestions for the same seed", async () => {
@@ -647,12 +790,13 @@ describe("SuggestionsPanel ranking profile (#1192)", () => {
     const { user } = renderWithProviders(
       <Harness initialSeed={{ track_id: "p1", friend_id: 4 }} />,
     );
-    const picker = screen.getByLabelText("Ranking");
+    await user.click(screen.getByRole("button", { name: "Suggestion settings" }));
+    const picker = await screen.findByLabelText("Ranking");
     await user.selectOptions(picker, "beatmatcher");
     expect(shown()).toEqual(["near"]);
     expect(screen.getByText(/1 hidden by filters/)).toBeTruthy();
     await user.selectOptions(picker, "selector");
     expect(shown()).toEqual(["far", "near"]);
-    expect(screen.queryByRole("button", { name: /BPM ±/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /BPM ±/, hidden: true })).toBeNull();
   });
 });

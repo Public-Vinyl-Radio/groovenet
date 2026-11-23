@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { fetchTracksByIds } from "@/services/internalApi/tracks";
 import type { Track } from "@/types/track";
@@ -18,6 +18,9 @@ export function usePlaylistTracksQuery(
     queryKey: queryKeys.playlistTracks(trackRefs),
     queryFn: () => fetchTracksByIds(trackRefs, { includeVectors: true }),
     enabled: enabled && trackRefs.length > 0,
+    // An add, remove or move changes the key. Keep the list on screen while the new one loads:
+    // the skeleton is for the first load only (#1233).
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,

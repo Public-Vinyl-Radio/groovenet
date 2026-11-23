@@ -375,8 +375,24 @@ trigger="meta"`), never a tag. The last fact reads **Side** (`A1`) only when the
   `SuggestionSettingsDialog`, opened from the sliders button on the Suggestions heading row, and
   the summary line names both (`5 of 116 · Selector · This library`). The Suggestions scope toggle
   (`SuggestionScopeToggle`) sizes to its content at the right end of the summary line,
-  with a 44px hit area from an invisible extension on phones; the playlist panel does
-  the same.
+  with a 44px hit area from an invisible extension on phones. The playlist's Suggestions
+  panel has no toggle: Ranking and Libraries are in `SuggestionSettingsDialog` in every form.
+- **Playlist Suggestions panel** (`SuggestionsPanel`; #1233): one component in three forms, chosen
+  by `useSuggestionsForm` from the width of the block that holds the list (`splitRef` in
+  `PlaylistViewer`), not the viewport: a bottom sheet below `md`, the docked sidebar from
+  `SUGGESTIONS_DOCK_MIN_WIDTH` (the list's `TRACK_ROW_MID_MIN_WIDTH` of 780px, so it keeps
+  Release, Time, BPM / Key and Genre, plus a 16px gap and the panel's 400px), a modal in between.
+  The form is measured in a layout effect when the panel opens and the panel renders nothing
+  until then, so it never paints one form and flips; it also follows the container's resizes.
+  Header: title, settings button, close. Body: the target line (`Suggesting for: whole playlist ·
+adds to the end` or `Suggesting after: “Title” (3) · adds after it` with a × back to the whole
+  playlist), one summary line (`17 suggestions · 134 BPM · 3B · Default · This library`), the two
+  inline filters. Opening from the page menu starts on the whole playlist; a row offers `Suggest
+after` on hover or focus (icon, desktop row layout) and in its menu. The modal and the sheet stay
+  open across adds and confirm in the footer (`Added “X” after “Y” · 2 added`). **The list never
+  reloads on an add:** `usePlaylistTracksQuery` keeps the previous data while a changed list loads
+  (`keepPreviousData`), `PlaylistViewer` is keyed by playlist so skeletons are for the first load
+  of a playlist only, and an added `Track` goes into the store so its row draws at once.
 - **Track cards** (`TrackResult`, the default `layout`; #722): the container is a 2px
   `border.ink` outline with `shadow-md`, so a grid of them needs `padding: 0 6px 6px 0`
   and a 20px gap (14px between stacked cards; the title is in the Body face; the card carries `mb: 14px`, a caller with
