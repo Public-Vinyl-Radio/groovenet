@@ -45,7 +45,7 @@
     "@groovenet/player": "0.1.15",
     "chalk": "^6.0.1",
     "cli-table3": "^0.6",
-    "commander": "^15",
+    "commander": "^15.1.0",
     "ink": "8.0.0",
     "react": "19.3.1",
     "sharp": "0.35.5",
@@ -54,7 +54,7 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/react": "19.3.0",
-    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/coverage-v8": "^5.1.0",
     "ink-testing-library": "4.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.0"
