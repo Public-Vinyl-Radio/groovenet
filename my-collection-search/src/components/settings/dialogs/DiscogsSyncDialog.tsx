@@ -4,12 +4,23 @@ import RetroDialog from "@/components/ui/RetroDialog";
 import { useEffect, useRef } from "react";
 import { Box, Text, Button, Alert, Flex } from "@chakra-ui/react";
 
+import { isDiscogsImportActive } from "@groovenet/contracts";
+import { useDiscogsImportLog, useDiscogsImportsQuery } from "@/hooks/useDiscogsImports";
 import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
-import { useSyncStreams } from "@/providers/SyncStreamsProvider";
 
+/**
+ * The progress lines of one Discogs import (#1274), the same text `GET /api/discogs` streams,
+ * read from the import's log, so it can be closed and reopened and the import carries on.
+ */
 export default function DiscogsSyncDialog() {
-  const { discogsSyncOpen, setDiscogsSyncOpen } = useSettingsDialogs();
-  const { discogs } = useSyncStreams();
+  const { discogsSyncOpen, setDiscogsSyncOpen, discogsSyncImportId } = useSettingsDialogs();
+  const imports = useDiscogsImportsQuery();
+  const job = imports.data?.imports.find((other) => other.id === discogsSyncImportId) ?? null;
+  // Until the list has it, an import just queued is still running.
+  const active =
+    discogsSyncImportId !== null && (job === null || isDiscogsImportActive(job.status));
+  const discogs = useDiscogsImportLog(discogsSyncOpen ? discogsSyncImportId : null, active);
+  const error = job?.status === "failed" || job?.status === "interrupted" ? job.last_error : null;
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -28,7 +39,12 @@ export default function DiscogsSyncDialog() {
 
       footer={
         <Flex p={4} gap={2} flexWrap="wrap" justify="flex-end">
-          <Button minH="44px" onClick={() => setDiscogsSyncOpen(false)} disabled={!discogs.done}>
+          {active && (
+            <Text color="fg.muted" mr="auto" alignSelf="center">
+              Runs in the background: you can close this.
+            </Text>
+          )}
+          <Button minH="44px" onClick={() => setDiscogsSyncOpen(false)}>
             Close
           </Button>
         </Flex>
@@ -52,12 +68,12 @@ export default function DiscogsSyncDialog() {
             </Text>
           ))}
         </Box>
-        {discogs.error && (
+        {(error || discogs.error) && (
           <Alert.Root status="error" mt={3}>
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Title>Error</Alert.Title>
-              <Alert.Description>{discogs.error}</Alert.Description>
+              <Alert.Description>{error ?? discogs.error}</Alert.Description>
             </Alert.Content>
           </Alert.Root>
         )}

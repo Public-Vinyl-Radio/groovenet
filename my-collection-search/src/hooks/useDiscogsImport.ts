@@ -1,59 +1,46 @@
 "use client";
 
-import { useSyncDiscogs } from "@/hooks/useDiscogsQuery";
-import { writeFirstImportFlag } from "@/lib/firstImport";
+import { isDiscogsImportActive } from "@groovenet/contracts";
 import { librarySyncProgress } from "@/components/settings/librarySyncProgress";
-import { useSyncStreams } from "@/providers/SyncStreamsProvider";
-
-// A line the sync stream writes when it gives up (the route reports errors in-stream).
-const FAILED_LINE = /^(Error: |❌)/;
-
-/**
- * The reason a stream line reports a failure, or null. `streamLines` doesn't look at the HTTP
- * status, so a refused request (429 from the rate limit, 500 from missing credentials) arrives
- * as one `{"error": "..."}` line rather than a thrown error.
- */
-function failureOfLine(raw: string): string | null {
-  const line = raw.trim();
-  if (FAILED_LINE.test(line)) return line;
-  if (!line.startsWith("{")) return null;
-  try {
-    const body: unknown = JSON.parse(line);
-    const message = (body as { error?: unknown } | null)?.error;
-    return typeof message === "string" && message ? message : null;
-  } catch {
-    return null;
-  }
-}
+import {
+  IDLE_POLL_MS,
+  importFor,
+  useDiscogsImportsQuery,
+  useStartDiscogsImport,
+} from "@/hooks/useDiscogsImports";
+import { writeFirstImportFlag } from "@/lib/firstImport";
 
 /**
- * The Discogs sync as the empty states and the first-import guidance use it (#1246): the same
- * `useSyncDiscogs` and stream Settings → Libraries runs, minus its dialog. The stream's state
- * lives in a root provider, so `running` is still true when you come back to a page mid-import.
+ * The Discogs import as the empty states and the first-import guidance use it (#1246): the
+ * same import job Settings → Libraries runs (#1274). It reads the job from the server, so an
+ * import started on another page, before a reload or on another device shows as running, and
+ * the action is never offered while it runs.
+ *
+ * `username` is the library the page imports into; null is the server's own account.
  */
-export function useDiscogsImport() {
-  const sync = useSyncDiscogs();
-  const { discogs } = useSyncStreams();
+export function useDiscogsImport(username: string | null) {
+  const imports = useDiscogsImportsQuery({ idlePollMs: IDLE_POLL_MS });
+  const start = useStartDiscogsImport();
+  const job = importFor(imports.data?.imports, username);
 
-  const started = discogs.lines.length > 0 || discogs.error !== null;
-  const running = sync.isPending || (started && !discogs.done && discogs.error === null);
-  const failure =
-    !running && started
-      ? (discogs.error ??
-        discogs.lines.map(failureOfLine).find((reason) => reason !== null) ??
-        null)
-      : null;
+  const jobRunning = job !== null && isDiscogsImportActive(job.status);
+  const running = start.isPending || jobRunning;
+  const jobFailed = job !== null && (job.status === "failed" || job.status === "interrupted");
+  // A refused request (429 from the rate limit, 500 for missing credentials) is a failure too.
+  const failure = running
+    ? null
+    : (start.error?.message ?? (jobFailed ? (job.last_error ?? "The import stopped") : null));
 
   return {
     running,
-    progress: running ? librarySyncProgress(discogs.lines, discogs.error) : null,
+    progress: running ? librarySyncProgress(job) : null,
     failure,
     /** An import ran to its end without failing, yet the library is still empty. */
-    finished: !running && started && failure === null && discogs.done,
-    /** `username` undefined syncs the server's own account (`DISCOGS_USERNAME`). */
-    start: (username?: string) => {
+    finished: !running && failure === null && job?.status === "completed",
+    /** `username` undefined imports the server's own account (`DISCOGS_USERNAME`). */
+    start: (target?: string) => {
       writeFirstImportFlag("pending");
-      sync.mutate({ username, showDialog: false });
+      start.mutate(target);
     },
   };
 }

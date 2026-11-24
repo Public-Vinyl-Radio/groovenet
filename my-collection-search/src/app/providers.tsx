@@ -18,6 +18,7 @@ import { CommandPaletteProvider } from "@/providers/CommandPaletteProvider";
 import { SettingsDialogsProvider } from "@/providers/SettingsDialogProvider";
 import { SyncStreamsProvider } from "@/providers/SyncStreamsProvider";
 import { useSyncAppearance } from "@/hooks/useAppearanceSettings";
+import { DiscogsImportWatcher } from "@/hooks/useDiscogsImports";
 import { queryKeys } from "@/lib/queryKeys";
 import type { AppearanceSettingsResponse } from "@/services/internalApi/settings";
 
@@ -61,6 +62,8 @@ export default function ClientProviders({
       <ThemeColorSync />
       <QueryClientProvider client={client}>
         <AppearanceSync />
+        {/* Discogs imports are server-side jobs (#1274): refresh the library when one ends. */}
+        <DiscogsImportWatcher />
         <CommandPaletteProvider>
           <JobWatcherProvider>
             <UsernameProvider>
@@ -68,7 +71,7 @@ export default function ClientProviders({
                 <PlaylistsProvider>
                   <PlaylistPlayerProvider>
                     <PlaybackTargetProvider>
-                      {/* The Discogs sync's progress outlives the page that started it. */}
+                      {/* The sync dialog and the remove-friend stream outlive the page that opened them. */}
                       <SettingsDialogsProvider>
                         <SyncStreamsProvider>
                           <InAppNavigationProvider>{children}</InAppNavigationProvider>

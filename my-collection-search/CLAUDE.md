@@ -119,11 +119,9 @@
 - **Empty library (#1246):** `useLibraryEmpty` answers "loading", "empty" or "ready" from the
   libraries list (never from a page's search or filters), and Home, Albums and Tracks render the
   one shared `EmptyLibrary` for "empty": no library selected yet, or one with no albums. It
-  carries the Discogs import (the same `useSyncDiscogs` and stream as Settings → Libraries, via
+  carries the Discogs import (the same import job as Settings → Libraries, via
   `useDiscogsImport`), says what is missing when `GET /api/friends/libraries` reports
-  `discogs_token_set: false` or no username, and offers "Resume import" after a failure. The sync
-  streams' providers sit at the root (`app/providers.tsx`), so progress outlives the page that
-  started it. After an import started there, Home shows `FirstImportChecklist` until dismissed
+  `discogs_token_set: false` or no username, and offers "Resume import" after a failure. After an import started there, Home shows `FirstImportChecklist` until dismissed
   (per device, `lib/firstImport.ts`); its steps come from `firstImportSteps.ts`, which reads
   `/api/status` for Essentia, the GA service and embeddings and names the key or profile each
   needs.
@@ -858,6 +856,29 @@ Python contracts using the bootstrapped download-worker environment.
   config sets it, so route tests need no Redis).
 - A listener that gets a 429 from the ingest route should treat it as retryable, like
   any unknown status.
+
+## Discogs import jobs (#1274)
+
+The Discogs import is a background job, not a request. `POST /api/discogs/imports` queues one
+(`discogs_imports`, Postgres); `discogsImportWorker`, started from `instrumentation.ts`, claims
+it, runs `discogsImportRunner` (listing, repair, cleanup, ~1.2 s per release, checkpoints and
+ingest every 25 releases) and writes the phase, counters and `last_error` to the row and the
+progress text to `discogs_import_log`.
+
+- **One active import per username** is a partial unique index; a second POST gets the first
+  back (200, `created: false`). The UI never offers a second while one runs.
+- **One worker per import:** `claimNext` uses `FOR UPDATE SKIP LOCKED` and a lease
+  (`DISCOGS_IMPORT_LEASE_SECONDS`, renewed every quarter of it); every write checks
+  `lease_owner`. A restart stops the renewals, so once the lease runs out the next poll
+  (`DISCOGS_IMPORT_POLL_SECONDS`) resumes it from the manifest checkpoint. The API reports such a
+  row as `stalled`. After 3 claims it is `interrupted`, and Resume queues a new one.
+- **The UI reads the job**, never a stream: `useDiscogsImportsQuery` (2 s while one runs, 15 s on
+  pages that offer an import), `librarySyncProgress(job)` for the one-line label,
+  `useDiscogsImportLog` for the Settings dialog, and the root `DiscogsImportWatcher` refreshes
+  the library, Home, Albums and Tracks when an import ends or saves a batch.
+- **`GET /api/discogs`** stays for `curl` and the clean-install test: it queues or joins the job
+  and streams its log until the job ends.
+- `just discogs-imports-test` runs the index, SKIP LOCKED and lease SQL against real Postgres.
 
 ## Background work
 

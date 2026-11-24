@@ -12,26 +12,87 @@ const state = vi.hoisted(() => ({
   closeSync: vi.fn(),
   closeRemove: vi.fn(),
   stream: { lines: [] as string[], done: false, error: "" },
+  imports: [] as unknown[],
+  log: { lines: [] as string[], error: null as string | null },
+  logArgs: [] as unknown[],
+  importId: 7 as number | null,
 }));
 vi.mock("@/providers/SettingsDialogProvider", () => ({
   useSettingsDialogs: () => ({
     discogsSyncOpen: true,
     setDiscogsSyncOpen: state.closeSync,
+    discogsSyncImportId: state.importId,
     removeFriendOpen: true,
     setRemoveFriendOpen: state.closeRemove,
   }),
 }));
 vi.mock("@/providers/SyncStreamsProvider", () => ({
-  useSyncStreams: () => ({ discogs: state.stream, removeFriend: state.stream }),
+  useSyncStreams: () => ({ removeFriend: state.stream }),
+}));
+vi.mock("@/hooks/useDiscogsImports", () => ({
+  useDiscogsImportsQuery: () => ({ data: { imports: state.imports } }),
+  useDiscogsImportLog: (...args: unknown[]) => {
+    state.logArgs = args;
+    return state.log;
+  },
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   state.stream = { lines: [], done: false, error: "" };
+  state.imports = [];
+  state.log = { lines: [], error: null };
+  state.importId = 7;
+});
+
+it("reads no log before an import is chosen", () => {
+  state.importId = null;
+  renderWithProviders(<DiscogsSyncDialog />);
+  expect(state.logArgs).toEqual([null, false]);
+  expect(screen.queryByText("Runs in the background: you can close this.")).toBeNull();
+});
+
+const syncJob = (status: string, last_error: string | null = null) => ({
+  id: 7,
+  username: "dj",
+  status,
+  last_error,
+});
+
+it("shows a Discogs import's log, can close while it runs, and shows how it failed", async () => {
+  const { user, rerender } = renderWithProviders(<DiscogsSyncDialog />);
+  expect(await screen.findByRole("dialog", { name: "Discogs Sync Progress" })).toBeTruthy();
+  expect(screen.getByText("Waiting for sync output...")).toBeTruthy();
+  // Not in the list yet: just queued, so still running and read on.
+  expect(state.logArgs).toEqual([7, true]);
+  expect(screen.getByText("Runs in the background: you can close this.")).toBeTruthy();
+  expect(
+    (screen.getAllByRole("button", { name: "Close" }).at(-1)! as HTMLButtonElement).disabled,
+  ).toBe(false);
+
+  state.imports = [syncJob("running")];
+  rerender(<DiscogsSyncDialog />);
+  expect(state.logArgs).toEqual([7, true]);
+
+  state.imports = [syncJob("failed", "Discogs 401")];
+  state.log = { lines: ["Working...", "Error: Discogs 401"], error: null };
+  rerender(<DiscogsSyncDialog />);
+  expect(state.logArgs).toEqual([7, false]);
+  expect(screen.getByText("Working...")).toBeTruthy();
+  expect(screen.getByText("Discogs 401")).toBeTruthy();
+  expect(screen.queryByText("Runs in the background: you can close this.")).toBeNull();
+  await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+  expect(state.closeSync).toHaveBeenCalledWith(false);
+});
+
+it("shows a failed log read, and nothing for a completed import", () => {
+  state.imports = [syncJob("completed")];
+  state.log = { lines: [], error: "HTTP 500" };
+  renderWithProviders(<DiscogsSyncDialog />);
+  expect(screen.getByText("HTTP 500")).toBeTruthy();
 });
 
 it.each([
-  ["Discogs Sync Progress", DiscogsSyncDialog, state.closeSync, "Waiting for sync output..."],
   [
     "Remove Friend Progress",
     RemoveFriendDialog,

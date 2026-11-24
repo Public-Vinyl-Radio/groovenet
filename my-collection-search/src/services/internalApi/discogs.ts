@@ -7,17 +7,8 @@ import type {
   ManifestVerificationResult,
 } from "@groovenet/contracts";
 import type { DiscogsLookupRelease, DiscogsLookupVideo } from "@/types/discogs";
-import { http, streamLines } from "../http";
+import { http } from "../http";
 
-export type SyncResult = {
-  message?: string;
-  newReleases: string[];
-  alreadyHave: string[];
-  total?: number;
-  totalCollection?: number;
-  newCount?: number;
-  errors?: { releaseId: string; error: string }[];
-};
 export type VerificationResult = ManifestVerificationResult;
 export type { ManifestVerificationResponse, ManifestCleanupResponse };
 export type DeleteReleasesResponse = DiscogsDeleteReleasesResponse;
@@ -43,14 +34,6 @@ export function deleteReleases(username: string, releaseIds: string[]) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, releaseIds }),
   });
-}
-
-export async function syncDiscogsStream(
-  username: string | undefined,
-  onLine: (line: string) => void,
-) {
-  const url = username ? `/api/discogs?username=${encodeURIComponent(username)}` : "/api/discogs";
-  await streamLines(url, { method: "GET" }, onLine);
 }
 
 export async function lookupDiscogsRelease(

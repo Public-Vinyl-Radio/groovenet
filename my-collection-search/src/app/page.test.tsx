@@ -22,6 +22,10 @@ vi.mock("@/services/internalApi/friends", () => ({
   }),
   fetchFriends: vi.fn().mockResolvedValue([]),
 }));
+vi.mock("@/services/internalApi/discogsImports", () => ({
+  listDiscogsImports: vi.fn().mockResolvedValue({ imports: [] }),
+  startDiscogsImport: vi.fn(),
+}));
 vi.mock("@/hooks/useSystemInfo", () => ({ useStatusInfo: () => ({ data: undefined }) }));
 vi.mock("@/services/internalApi/spins", () => ({ getSpinRecap: vi.fn() }));
 // Now playing has its own suite; here it stands for "another section".

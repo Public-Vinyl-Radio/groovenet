@@ -67,6 +67,8 @@ function Seeded({ children }: { children: React.ReactNode }) {
       LIBRARIES.results.map(({ id, username }) => ({ id, username })),
     );
     seeded.setQueryData(queryKeys.defaultLibrary(), { friend_id: 2 });
+    // No import running (#1274).
+    seeded.setQueryData(queryKeys.discogsImports(), { imports: [] });
     for (const { id } of LIBRARIES.results) {
       seeded.setQueryData(queryKeys.recommendationSettings(id), {
         friend_id: id,

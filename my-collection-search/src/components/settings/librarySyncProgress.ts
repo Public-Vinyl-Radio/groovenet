@@ -1,31 +1,19 @@
-// A one-line reading of the Discogs sync stream (`GET /api/discogs`) for the
-// row being synced: "Reading collection · 240 found", "Fetching 12 of 340".
-// The stream is plain progress text; these are the lines it always writes.
+// A one-line reading of a Discogs import for the row or page that shows it:
+// "Reading collection · 240 found", "Fetching 12 of 340". Since #1274 it reads
+// the import job's structured state, not the text stream's lines, so a reload
+// or a second device reads the same thing.
 
-const FOUND = /^Found release ID: /;
-const TO_FETCH = /^New IDs to fetch: (\d+)/;
-const FETCHED = /^(Saved release ID:|Error for release ID )/;
-const INGESTING = /^--- Starting Auto-Ingest ---/;
+import type { DiscogsImport } from "@/services/internalApi/discogsImports";
 
-export function librarySyncProgress(lines: string[], error: string | null): string {
-  if (error) return "Sync failed";
-  let found = 0;
-  let toFetch: number | null = null;
-  let fetched = 0;
-  let ingesting = false;
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (FOUND.test(line)) found += 1;
-    else if (FETCHED.test(line)) fetched += 1;
-    else if (INGESTING.test(line)) ingesting = true;
-    else {
-      const match = TO_FETCH.exec(line);
-      if (match) toFetch = Number(match[1]);
-    }
+export function librarySyncProgress(job: DiscogsImport | null): string {
+  if (!job) return "Starting sync";
+  if (job.status === "failed" || job.status === "interrupted") return "Sync failed";
+  if (job.status === "queued") return "Queued";
+  if (job.stalled) return "Resuming after a restart";
+  if (job.phase === "ingesting") return "Saving to library";
+  if (job.phase === "fetching" && job.total !== null && job.total > 0) {
+    return `Fetching ${Math.min(job.fetched, job.total)} of ${job.total}`;
   }
-  if (ingesting) return "Saving to library";
-  if (toFetch !== null && toFetch > 0)
-    return `Fetching ${Math.min(fetched, toFetch)} of ${toFetch}`;
-  if (found > 0) return `Reading collection · ${found.toLocaleString()} found`;
+  if (job.found > 0) return `Reading collection · ${job.found.toLocaleString()} found`;
   return "Starting sync";
 }

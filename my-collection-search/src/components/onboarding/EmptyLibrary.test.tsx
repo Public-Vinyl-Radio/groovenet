@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
         }
       | undefined,
   },
+  importTarget: undefined as unknown,
   importer: {
     running: false,
     progress: null as string | null,
@@ -27,7 +28,12 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/providers/UsernameProvider", () => ({ useUsername: () => ({ friend: state.friend }) }));
 vi.mock("@/hooks/useLibraries", () => ({ useLibrariesQuery: () => state.libraries }));
-vi.mock("@/hooks/useDiscogsImport", () => ({ useDiscogsImport: () => state.importer }));
+vi.mock("@/hooks/useDiscogsImport", () => ({
+  useDiscogsImport: (target: unknown) => {
+    state.importTarget = target;
+    return state.importer;
+  },
+}));
 
 import EmptyLibrary, { DISCOGS_SETUP_DOCS } from "./EmptyLibrary";
 
@@ -47,6 +53,14 @@ beforeEach(() => {
 });
 
 describe("EmptyLibrary", () => {
+  it("reads the import of the library it would fill: the selected one, else the account", () => {
+    renderWithProviders(<EmptyLibrary />);
+    expect(state.importTarget).toBe("owner");
+    state.friend = { id: 3, username: "collector" };
+    renderWithProviders(<EmptyLibrary />);
+    expect(state.importTarget).toBe("collector");
+  });
+
   it("says the library is empty and offers one action: Import from Discogs", async () => {
     const { user } = renderWithProviders(<EmptyLibrary />);
     expect(screen.getByRole("heading", { name: "Your library is empty" })).toBeTruthy();

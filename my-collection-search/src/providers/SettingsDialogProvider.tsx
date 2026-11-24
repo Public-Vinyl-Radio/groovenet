@@ -4,6 +4,9 @@ import { createContext, useContext, useState, ReactNode } from "react";
 type DialogsContextType = {
   discogsSyncOpen: boolean;
   setDiscogsSyncOpen: (v: boolean) => void;
+  /** The import the sync dialog shows the log of (#1274). */
+  discogsSyncImportId: number | null;
+  setDiscogsSyncImportId: (id: number | null) => void;
   removeFriendOpen: boolean;
   setRemoveFriendOpen: (v: boolean) => void;
 };
@@ -12,6 +15,7 @@ const DialogsContext = createContext<DialogsContextType | null>(null);
 
 export function SettingsDialogsProvider({ children }: { children: ReactNode }) {
   const [discogsSyncOpen, setDiscogsSyncOpen] = useState(false);
+  const [discogsSyncImportId, setDiscogsSyncImportId] = useState<number | null>(null);
   const [removeFriendOpen, setRemoveFriendOpen] = useState(false);
 
   return (
@@ -19,6 +23,8 @@ export function SettingsDialogsProvider({ children }: { children: ReactNode }) {
       value={{
         discogsSyncOpen,
         setDiscogsSyncOpen,
+        discogsSyncImportId,
+        setDiscogsSyncImportId,
         removeFriendOpen,
         setRemoveFriendOpen,
       }}

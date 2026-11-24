@@ -35,6 +35,11 @@ export async function register() {
     const { startEmbeddingQueueWorker } = await import("@/server/services/embeddingQueueService");
     startEmbeddingQueueWorker();
 
+    // Discogs imports are background jobs in Postgres (#1274). The worker
+    // also resumes an import a restart cut short, once its lease runs out.
+    const { startDiscogsImportWorker } = await import("@/server/services/discogsImportWorker");
+    startDiscogsImportWorker();
+
     // Opens the MQTT connection (a no-op without MQTT_URL) and starts the
     // silence/clear sweep for the now-playing state machine (#465). The
     // fast path — `ingestLifecycleService.recordDetections` feeding
