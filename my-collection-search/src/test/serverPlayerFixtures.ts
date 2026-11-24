@@ -39,3 +39,5 @@ export const device: ServerPlayerDevice = {
     sender_identity: "unknown",
   },
 };
+// Shared with Storybook, whose image build leaves src/test out.
+export { lostSpeakerPlayer } from "@/stories/fixtures/serverPlayer";

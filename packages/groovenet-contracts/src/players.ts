@@ -23,6 +23,32 @@ export const engineSessionSchema = z
   })
   .strict();
 export type EngineSession = z.infer<typeof engineSessionSchema>;
+/**
+ * The speaker a session lost, kept on the error so clients can say which one,
+ * when, and what the engine last reported. Additive: older clients strip it.
+ * `reason` is a string, not an enum, so a new worker value never fails a parse.
+ */
+export const lostOutputSchema = z.object({
+  id: z.string().min(1).max(255),
+  name: z.string().max(255).nullable(),
+  /** When the output was first lost (ISO 8601); later failures keep it. */
+  lost_at: z.string(),
+  /** output_lost | disconnected | not_listed | activation_failed | engine_timeout */
+  reason: z.string().max(64),
+  /** The engine's last word on it, when it said anything. */
+  detail: z.string().max(500).nullable(),
+  /** When OwnTone listed the output again; the error then reads "is back". */
+  back_at: z.string().nullable().optional(),
+  /** The worker already retried this loss once. */
+  retried: z.boolean().optional(),
+});
+export type LostOutput = z.infer<typeof lostOutputSchema>;
+export const playerErrorSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  output: lostOutputSchema.nullable().optional(),
+});
+export type ServerPlayerErrorState = z.infer<typeof playerErrorSchema>;
 export const serverPlayerStateSchema = z
   .object({
     queue: z.array(serverQueueEntrySchema).max(10000),
@@ -34,7 +60,7 @@ export const serverPlayerStateSchema = z
     desired_output: z.string().min(1).max(255).nullable(),
     checkpoint: z.boolean(),
     engine_session: engineSessionSchema.nullable().optional(),
-    error: z.object({ code: z.string(), message: z.string() }).nullable(),
+    error: playerErrorSchema.nullable(),
   })
   .strict();
 export const serverPlayerSchema = z

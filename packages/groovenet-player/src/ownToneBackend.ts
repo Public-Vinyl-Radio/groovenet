@@ -489,7 +489,10 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
 
   private async output(id: string): Promise<Output> {
     const output = (await this.outputs()).find((output) => output.id === id);
-    if (!output) throw new PlayerError("DEVICE_UNAVAILABLE", "OwnTone output is unavailable");
+    if (!output)
+      throw new PlayerError("DEVICE_UNAVAILABLE", "OwnTone output is unavailable", {
+        reason: "not_listed",
+      });
     if (output.busy || output.prevent_playback)
       throw new PlayerError("DEVICE_BUSY", "OwnTone output is busy");
     if (output.requires_auth || output.needs_auth_key)
@@ -510,6 +513,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
       throw new PlayerError(
         "DEVICE_UNAVAILABLE",
         "OwnTone could not select the requested single output",
+        { reason: "activation_failed" },
       );
     }
     this.selected = true;
@@ -621,6 +625,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             throw new PlayerError(
               "PLAYBACK_INTERRUPTED",
               `OwnTone playback interrupted (${reason}); the queue has not advanced. Check the engine/receiver, then explicitly play again when ready.`,
+              reason === "output_lost" ? { reason } : undefined,
             );
           }
           const outputs = await this.outputs();
@@ -629,6 +634,7 @@ export class OwnToneBackend extends EventEmitter implements PlaybackBackend {
             throw new PlayerError(
               "DEVICE_UNAVAILABLE",
               "OwnTone output was disconnected or deselected",
+              { reason: "disconnected" },
             );
           this.uncertain = false;
           this.emit(

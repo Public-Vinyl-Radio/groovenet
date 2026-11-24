@@ -95,7 +95,9 @@ Proposed external-session policy:
 - If a speaker is lost during playback, continue on the remaining outputs and
   show the loss. If no outputs remain, pause and preserve the queue and position.
 - Do not continually reconnect and compete with another sender. Rejoining a
-  lost speaker requires an explicit action in the initial version.
+  lost speaker requires an explicit action, except one retry when it returns
+  within seconds of a loss during playback, never over another sender (#1241,
+  see `SERVER_PLAYERS.md`, "Lost speakers").
 - Stop releases output connections. Pause preserves logical session state;
   whether it releases transport immediately must be validated against resume
   and external-sender behavior. Do not promise idle release until measured.

@@ -224,7 +224,7 @@ describe("OwnToneBackend", () => {
       await vi.advanceTimersByTimeAsync(500);
       if (change === "deselected")
         expect(f.errors).toHaveBeenCalledWith(
-          expect.objectContaining({ code: "DEVICE_UNAVAILABLE" }),
+          expect.objectContaining({ code: "DEVICE_UNAVAILABLE", reason: "disconnected" }),
         );
       else expect(f.errors).not.toHaveBeenCalled();
       await f.backend.close();
@@ -305,6 +305,10 @@ describe("OwnToneBackend", () => {
       expect(f.errors).toHaveBeenCalledWith(
         expect.objectContaining({ code: "PLAYBACK_INTERRUPTED" }),
       );
+      // Only a lost output names one; the worker watches for it to return (#1241).
+      expect(f.errors.mock.calls[0]![0].reason).toBe(
+        reason === "output_lost" ? "output_lost" : undefined,
+      );
       await f.backend.close();
       expect(f.requests.filter((r) => r.method !== "GET")).toHaveLength(
         writes + (["input_error", "failed", "output_lost"].includes(reason) ? 3 : 0),
@@ -384,6 +388,7 @@ describe("OwnToneBackend", () => {
             : kind === "missing"
               ? "DEVICE_UNAVAILABLE"
               : "DEVICE_AUTH",
+        ...(kind === "missing" ? { reason: "not_listed" } : {}),
       });
     },
   );
@@ -518,6 +523,7 @@ describe("OwnToneBackend", () => {
     f.responses.set("outputs/set", {});
     await expect(f.backend.setOutputDevice("speaker/1")).rejects.toMatchObject({
       code: "DEVICE_UNAVAILABLE",
+      reason: "activation_failed",
     });
     await f.backend.close();
   });

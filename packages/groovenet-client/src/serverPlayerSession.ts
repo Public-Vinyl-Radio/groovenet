@@ -67,6 +67,8 @@ export type SessionView = {
   devices: ServerPlayerDevice[];
   connected: boolean;
   busy: boolean;
+  /** The command the busy lock waits on, and when it was sent (ms since epoch). */
+  pending?: { type: PlayerEdit["type"]; since: number } | null;
   problem: string | null;
   acknowledgement: {
     command: ConnectingEdit;
@@ -115,6 +117,38 @@ const message = (error: unknown) =>
   error instanceof Error ? error.message : "Player request failed";
 const code = (error: unknown) => (error as { data?: { code?: string } })?.data?.code;
 const lost = () => "Connection lost. Reconnecting for fresh state; server audio continues.";
+const commandLabels: Partial<Record<PlayerEdit["type"], string>> = {
+  play: "Play",
+  resume: "Resume",
+  pause: "Pause",
+  stop: "Stop",
+  next: "Next",
+  previous: "Previous",
+  seek: "Seek",
+  volume: "Volume",
+  "session.join": "Join",
+  "queue.replace": "Replace queue",
+  "output.select": "Choose speaker",
+  "output.transfer": "Transfer",
+  "engine.stop": "Take over",
+};
+/**
+ * What the busy lock is waiting on. The server answers one command at a time
+ * per worker, and a connecting command can sit for several engine timeouts
+ * while OwnTone waits on a receiver that is not answering (#1241).
+ */
+export function pendingMessage(
+  pending: { type: PlayerEdit["type"]; since: number } | null | undefined,
+  now = Date.now(),
+): string {
+  if (!pending) return "A command is in progress. Try again when it finishes.";
+  const label = commandLabels[pending.type] ?? "The last command";
+  const seconds = Math.max(0, Math.round((now - pending.since) / 1000));
+  const reaching = connects({ type: pending.type } as PlayerEdit)
+    ? " while the server reaches the speaker"
+    : "";
+  return `Still waiting for ${label} (${seconds} s)${reaching}. Try again when it finishes.`;
+}
 
 /** Owns remote observations only. Closing it never sends an audio command. */
 export class ServerPlayerSession {
@@ -365,12 +399,17 @@ export class ServerPlayerSession {
       return null;
     }
     if (this.view.busy) {
-      this.update({ problem: "A command is in progress. Try again when it finishes." });
+      this.update({ problem: pendingMessage(this.view.pending) });
       return null;
     }
     const generation = this.generation;
     const revision = this.view.player.revision;
-    this.update({ busy: true, problem: null, acknowledgement: null });
+    this.update({
+      busy: true,
+      pending: { type: command.type, since: Date.now() },
+      problem: null,
+      acknowledgement: null,
+    });
     try {
       const result = await this.exchange(command, expectedRevision);
       if (!result) return null;
@@ -409,7 +448,7 @@ export class ServerPlayerSession {
       return null;
     } finally {
       if (!this.closed && generation === this.generation) {
-        this.update({ busy: false });
+        this.update({ busy: false, pending: null });
         void this.flushVolume();
       }
     }
@@ -422,7 +461,7 @@ export class ServerPlayerSession {
    */
   async execute(command: PlayerEdit, expectedRevision: number): Promise<ServerPlayerCommandResult> {
     const generation = this.generation;
-    this.update({ busy: true });
+    this.update({ busy: true, pending: { type: command.type, since: Date.now() } });
     try {
       const result = await this.exchange(command, expectedRevision);
       if (!result) throw new Error("Server player session is closed.");
@@ -436,7 +475,7 @@ export class ServerPlayerSession {
       }
       throw error;
     } finally {
-      if (generation === this.generation) this.update({ busy: false });
+      if (generation === this.generation) this.update({ busy: false, pending: null });
     }
   }
 }

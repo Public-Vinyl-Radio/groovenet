@@ -1279,7 +1279,8 @@ describe("persistent server player manager", () => {
           await command({ type: "play", allow_unknown: true });
           expect(manager.get("a").state).toMatchObject({ status: "playing", error: null });
           expect(writes.filter((path) => path === "player/play")).toHaveLength(plays + 1);
-          expect(create).toHaveBeenCalledTimes(2);
+          // Two playback backends; output-less ones only list outputs (#1241's watcher).
+          expect(create.mock.calls.filter(([output]) => output !== undefined)).toHaveLength(2);
         } else {
           expect(failed.assigned_output).toBeNull();
           expect(status.state).toBe("stop");

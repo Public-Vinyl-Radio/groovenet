@@ -1135,6 +1135,36 @@ describe("PlayerTui layouts", () => {
       });
     });
     expect(app.lastFrame()).toContain("E: device gone");
+    const output = {
+      id: "202481586338774",
+      name: "Lounge Room Audio",
+      lost_at: "2026-11-21T01:47:41.000Z",
+      reason: "output_lost",
+      detail: "OwnTone reported the output lost during playback",
+      back_at: null as string | null,
+    };
+    const emitError = (error: unknown) =>
+      act(async () => {
+        (props.control as unknown as EventEmitter).emit("event", {
+          event: "state",
+          data: { ...props.initialSnapshot, status: "error", error },
+        });
+      });
+    await emitError({
+      code: "PLAYBACK_INTERRUPTED",
+      message: "Lounge Room Audio went away.",
+      output,
+    });
+    expect(app.lastFrame()).toContain(
+      "PLAYBACK_INTERRUPTED: Lounge Room Audio went away. · Lounge Room Audio · lost",
+    );
+    await emitError({
+      code: "PLAYBACK_INTERRUPTED",
+      message: "Lounge Room Audio is back — press play to resume.",
+      output: { ...output, back_at: "2026-11-21T01:48:05.000Z" },
+    });
+    expect(app.lastFrame()).toContain("Lounge Room Audio is back — press play to resume.");
+    expect(app.lastFrame()).not.toContain("PLAYBACK_INTERRUPTED:");
   });
 
   it("falls back to 80×24 when the terminal reports no size", async () => {

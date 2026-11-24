@@ -6,15 +6,48 @@ import { Box, Button, Flex, IconButton, Text } from "@chakra-ui/react";
 import { FiX } from "react-icons/fi";
 import { useOptionalPlaybackTarget } from "@/providers/PlaybackTargetProvider";
 import { usePlaybackTargetDialog } from "@/stores/playbackTargetDialogStore";
+import { describePlayerError } from "@groovenet/client/player-session";
+import type { ServerPlayerErrorState } from "@groovenet/contracts";
 
-type Notice = {
-  tone: "confirm" | "error";
+export type Notice = {
+  tone: "confirm" | "error" | "info";
   text: string;
+  /** A second, quieter line: which speaker, when, and what the engine said (#1241). */
+  detail?: string | null;
   action?: { label: string; onClick?: () => void; disabled?: boolean };
   /** Cancel for a confirm, × for a passing problem; none for a state the server holds. */
   dismiss?: { label: string; onClick: () => void };
   takeover?: { key: string; name: string; engine: string; confirm: () => void };
 };
+
+/**
+ * A session that lost its speaker (#1241): which one, when, and the next step.
+ * Once it is listed again, the stale error becomes "is back" with Play; until
+ * then, choosing another speaker is offered, never done for the person.
+ * Null for errors that are not about a speaker.
+ */
+export function lostSpeakerNotice(
+  error: ServerPlayerErrorState,
+  controls?: { play: () => void; choose: () => void; disabled: boolean },
+): Notice | null {
+  const view = describePlayerError(error);
+  if (!view?.detail) return null;
+  if (view.back)
+    return {
+      tone: "info",
+      text: view.headline,
+      detail: view.detail,
+      ...(controls
+        ? { action: { label: "Play", onClick: controls.play, disabled: controls.disabled } }
+        : {}),
+    };
+  return {
+    tone: "error",
+    text: `Playback error: ${view.headline}`,
+    detail: view.detail,
+    ...(controls ? { action: { label: "Choose speaker", onClick: controls.choose } } : {}),
+  };
+}
 
 /**
  * What a server needs the person to see or decide, most urgent first: a
@@ -57,6 +90,17 @@ export function useServerNotice(): Notice | null {
   if (remote.player?.state.error) {
     const player = remote.player;
     const busy = player.state.error!.code === "DEVICE_BUSY";
+    const lost = lostSpeakerNotice(
+      player.state.error!,
+      controller
+        ? {
+            play: () => void controller.command({ type: "play" }),
+            choose: () => openPicker(true),
+            disabled: remote.busy || !remote.connected,
+          }
+        : undefined,
+    );
+    if (lost) return lost;
     return {
       tone: "error",
       text: `Playback error: ${player.state.error!.message}`,
@@ -102,7 +146,9 @@ export default function ServerNotice({ notice }: { notice?: Notice | null }) {
     <>
       <Flex
         data-testid="server-notice"
-        role={current.tone === "confirm" ? "alertdialog" : "alert"}
+        role={
+          current.tone === "confirm" ? "alertdialog" : current.tone === "info" ? "status" : "alert"
+        }
         aria-label={current.tone === "confirm" ? "Confirm playback" : undefined}
         align="center"
         gap="8px"
@@ -115,9 +161,21 @@ export default function ServerNotice({ notice }: { notice?: Notice | null }) {
         borderColor="border.ink"
         bg="bg.panel"
       >
-        <Text flex="1" minW={0} fontSize="13px" lineHeight="18px">
-          {current.text}
-        </Text>
+        <Box flex="1" minW={0}>
+          <Text fontSize="13px" lineHeight="18px">
+            {current.text}
+          </Text>
+          {current.detail && (
+            <Text
+              data-testid="server-notice-detail"
+              fontSize="12px"
+              lineHeight="16px"
+              color="fg.muted"
+            >
+              {current.detail}
+            </Text>
+          )}
+        </Box>
         {current.action && (
           <Button
             size="xs"

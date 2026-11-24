@@ -81,6 +81,22 @@ describe("player worker lifecycle", () => {
     await running.shutdown();
     expect(f.manager.listenerCount("player-error")).toBe(0);
   });
+  it("logs lost-output recovery until shutdown", async () => {
+    const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+    const f = fixture();
+    const running = await runPlayerWorker(env, f.dependencies);
+    const event = {
+      at: "2026-11-21T01:48:05.000Z",
+      player_id: "lounge",
+      engine_id: "primary",
+      output_id: "202481586338774",
+      action: "retry",
+    };
+    f.manager.emit("player-recovery", event);
+    expect(logged).toHaveBeenCalledWith(`Player recovery ${JSON.stringify(event)}`);
+    await running.shutdown();
+    expect(f.manager.listenerCount("player-recovery")).toBe(0);
+  });
   it("fails closed after a DB heartbeat error and closes client connections", async () => {
     vi.useFakeTimers();
     vi.spyOn(console, "log").mockImplementation(() => {});

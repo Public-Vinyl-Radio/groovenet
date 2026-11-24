@@ -1,4 +1,5 @@
 import { RemotePlayerController, makeRemoteApi, type PlayerController } from "./remotePlayer.js";
+import { errorDetail } from "./playerTuiError.js";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { GroovenetClient, loadConfig } from "@groovenet/client";
@@ -151,7 +152,12 @@ function printPlayerResult(result: unknown, json: boolean): void {
       console.log(
         `${"remote" in result ? "Requested sender volume" : "Volume"}: ${snapshot.volume}%`,
       );
-    if (snapshot.error) console.log(`${snapshot.error.code}: ${snapshot.error.message}`);
+    if (snapshot.error) {
+      console.log(`${snapshot.error.code}: ${snapshot.error.message}`);
+      // Which speaker, when, and what the engine said (#1241); --json has the fields.
+      const detail = errorDetail(snapshot.error);
+      if (detail) console.log(`Speaker: ${detail}`);
+    }
     return;
   }
 }
