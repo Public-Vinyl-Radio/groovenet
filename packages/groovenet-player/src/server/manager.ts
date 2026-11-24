@@ -787,9 +787,10 @@ export class ServerPlayerManager extends EventEmitter {
     const output = player.state.error?.output;
     let loss = this.losses.get(player.id);
     if (output && !output.back_at && !this.stopping) {
-      if (!loss || loss.outputId !== output.id) {
-        if (loss?.timer) clearTimeout(loss.timer);
-        // Restored after a worker restart: report it, never retry it.
+      // recordLoss keeps this map in step with the error it writes, so a
+      // missing entry means the loss was restored after a worker restart.
+      if (!loss) {
+        // Report it and watch for its return, but never retry it.
         loss = {
           outputId: output.id,
           lostAt: output.lost_at,
@@ -825,8 +826,7 @@ export class ServerPlayerManager extends EventEmitter {
   }
 
   private async pollLoss(id: string, loss: Loss): Promise<void> {
-    const output = this.players.get(id)?.state.error?.output;
-    if (this.stopping || this.losses.get(id) !== loss || output?.id !== loss.outputId) return;
+    if (!this.current(id, loss)) return;
     try {
       this.noteOutputs(id, await this.listOutputs(this.players.get(id)!));
     } catch {
@@ -908,16 +908,11 @@ export class ServerPlayerManager extends EventEmitter {
     if (loss.retryRevision === named) loss.retryRevision = saved.revision;
   }
 
+  /** The player while this loss is still the open one, else null (a command or shutdown won). */
   private current(id: string, loss: Loss): ServerPlayer | null {
-    const player = this.players.get(id) ? this.get(id) : null;
-    const output = player?.state.error?.output;
-    return this.stopping ||
-      this.losses.get(id) !== loss ||
-      !output ||
-      output.id !== loss.outputId ||
-      output.back_at
-      ? null
-      : player;
+    const output = this.players.get(id)?.state.error?.output;
+    if (this.stopping || this.losses.get(id) !== loss || output?.id !== loss.outputId) return null;
+    return output.back_at ? null : this.get(id);
   }
 
   private async markBack(id: string, loss: Loss, name: string): Promise<void> {

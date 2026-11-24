@@ -642,3 +642,95 @@ describe("watching and restarts", () => {
     await f.manager.shutdown();
   });
 });
+
+/** The recovery steps a listing queues, reached directly to pin their race guards. */
+type Internals = {
+  losses: Map<string, { retried: boolean; retryRevision?: number; outputId: string }>;
+  markBack(id: string, loss: unknown, name: string): Promise<void>;
+  retryLoss(id: string, loss: unknown, name: string): Promise<void>;
+  nameLoss(id: string, loss: unknown, name: string): Promise<void>;
+  pollLoss(id: string, loss: unknown): Promise<void>;
+  listOutputs(player: ServerPlayer): Promise<AudioDevice[]>;
+};
+const internals = (f: Fixture) => f.manager as unknown as Internals;
+
+describe("recovery steps that lose a race do nothing", () => {
+  it("skips a stale loss, a missing player, a speaker already back, and shutdown", async () => {
+    const f = await fixture();
+    await lose(f);
+    const m = internals(f);
+    const loss = m.losses.get("lounge")!;
+    await tick(0); // let the loss handler's own save land first
+    const revision = f.manager.get("lounge").revision;
+    await m.markBack("lounge", { ...loss }, NAME); // replaced by a newer loss
+    await m.markBack("nobody", loss, NAME);
+    await m.retryLoss("lounge", { ...loss }, NAME);
+    await m.nameLoss("lounge", { ...loss }, NAME);
+    await m.pollLoss("lounge", { ...loss });
+    expect(f.manager.get("lounge").revision).toBe(revision);
+    await m.markBack("lounge", loss, ""); // an unnamed listing keeps the known name
+    expect(errorOf(f)?.output).toMatchObject({ name: NAME, back_at: expect.any(String) });
+    const back = f.manager.get("lounge").revision;
+    await m.markBack("lounge", loss, NAME); // already back
+    await m.nameLoss("lounge", loss, NAME);
+    expect(f.manager.get("lounge").revision).toBe(back);
+    await f.manager.shutdown(); // saves each player itself
+    const stopped = f.manager.get("lounge").revision;
+    await m.markBack("lounge", loss, NAME);
+    expect(f.manager.get("lounge").revision).toBe(stopped);
+  });
+
+  it("only says back when the retry is no longer allowed by the time it runs", async () => {
+    const f = await fixture();
+    await lose(f);
+    const m = internals(f);
+    const loss = m.losses.get("lounge")!;
+    loss.retried = true;
+    await m.retryLoss("lounge", loss, NAME);
+    expect(errorOf(f)?.output?.back_at).toEqual(expect.any(String));
+    expect(loads(f)).toBe(1);
+    await f.manager.shutdown();
+  });
+
+  it("says back when the entry to retry is gone, and names a loss without a pending retry", async () => {
+    const f = await fixture();
+    await lose(f);
+    const m = internals(f);
+    const loss = m.losses.get("lounge")!;
+    // No current entry: play refuses before any effect, so the speaker is just back.
+    const row = f.store.rows.get("lounge")!;
+    row.state.current_entry_id = null;
+    (f.manager as unknown as { players: Map<string, ServerPlayer> }).players.set(
+      "lounge",
+      structuredClone(row),
+    );
+    loss.retryRevision = row.revision;
+    await m.retryLoss("lounge", loss, NAME);
+    expect(errorOf(f)?.output?.back_at).toEqual(expect.any(String));
+    await f.manager.shutdown();
+
+    const g = await fixture();
+    await g.play(); // unnamed: nothing listed yet
+    playingBackend(g).emit("error", outputLost());
+    await tick(0);
+    const gm = internals(g);
+    const gl = gm.losses.get("lounge")!;
+    gl.retryRevision = undefined;
+    await gm.nameLoss("lounge", gl, NAME);
+    expect(errorOf(g)?.output?.name).toBe(NAME);
+    expect(gl.retryRevision).toBeUndefined();
+    await g.manager.shutdown();
+  });
+
+  it("lists through the running backend when there is one, and ignores unnamed outputs", async () => {
+    const f = await fixture();
+    f.engine.outputs.push({ id: "nameless", name: "" });
+    await f.play();
+    const created = f.create.mock.calls.length;
+    const outputs = await internals(f).listOutputs(f.manager.get("lounge"));
+    expect(outputs.map((output) => output.id)).toEqual([LOUNGE, "nameless"]);
+    expect(f.create.mock.calls.length).toBe(created);
+    expect(playingBackend(f).close).not.toHaveBeenCalled();
+    await f.manager.shutdown();
+  });
+});
