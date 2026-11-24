@@ -50,7 +50,13 @@ describe("lost output details (#1241)", () => {
     const plain = { code: "DEVICE_UNAVAILABLE", message: "OwnTone output is unavailable" };
     expect(serverPlayerSchema.parse(lostPlayer(plain)).state.error).toEqual(plain);
     expect(playerErrorSchema.parse({ ...plain, output: null }).output).toBeNull();
-    const { back_at: _back, retried: _retried, ...minimal } = output;
+    const minimal = {
+      id: output.id,
+      name: output.name,
+      lost_at: output.lost_at,
+      reason: output.reason,
+      detail: output.detail,
+    };
     expect(playerErrorSchema.parse({ ...plain, output: minimal }).output).toEqual(minimal);
     expect(playerErrorSchema.safeParse({ ...plain, output: { ...output, id: "" } }).success).toBe(
       false,

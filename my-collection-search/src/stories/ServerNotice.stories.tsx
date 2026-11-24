@@ -3,7 +3,7 @@ import { Box, Flex } from "@chakra-ui/react";
 import { FiVolume2 } from "react-icons/fi";
 import ServerNotice, { lostSpeakerNotice } from "@/components/player/ServerNotice";
 import PlayerControlsView from "@/components/player/PlayerControlsView";
-import { lostSpeakerPlayer } from "@/test/serverPlayerFixtures";
+import { lostSpeakerPlayer } from "./fixtures/serverPlayer";
 import { sampleTrack } from "./fixtures/track";
 
 const noop = () => {};
