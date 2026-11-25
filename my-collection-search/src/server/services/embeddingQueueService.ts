@@ -1,3 +1,4 @@
+import { seedEmbeddingModelDefaults } from "@/lib/embeddings/config";
 import { randomUUID, createHash } from "crypto";
 import { getRedisConnection } from "@/lib/redis";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
@@ -680,12 +681,25 @@ export function startEmbeddingQueueWorker(): void {
   if (g[GLOBAL_WORKER_KEY]) return;
   g[GLOBAL_WORKER_KEY] = true;
   let tickInFlight = false;
+  let defaultsReady = false;
 
   const run = () => {
     if (tickInFlight) return;
     tickInFlight = true;
     const now = Date.now();
     void (async () => {
+      // Retry initialization before any work. A temporarily unavailable DB
+      // must not prevent the HTTP server from booting or consume jobs under
+      // the migration's placeholder OpenAI defaults.
+      if (!defaultsReady) {
+        try {
+          await seedEmbeddingModelDefaults();
+          defaultsReady = true;
+        } catch (error) {
+          console.error("[embedding-queue] initialization failed:", error);
+          return;
+        }
+      }
       try {
         await embeddingQueueService.tick(now);
       } catch (error) {

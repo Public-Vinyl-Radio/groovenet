@@ -480,12 +480,14 @@ filesystem caching: it neither downloads weights nor needs a writable model
 cache. Missing baked files fail explicitly. Images remain amd64-only (ARM Macs
 use emulation).
 
-Before the first queue sweep, the app initializes untouched empty model settings
-once: no `OPENAI_API_KEY` selects `bge-small-en-v1.5` / 384, a configured key
+Before processing jobs or the first queue sweep, the app worker initializes
+untouched empty model settings once: no `OPENAI_API_KEY` selects `bge-small-en-v1.5` / 384, a configured key
 selects `text-embedding-3-small` / 1536. Target equals serving, at the current
 template version. Existing populated models and custom switches survive
 upgrades. A persistent initialization marker prevents later key changes or
-restarts from silently cutting over. This applies to identity, audio_vibe and
+restarts from silently cutting over. Initialization failures skip all embedding
+work and retry on the next worker tick; a database outage does not block HTTP
+server startup. This applies to identity, audio_vibe and
 context, so semantic queries use the same local provider as their stored vectors.
 
 OpenAI is an optional quality upgrade. Add its key to the install's `.env`,

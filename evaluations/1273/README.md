@@ -43,7 +43,7 @@ uses the same pinned q8 weights and ONNX runtime.
 
 Two amd64 `runner` images were built from HEAD and this change. OrbStack's lazy
 images were both materialized before measuring. The baseline and final image measured
-1,371,313,438 → 1,493,620,402 bytes uncompressed: **+122,306,964 bytes
+1,371,313,438 → 1,493,614,833 bytes uncompressed: **+122,301,395 bytes
 (+116.64 MiB, +8.92%)**. Baked q8 weights/tokenizer occupy about 34.7 MB.
 
 On this ARM Mac under amd64 emulation, an offline isolated provider benchmark
