@@ -2,7 +2,7 @@
 
 ## Overview
 
-This system implements "music identity" embeddings for tracks using OpenAI's `text-embedding-3-small` model and PostgreSQL's pgvector extension. Identity embeddings capture the musical essence of tracks based on metadata (genre, style, era, country, labels, tags) while **excluding** DJ-specific notes and function tags.
+This system implements "music identity" embeddings for tracks using the bundled local `bge-small-en-v1.5` model (384 dimensions) or OpenAI's `text-embedding-3-small` model and PostgreSQL's pgvector extension. Identity embeddings capture the musical essence of tracks based on metadata (genre, style, era, country, labels, tags) while **excluding** DJ-specific notes and function tags.
 
 It is one of three embedding types, each with its own model settings and
 template version:
@@ -462,10 +462,46 @@ Any OpenAI embedding model works through `createOpenAiEmbeddingProvider`
 (`src/lib/embeddings/openaiProvider.ts`); `dims` is optional and uses OpenAI's
 `dimensions` param to shorten a v3 model's vector. In active use today:
 
-| Model                    | dims | Notes                                    |
-| ------------------------ | ---- | ---------------------------------------- |
-| `text-embedding-3-small` | 1536 | Default for both identity and audio_vibe |
-| `text-embedding-3-small` | 768  | Same model, OpenAI's `dimensions` param  |
+| Model                    | dims | Notes                                   |
+| ------------------------ | ---- | --------------------------------------- |
+| `bge-small-en-v1.5`      | 384  | Default without an OpenAI key           |
+| `text-embedding-3-small` | 1536 | Default with an OpenAI key              |
+| `text-embedding-3-small` | 768  | Same model, OpenAI's `dimensions` param |
+
+### Local model and defaults (#1273)
+
+`LocalEmbeddingProvider` uses `@huggingface/transformers` in the app's Node
+process, with CPU ONNX q8 inference, CLS pooling and normalized 384-dimensional
+vectors. One lazy shared session serializes inference in batches of at most 8,
+with two intra-op threads. The image bakes the tokenizer and quantized weights
+from `Xenova/bge-small-en-v1.5` at revision
+`ea104dacec62c0de699686887e3f920caeb4f3e3`. Runtime disables remote models and
+filesystem caching: it neither downloads weights nor needs a writable model
+cache. Missing baked files fail explicitly. Images remain amd64-only (ARM Macs
+use emulation).
+
+Before processing jobs or the first queue sweep, the app worker initializes
+untouched empty model settings once: no `OPENAI_API_KEY` selects `bge-small-en-v1.5` / 384, a configured key
+selects `text-embedding-3-small` / 1536. Target equals serving, at the current
+template version. Existing populated models and custom switches survive
+upgrades. A persistent initialization marker prevents later key changes or
+restarts from silently cutting over. Initialization failures skip all embedding
+work and retry on the next worker tick; a database outage does not block HTTP
+server startup. This applies to identity, audio_vibe and
+context, so semantic queries use the same local provider as their stored vectors.
+
+OpenAI is an optional quality upgrade. Add its key to the install's `.env`,
+restart `app`, then follow the cutover below with model
+`text-embedding-3-small`, dims `1536`, for each kind. Adding a key alone does
+not switch an existing local library. YouTube enrichment requires
+`YOUTUBE_API_KEY`; it has no local fallback.
+
+For fewer than 10,000 vectors per kind/model, retrieval orders by exact cosine
+distance with `+ 0` to prevent the planner selecting the IVF expression index.
+The threshold check counts at most 10,000 rows. This avoids poor recall from
+100 IVF lists trained on an empty or tiny library, including during the first
+backfill. Larger sets retain ANN ordering and need the post-backfill reindex
+below; exact scans require no session settings and cannot leak through the pool.
 
 ### Switching a kind's model
 

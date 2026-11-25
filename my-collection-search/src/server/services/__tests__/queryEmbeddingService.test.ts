@@ -10,8 +10,8 @@ const embed = vi.hoisted(() => vi.fn());
 const createProvider = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/redis", () => ({ getRedisConnection: () => redis }));
-vi.mock("@/lib/embeddings/openaiProvider", () => ({
-  createOpenAiEmbeddingProvider: createProvider,
+vi.mock("@/lib/embeddings/createProvider", () => ({
+  createEmbeddingProvider: createProvider,
 }));
 
 import {

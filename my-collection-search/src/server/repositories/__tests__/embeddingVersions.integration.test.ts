@@ -167,3 +167,95 @@ describe("template-versioned track embeddings (integration)", () => {
     expect(kept?.serving_template_version).toBe(CURRENT);
   });
 });
+
+describe("local model defaults and small-library recall (#1273)", () => {
+  dbTest(
+    "initializes target and serving once, preserving them when a key is added later",
+    async () => {
+      await dbQuery(
+        "UPDATE embedding_model_settings SET default_initialized = (embedding_type <> 'identity')",
+      );
+      try {
+        await settings.seedEmbeddingModelDefaults("bge-small-en-v1.5", 384);
+        await settings.seedEmbeddingModelDefaults("text-embedding-3-small", 1536);
+        expect(await settings.findEmbeddingModelSettings("identity")).toMatchObject({
+          target_model: "bge-small-en-v1.5",
+          target_dims: 384,
+          serving_model: "bge-small-en-v1.5",
+          serving_dims: 384,
+          serving_template_version: CURRENT,
+        });
+      } finally {
+        await settings.updateTargetModel("identity", MODEL, 3);
+        await settings.updateServingModel(
+          "identity",
+          original.serving_model,
+          original.serving_dims,
+          original.serving_template_version,
+        );
+      }
+    },
+  );
+
+  dbTest(
+    "indexes 384-dim vectors and returns every eligible neighbour on an empty-trained IVF index",
+    async () => {
+      const model = "bge-small-en-v1.5";
+      try {
+        for (const [i, trackId] of ["current", "old-only", "other-model"].entries()) {
+          const vector = Array.from({ length: 384 }, (_, j) =>
+            j === 0 ? 1 : j === 1 ? i / 10 : 0,
+          );
+          await embeddings.upsertTrackEmbedding({
+            trackId,
+            friendId,
+            embeddingType: "identity",
+            model,
+            dims: 384,
+            embedding: vector,
+            sourceHash: "local-test",
+            identityText: "local test",
+            templateVersion: CURRENT,
+          });
+        }
+        const client = await dbPool.connect();
+        try {
+          const source = await embeddings.findSourceEmbedding(
+            client,
+            "current",
+            friendId,
+            "identity",
+            model,
+            CURRENT,
+          );
+          const rows = await embeddings.findSimilarIdentityTracks(client, {
+            sourceEmbedding: source,
+            sourceTrackId: "current",
+            sourceFriendId: friendId,
+            model,
+            templateVersion: CURRENT,
+            dims: 384,
+            limit: 10,
+            filters: {},
+          });
+          expect(rows.map((r) => r.track_id)).toEqual(["old-only", "other-model"]);
+          expect(rows.every((r) => Number.isFinite(r.distance))).toBe(true);
+        } finally {
+          client.release();
+        }
+        const { rows } = await dbQuery<{ indexdef: string }>(
+          "SELECT indexdef FROM pg_indexes WHERE indexname LIKE 'idx_track_embeddings_%_bge_small'",
+        );
+        expect(rows).toHaveLength(3);
+        expect(
+          rows.every((r) => r.indexdef.includes("vector(384)") && r.indexdef.includes(model)),
+        ).toBe(true);
+      } finally {
+        await dbQuery("DELETE FROM track_embeddings WHERE friend_id = $1 AND model = $2", [
+          friendId,
+          model,
+        ]);
+      }
+    },
+  );
+});

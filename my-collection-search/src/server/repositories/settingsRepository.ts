@@ -1,3 +1,4 @@
+import { CURRENT_TEMPLATE_VERSIONS } from "@/lib/embeddings/templateVersions";
 import { dbQuery } from "@/lib/serverDb";
 import type { GamdlSettings, GamdlSettingsUpdate } from "@/types/gamdl";
 import type { EmbeddingModelKind, EmbeddingModelSettings } from "@/types/embeddings";
@@ -209,6 +210,29 @@ export class SettingsRepository {
       [friendId],
     );
     return rows[0] ?? null;
+  }
+
+  /** Initialize once in the app, where the key is available (the migrator has no keys).
+   * The migration marks only untouched, empty default sets as uninitialized.
+   * A later key must never silently cut reads over to an unbuilt model.
+   */
+  async seedEmbeddingModelDefaults(model: string, dims: number): Promise<void> {
+    await dbQuery(
+      `
+      UPDATE embedding_model_settings
+      SET target_model = $1, target_dims = $2, serving_model = $1, serving_dims = $2,
+          serving_template_version = CASE embedding_type WHEN 'identity' THEN $3::int WHEN 'audio_vibe' THEN $4::int ELSE $5::int END,
+          default_initialized = true
+      WHERE NOT default_initialized
+    `,
+      [
+        model,
+        dims,
+        CURRENT_TEMPLATE_VERSIONS.identity,
+        CURRENT_TEMPLATE_VERSIONS.audio_vibe,
+        CURRENT_TEMPLATE_VERSIONS.context,
+      ],
+    );
   }
 
   /** Global, not per-friend: the active model is an infra choice, not a user preference (#386). */

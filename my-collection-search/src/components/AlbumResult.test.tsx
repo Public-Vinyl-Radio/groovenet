@@ -189,7 +189,7 @@ describe("AlbumResult full actions", () => {
     view = await openCardActions();
     api.queueAlbumDownloads.mockResolvedValue({ tracksQueued: 1 });
     await view.user.click(within(screen.getByRole("dialog")).getByText("Download missing audio"));
-    expect(api.queueAlbumDownloads).toHaveBeenCalledWith("rel", 7);
+    await waitFor(() => expect(api.queueAlbumDownloads).toHaveBeenCalledWith("rel", 7));
 
     view = await openCardActions();
     await view.user.click(within(screen.getByRole("dialog")).getByText("Enrich album"));

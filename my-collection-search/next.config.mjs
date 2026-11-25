@@ -11,6 +11,11 @@ const allowedDevOrigins = ["localhost", "127.0.0.1", process.env.WORKTREE_HOST].
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   output: "standalone",
+  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-node"],
+  // Native ONNX assets are selected dynamically; retain the amd64 CPU runtime.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/onnxruntime-node/bin/napi-v3/linux/x64/*"],
+  },
   outputFileTracingRoot: repoRoot,
   allowedDevOrigins,
   experimental: {

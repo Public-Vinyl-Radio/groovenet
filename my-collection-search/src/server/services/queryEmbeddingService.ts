@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getRedisConnection } from "@/lib/redis";
-import { createOpenAiEmbeddingProvider } from "@/lib/embeddings/openaiProvider";
+import { createEmbeddingProvider } from "@/lib/embeddings/createProvider";
 
 /**
  * Embeds a natural-language search query (#409) with the `context` serving
@@ -118,7 +118,7 @@ export async function embedSearchQuery(params: {
 
   await consumeRateLimit(params.caller, params.now ?? Date.now());
 
-  const provider = createOpenAiEmbeddingProvider(params.model, params.dims);
+  const provider = createEmbeddingProvider(params.model, params.dims);
   const [embedding] = await provider.embed([normalized]);
   await writeCache(key, embedding);
   return { embedding, cacheHit: false };

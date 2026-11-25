@@ -26,7 +26,7 @@ On **Tracks**, the search mode control has three settings:
 - **Semantic** finds tracks by a description of the sound, such as "dusty 70s cumbia with brass", not exact words.
 - **Hybrid** matches words and also finds a sound you describe.
 
-Semantic and hybrid search need embeddings for your collection. They're generated in the background; `groovenet embeddings status` shows how many tracks are still missing each kind, and `groovenet embeddings backfill` queues the rest. They are created with OpenAI, so set `OPENAI_API_KEY` in your [integration settings](/docs/configuration/integrations/).
+Semantic and hybrid search need embeddings for your collection. They're generated in the background; `groovenet embeddings status` shows how many tracks are still missing each kind, and `groovenet embeddings backfill` queues the rest. No key is needed: new installs use the bundled local model unless an OpenAI key is configured. OpenAI is an optional quality upgrade; see [integration settings](/docs/configuration/integrations/).
 
 ## Genre neighbours
 

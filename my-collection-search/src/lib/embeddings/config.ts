@@ -1,6 +1,6 @@
 import { settingsRepository } from "@/server/repositories/settingsRepository";
 import type { EmbeddingModelKind, EmbeddingModelSettings } from "@/types/embeddings";
-import { createOpenAiEmbeddingProvider } from "./openaiProvider";
+import { createEmbeddingProvider } from "./createProvider";
 import type { EmbeddingProvider } from "./provider";
 
 /**
@@ -41,7 +41,7 @@ async function getSettings(kind: EmbeddingModelKind): Promise<EmbeddingModelSett
 /** What identity/audio_vibe generation should embed with right now. */
 export async function getTargetProvider(kind: EmbeddingModelKind): Promise<EmbeddingProvider> {
   const settings = await getSettings(kind);
-  return createOpenAiEmbeddingProvider(settings.target_model, settings.target_dims);
+  return createEmbeddingProvider(settings.target_model, settings.target_dims);
 }
 
 /**
@@ -94,4 +94,15 @@ export async function setServingModel(
 
 export async function listEmbeddingModelSettings(): Promise<EmbeddingModelSettings[]> {
   return settingsRepository.listEmbeddingModelSettings();
+}
+
+/** Run before the queue's first sweep; idempotent across restarts and replicas. */
+export async function seedEmbeddingModelDefaults(): Promise<void> {
+  const { LOCAL_EMBEDDING_MODEL, LOCAL_EMBEDDING_DIMS } = await import("./localModel");
+  const hasKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+  await settingsRepository.seedEmbeddingModelDefaults(
+    hasKey ? "text-embedding-3-small" : LOCAL_EMBEDDING_MODEL,
+    hasKey ? 1536 : LOCAL_EMBEDDING_DIMS,
+  );
+  invalidateEmbeddingModelCache();
 }

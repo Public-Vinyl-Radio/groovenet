@@ -697,7 +697,9 @@ collect_credentials() {
     fi
   fi
   if [ -z "$IN_OPENAI_KEY$IN_YOUTUBE_KEY" ] && [ -z "$(env_get "$DIR/.env" OPENAI_API_KEY)" ] && [ "$FRESH" = 1 ]; then
-    if confirm "Add optional OpenAI and YouTube keys now?" n; then
+    say "Suggestions work without a key using the bundled local model."
+    say "OpenAI is an optional quality upgrade; YouTube enrichment needs a YouTube key (no local fallback)."
+    if confirm "Add OpenAI (quality upgrade) or YouTube (enrichment) keys now?" n; then
       ask_secret "OpenAI API key (hidden, Enter to skip): "
       IN_OPENAI_KEY=$REPLY_VALUE
       ask_secret "YouTube API key (hidden, Enter to skip): "
@@ -783,6 +785,13 @@ print_summary() {
   say ""
   say "  Open:      $_url"
   say "  Directory: $DIR   (settings in .env, mode 600)"
+  say "  Settings:  $DIR/.env (mode 600)"
+  if [ -z "$(env_get "$DIR/.env" OPENAI_API_KEY)" ]; then
+    say "  Skipped:   OPENAI_API_KEY — suggestions use the bundled local model."
+  fi
+  if [ -z "$(env_get "$DIR/.env" YOUTUBE_API_KEY)" ]; then
+    say "  Skipped:   YOUTUBE_API_KEY — YouTube enrichment needs a YouTube key; no local fallback."
+  fi
   say "  Logs:      cd $DIR && docker compose logs -f"
   say "  Upgrade:   run this installer again"
   if [ -n "${SSH_CONNECTION:-}" ]; then
