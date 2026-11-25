@@ -28,7 +28,7 @@ describe("NeedsAttention", () => {
     expect(screen.getAllByRole("link")).toHaveLength(4);
     expect(screen.queryAllByText("TRACKS →").length > 0).toBe(width === 1280);
     expect(getComputedStyle(screen.getByRole("list")).gridTemplateColumns).toBe(
-      width === 390 ? "repeat(2, minmax(0, 1fr))" : "minmax(0, 1fr)",
+      width === 390 ? "repeat(2, minmax(0px, 1fr))" : "minmax(0px, 1fr)",
     );
   });
   it.each([390, 1280])("shows all clear at %s px", async (width) => {

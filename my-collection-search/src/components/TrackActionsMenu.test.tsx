@@ -103,7 +103,9 @@ describe("TrackActionsMenu in a dense row", () => {
     expect(desktop.className).not.toBe(
       screen.getAllByRole("button", { name: "Track actions", hidden: true })[0].className,
     );
-    expect(getComputedStyle(desktop).borderWidth).not.toBe("2px");
+    // Quiet: the outline is transparent and there is no shadow.
+    expect(getComputedStyle(desktop).borderColor).toBe("rgba(0, 0, 0, 0)");
+    expect(getComputedStyle(desktop).boxShadow).toBe("none");
   });
 });
 

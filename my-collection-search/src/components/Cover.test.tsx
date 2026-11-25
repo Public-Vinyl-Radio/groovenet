@@ -83,7 +83,8 @@ describe("Cover", () => {
     expect(css).toMatch(/:focus-within[^}]*filter:\s*none/);
     expect(css).toMatch(/:focus-visible[^}]*filter:\s*none/);
     expect(css).toContain("prefers-reduced-motion: no-preference");
-    expect(css).toContain("filter 150ms ease");
+    // `ease` is the default timing function; jsdom 31 serialises it away.
+    expect(css).toContain("filter 150ms");
   });
 
   it("keeps inspect art contained and playing art in true colour", () => {

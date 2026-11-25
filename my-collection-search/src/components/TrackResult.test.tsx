@@ -990,7 +990,7 @@ describe("TrackResult card (#722)", () => {
 
     const id = screen.getByText("LP-099");
     expect(id.closest("[data-scope=badge]")).toBeNull();
-    expect(getComputedStyle(id).fontWeight).toContain("bold");
+    expect(getComputedStyle(id).fontWeight).toBe("700");
   });
 
   it("shows the key as plain inline text: code in bold, name beside it, no chip", () => {
@@ -1000,7 +1000,7 @@ describe("TrackResult card (#722)", () => {
     expect(within(key).getByText("11B")).toBeTruthy();
     expect(within(key).getByText("A major")).toBeTruthy();
     expect(getComputedStyle(key).borderWidth).toBe("0px");
-    expect(getComputedStyle(within(key).getByText("11B")).fontWeight).toContain("bold");
+    expect(getComputedStyle(within(key).getByText("11B")).fontWeight).toBe("700");
   });
 
   it("puts a '!' after the key name only below the confidence threshold", async () => {
@@ -1038,15 +1038,15 @@ describe("TrackResult card (#722)", () => {
     expect(getComputedStyle(actions).position).toBe("absolute");
     expect(actions.contains(screen.getByRole("button", { name: "Menu" }))).toBe(true);
     // The meta line is not inset.
-    expect(getComputedStyle(screen.getByTestId("track-card-meta")).paddingRight).toBe("0");
+    expect(getComputedStyle(screen.getByTestId("track-card-meta")).paddingRight).toBe("0px");
   });
 
   it("carries the container shadow (the outline is checked in the browser)", () => {
     renderWithProviders(<TrackResult track={cardTrack} />);
 
     const style = getComputedStyle(screen.getByTestId("track-card"));
-    // Semantic tokens stay as CSS variables in jsdom.
-    expect(style.boxShadow).toContain("shadows-md");
+    // `md` is the 6px hard offset (`sm` is 3px), with no blur.
+    expect(style.boxShadow).toMatch(/ 6px 6px$/);
   });
 
   it("shows the album with the artist on one line, and the year only on desktop", () => {
