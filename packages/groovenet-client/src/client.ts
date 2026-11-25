@@ -202,6 +202,7 @@ export class GroovenetClient {
 
   constructor(private readonly config: GroovenetClientConfig) {
     this.playerApiKey = config.playerApiKey;
+    this.config = { ...config, apiKey: process.env.GROOVENET_TOKEN || config.apiKey };
     this.http = axios.create({
       baseURL: config.baseUrl,
       // Arrays repeat the key (`genre=a&genre=b`), as the API reads them, not `genre[]=`.
@@ -209,7 +210,7 @@ export class GroovenetClient {
       headers: {
         "Content-Type": "application/json",
         ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
-        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
       ...(config.caCert ? { httpsAgent: new HttpsAgent({ ca: readCaCert(config.caCert) }) } : {}),
     });

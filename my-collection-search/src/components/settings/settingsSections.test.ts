@@ -19,7 +19,7 @@ describe("settings sections", () => {
     expect(
       SETTINGS_GROUPS.map((g) => [g.label, g.sections.map((s) => s.label)]).slice(0, 4),
     ).toEqual([
-      ["You", ["Appearance"]],
+      ["You", ["Appearance", "Profiles", "API tokens"]],
       ["Library", ["Libraries", "Ranking"]],
       ["Services", ["Apple Music", "AI metadata"]],
       ["About", ["About GrooveNet"]],

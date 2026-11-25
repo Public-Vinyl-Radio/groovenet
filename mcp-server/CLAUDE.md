@@ -91,3 +91,12 @@ The client and player must be built first; this package imports their compiled o
   both cover this package.
 - Tool descriptions are what the model sees. Treat them as part of the
   interface, not as comments.
+
+## Household API tokens (#1282)
+
+`GROOVENET_TOKEN` optionally supplies `Authorization: Bearer` for app requests.
+Without it, requests retain their existing authentication behaviour. The CLI
+also accepts a token through `groovenet config set api_key <token>`; config output
+redacts it. The TypeScript client reuses `apiKey` (the environment alias overrides it);
+the Python client accepts the optional `token` keyword. Remote player credentials
+remain in `player_api_key`: either the legacy player key or a scoped household token.

@@ -1,3 +1,8 @@
+vi.mock("@/server/auth/currentUser", () => ({
+  getHouseholdOwner: vi.fn(async () => ({
+    discogs_username: process.env.DISCOGS_USERNAME?.trim() || null,
+  })),
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -202,4 +207,31 @@ describe("FriendService.removeFriend — database deletion", () => {
     expect(progress.join("\n")).toMatch(/Error deleting user tracks/);
     expect(mockDeleteFriendByUsername).toHaveBeenCalledWith("alice");
   });
+});
+
+it("has no account library when the household owner cannot be resolved", async () => {
+  const { getHouseholdOwner } = await import("@/server/auth/currentUser");
+  vi.mocked(getHouseholdOwner).mockResolvedValueOnce(null);
+  mockListFriendsWithReleaseCounts.mockResolvedValueOnce([]);
+  expect((await friendService.listLibraries()).account_username).toBeNull();
+});
+
+it("keeps the configured household account alongside added libraries for every listener", async () => {
+  process.env.DISCOGS_USERNAME = "owner";
+  mockGetManifestLastSynced.mockReturnValue(null);
+  mockListFriendsWithReleaseCounts.mockResolvedValueOnce([
+    { id: 9, username: "second-listener", release_count: 4 },
+  ]);
+  const result = await friendService.listLibraries();
+  expect(result.account_username).toBe("owner");
+  expect(result.results).toEqual([
+    {
+      id: 9,
+      username: "second-listener",
+      release_count: 4,
+      is_account: false,
+      last_synced_at: null,
+    },
+  ]);
+  delete process.env.DISCOGS_USERNAME;
 });

@@ -33,6 +33,7 @@ class GroovenetClient:
         base_url: str | None = None,
         *,
         timeout: float = 30,
+        token: str | None = None,
         client_name: str = "worker",
         session: requests.Session | None = None,
     ):
@@ -40,6 +41,9 @@ class GroovenetClient:
         self.timeout = timeout
         self.session = session if session is not None else requests.Session()
         self.headers = {"X-Groovenet-Client": client_name}
+        api_token = token if token is not None else os.getenv("GROOVENET_TOKEN")
+        if api_token:
+            self.headers["Authorization"] = f"Bearer {api_token}"
 
     def close(self) -> None:
         self.session.close()

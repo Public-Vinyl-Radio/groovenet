@@ -1,3 +1,8 @@
+const householdAuth = vi.hoisted(() => ({ bearerIdentity: vi.fn(async () => null) }));
+vi.mock("@/server/auth/currentUser", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/auth/currentUser")>()),
+  ...householdAuth,
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import { GET, POST, DELETE } from "@/app/api/players/browser/session/route";

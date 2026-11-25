@@ -1,3 +1,4 @@
+import { getHouseholdOwner } from "@/server/auth/currentUser";
 import type { Friend } from "@groovenet/contracts";
 import { friendRepository } from "@/server/repositories/friendRepository";
 import { getManifestLastSynced } from "@/server/services/discogsManifestService";
@@ -17,14 +18,14 @@ export class FriendService {
 
   /**
    * Settings → Libraries: each library with its album count and last sync,
-   * your own account (`DISCOGS_USERNAME`) first and flagged.
+   * the shared household account first and flagged for every profile.
    */
   async listLibraries(): Promise<{
     results: LibraryWithStats[];
     account_username: string | null;
     discogs_token_set: boolean;
   }> {
-    const account = process.env.DISCOGS_USERNAME?.trim() || null;
+    const account = (await getHouseholdOwner())?.discogs_username || null;
     const rows = await friendRepository.listFriendsWithReleaseCounts();
     const results = rows.map((row) => ({
       ...row,

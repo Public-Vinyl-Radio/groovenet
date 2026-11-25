@@ -1,3 +1,8 @@
+const householdAuth = vi.hoisted(() => ({ bearerIdentity: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/server/auth/currentUser", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/auth/currentUser")>()),
+  ...householdAuth,
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as list, POST as create } from "@/app/api/players/route";
 import { GET as allEvents } from "@/app/api/players/events/route";
@@ -170,3 +175,29 @@ describe("event stream lifetime", () => {
     await expect(response.text()).rejects.toThrow("Stream interrupted");
   });
 });
+
+it.each(["read", "write"])(
+  "accepts a scoped %s bearer through the existing player proxy without forwarding it",
+  async (scope) => {
+    vi.stubEnv("PLAYER_API_KEY", key);
+    vi.stubEnv("PLAYER_WORKER_URL", "http://worker:13700");
+    vi.stubGlobal("fetch", transport);
+    try {
+      householdAuth.bearerIdentity.mockResolvedValueOnce({
+        user: { id: "profile", is_owner: false },
+        scope,
+      });
+      transport.mockResolvedValueOnce(Response.json({ players: [] }));
+      const req = request(undefined, "Bearer scoped-household-token");
+      expect((await list(req)).status).toBe(200);
+      expect(householdAuth.bearerIdentity).toHaveBeenCalledWith(req);
+      expect(transport).toHaveBeenLastCalledWith(
+        new URL("http://worker:13700/players"),
+        expect.objectContaining({ headers: { Authorization: `Bearer ${key}` } }),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  },
+);

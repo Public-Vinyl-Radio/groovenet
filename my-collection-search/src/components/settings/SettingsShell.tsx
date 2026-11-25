@@ -7,6 +7,7 @@ import { FiChevronLeft } from "react-icons/fi";
 import PageContainer from "@/components/layout/PageContainer";
 import PageHeader from "@/components/layout/PageHeader";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import HouseholdSettingsSection from "./HouseholdSettingsSection";
 import AboutSection from "./AboutSection";
 import AiPromptSettingsSection, { AI_METADATA_INTRO } from "./AiPromptSettingsSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
@@ -28,6 +29,8 @@ import {
 } from "./settingsSections";
 
 const SECTION_CONTENT: Record<SettingsSectionId, () => React.ReactNode> = {
+  profiles: () => <HouseholdSettingsSection />,
+  "api-tokens": () => <HouseholdSettingsSection tokens />,
   appearance: () => <AppearanceSettingsSection />,
   libraries: () => <LibrariesSettingsSection />,
   ranking: () => <RankingSettingsSection />,

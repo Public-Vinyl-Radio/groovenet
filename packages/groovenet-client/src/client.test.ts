@@ -2677,3 +2677,41 @@ describe("artist review", () => {
     );
   });
 });
+
+describe("household tokens", () => {
+  it("uses the existing apiKey bearer path with an optional environment override", () => {
+    vi.stubEnv("GROOVENET_TOKEN", "environment");
+    try {
+      const config = { baseUrl: "https://app.test", apiKey: "configured" };
+      new GroovenetClient(config);
+      expect(createMock.mock.lastCall?.[0]).toMatchObject({
+        headers: { Authorization: "Bearer environment" },
+      });
+      expect(config.apiKey).toBe("configured");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("sends the token only for same-origin artwork", async () => {
+    requestMock.mockResolvedValue({ data: new Uint8Array([1]) });
+    const client = new GroovenetClient({ baseUrl: "https://app.test/api", apiKey: "secret" });
+    await client.getArtwork("https://app.test/image.jpg");
+    expect(requestMock.mock.lastCall?.[0]).toMatchObject({
+      headers: { Authorization: "Bearer secret" },
+    });
+    await client.getArtwork("https://other.test/image.jpg");
+    expect(requestMock.mock.lastCall?.[0]).toMatchObject({ headers: { Authorization: null } });
+  });
+});
+
+it("treats an empty GROOVENET_TOKEN as absent, preserving configured keys", () => {
+  vi.stubEnv("GROOVENET_TOKEN", "");
+  try {
+    new GroovenetClient({ baseUrl: "https://app.test", apiKey: "legacy" });
+    expect(createMock.mock.lastCall?.[0]).toMatchObject({
+      headers: { Authorization: "Bearer legacy" },
+    });
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

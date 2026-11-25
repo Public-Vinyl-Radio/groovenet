@@ -1,5 +1,6 @@
 "use client";
 
+import ProfileMenu from "@/components/ProfileMenu";
 import React, { Suspense, useMemo, useState } from "react";
 import NextLink from "next/link";
 import {
@@ -373,6 +374,7 @@ export default function AppShell({
                 </Tooltip>
               );
             })}
+            <ProfileMenu compact={!isExpanded} />
           </VStack>
 
           <Box mt="auto" px={isExpanded ? 2 : 1} pb={2}>
@@ -438,6 +440,7 @@ export default function AppShell({
               </Link>
             );
           })}
+          <ProfileMenu />
           {playbackLabel !== null && (
             <Box
               as="button"

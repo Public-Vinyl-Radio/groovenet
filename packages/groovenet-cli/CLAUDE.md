@@ -574,3 +574,12 @@ Import prints the stored profile as JSON; `--friend-id` defaults to the configur
 library. Use `groovenet profiles use <new-id>` to activate it. The web catalogue at
 `/ranking-profiles` also copies profiles from registered friends; these are independent
 copies and later source edits never propagate.
+
+## Household API tokens (#1282)
+
+`GROOVENET_TOKEN` optionally supplies `Authorization: Bearer` for app requests.
+Without it, requests retain their existing authentication behaviour. The CLI
+also accepts a token through `groovenet config set api_key <token>`; config output
+redacts it. The TypeScript client reuses `apiKey` (the environment alias overrides it);
+the Python client accepts the optional `token` keyword. Remote player credentials
+remain in `player_api_key`: either the legacy player key or a scoped household token.
