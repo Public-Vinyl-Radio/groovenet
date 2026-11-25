@@ -1093,6 +1093,7 @@ describe("embedded tags (#673)", () => {
     ).resolves.toBeDefined();
     expect(error).toHaveBeenCalledWith(
       expect.stringContaining("Failed to store embedded tags"),
+      expect.anything(),
       expect.any(Error),
     );
     error.mockRestore();

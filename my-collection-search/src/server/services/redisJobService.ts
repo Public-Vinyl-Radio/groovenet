@@ -156,7 +156,7 @@ export class RedisJobService {
         max_retries: settings.max_retries,
       };
     } catch (error) {
-      console.error(`Failed to fetch gamdl settings for friend ${friendId}:`, error);
+      console.error("Failed to fetch gamdl settings for friend %s:", friendId, error);
       // Return defaults if database fails
       return {
         quality: "best",

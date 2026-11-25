@@ -91,7 +91,8 @@ export async function upsertAlbums(
       upsertedAlbums.push(upserted);
     } catch (error) {
       console.error(
-        `Error upserting album ${album.release_id}:`,
+        "Error upserting album %s:",
+        album.release_id,
         error instanceof Error ? error.message : error,
       );
     }

@@ -66,7 +66,7 @@ export class AudioMetadataBackfillService {
       .exec();
 
     void this.execute(runId, candidates, request.force === true).catch((error) => {
-      console.error(`[audio-backfill] run ${runId} aborted:`, error);
+      console.error("[audio-backfill] run %s aborted:", runId, error);
     });
 
     return {

@@ -14,6 +14,7 @@ import { cornerIds } from "./corners";
 import { fontChoiceIdsFor, fontRoleIds } from "./fontChoices";
 import { customPaletteId, customPaletteStyleId } from "./palettes/custom";
 import { paletteIds } from "./palettes";
+import { serializeForInlineScript } from "@/lib/serializeForInlineScript";
 import { appearanceOverrideKey, appearanceOverrideVersion } from "./appearanceOverride";
 
 /** What a stored `customCss` must look like to reach a <style>. */
@@ -59,4 +60,4 @@ if(typeof v==="string"&&c.fonts[k].indexOf(v)>=0)d[k]=v;}}
 `;
 
 /** The inline script's source. */
-export const appearanceScript = `(function(c){${body}})(${JSON.stringify(config)});`;
+export const appearanceScript = `(function(c){${body}})(${serializeForInlineScript(config)});`;

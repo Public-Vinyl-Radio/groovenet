@@ -27,7 +27,7 @@ export async function resizeCoverArt(url: string | null | undefined): Promise<Bu
       .jpeg({ progressive: false })
       .toBuffer();
   } catch (error) {
-    console.error(`[now-playing] cover resize failed for ${url}:`, error);
+    console.error("[now-playing] cover resize failed for %s:", url, error);
     return null;
   }
 }

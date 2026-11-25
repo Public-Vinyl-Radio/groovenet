@@ -71,7 +71,7 @@ export function resetNowPlayingPublisherForTests(): void {
 
 function publish(mqttClient: MqttClient, topic: string, payload: string | Buffer): void {
   mqttClient.publish(topic, payload, { retain: true, qos: 0 }, (error) => {
-    if (error) console.error(`[now-playing] publish to ${topic} failed:`, error);
+    if (error) console.error("[now-playing] publish to %s failed:", topic, error);
   });
 }
 
@@ -173,7 +173,7 @@ export async function publishSnapshot(snapshot: NowPlayingSnapshot): Promise<voi
     await publishCover(mqttClient, topics.cover, track?.cover_url ?? null);
     publishHaDiscovery(mqttClient, snapshot.source_id);
   } catch (error) {
-    console.error(`[now-playing] publish failed for ${snapshot.source_id}:`, error);
+    console.error("[now-playing] publish failed for %s:", snapshot.source_id, error);
   }
 }
 

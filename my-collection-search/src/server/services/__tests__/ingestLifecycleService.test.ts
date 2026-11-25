@@ -379,6 +379,7 @@ describe("report()", () => {
     await Promise.resolve();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] observe failed"),
+      expect.anything(),
       expect.any(Error),
     );
   });

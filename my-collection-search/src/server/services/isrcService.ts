@@ -69,7 +69,7 @@ export class IsrcService {
       .exec();
 
     void this.execute(runId, targets, dryRun).catch((error) => {
-      console.error(`[isrc] run ${runId} aborted:`, error);
+      console.error("[isrc] run %s aborted:", runId, error);
     });
 
     return {
@@ -198,7 +198,7 @@ export class IsrcService {
         { track_id: track.track_id, friend_id: track.friend_id, isrc },
       ]);
     } catch (error) {
-      console.error(`[isrc] could not sync ${track.track_id}:`, error);
+      console.error("[isrc] could not sync %s:", track.track_id, error);
     }
   }
 }

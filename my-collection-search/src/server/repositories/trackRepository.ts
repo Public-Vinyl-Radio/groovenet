@@ -990,7 +990,7 @@ export class TrackRepository {
     try {
       await this.saveEmbeddedTags(trackId, friendId, tags);
     } catch (error) {
-      console.error(`Failed to store embedded tags (track_id=${trackId}):`, error);
+      console.error("Failed to store embedded tags (track_id=%s):", trackId, error);
     }
   }
 

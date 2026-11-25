@@ -303,7 +303,9 @@ describe("POST /api/tracks/upload", () => {
     expect(res.status).toBe(200);
     expect(mockUpdateTrackAnalysis).toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("track_id=t1, friend_id=1"),
+      expect.stringContaining("track_id=%s, friend_id=%s"),
+      "t1",
+      1,
       expect.any(Error),
     );
     errorSpy.mockRestore();

@@ -97,7 +97,9 @@ function persistRawAnalysis(
       writeEssentiaAnalysis(track_id, friend_id, analysisResult);
     } catch (saveErr) {
       console.error(
-        `Failed to persist Essentia analysis file (track_id=${track_id}, friend_id=${friend_id}):`,
+        "Failed to persist Essentia analysis file (track_id=%s, friend_id=%s):",
+        track_id,
+        friend_id,
         saveErr,
       );
     }

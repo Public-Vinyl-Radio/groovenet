@@ -259,7 +259,7 @@ export class IngestLifecycleService {
       offset_seconds: top?.offset_seconds ?? null,
     };
     nowPlayingTrackerService.observe(ingest.source_id, window).catch((error) => {
-      console.error(`[now-playing] observe failed for ${ingest.source_id}:`, error);
+      console.error("[now-playing] observe failed for %s:", ingest.source_id, error);
     });
   }
 
@@ -284,7 +284,7 @@ export class IngestLifecycleService {
       const since = new Date(anchor - aggregationLookbackMs());
       await playAggregationService.aggregateSource(sourceId, since);
     } catch (error) {
-      console.error(`Failed to aggregate detections for ${sourceId}:`, error);
+      console.error("Failed to aggregate detections for %s:", sourceId, error);
     }
   }
 
@@ -303,7 +303,7 @@ export class IngestLifecycleService {
       const code = (error as NodeJS.ErrnoException).code;
       // Already gone is the outcome we wanted; the sweeper may have taken it.
       if (code !== "ENOENT") {
-        console.error(`Failed to release ${ingest.file_path}:`, error);
+        console.error("Failed to release %s:", ingest.file_path, error);
       }
     }
   }

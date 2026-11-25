@@ -272,6 +272,7 @@ describe("nowPlayingPublisherService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("publish to"),
+      expect.anything(),
       expect.any(Error),
     );
   });
@@ -294,7 +295,8 @@ describe("nowPlayingPublisherService", () => {
     await expect(publishSnapshot(snapshot())).resolves.toBeUndefined();
 
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("publish failed for src-1"),
+      expect.stringContaining("publish failed for %s"),
+      "src-1",
       expect.any(Error),
     );
   });

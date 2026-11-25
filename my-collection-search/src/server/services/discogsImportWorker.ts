@@ -119,7 +119,7 @@ export class DiscogsImportWorker {
           await repo.appendLog(job.id, batch);
           if (!(await repo.updateProgress(job.id, owner, patch))) lost = true;
         } catch (error) {
-          console.error(`[Discogs Import] Could not record progress of ${job.id}:`, error);
+          console.error("[Discogs Import] Could not record progress of %s:", job.id, error);
         }
       });
       return flushing;
@@ -129,7 +129,7 @@ export class DiscogsImportWorker {
         if (!(await repo.heartbeat(job.id, owner, lease))) lost = true;
       } catch (error) {
         // A database blip: the next beat tries again before the lease runs out.
-        console.error(`[Discogs Import] Heartbeat for ${job.id} failed:`, error);
+        console.error("[Discogs Import] Heartbeat for %s failed:", job.id, error);
       }
     };
     const flushTimer = setInterval(() => void flush(), FLUSH_INTERVAL_MS);
@@ -186,7 +186,7 @@ export class DiscogsImportWorker {
         console.log(`[Discogs Import] ${message(error)}; another worker carries on`);
         return;
       }
-      console.error(`[Discogs Import] Import ${job.id} for ${job.username} failed:`, error);
+      console.error("[Discogs Import] Import %s for %s failed:", job.id, job.username, error);
       send(`Error: ${message(error)}\n\n`);
       await finish("failed", message(error));
     } finally {
