@@ -52,6 +52,8 @@ if [[ -z "$tag" ]]; then
 fi
 
 # A host with these set must not leak into the stack under test.
+# This smoke test must never join or modify a real tailnet.
+unset TS_AUTHKEY
 unset COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME COMPOSE_ENV_FILES IMAGE_TAG REGISTRY
 unset PROD_DB_DATA_VOLUME APP_AUDIO_MOUNT WORKER_AUDIO_MOUNT SET_RECORDINGS_MOUNT POSTGRES_USER POSTGRES_DB
 

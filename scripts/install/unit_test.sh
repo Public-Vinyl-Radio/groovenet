@@ -7,6 +7,9 @@
 # shellcheck disable=SC2015,SC2016 # assertions chain on purpose; snippets expand in the inner sh
 set -euo pipefail
 
+# Only fake keys explicitly supplied by cases below may enter this test.
+unset TS_AUTHKEY
+
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 installer="$root/site/public/install.sh"
 tmp="$(mktemp -d)"
@@ -139,6 +142,129 @@ summary_out=$(summary)
 assert_eq "configured keys are not called skipped or printed" no "$(printf '%s' "$summary_out" | grep -Eq 'Skipped:|secret-' && echo yes || echo no)"
 printf 'OPENAI_API_KEY=secret-openai\nYOUTUBE_API_KEY=\n' >"$summary_dir/.env"
 assert_eq "only the missing key is listed" 1 "$(summary | grep -c 'Skipped:')"
+
+# --- Tailscale: flags and full installer with fake host commands -----------------
+assert_eq "Tailscale defaults" "groovenet 0" "$(sh_run 'echo "$OPT_TS_HOSTNAME $OPT_TS_SSH"')"
+assert_eq "Tailscale flags" "fake-key decks 1" "$(parse '--tailscale-auth-key=fake-key --tailscale-hostname decks --tailscale-ssh' 'echo "$IN_TS_AUTHKEY $OPT_TS_HOSTNAME $OPT_TS_SSH"')"
+assert_eq "TS_AUTHKEY is captured and removed from child environment" "env-key unset" "$(TS_AUTHKEY=env-key sh_run 'echo "$IN_TS_AUTHKEY ${TS_AUTHKEY-unset}"')"
+assert_eq "Tailscale flag beats environment" flag-key "$(TS_AUTHKEY=env-key parse '--tailscale-auth-key flag-key' 'echo "$IN_TS_AUTHKEY"')"
+assert_eq "missing Tailscale key value refused" yes "$(sh_run '(parse_args --tailscale-auth-key) >/dev/null 2>&1 && echo no || echo yes')"
+assert_eq "bad Tailscale hostname refused" bad "$(validate '--tailscale-hostname bad/name')"
+assert_eq "empty Tailscale hostname refused" bad "$(validate '--tailscale-hostname=')"
+public_out=$(sh_run '(parse_args --public)' || true)
+assert_eq "public refusal names both blockers" yes "$(printf '%s' "$public_out" | grep -q '#569.*#1074' && echo yes || echo no)"
+assert_eq "bundle binds only to loopback" '      - "127.0.0.1:${APP_PORT:-3000}:3000"' "$(grep '3000.*3000' "$x/docker-compose.local.yml")"
+
+fake="$tmp/fake"
+mkdir -p "$fake/bin" "$fake/state"
+export FAKE_STATE="$fake/state"
+cat >"$fake/tailscale" <<'STUB'
+#!/bin/sh
+set -eu
+case "$*" in
+  'status --json')
+    if [ -f "$FAKE_STATE/joined" ]; then
+      printf '{"BackendState":"Running","Self":{"DNSName":"decks.example.ts.net."}}\n'
+    else
+      echo '{"BackendState":"NeedsLogin"}'
+      exit 1
+    fi ;;
+  'serve status --json') cat "$FAKE_STATE/serve.json" ;;
+  up*)
+    echo up >>"$FAKE_STATE/mutations"
+    printf '%s\n' "$@" >"$FAKE_STATE/up-args"
+    for arg in "$@"; do
+      case $arg in file:*)
+        keyfile=${arg#file:}
+        [ "$(cat "$keyfile")" = fake-secret-sentinel ]
+        stat -c '%a' "$keyfile" 2>/dev/null >"$FAKE_STATE/key-mode" || stat -f '%Lp' "$keyfile" >"$FAKE_STATE/key-mode"
+        echo fake-secret-sentinel >&2 # malicious/noisy CLI must not leak it
+        ;; esac
+    done
+    [ ! -f "$FAKE_STATE/fail-join" ] || exit 1
+    touch "$FAKE_STATE/joined" ;;
+  'serve --bg --https=443 --yes http://127.0.0.1:3123')
+    echo serve >>"$FAKE_STATE/mutations"
+    [ ! -f "$FAKE_STATE/fail-serve" ] || exit 1
+    echo '{"TCP":{"443":{"HTTPS":true}},"Web":{"decks.example.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:3123"}}}}}' >"$FAKE_STATE/serve.json" ;;
+  'set --ssh=true') echo ssh >>"$FAKE_STATE/mutations" ;;
+  *) echo 'unexpected Tailscale invocation' >&2; exit 1 ;;
+esac
+STUB
+cat >"$fake/bin/docker" <<'STUB'
+#!/bin/sh
+case "$*" in
+  'compose version') echo 'Docker Compose fake' ;;
+  *'config --profiles') printf 'downloads\nanalysis\noptimize\nfingerprint\nall\n' ;;
+  *'up -d'*) echo up >>"$FAKE_STATE/docker-up" ;;
+esac
+STUB
+cat >"$fake/bin/curl" <<'STUB'
+#!/bin/sh
+# Only health is expected: bundle is local, no import or network allowed.
+case "$*" in *'/api/health') exit 0 ;; *) echo 'unexpected network request' >&2; exit 1 ;; esac
+STUB
+cat >"$fake/bin/ufw" <<'STUB'
+#!/bin/sh
+[ "$*" = status ] || exit 1
+cat "$FAKE_STATE/ufw"
+STUB
+chmod +x "$fake/tailscale" "$fake/bin/"*
+printf '{}\n' >"$FAKE_STATE/serve.json"
+printf 'Status: active\n3123/tcp ALLOW Anywhere\n3123/tcp (v6) ALLOW Anywhere (v6)\n' >"$FAKE_STATE/ufw"
+ts_dir="$tmp/tailnet-install"
+ts_run() {
+  PATH="$fake/bin:$PATH" TS_AUTHKEY=fake-secret-sentinel sh_run "
+    detect_platform() { OS=Linux; ARCH=x86_64; }
+    can_be_root() { return 0; }
+    have() { if [ \"\$1\" = tailscale ]; then [ -x '$fake/bin/tailscale' ]; else command -v \"\$1\" >/dev/null 2>&1; fi; }
+    as_root() { \"\$@\"; }
+    install_tailscale_linux() { echo package >>\"\$FAKE_STATE/mutations\"; cp '$fake/tailscale' '$fake/bin/tailscale'; }
+    main --non-interactive --bundle '$tarball' --dir '$ts_dir' --port 3123 --tailscale-hostname decks $1
+  "
+}
+first_out=$(ts_run '--tailscale-ssh')
+assert_eq "first run joins and serves HTTPS" yes "$(printf '%s' "$first_out" | grep -q 'Open:.*https://decks.example.ts.net' && echo yes || echo no)"
+assert_eq "firewall public rules produce warning" yes "$(printf '%s' "$first_out" | grep -q 'UFW has allow/limit rules' && echo yes || echo no)"
+assert_eq "package, join and serve each happen once" "package up serve " "$(tr '\n' ' ' <"$FAKE_STATE/mutations")"
+assert_eq "SSH is explicitly opted in" yes "$(grep -qx -- '--ssh' "$FAKE_STATE/up-args" && echo yes || echo no)"
+assert_eq "auth key file has mode 600" 600 "$(cat "$FAKE_STATE/key-mode")"
+keypath=$(sed -n 's/^file://p' "$FAKE_STATE/up-args")
+assert_eq "temporary key removed" no "$([[ -e "$keypath" ]] && echo yes || echo no)"
+assert_eq "key never appears in output or installed files" no "$( { printf '%s' "$first_out"; cat "$ts_dir"/.* "$ts_dir"/*.yml 2>/dev/null; } | grep -q fake-secret-sentinel && echo yes || echo no)"
+before_env=$(cksum <"$ts_dir/.env")
+second_out=$(ts_run '--tailscale-ssh')
+assert_eq "rerun reports no changes" yes "$(printf '%s' "$second_out" | grep -q 'Nothing changed' && echo yes || echo no)"
+assert_eq "rerun preserves env" "$before_env" "$(cksum <"$ts_dir/.env")"
+assert_eq "rerun does not install, join, enable SSH or serve again" "package up serve " "$(tr '\n' ' ' <"$FAKE_STATE/mutations")"
+# Existing marker retains tailnet mode without supplying the expired/one-use key.
+third_out=$(ts_run '--tailscale-auth-key=')
+assert_eq "upgrade without key keeps tailnet URL" yes "$(printf '%s' "$third_out" | grep -q 'https://decks.example.ts.net' && echo yes || echo no)"
+# A separate fresh install must not opt in to SSH by default.
+original_ts_dir=$ts_dir
+ts_dir="$tmp/tailnet-no-ssh"
+rm "$FAKE_STATE/joined"
+ts_run '' >"$tmp/no-ssh.out"
+assert_eq "fresh install leaves Tailscale SSH off" no "$(grep -qx -- '--ssh' "$FAKE_STATE/up-args" && echo yes || echo no)"
+assert_eq "separate fresh install has no key in env" no "$(grep -q fake-secret-sentinel "$ts_dir/.env" && echo yes || echo no)"
+ts_dir=$original_ts_dir
+# Join failure must suppress even a CLI that echoes the key on stderr.
+rm "$FAKE_STATE/joined"
+touch "$FAKE_STATE/fail-join"
+failed_out=$(ts_run '' || true)
+assert_eq "join error is actionable" yes "$(printf '%s' "$failed_out" | grep -q 'Tailscale join failed' && echo yes || echo no)"
+assert_eq "join error does not leak the key" no "$(printf '%s' "$failed_out" | grep -q fake-secret-sentinel && echo yes || echo no)"
+rm "$FAKE_STATE/fail-join"
+touch "$FAKE_STATE/joined"
+echo '{"AllowFunnel":{"decks.example.ts.net:443":true}}' >"$FAKE_STATE/serve.json"
+funnel_out=$(ts_run '' || true)
+assert_eq "public Funnel is refused" yes "$(printf '%s' "$funnel_out" | grep -q 'Funnel is enabled' && echo yes || echo no)"
+echo '{}' >"$FAKE_STATE/serve.json"
+touch "$FAKE_STATE/fail-serve"
+serve_out=$(ts_run '' || true)
+assert_eq "Serve failure does not wait for a prompt" yes "$(printf '%s' "$serve_out" | grep -q 'Tailscale Serve failed' && echo yes || echo no)"
+assert_eq "inactive UFW is warned about" yes "$(printf 'Status: inactive\n' >"$FAKE_STATE/ufw"; PATH="$fake/bin:$PATH" sh_run 'as_root() { "$@"; }; check_host_firewall' | grep -q 'UFW is inactive' && echo yes || echo no)"
+assert_eq "no Tailscale prints tunnel even without SSH_CONNECTION" yes "$(SSH_CONNECTION='' summary | grep -q 'ssh -L 3000:localhost:3000 user@host' && echo yes || echo no)"
 
 echo
 if ((fails > 0)); then

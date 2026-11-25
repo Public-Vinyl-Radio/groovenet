@@ -20,6 +20,7 @@
 #
 # Everything is inside main(), called on the last line, so a download cut short
 # runs nothing.
+set +x # Secrets must never enter shell tracing, even under sh -x.
 set -eu
 
 REPO="Public-Vinyl-Radio/groovenet"
@@ -59,6 +60,13 @@ Where it goes
   --audio-dir PATH        Keep audio in this existing directory (a mounted
                           disk, say) instead of a Docker volume.
   --port N                Port on 127.0.0.1 for the app. Default: 3000.
+
+Private server access
+  --tailscale-auth-key KEY  or env TS_AUTHKEY. Install Tailscale and join the
+                           tailnet; serve HTTPS privately. Never saved in .env.
+  --tailscale-hostname NAME Node hostname on first join. Default: groovenet.
+  --tailscale-ssh           Opt in to Tailscale SSH (off by default).
+  --public                 Refused until #569 (auth) and #1074 (hardening).
 
 Credentials (all optional; leave out what you do not use)
   --discogs-username NAME   or env DISCOGS_USERNAME
@@ -206,6 +214,12 @@ OPT_PROJECT=
 OPT_BUNDLE=
 OPT_IMAGE_TAG=
 OPT_IMPORT=ask
+IN_TS_AUTHKEY=${TS_AUTHKEY:-}
+unset TS_AUTHKEY
+OPT_TS_HOSTNAME=groovenet
+OPT_TS_SSH=0
+TAILSCALE_ENABLED=0
+TAILSCALE_URL=
 NONINTERACTIVE=0
 ASSUME_YES=0
 IN_DISCOGS_USERNAME=${DISCOGS_USERNAME:-}
@@ -231,7 +245,8 @@ parse_args() {
     case $_opt in
       --version | --dir | --profile | --audio-dir | --port | --project-name | --bundle | --image-tag | \
         --discogs-username | --discogs-token | --openai-key | --youtube-key | \
-        --apple-music-team-id | --apple-music-key-id | --apple-music-key-file)
+        --apple-music-team-id | --apple-music-key-id | --apple-music-key-file | \
+        --tailscale-auth-key | --tailscale-hostname)
         if [ "$_inline" = 0 ]; then
           [ $# -ge 2 ] || die "$_opt needs a value"
           _val=$2
@@ -243,6 +258,10 @@ parse_args() {
         ;;
     esac
     case $_opt in
+      --tailscale-auth-key) IN_TS_AUTHKEY=$_val ;;
+      --tailscale-hostname) OPT_TS_HOSTNAME=$_val ;;
+      --tailscale-ssh) OPT_TS_SSH=1 ;;
+      --public) die "--public is unavailable until #569 (auth) and #1074 (hardening) land. Use Tailscale or an SSH tunnel." ;;
       --version) OPT_VERSION=$_val ;;
       --dir) OPT_DIR=$_val ;;
       --profile) OPT_PROFILES="$OPT_PROFILES $(printf '%s' "$_val" | tr ',' ' ')" ;;
@@ -276,6 +295,8 @@ parse_args() {
 }
 
 validate_options() {
+  printf '%s' "$OPT_TS_HOSTNAME" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$' \
+    || die "--tailscale-hostname must be a DNS label (1-63 lowercase letters, digits or hyphens)"
   if [ -n "$OPT_VERSION" ]; then
     case $OPT_VERSION in v[0-9]*) ;; [0-9]*) OPT_VERSION=v$OPT_VERSION ;; esac
     printf '%s' "$OPT_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' \
@@ -596,6 +617,135 @@ write_platform_override() {
   esac
 }
 
+# --- Private tailnet access -----------------------------------------------------
+
+install_tailscale_linux() {
+  [ "$OS" = Linux ] || die "automatic Tailscale setup requires Linux; use the SSH tunnel on macOS"
+  can_be_root || die "installing Tailscale needs root or sudo"
+  # Download first: a truncated script must not execute. The key is a shell
+  # variable, never exported to the package installer or any other child.
+  fetch -o "$WORK/install-tailscale.sh" https://tailscale.com/install.sh \
+    || die "could not download the Tailscale installer"
+  as_root env DEBIAN_FRONTEND=noninteractive sh "$WORK/install-tailscale.sh" \
+    || die "Tailscale package installation failed"
+}
+
+ts_status() {
+  # status can exit nonzero for NeedsLogin but still supplies valid JSON.
+  as_root tailscale status --json >"$WORK/tailscale-status.json" 2>/dev/null || true
+  python3 -c 'import json, sys
+s = json.load(open(sys.argv[1]))
+print(s.get("BackendState", ""))
+print((s.get("Self") or {}).get("DNSName", "").rstrip("."))
+' "$WORK/tailscale-status.json" 2>/dev/null \
+    || die "cannot read Tailscale status; check that tailscaled is running"
+}
+
+check_host_firewall() {
+  if ! have ufw; then
+    warn "UFW is not installed; no firewall was changed. Verify host/provider rules and public app-port access from outside."
+    return 0
+  fi
+  _ufw=$(as_root env LC_ALL=C ufw status 2>/dev/null) || {
+    warn "cannot inspect UFW; no firewall was changed. Check public app-port rules yourself."
+    return 0
+  }
+  if ! printf '%s\n' "$_ufw" | grep -q '^Status: active'; then
+    warn "UFW is inactive; no firewall was enabled. The app still binds only to loopback."
+    return 0
+  fi
+  # Include ranges, application profiles and broad rules: warning on any public
+  # allowance avoids missing an app port hidden behind a UFW profile. SSH rules
+  # may be included. Do not delete rules or risk locking out an existing host.
+  if printf '%s\n' "$_ufw" | grep -E 'ALLOW|LIMIT' | grep -v ' on tailscale0' >/dev/null; then
+    warn "UFW has allow/limit rules outside tailscale0. Review them and remove any public allowance for app port $APP_PORT_FINAL (including ranges/profiles). No firewall rules were changed. Docker port publishing can bypass UFW; the bundle's loopback binding is required."
+  else
+    say "UFW is active with no public allow/limit rules detected."
+  fi
+}
+
+prepare_tailscale() {
+  if [ -n "$IN_TS_AUTHKEY" ] || [ "$(marker_get "$MARKER" tailscale)" = 1 ]; then
+    TAILSCALE_ENABLED=1
+  fi
+  if [ "$TAILSCALE_ENABLED" = 0 ]; then
+    [ "$OPT_TS_SSH" = 0 ] || die "--tailscale-ssh requires --tailscale-auth-key or an existing Tailscale install"
+    return 0
+  fi
+  [ "$OS" = Linux ] || die "automatic Tailscale setup requires Linux; use the SSH tunnel on macOS"
+  can_be_root || die "Tailscale setup needs root or sudo"
+  have tailscale || install_tailscale_linux
+  # Python parses CLI JSON, not human-readable status. Ubuntu cloud images
+  # normally include it; install it non-interactively if missing.
+  if ! have python3; then
+    have apt-get || die "install python3 to parse Tailscale status, then rerun"
+    as_root env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3
+  fi
+  _status=$(ts_status)
+  _state=$(printf '%s\n' "$_status" | head -n 1)
+  if [ "$_state" != Running ]; then
+    set -- --timeout=60s
+    if [ "$(marker_get "$MARKER" tailscale)" != 1 ]; then
+      set -- "$@" --hostname "$OPT_TS_HOSTNAME"
+    fi
+    [ "$OPT_TS_SSH" = 0 ] || set -- "$@" --ssh
+    if [ -n "$IN_TS_AUTHKEY" ]; then
+      # file: keeps the credential out of process arguments and CLI errors.
+      (umask 077; printf '%s' "$IN_TS_AUTHKEY" >"$WORK/tailscale-authkey")
+      set -- "$@" --auth-key "file:$WORK/tailscale-authkey"
+    fi
+    # Suppress CLI output even on failure: never echo credentials or login URLs.
+    if ! as_root tailscale up "$@" >/dev/null 2>&1; then
+      rm -f "$WORK/tailscale-authkey"
+      IN_TS_AUTHKEY=
+      die "Tailscale join failed; check the auth key, node approval and tailnet policy, then rerun"
+    fi
+    rm -f "$WORK/tailscale-authkey"
+    CHANGED=1
+  elif [ "$OPT_TS_SSH" = 1 ] && [ "$(marker_get "$MARKER" tailscale_ssh)" != 1 ]; then
+    as_root tailscale set --ssh=true >/dev/null 2>&1 || die "could not enable Tailscale SSH"
+    CHANGED=1
+  fi
+  IN_TS_AUTHKEY=
+  # Record only mode and opt-in; identity stays in tailscaled's own state.
+  [ "$(marker_get "$MARKER" tailscale)" = 1 ] || printf 'tailscale=1\n' >>"$MARKER"
+  if [ "$OPT_TS_SSH" = 1 ] && [ "$(marker_get "$MARKER" tailscale_ssh)" != 1 ]; then
+    printf 'tailscale_ssh=1\n' >>"$MARKER"
+  fi
+  _status=$(ts_status)
+  [ "$(printf '%s\n' "$_status" | head -n 1)" = Running ] || die "Tailscale is not running; approve the node and rerun"
+  _dns=$(printf '%s\n' "$_status" | sed -n '2p')
+  printf '%s' "$_dns" | grep -Eq '^[a-z0-9][a-z0-9.-]*\.ts\.net$' \
+    || die "Tailscale has no ts.net DNS name; enable MagicDNS and HTTPS in your tailnet"
+  TAILSCALE_URL=https://$_dns
+  check_host_firewall
+}
+
+serve_tailscale() {
+  [ "$TAILSCALE_ENABLED" = 1 ] || return 0
+  as_root tailscale serve status --json >"$WORK/tailscale-serve.json" 2>/dev/null \
+    || die "cannot inspect Tailscale Serve configuration"
+  _serve=$(python3 -c 'import json, sys
+s = json.load(open(sys.argv[1])) or {}
+def public(c):
+    return any((c.get("AllowFunnel") or {}).values()) or any(public(f) for f in (c.get("Foreground") or {}).values())
+if public(s):
+    print("public")
+else:
+    handler = (s.get("Web") or {}).get(sys.argv[2] + ":443", {}).get("Handlers", {}).get("/", {})
+    https = (s.get("TCP") or {}).get("443", {}).get("HTTPS", False)
+    print("ready" if https and handler.get("Proxy", "").rstrip("/") == sys.argv[3] else "configure")
+' "$WORK/tailscale-serve.json" "${TAILSCALE_URL#https://}" "http://127.0.0.1:$APP_PORT_FINAL" 2>/dev/null) \
+    || die "cannot parse Tailscale Serve configuration"
+  [ "$_serve" != public ] || die "Tailscale Funnel is enabled on this host. Disable public Funnel access before serving Groovenet privately."
+  if [ "$_serve" != ready ]; then
+    as_root tailscale serve --bg --https=443 --yes "http://127.0.0.1:$APP_PORT_FINAL" </dev/null >/dev/null 2>&1 \
+      || die "Tailscale Serve failed; enable MagicDNS and HTTPS in the tailnet admin console, then rerun"
+    CHANGED=1
+  fi
+}
+
 # --- Install -------------------------------------------------------------------
 
 CHANGED=0
@@ -771,7 +921,7 @@ write_marker_version() {
 }
 
 print_summary() {
-  _url=http://127.0.0.1:$APP_PORT_FINAL
+  _url=${TAILSCALE_URL:-http://127.0.0.1:$APP_PORT_FINAL}
   say ""
   if [ "$CHANGED" = 0 ]; then
     say "Groovenet $IMAGE_TAG_FINAL is already installed and running. Nothing changed."
@@ -794,11 +944,13 @@ print_summary() {
   fi
   say "  Logs:      cd $DIR && docker compose logs -f"
   say "  Upgrade:   run this installer again"
-  if [ -n "${SSH_CONNECTION:-}" ]; then
-    _host=$(printf '%s' "$SSH_CONNECTION" | awk '{ print $3 }')
+  if [ -n "$TAILSCALE_URL" ]; then
+    say "  Tailnet:   $TAILSCALE_URL"
+  else
+    _host=$(printf '%s' "${SSH_CONNECTION:-}" | awk '{ print $3 }')
     say ""
     say "The app listens on 127.0.0.1 only. From your own machine:"
-    say "  ssh -L $APP_PORT_FINAL:127.0.0.1:$APP_PORT_FINAL <user>@${_host:-<this-server>}   then open http://localhost:$APP_PORT_FINAL"
+    say "  ssh -L $APP_PORT_FINAL:localhost:$APP_PORT_FINAL user@${_host:-host}   then open http://localhost:$APP_PORT_FINAL"
   fi
 }
 
@@ -823,6 +975,8 @@ main() {
   make_dir
   install_files
   write_marker_version
+  prepare_tailscale
+  serve_tailscale
   info "Starting Groovenet (database migrations run first)"
   dc up -d --quiet-pull --remove-orphans || die "docker compose up failed. See: cd $DIR && docker compose logs"
   wait_for_health
