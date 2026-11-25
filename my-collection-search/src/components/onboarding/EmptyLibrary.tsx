@@ -19,13 +19,13 @@ export const DISCOGS_SETUP_DOCS =
  * Three faces of the same block: the server has no Discogs credentials (say which, and where to
  * set them, instead of letting the sync fail with a 500); an import is running (its progress,
  * and that leaving is safe); and the ready state, whose action starts the import. A failed
- * import offers "Resume import": the route checkpoints every 25 releases, so a rerun carries on.
+ * import offers "Resume import": the import checkpoints every 25 releases, so a rerun carries on.
+ * The import is a background job (#1274), so its progress shows after a reload or on another
+ * device, and no second import is offered while one runs.
  */
 export default function EmptyLibrary() {
   const { friend } = useUsername();
   const libraries = useLibrariesQuery();
-  const importer = useDiscogsImport();
-
   const tokenMissing = libraries.data ? !libraries.data.discogs_token_set : false;
   const account = libraries.data?.account_username ?? null;
   // A selected library syncs by its own username; with none, the server's account.
@@ -36,6 +36,7 @@ export default function EmptyLibrary() {
     ...(usernameMissing ? ["DISCOGS_USERNAME"] : []),
   ];
   const unconfigured = missing.length > 0;
+  const importer = useDiscogsImport(target);
 
   const resuming = importer.failure !== null;
   const label = resuming ? "Resume import" : "Import from Discogs";
@@ -88,8 +89,8 @@ export default function EmptyLibrary() {
           <Box role="status" w="100%">
             <Text fontWeight="semibold">Importing · {importer.progress}</Text>
             <Text color="fg.muted" mt={1}>
-              A large collection takes a while: about a second per release. You can leave this page;
-              the import keeps running, and your records appear as they arrive.
+              A large collection takes a while: about a second per release. You can leave this page
+              or close the tab; the import keeps running, and your records appear as they arrive.
             </Text>
           </Box>
         )}

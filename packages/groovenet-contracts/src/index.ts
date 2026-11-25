@@ -5,6 +5,7 @@ export * from "./artistCredits.js";
 export * from "./tracks.js";
 export * from "./albums.js";
 export * from "./friends.js";
+export * from "./discogsImports.js";
 export * from "./recordCare.js";
 export * from "./recordCareQueue.js";
 export * from "./recordCareSessions.js";
