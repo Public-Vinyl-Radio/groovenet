@@ -440,6 +440,7 @@ describe("NowPlayingTrackerService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] observe failed"),
+      expect.anything(),
       expect.any(Error),
     );
   });
@@ -480,6 +481,7 @@ describe("NowPlayingTrackerService", () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("[now-playing] tick failed for"),
+      expect.anything(),
       expect.any(Error),
     );
     // The second source's own transition still happened despite the first one's failure.

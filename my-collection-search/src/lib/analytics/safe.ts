@@ -22,7 +22,7 @@ export async function safelyAsync(action: string, fn: () => Promise<void>): Prom
 function warnOnce(action: string, error: unknown) {
   if (warned) return;
   warned = true;
-  console.warn(`[analytics] ${action} failed; further analytics errors are suppressed:`, error);
+  console.warn("[analytics] %s failed; further analytics errors are suppressed:", action, error);
 }
 
 /** Test helper: let the next error be logged again. */

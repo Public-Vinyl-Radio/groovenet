@@ -63,7 +63,7 @@ export class EmbeddedTagsBackfillService {
       .exec();
 
     void this.execute(runId, candidates, request.force === true).catch((error) => {
-      console.error(`[embedded-tags] run ${runId} aborted:`, error);
+      console.error("[embedded-tags] run %s aborted:", runId, error);
     });
 
     return {
@@ -136,7 +136,9 @@ export class EmbeddedTagsBackfillService {
       await this.redis.hincrby(runKey(runId), "queued_embeddings", tracks.length);
     } catch (error) {
       console.error(
-        `[embedded-tags] run ${runId}: failed to queue embeddings for ${tracks.length} track(s):`,
+        "[embedded-tags] run %s: failed to queue embeddings for %s track(s):",
+        runId,
+        tracks.length,
         error,
       );
     }

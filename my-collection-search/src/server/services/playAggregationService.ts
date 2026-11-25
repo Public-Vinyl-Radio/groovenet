@@ -499,7 +499,7 @@ export async function aggregationTick(now: number = Date.now()): Promise<void> {
         created += result.created;
       } catch (error) {
         // One source's failure must not block the rest.
-        console.error(`[play-aggregation] source ${sourceId} failed:`, error);
+        console.error("[play-aggregation] source %s failed:", sourceId, error);
       }
     }
     if (created > 0) {

@@ -245,7 +245,9 @@ describe("EmbeddedTagsBackfillService", () => {
 
       expect(run).toMatchObject({ read: 2, complete: true, queued_embeddings: 0, errors: [] });
       expect(error).toHaveBeenCalledWith(
-        expect.stringContaining("failed to queue embeddings for 1 track(s)"),
+        expect.stringContaining("failed to queue embeddings for %s track(s)"),
+        expect.anything(),
+        1,
         expect.any(Error),
       );
     });

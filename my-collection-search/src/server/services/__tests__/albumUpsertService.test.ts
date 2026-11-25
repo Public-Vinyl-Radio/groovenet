@@ -311,7 +311,7 @@ describe("upsertAlbums()", () => {
     ]);
 
     expect(result).toEqual([b]);
-    expect(errorSpy).toHaveBeenCalledWith("Error upserting album 1:", "DB error");
+    expect(errorSpy).toHaveBeenCalledWith("Error upserting album %s:", "1", "DB error");
     errorSpy.mockRestore();
   });
 

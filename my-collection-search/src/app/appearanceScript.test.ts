@@ -21,6 +21,16 @@ beforeEach(() => {
 });
 
 describe("the pre-paint script", () => {
+  it("is safe to inline in a <script> element", () => {
+    expect(appearanceScript).not.toMatch(/<\/script|<!--/i);
+    expect(appearanceScript).not.toMatch(/[\u2028\u2029]/);
+  });
+
+  it("still carries the custom-CSS pattern exactly", () => {
+    const [, json] = /\}\)\((\{.*\})\);$/s.exec(appearanceScript) ?? [];
+    expect(new Function(`return (${json});`)().css).toBe(customCssPattern);
+  });
+
   it("does nothing without a stored override", () => {
     run();
     expect(html().dataset.palette).toBe("sleeve");

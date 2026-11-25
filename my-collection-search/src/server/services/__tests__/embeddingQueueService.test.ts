@@ -990,7 +990,9 @@ describe("tick — logs failures and pauses (#451)", () => {
     await service.tick(NOW);
 
     expect(errorSpy).toHaveBeenCalledWith(
-      "[embedding-queue] job failed (track t9, kind audio_vibe):",
+      "[embedding-queue] job failed (track %s, kind %s):",
+      "t9",
+      "audio_vibe",
       "503 Service Unavailable",
     );
   });

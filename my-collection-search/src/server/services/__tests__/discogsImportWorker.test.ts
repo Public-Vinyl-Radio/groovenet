@@ -240,7 +240,8 @@ describe("DiscogsImportWorker", () => {
     await worker().tick();
 
     expect(console.error).toHaveBeenCalledWith(
-      "[Discogs Import] Heartbeat for 5 failed:",
+      "[Discogs Import] Heartbeat for %s failed:",
+      5,
       expect.any(Error),
     );
     expect(repoMock.finish).not.toHaveBeenCalled();
@@ -274,7 +275,8 @@ describe("DiscogsImportWorker", () => {
 
     expect(repoMock.appendLog.mock.calls[0][1]).toHaveLength(200);
     expect(console.error).toHaveBeenCalledWith(
-      "[Discogs Import] Could not record progress of 5:",
+      "[Discogs Import] Could not record progress of %s:",
+      5,
       expect.any(Error),
     );
     expect(repoMock.finish).toHaveBeenCalledWith(5, "me", "completed", null);

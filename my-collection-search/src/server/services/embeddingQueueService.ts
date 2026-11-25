@@ -255,7 +255,9 @@ export class EmbeddingQueueService {
         // Previously only written to Redis (`last_error`/`failed`), so a run
         // of failures never showed up in the app's own logs (#451).
         console.error(
-          `[embedding-queue] job failed (track ${job.track_id}, kind ${job.kind}):`,
+          "[embedding-queue] job failed (track %s, kind %s):",
+          job.track_id,
+          job.kind,
           message,
         );
         if (isAuthError(message)) {

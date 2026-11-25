@@ -63,7 +63,7 @@ async function handleGet(request: NextRequest) {
           await new Promise((resolve) => setTimeout(resolve, STREAM_POLL_MS));
         }
       } catch (error) {
-        console.error(`[Discogs Sync] Streaming import ${importId} failed:`, error);
+        console.error("[Discogs Sync] Streaming import %s failed:", importId, error);
         write(`Error: ${STREAM_FAILED}\n\n`);
       } finally {
         open = false;

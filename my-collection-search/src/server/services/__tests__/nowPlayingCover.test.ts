@@ -66,6 +66,7 @@ describe("resizeCoverArt", () => {
     expect(result).toBeNull();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("cover resize failed"),
+      "https://example.com/cover.jpg",
       expect.any(Error),
     );
   });
@@ -81,6 +82,7 @@ describe("resizeCoverArt", () => {
     expect(result).toBeNull();
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("cover resize failed"),
+      "https://example.com/cover.jpg",
       expect.any(Error),
     );
   });

@@ -185,7 +185,9 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
           counters.ai_failed += batch.length;
           lastError = error instanceof Error ? error.message : String(error);
           console.error(
-            `[genre-reconciliation] run ${runId} batch ${counters.ai_batches + 1} failed:`,
+            "[genre-reconciliation] run %s batch %s failed:",
+            runId,
+            counters.ai_batches + 1,
             error,
           );
         }
@@ -202,7 +204,7 @@ export async function executeRun(runId: string, options: ReconciliationRunOption
         `${counters.input_tokens}+${counters.output_tokens} tokens, $${counters.cost_usd.toFixed(4)}`,
     );
   } catch (error) {
-    console.error(`[genre-reconciliation] run ${runId} failed:`, error);
+    console.error("[genre-reconciliation] run %s failed:", runId, error);
     try {
       await repo.finishRun(runId, "failed", error instanceof Error ? error.message : String(error));
     } catch (finishError) {

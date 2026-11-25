@@ -206,7 +206,7 @@ export class NowPlayingTrackerService {
       src.displayed = track;
       await this.publish(sourceId, src, window);
     } catch (error) {
-      console.error(`[now-playing] observe failed for ${sourceId}:`, error);
+      console.error("[now-playing] observe failed for %s:", sourceId, error);
     }
   }
 
@@ -250,7 +250,7 @@ export class NowPlayingTrackerService {
           await this.publishBare(sourceId, src);
         }
       } catch (error) {
-        console.error(`[now-playing] tick failed for ${sourceId}:`, error);
+        console.error("[now-playing] tick failed for %s:", sourceId, error);
       }
     }
   }

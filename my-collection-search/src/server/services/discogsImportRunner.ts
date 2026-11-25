@@ -83,7 +83,7 @@ export async function runDiscogsImport(
 
     // Use a manifest per username
     const manifestIds = getManifestReleaseIds(username);
-    console.log(`[Discogs Sync] Loaded manifest IDs for ${username}:`, manifestIds.length);
+    console.log("[Discogs Sync] Loaded manifest IDs for %s:", username, manifestIds.length);
     send(`Loaded manifest IDs for ${username}: ${manifestIds.length}\n\n`);
     progress({ phase: "listing" });
 

@@ -36,7 +36,7 @@ function denied(access: Exclude<LyricsResult<unknown>["access"], "owner">): Next
 }
 
 function failed(action: string, error: unknown): NextResponse {
-  console.error(`Error ${action} track lyrics:`, error);
+  console.error("Error %s track lyrics:", action, error);
   return NextResponse.json({ error: `Failed to ${action} lyrics` }, { status: 500 });
 }
 
