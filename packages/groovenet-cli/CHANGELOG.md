@@ -1,5 +1,30 @@
 # Changelog
 
+## [4.0.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.15.1...groovenet-cli-v4.0.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** trust a custom CA with ca_cert instead of disabling TLS verification ([#1287](https://github.com/Public-Vinyl-Radio/groovenet/issues/1287))
+
+### Features
+
+* **client:** trust a custom CA with ca_cert instead of disabling TLS verification ([#1287](https://github.com/Public-Vinyl-Radio/groovenet/issues/1287)) ([660adab](https://github.com/Public-Vinyl-Radio/groovenet/commit/660adabdbcc239ed6f9370d2ecd485fba7ca5486))
+
+
+### Bug Fixes
+
+* **player:** explain a lost speaker, say when it's back, and reclaim it on play ([#1277](https://github.com/Public-Vinyl-Radio/groovenet/issues/1277)) ([7996797](https://github.com/Public-Vinyl-Radio/groovenet/commit/799679767cdd544901a4fff796fe7615168990fd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^3.14.1 to ^4.0.0
+    * @groovenet/contracts bumped from 1.10.1 to 1.11.0
+    * @groovenet/player bumped from 0.1.15 to 0.2.0
+
 ## [3.15.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.15.0...groovenet-cli-v3.15.1) (2026-11-22)
 
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.22...v0.4.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** trust a custom CA with ca_cert instead of disabling TLS verification ([#1287](https://github.com/Public-Vinyl-Radio/groovenet/issues/1287))
+
+### Features
+
+* **client:** trust a custom CA with ca_cert instead of disabling TLS verification ([#1287](https://github.com/Public-Vinyl-Radio/groovenet/issues/1287)) ([660adab](https://github.com/Public-Vinyl-Radio/groovenet/commit/660adabdbcc239ed6f9370d2ecd485fba7ca5486))
+* **deploy:** Tailscale-only access for the install script ([#1285](https://github.com/Public-Vinyl-Radio/groovenet/issues/1285)) ([49b4bbc](https://github.com/Public-Vinyl-Radio/groovenet/commit/49b4bbcfc31378cc7dae22f87cd9102d797b8c0e))
+* **embeddings:** local embedding model so suggestions work without an OpenAI key ([#1281](https://github.com/Public-Vinyl-Radio/groovenet/issues/1281)) ([5123cc5](https://github.com/Public-Vinyl-Radio/groovenet/commit/5123cc5b478343b1a6198c878c0a12246ca8f5f7))
+* **import:** run the Discogs import as a background job ([#1278](https://github.com/Public-Vinyl-Radio/groovenet/issues/1278)) ([83b4e87](https://github.com/Public-Vinyl-Radio/groovenet/commit/83b4e8714661fc3cb6cdd5be359d0f099542aa45))
+* **onboarding:** empty states and first-import guidance for an empty library ([#1275](https://github.com/Public-Vinyl-Radio/groovenet/issues/1275)) ([91dd393](https://github.com/Public-Vinyl-Radio/groovenet/commit/91dd39340c06c2a81a58f8150ce838d35a67f9e0))
+* **ui:** playlist suggestions add without reloading, dock only when roomy, and name their target ([#1271](https://github.com/Public-Vinyl-Radio/groovenet/issues/1271)) ([1f8ef70](https://github.com/Public-Vinyl-Radio/groovenet/commit/1f8ef7021df12d7dc216299c60fe5b98dca3b8c6))
+
+
+### Bug Fixes
+
+* **deps:** override node-gyp and xml2js to clear tar/request advisories ([#1290](https://github.com/Public-Vinyl-Radio/groovenet/issues/1290)) ([b03d9dd](https://github.com/Public-Vinyl-Radio/groovenet/commit/b03d9dd9d3189b3fd6a35faca6274d69fc96a846))
+* **player:** explain a lost speaker, say when it's back, and reclaim it on play ([#1277](https://github.com/Public-Vinyl-Radio/groovenet/issues/1277)) ([7996797](https://github.com/Public-Vinyl-Radio/groovenet/commit/799679767cdd544901a4fff796fe7615168990fd))
+* **security:** constant console format strings and escape the inline appearance script ([#1289](https://github.com/Public-Vinyl-Radio/groovenet/issues/1289)) ([509eda3](https://github.com/Public-Vinyl-Radio/groovenet/commit/509eda36ab1b01fc968b295567505e68b7d9bbc1))
+
 ## [0.3.22](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.21...v0.3.22) (2026-11-22)
 
 
