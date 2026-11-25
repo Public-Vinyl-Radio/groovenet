@@ -43,7 +43,7 @@ describe("PlaylistMonthGrid (#769)", () => {
       </PlaylistMonthGrid>,
     );
     expect(getComputedStyle(screen.getByTestId("month-grid")).gridTemplateColumns).toBe(
-      "repeat(1, minmax(0, 1fr))",
+      "repeat(1, minmax(0px, 1fr))",
     );
   });
 });

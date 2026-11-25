@@ -241,10 +241,10 @@ describe("AppShell", () => {
       expect(within(tabBar()).queryByText("Home", { selector: "p" })).toBeNull();
       for (const name of ["Home", "Tracks", "Albums", "Genres", "Spins"]) {
         const link = within(tabBar()).getByRole("link", { name, hidden: true });
-        expect(rulesFor(link.firstElementChild!)).toMatch(/min-height:\s*44px/);
+        expect(getComputedStyle(link.firstElementChild!).minHeight).toBe("44px");
       }
       const more = within(tabBar()).getByRole("button", { name: "More", hidden: true });
-      expect(rulesFor(more)).toMatch(/min-height:\s*44px/);
+      expect(getComputedStyle(more).minHeight).toBe("44px");
     });
   });
 

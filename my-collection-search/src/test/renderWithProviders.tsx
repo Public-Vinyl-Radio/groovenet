@@ -3,9 +3,10 @@
 // such a suite: it installs the browser APIs Chakra's dialogs and menus reach
 // for and jsdom lacks, and a node-environment suite has no `window` to stub.
 //
-// jsdom evaluates no media queries, so a component with a mobile and a desktop
-// layout switched by responsive `display` renders both, with only the base
-// (mobile) one accessible. Query the desktop one with `{ hidden: true }`.
+// jsdom evaluates no stylesheet media queries here (see `disableMediaRules`), so
+// a component with a mobile and a desktop layout switched by responsive
+// `display` renders both, with only the base (mobile) one accessible. Query the
+// desktop one with `{ hidden: true }`.
 import React from "react";
 import { afterEach, expect } from "vitest";
 import { cleanup, render, screen, waitFor, type RenderOptions } from "@testing-library/react";
@@ -27,6 +28,48 @@ function matchesMinWidth(query: string): boolean {
   const value = Number(match[1]) * (match[2] === "px" ? 1 : 16);
   return viewportWidth >= value;
 }
+
+/**
+ * jsdom 30 matched no stylesheet `@media` rule, so Chakra's responsive styles
+ * rendered their base (phone) values and the suites are written against that.
+ * jsdom 31 evaluates them against a fixed 1024x768 window that nothing can
+ * resize, so `(min-width: 768px)` always matches and the desktop layout would
+ * hide the phone one whatever `setViewportWidth` says. Each width rule is
+ * switched off again; `matchMedia` (below) is what follows the viewport.
+ */
+let mediaSignature = "";
+
+function disableMediaRules() {
+  const sheets = Array.from(document.styleSheets);
+  const signature = `${sheets.length}:${sheets.reduce((n, sheet) => n + sheet.cssRules.length, 0)}`;
+  if (signature === mediaSignature) return;
+  const walk = (rules: CSSRuleList) => {
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSMediaRule && /width/.test(rule.media.mediaText)) {
+        rule.media.mediaText = "not all";
+      }
+      if ("cssRules" in rule) walk((rule as CSSGroupingRule).cssRules);
+    }
+  };
+  for (const sheet of sheets) walk(sheet.cssRules);
+  mediaSignature = signature;
+}
+
+const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+window.getComputedStyle = ((...args: Parameters<typeof nativeGetComputedStyle>) => {
+  disableMediaRules();
+  return nativeGetComputedStyle(...args);
+}) as typeof window.getComputedStyle;
+
+// jsdom 31 computes `animation-name` and `transition-*` from Chakra's recipes
+// (jsdom 30 left them empty), so Ark's Presence waits for an `animationend`
+// jsdom never fires and a closed dialog, menu or popover stays mounted. Run
+// everything instantly, as `prefers-reduced-motion` would in a browser.
+const noMotion = document.createElement("style");
+noMotion.dataset.testNoMotion = "";
+noMotion.textContent =
+  "*, *::before, *::after { animation: none !important; transition: none !important; }";
+document.head.appendChild(noMotion);
 
 window.matchMedia = (query: string) =>
   ({

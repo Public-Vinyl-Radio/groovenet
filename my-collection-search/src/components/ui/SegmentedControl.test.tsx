@@ -41,7 +41,7 @@ describe("SegmentedControl", () => {
       getComputedStyle(screen.getByRole("button", { name })),
     );
     expect(first.borderInlineStartWidth).toBe("0px");
-    expect(second.borderInlineStartWidth).toBe("var(--chakra-border-widths-rule)");
+    expect(second.borderInlineStartWidth).toBe("1px");
     expect(second.borderRadius).toBe("0px");
   });
 
