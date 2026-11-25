@@ -43,3 +43,57 @@ it("accepts local or a valid player ID as a Now Playing target", async () => {
   for (const bad of ["../bad", "", "Lounge", "-x", 7, undefined])
     expect(parseNowPlayingTarget(bad)).toBeUndefined();
 });
+
+it("fails with a migration message when the config still has insecure_tls: true", async () => {
+  home.path = mkdtempSync(join(tmpdir(), "groovenet-config-"));
+  mkdirSync(join(home.path, ".groovenet"));
+  writeFileSync(join(home.path, ".groovenet/config.json"), '{"insecure_tls": true}');
+  vi.resetModules();
+  const { loadConfig } = await import("./config.js");
+  expect(() => loadConfig()).toThrow(/"insecure_tls" config option was removed/);
+  expect(() => loadConfig()).toThrow(/ca_cert.*GROOVENET_CA_CERT.*NODE_EXTRA_CA_CERTS/s);
+});
+
+it("ignores insecure_tls: false and lets saveConfig clear a stale insecure_tls: true", async () => {
+  home.path = mkdtempSync(join(tmpdir(), "groovenet-config-"));
+  mkdirSync(join(home.path, ".groovenet"));
+  const path = join(home.path, ".groovenet/config.json");
+  writeFileSync(path, '{"insecure_tls": false, "api_key": "k"}');
+  vi.resetModules();
+  const { loadConfig, saveConfig } = await import("./config.js");
+  expect(loadConfig()).not.toHaveProperty("insecure_tls");
+  writeFileSync(path, '{"insecure_tls": true, "api_key": "k"}');
+  saveConfig({ ca_cert: "/etc/ca.pem" });
+  const saved = JSON.parse(readFileSync(path, "utf8"));
+  expect(saved).toMatchObject({ api_key: "k", ca_cert: "/etc/ca.pem" });
+  expect(saved).not.toHaveProperty("insecure_tls");
+  expect(loadConfig().ca_cert).toBe("/etc/ca.pem");
+});
+
+it("lets GROOVENET_CA_CERT override ca_cert without persisting it", async () => {
+  home.path = mkdtempSync(join(tmpdir(), "groovenet-config-"));
+  mkdirSync(join(home.path, ".groovenet"));
+  const path = join(home.path, ".groovenet/config.json");
+  writeFileSync(path, '{"ca_cert": "/from/config.pem"}');
+  vi.resetModules();
+  const { loadConfig, saveConfig } = await import("./config.js");
+  vi.stubEnv("GROOVENET_CA_CERT", "/from/env.pem");
+  try {
+    expect(loadConfig().ca_cert).toBe("/from/env.pem");
+    saveConfig({ username: "dj" });
+    expect(JSON.parse(readFileSync(path, "utf8")).ca_cert).toBe("/from/config.pem");
+    vi.stubEnv("GROOVENET_CA_CERT", "  ");
+    expect(loadConfig().ca_cert).toBe("/from/config.pem");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+it("treats a non-object config file as empty", async () => {
+  home.path = mkdtempSync(join(tmpdir(), "groovenet-config-"));
+  mkdirSync(join(home.path, ".groovenet"));
+  writeFileSync(join(home.path, ".groovenet/config.json"), "null");
+  vi.resetModules();
+  const { loadConfig } = await import("./config.js");
+  expect(loadConfig().default_friend_id).toBe(1);
+});

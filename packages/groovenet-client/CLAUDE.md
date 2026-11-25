@@ -35,11 +35,17 @@ web passes its `EventSource`-backed `playerApi`, Node passes `clientTransport(cl
 and resolves with the whole result (CLI). Neither replays a command.
 
 ```ts
-const client = new GroovenetClient({ baseUrl, apiKey, playerApiKey, insecureTls });
+const client = new GroovenetClient({ baseUrl, apiKey, playerApiKey, caCert });
 ```
 
-`insecureTls` attaches an https agent with `rejectUnauthorized: false`, for
-self-signed homelab certs.
+`caCert` is a path to a PEM CA bundle, read at construction into
+`new HttpsAgent({ ca })`, so verification stays on for an internal CA. An
+unreadable path throws an error naming it (`readCaCert`). `loadConfig()` lets
+`GROOVENET_CA_CERT` override the config's `ca_cert`, and throws if the file still
+has `insecure_tls: true`: that option (and `rejectUnauthorized: false`) was
+removed, CodeQL `js/disabling-certificate-validation`. Never reintroduce it. The
+agent covers only the API host; `getArtwork` uses a default agent for third-party
+hosts. Versioning is release-please's; the removal was a `feat(client)!`.
 
 Every method funnels through one private `request()`, which unwraps axios errors
 into `Error("API Error: …")`, preferring the response body's `error` field, then

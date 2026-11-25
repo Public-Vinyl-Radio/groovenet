@@ -18,6 +18,7 @@ import type {
   ServerPlayerDevice,
 } from "@groovenet/contracts";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
+import { readFileSync } from "fs";
 import { Agent as HttpsAgent } from "https";
 import { checkPlaylist, type PlaylistCheck, type PlaylistCheckOptions } from "./playlistCheck.js";
 import type {
@@ -171,14 +172,28 @@ export interface GroovenetClientConfig {
   apiKey?: string;
   /** Separate household/admin key; never falls back to collection credentials. */
   playerApiKey?: string;
-  /** Skip TLS certificate verification (internal CA / self-signed hosts). */
-  insecureTls?: boolean;
+  /**
+   * Path to a PEM CA bundle to trust for the API host (an internal CA, e.g.
+   * Caddy's local root). Verification stays on; the bundle replaces Node's
+   * default roots for requests to `baseUrl`.
+   */
+  caCert?: string;
   /**
    * Which tool is calling, sent as `X-Groovenet-Client`. The server tags its
    * analytics events with it, so CLI and agent traffic is told apart from the
    * web app's.
    */
   clientName?: "cli" | "mcp";
+}
+
+/** Reads a PEM CA bundle, failing with an error that names the path. */
+export function readCaCert(path: string): Buffer {
+  try {
+    return readFileSync(path);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cannot read CA certificate file "${path}": ${reason}`);
+  }
 }
 
 export class GroovenetClient {
@@ -196,7 +211,7 @@ export class GroovenetClient {
         ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
         ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
       },
-      ...(config.insecureTls ? { httpsAgent: new HttpsAgent({ rejectUnauthorized: false }) } : {}),
+      ...(config.caCert ? { httpsAgent: new HttpsAgent({ ca: readCaCert(config.caCert) }) } : {}),
     });
   }
 

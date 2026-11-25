@@ -33,7 +33,7 @@ export function createPlayerDaemon(options: PlayerDaemonOptions = {}): PlayerDae
   const client = new GroovenetClient({
     baseUrl: config.api_base,
     apiKey: config.api_key,
-    insecureTls: config.insecure_tls,
+    caCert: config.ca_cert,
     clientName: "cli",
   });
   const backend = options.backend ?? config.player_backend ?? "mpv";
@@ -49,7 +49,7 @@ export function createPlayerDaemon(options: PlayerDaemonOptions = {}): PlayerDae
           outputId: config.owntone_output,
         })
       : new MpvBackend({
-          insecureTls: config.insecure_tls,
+          caCert: config.ca_cert,
           artwork: options.artwork ?? config.player_artwork,
         }),
     new TrackResolver(client, {

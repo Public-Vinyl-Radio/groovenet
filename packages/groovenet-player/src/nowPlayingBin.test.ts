@@ -27,7 +27,7 @@ function setup({
     api_base: "https://example/api",
     api_key: "collection",
     player_api_key: "player",
-    insecure_tls: true,
+    ca_cert: "/ca.pem",
   };
   const close = vi.fn().mockResolvedValue(undefined);
   const stop = vi.fn();
@@ -104,7 +104,7 @@ it("uses existing config credentials and launches only the helper against the pr
     baseUrl: "https://example/api",
     apiKey: "collection",
     playerApiKey: "override",
-    insecureTls: true,
+    caCert: "/ca.pem",
     clientName: "cli",
   });
   expect(mock.spawn).toHaveBeenCalledWith("/helper", ["--socket", "/private/temporary.sock"], {

@@ -31,7 +31,15 @@ const DEFAULT_FRIEND_ID = process.env.DEFAULT_FRIEND_ID
   ? parseInt(process.env.DEFAULT_FRIEND_ID, 10)
   : 1;
 
-const client = new GroovenetClient({ baseUrl: API_BASE, apiKey: API_KEY, clientName: "mcp" });
+// Path to a PEM CA bundle (e.g. Caddy's local root CA); TLS verification stays on.
+const CA_CERT = process.env.GROOVENET_CA_CERT?.trim() || undefined;
+
+const client = new GroovenetClient({
+  baseUrl: API_BASE,
+  apiKey: API_KEY,
+  caCert: CA_CERT,
+  clientName: "mcp",
+});
 
 const PLAYLIST_MODES: readonly PlaylistOptimizerMode[] = ["genetic", "greedy", "cohesive_blocks"];
 

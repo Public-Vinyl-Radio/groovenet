@@ -12,7 +12,7 @@ function makeClient(): GroovenetClient {
   return new GroovenetClient({
     baseUrl: cfg.api_base,
     apiKey: cfg.api_key,
-    insecureTls: cfg.insecure_tls,
+    caCert: cfg.ca_cert,
     clientName: "cli",
   });
 }

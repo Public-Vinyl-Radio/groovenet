@@ -24,6 +24,20 @@ const tracks = await client.searchTracks({ q: "miles davis", limit: 20 });
 const album = await client.getAlbum(releaseId, friendId);
 ```
 
+### Trusting a private CA
+
+Pass `caCert`, a path to a PEM CA bundle (e.g. Caddy's local `root.crt`), to verify
+an internal HTTPS host against it; verification is never disabled. An unreadable
+path throws an error naming it. `NODE_EXTRA_CA_CERTS` also works with no code.
+
+```ts
+const client = new GroovenetClient({ baseUrl, caCert: "/path/to/root.crt" });
+```
+
+`loadConfig()` returns `ca_cert` from the config, overridden by `GROOVENET_CA_CERT`.
+The old `insecureTls` option and `insecure_tls` config key were removed; a config
+that still sets `insecure_tls: true` makes `loadConfig()` throw.
+
 ### Config helpers
 
 `loadConfig` / `saveConfig` read and write `~/.groovenet/config.json` (the same file the CLI uses):

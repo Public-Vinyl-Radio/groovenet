@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { spawn, type ChildProcess } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,9 @@ import { OwnToneBackend, MpvBackend, PlayLogger, PlayerControlClient } from "@gr
 import { PlayerDaemon } from "@groovenet/player";
 import { runPlayerTui } from "./playerTui.js";
 import { addPlayerCommands, createPlayerDaemon } from "./player.js";
+
+// Any readable file: the real client reads the CA bundle when it is built.
+const CA_CERT = fileURLToPath(import.meta.url);
 
 vi.mock("node:child_process", () => ({ spawn: vi.fn(() => ({ unref: vi.fn(), once: vi.fn() })) }));
 vi.mock("@groovenet/client", async (importOriginal) => ({
@@ -552,26 +556,26 @@ describe("player CLI commands", () => {
       vi.mocked(loadConfig).mockReturnValue({
         api_base: "http://localhost:3000/api",
         default_friend_id: 1,
-        insecure_tls: true,
+        ca_cert: CA_CERT,
         player_artwork,
       });
 
     it("keeps artwork off unless the config enables it", () => {
       configWith();
       createPlayerDaemon();
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: undefined });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: undefined });
       configWith(true);
       createPlayerDaemon();
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: true });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: true });
     });
 
     it("lets the artwork argument override the config", () => {
       configWith(false);
       createPlayerDaemon({ artwork: true });
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: true });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: true });
       configWith(true);
       createPlayerDaemon({ artwork: false });
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: false });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: false });
     });
 
     it("applies --artwork to the foreground daemon, the TUI and the detached daemon", async () => {
@@ -581,10 +585,10 @@ describe("player CLI commands", () => {
       vi.spyOn(process.stdout, "write").mockImplementation(() => true);
       setImmediate(() => process.emit("SIGINT"));
       await makeProgram().parseAsync(["node", "test", "player", "start", "--artwork"]);
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: true });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: true });
 
       await makeProgram().parseAsync(["node", "test", "player", "_daemon", "--artwork"]);
-      expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: true, artwork: true });
+      expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: CA_CERT, artwork: true });
       process.emit("SIGTERM");
 
       vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue({ status: "stopped" });
@@ -640,7 +644,7 @@ describe("OwnTone daemon selection", () => {
       password: "private",
     });
     createPlayerDaemon({ backend: "mpv" });
-    expect(MpvBackend).toHaveBeenLastCalledWith({ insecureTls: undefined, artwork: undefined });
+    expect(MpvBackend).toHaveBeenLastCalledWith({ caCert: undefined, artwork: undefined });
   });
   it("rejects invalid engines and missing delivery config", () => {
     vi.mocked(loadConfig).mockReturnValue({ api_base: "http://app/api", default_friend_id: 1 });

@@ -1,5 +1,6 @@
+import { resolve } from "node:path";
 import { Command } from "commander";
-import { loadConfig, parseNowPlayingTarget, saveConfig } from "@groovenet/client";
+import { loadConfig, parseNowPlayingTarget, readCaCert, saveConfig } from "@groovenet/client";
 import { printJson, printSuccess, printError } from "../output.js";
 
 type ConfigKey =
@@ -8,7 +9,7 @@ type ConfigKey =
   | "api_key"
   | "default_friend_id"
   | "username"
-  | "insecure_tls"
+  | "ca_cert"
   | "player_artwork"
   | "player_log_plays"
   | "player_backend"
@@ -24,7 +25,7 @@ const VALID_KEYS: ConfigKey[] = [
   "player_api_key",
   "default_friend_id",
   "username",
-  "insecure_tls",
+  "ca_cert",
   "player_artwork",
   "player_log_plays",
   "player_backend",
@@ -54,7 +55,7 @@ export function addConfigCommands(program: Command): void {
           process.exit(2);
         }
         update[key] = num;
-      } else if (key === "insecure_tls" || key === "player_artwork" || key === "player_log_plays") {
+      } else if (key === "player_artwork" || key === "player_log_plays") {
         const truthy = ["true", "1", "yes", "on"];
         const falsy = ["false", "0", "no", "off"];
         const v = value.toLowerCase();
@@ -64,6 +65,16 @@ export function addConfigCommands(program: Command): void {
         }
         update[key] = truthy.includes(v);
       } else {
+        if (key === "ca_cert") {
+          // Stored absolute: the config is read from any working directory.
+          value = resolve(value);
+          try {
+            readCaCert(value);
+          } catch (error) {
+            printError((error as Error).message);
+            process.exit(2);
+          }
+        }
         if (key === "player_backend" && value !== "mpv" && value !== "owntone") {
           printError("player_backend must be mpv or owntone");
           process.exit(2);

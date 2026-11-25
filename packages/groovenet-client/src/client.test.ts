@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const requestMock = vi.hoisted(() => vi.fn());
 const createMock = vi.hoisted(() => vi.fn(() => ({ request: requestMock })));
@@ -13,6 +16,13 @@ vi.mock("axios", () => ({
 
 import { GroovenetClient } from "./client.js";
 import type { RecommendationCandidate, SpinCreateInput } from "./types.js";
+
+const caDir = mkdtempSync(join(tmpdir(), "groovenet-client-ca-"));
+const caFile = join(caDir, "ca.pem");
+beforeAll(() =>
+  writeFileSync(caFile, "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n"),
+);
+afterAll(() => rmSync(caDir, { recursive: true, force: true }));
 
 /** Build a client and make the next `request` resolve with `data`. */
 function clientReturning(data: unknown) {
@@ -91,14 +101,48 @@ describe("GroovenetClient constructor", () => {
     });
   });
 
-  it("attaches an https agent that skips TLS verification when insecureTls is set", () => {
-    new GroovenetClient({ baseUrl: "https://example.test", insecureTls: true });
+  it("trusts the CA bundle at caCert while keeping verification on", () => {
+    const dir = mkdtempSync(join(tmpdir(), "groovenet-ca-"));
+    try {
+      const path = join(dir, "ca.pem");
+      writeFileSync(path, "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n");
+      new GroovenetClient({ baseUrl: "https://example.test", caCert: path });
 
-    const config = createMock.mock.calls[0]![0] as {
-      httpsAgent?: { options: { rejectUnauthorized: boolean } };
-    };
-    expect(config.httpsAgent).toBeDefined();
-    expect(config.httpsAgent?.options.rejectUnauthorized).toBe(false);
+      const config = createMock.mock.calls[0]![0] as {
+        httpsAgent?: { options: { ca?: Buffer; rejectUnauthorized?: boolean } };
+      };
+      expect(config.httpsAgent?.options.ca?.toString()).toContain("BEGIN CERTIFICATE");
+      expect(config.httpsAgent?.options.rejectUnauthorized).not.toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("attaches no https agent without caCert", () => {
+    new GroovenetClient({ baseUrl: "https://example.test" });
+    expect(createMock.mock.calls[0]![0]).not.toHaveProperty("httpsAgent");
+  });
+
+  it("names the path when the CA bundle cannot be read", () => {
+    const path = join(tmpdir(), "groovenet-missing-ca.pem");
+    expect(() => new GroovenetClient({ baseUrl: "https://example.test", caCert: path })).toThrow(
+      `Cannot read CA certificate file "${path}": `,
+    );
+  });
+
+  it("reports a non-Error read failure with the path", async () => {
+    vi.resetModules();
+    vi.doMock("fs", async (original) => ({
+      ...(await original<typeof import("fs")>()),
+      readFileSync: () => {
+        throw "denied";
+      },
+    }));
+    const { readCaCert } = await import("./client.js");
+    expect(() => readCaCert("/x/ca.pem")).toThrow(
+      'Cannot read CA certificate file "/x/ca.pem": denied',
+    );
+    vi.doUnmock("fs");
   });
 });
 
@@ -2439,7 +2483,7 @@ describe("getArtwork", () => {
     const client = new GroovenetClient({
       baseUrl: "https://home.test/api",
       apiKey: "collection",
-      insecureTls: true,
+      caCert: caFile,
     });
     requestMock.mockResolvedValue({ data: new Uint8Array([1, 2, 3]).buffer });
     expect(await client.getArtwork("/uploads/cover.png")).toEqual(Buffer.from([1, 2, 3]));
@@ -2457,12 +2501,12 @@ describe("getArtwork", () => {
     expect(requestMock.mock.calls[0][0]).not.toHaveProperty("httpsAgent");
   });
 
-  it("omits credentials and verifies TLS for external hosts, even with internal TLS disabled", async () => {
+  it("omits credentials and verifies TLS for external hosts, even with a custom CA configured", async () => {
     const client = new GroovenetClient({
       baseUrl: "https://home.test/api",
       apiKey: "secret",
       playerApiKey: "admin",
-      insecureTls: true,
+      caCert: caFile,
     });
     requestMock.mockResolvedValue({ data: Buffer.from("png") });
     await client.getArtwork("https://cdn.test/cover.jpg");

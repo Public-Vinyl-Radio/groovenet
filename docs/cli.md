@@ -22,6 +22,46 @@ groovenet config set api_base https://your-groovenet-host/api
 groovenet config set api_key <token>   # if your instance requires auth
 ```
 
+### Trusting a private CA
+
+If your instance serves HTTPS from a private or self-signed CA (for example Caddy's
+local CA for `*.home.arpa`), keep certificate verification on and tell Groovenet
+which CA to trust. Pick one:
+
+```bash
+# Per Groovenet: stored in ~/.groovenet/config.json (the path is made absolute).
+groovenet config set ca_cert /path/to/root.crt
+
+# Or per shell / service, which overrides ca_cert:
+export GROOVENET_CA_CERT=/path/to/root.crt
+
+# Or with no Groovenet setting at all; Node adds the CA to its built-in roots:
+export NODE_EXTRA_CA_CERTS=/path/to/root.crt
+```
+
+`ca_cert` and `GROOVENET_CA_CERT` name a PEM bundle that is trusted for your
+Groovenet host, **in place of** Node's built-in roots for those requests (use
+`NODE_EXTRA_CA_CERTS` to add to them). An unreadable path fails with an error
+naming it. The local player passes the same bundle to mpv as `--tls-ca-file`.
+
+Caddy's local root CA is the public `root.crt`; never copy `root.key`. It lives
+under Caddy's data directory at `pki/authorities/local/root.crt`:
+
+| Caddy runs as           | Path                                                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker (official image) | `/data/caddy/pki/authorities/local/root.crt` in the container (`docker cp` it out)                                                           |
+| Linux service or user   | `~/.local/share/caddy/pki/authorities/local/root.crt` (the `caddy` user's home for a service, often `/var/lib/caddy/.local/share/caddy/...`) |
+| macOS                   | `~/Library/Application Support/Caddy/pki/authorities/local/root.crt`                                                                         |
+
+`caddy trust` installs it in the machine's trust store, which Node does not read;
+point `ca_cert` at the file instead. Copy `root.crt` to each machine that runs
+the CLI or MCP server.
+
+> **Breaking change.** `insecure_tls` (and the client's `insecureTls`) was removed
+> because it disabled verification entirely. A config that still has
+> `"insecure_tls": true` now fails with a message pointing here; delete the key
+> and set `ca_cert` instead.
+
 ## Usage
 
 ```bash
@@ -96,7 +136,7 @@ mpv's separate artwork window.
 
 | Command               | Description                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------ |
-| `config`              | Manage CLI configuration (`api_base`, `api_key`, `now_playing_target`, …)            |
+| `config`              | Manage CLI configuration (`api_base`, `api_key`, `ca_cert`, `now_playing_target`, …) |
 | `tracks`              | Search and manage tracks                                                             |
 | `albums`              | Browse and manage albums                                                             |
 | `playlists`           | Manage playlists                                                                     |

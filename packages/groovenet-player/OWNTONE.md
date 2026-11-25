@@ -38,7 +38,7 @@ For AirPlay discovery on Debian, use the LAN network/interface with Avahi and
 D-Bus available. `bind_address = "127.0.0.1"` also restricts discovery to
 loopback, so it is suitable only for the isolated test. Restrict engine access
 with firewall/trusted networks and an admin password when it binds to the LAN;
-do not expose an unauthenticated control API. The CLI's `insecure_tls` setting
+do not expose an unauthenticated control API. The CLI's `ca_cert` setting
 applies to the Groovenet client/mpv, not the OwnTone connection.
 
 Configure `speaker_autoselect = no`. The patch disables automatic speaker

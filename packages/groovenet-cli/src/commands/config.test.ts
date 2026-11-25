@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Command } from "commander";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addConfigCommands } from "./config.js";
@@ -69,8 +72,6 @@ describe("config player_artwork", () => {
 
   it("keeps the existing keys working", async () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    await run("set", "insecure_tls", "yes");
-    expect(saveConfig).toHaveBeenLastCalledWith({ insecure_tls: true });
     await run("set", "default_friend_id", "7");
     expect(saveConfig).toHaveBeenLastCalledWith({ default_friend_id: 7 });
     await run("set", "username", "dj");
@@ -184,5 +185,53 @@ describe("now_playing_target", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     await run("show");
     expect(log).toHaveBeenCalledWith("  now_playing_target: lounge");
+  });
+});
+
+describe("config ca_cert", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("stores the CA bundle path absolute after checking it is readable", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "groovenet-cli-ca-"));
+    try {
+      const path = join(dir, "root.crt");
+      writeFileSync(path, "pem");
+      vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+      await run("set", "ca_cert", path);
+      expect(saveConfig).toHaveBeenLastCalledWith({ ca_cert: path });
+      const cwd = process.cwd();
+      process.chdir(dir);
+      try {
+        await run("set", "ca_cert", "root.crt");
+      } finally {
+        process.chdir(cwd);
+      }
+      expect(saveConfig.mock.lastCall![0].ca_cert).toMatch(/root\.crt$/);
+      expect(saveConfig.mock.lastCall![0].ca_cert.startsWith("/")).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses an unreadable path, naming it, and saves nothing", async () => {
+    saveConfig.mockClear();
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
+    await expect(run("set", "ca_cert", "/nope/ca.pem")).rejects.toThrow("exit");
+    expect(stderr.mock.calls.flat().join("")).toContain('"/nope/ca.pem"');
+    expect(exit).toHaveBeenCalledWith(2);
+    expect(saveConfig).not.toHaveBeenCalled();
+  });
+
+  it("no longer accepts insecure_tls as a key", async () => {
+    saveConfig.mockClear();
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
+    await expect(run("set", "insecure_tls", "yes")).rejects.toThrow("exit");
+    expect(saveConfig).not.toHaveBeenCalled();
   });
 });

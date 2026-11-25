@@ -13,6 +13,7 @@ Environment only; it runs as a daemon and does **not** read
 | `API_BASE`                    | required                                                                                                                                            |
 | `API_KEY`                     | optional                                                                                                                                            |
 | `DEFAULT_FRIEND_ID`           | optional                                                                                                                                            |
+| `GROOVENET_CA_CERT`           | optional; PEM CA bundle path for an internal CA. Verification stays on; an unreadable path fails startup naming it (`test/caCert.test.mjs`)         |
 | `SENTRY_DSN`                  | optional; enables exception reporting                                                                                                               |
 | `SENTRY_RELEASE`              | optional; release label (defaults to the root package version)                                                                                      |
 | `GROOVENET_PLAYER_SOCKET`     | optional; player daemon socket, default `~/.groovenet/player/player.sock` (from `defaultPlayerPaths()` in `@groovenet/player`, shared with the CLI) |
