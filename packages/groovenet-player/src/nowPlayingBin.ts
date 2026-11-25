@@ -33,7 +33,7 @@ try {
         baseUrl: config.api_base,
         apiKey: config.api_key,
         playerApiKey: process.env.PLAYER_API_KEY || config.player_api_key,
-        insecureTls: config.insecure_tls,
+        caCert: config.ca_cert,
         clientName: "cli",
       });
       controller = new RemoteNowPlaying(target.playerId, clientTransport(api), (refs) =>

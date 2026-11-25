@@ -106,7 +106,7 @@ Flags override the config for one run: `--remote PLAYER_ID` or `--socket PATH`
 groovenet-now-playing --remote lounge
 ```
 
-Remote mode reads `api_base`, `api_key`, `player_api_key`, and `insecure_tls` from
+Remote mode reads `api_base`, `api_key`, `player_api_key`, and `ca_cert` (or `GROOVENET_CA_CERT`) from
 the CLI configuration. `PLAYER_API_KEY` overrides `player_api_key`. No local
 daemon is needed. The target is explicit; switching targets in the TUI does not
 retarget this companion. A remote player whose ID is literally `local` needs

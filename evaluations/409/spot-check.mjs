@@ -189,12 +189,12 @@ export function formatReport(report, meta) {
 }
 
 /** The deployed image tag, so live numbers record what they measured. */
-async function fetchVersion(apiBase, insecureTls) {
+async function fetchVersion(apiBase, caCert) {
   const { get } = await import(apiBase.startsWith("https:") ? "node:https" : "node:http");
   return new Promise((resolve) => {
     const req = get(
       `${apiBase.replace(/\/$/, "")}/version`,
-      { rejectUnauthorized: !insecureTls, timeout: 10_000 },
+      { ...(caCert ? { ca: readFileSync(caCert) } : {}), timeout: 10_000 },
       (res) => {
         let body = "";
         res.on("data", (chunk) => {
@@ -234,7 +234,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     const client = new GroovenetClient({
       baseUrl: cfg.api_base,
       apiKey: cfg.api_key,
-      insecureTls: cfg.insecure_tls,
+      caCert: cfg.ca_cert,
       clientName: "cli",
     });
     const friendId = Number(opt("--friend") ?? 6);
@@ -255,7 +255,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
       await client.getEmbeddingStatus(friendId),
       args.includes("--allow-incomplete"),
     );
-    const version = await fetchVersion(cfg.api_base, cfg.insecure_tls);
+    const version = await fetchVersion(cfg.api_base, cfg.ca_cert);
     const ranAt = new Date().toISOString();
     const results = await runQueries(client, querySet, {
       friendId,

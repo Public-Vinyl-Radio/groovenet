@@ -13,11 +13,11 @@ const config = loadConfig();
 const client = new GroovenetClient({
   baseUrl: config.api_base,
   apiKey: config.api_key,
-  insecureTls: config.insecure_tls,
+  caCert: config.ca_cert,
   clientName: "cli",
 });
 const resolver = new TrackResolver(client, { apiBase: config.api_base, apiKey: config.api_key });
-const player = new PlayerCore(new MpvBackend({ insecureTls: config.insecure_tls }), resolver);
+const player = new PlayerCore(new MpvBackend({ caCert: config.ca_cert }), resolver);
 await player.enqueueSearch("Cumbia");
 // Or enqueue a playlist in its saved order:
 // await player.enqueuePlaylist(42);
@@ -27,8 +27,9 @@ await player.play();
 The resolver turns `local_audio_url` into the server's range-capable
 `/api/audio?filename=…` endpoint and passes the configured bearer key to mpv.
 Tracks without downloaded audio are skipped with a typed `NO_AUDIO` error.
-`insecureTls` is forwarded as mpv's `--tls-verify=no` setting for installations
-using a self-signed server certificate.
+`caCert` (a PEM CA bundle path) is forwarded to mpv as `--tls-verify=yes
+--tls-ca-file=<path>` for servers using a private CA; verification is never
+disabled.
 
 By default mpv is started with `--vid=no`, so embedded cover art does not open
 a window (the player has no artwork view, and the daemon may have no display).

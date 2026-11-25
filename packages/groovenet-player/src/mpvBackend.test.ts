@@ -68,7 +68,7 @@ function makeBackend(
     spawnFailure?: boolean;
     startupTimeoutMs?: number;
     commandTimeoutMs?: number;
-    insecureTls?: boolean;
+    caCert?: string;
     artwork?: boolean;
   } = {},
 ) {
@@ -88,7 +88,7 @@ function makeBackend(
   const backend = new MpvBackend({
     startupTimeoutMs: options.startupTimeoutMs,
     commandTimeoutMs: options.commandTimeoutMs,
-    insecureTls: options.insecureTls,
+    caCert: options.caCert,
     artwork: options.artwork,
     spawnProcess: (_executable, args) => {
       if (options.spawnFailure) throw new Error("spawn ENOENT");
@@ -181,7 +181,7 @@ describe("MpvBackend", () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it("sends auth headers and playback commands, reports position, lists devices and closes mpv", async () => {
-    const { backend, child, requests, spawnArgs } = makeBackend({ insecureTls: true });
+    const { backend, child, requests, spawnArgs } = makeBackend({ caCert: "/etc/caddy/root.crt" });
     const position = vi.fn();
     const ended = vi.fn();
     backend.on("position", position);
@@ -209,7 +209,9 @@ describe("MpvBackend", () => {
       command: ["loadfile", "https://server.test/audio", "replace"],
     });
     expect(child.kill).not.toHaveBeenCalled();
-    expect(spawnArgs[0]).toContain("--tls-verify=no");
+    expect(spawnArgs[0]).toEqual(
+      expect.arrayContaining(["--tls-verify=yes", "--tls-ca-file=/etc/caddy/root.crt"]),
+    );
     expect(spawnArgs[0]).toEqual(
       expect.arrayContaining(["--vid=no", "--audio-display=no", "--force-window=no"]),
     );
@@ -225,7 +227,8 @@ describe("MpvBackend", () => {
     const { backend, spawnArgs } = makeBackend({ artwork });
     await backend.load({ url: "https://server.test/audio", headers: {} });
     expect(spawnArgs[0]?.includes("--vid=no")).toBe(hidden);
-    expect(spawnArgs[0]).not.toContain("--tls-verify=no");
+    expect(spawnArgs[0]).not.toContain("--tls-verify=yes");
+    expect(spawnArgs[0].some((a) => a.startsWith("--tls-ca-file"))).toBe(false);
     await backend.close();
   });
 

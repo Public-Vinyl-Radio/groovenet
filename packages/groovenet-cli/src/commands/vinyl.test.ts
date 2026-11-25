@@ -820,7 +820,7 @@ describe("makeClient()", () => {
     loadConfig.mockReturnValue({
       api_base: "https://groovenet.home.arpa/api",
       api_key: "secret",
-      insecure_tls: true,
+      ca_cert: "/ca.pem",
     });
 
     makeClient();
@@ -828,7 +828,7 @@ describe("makeClient()", () => {
     expect(GroovenetClientMock).toHaveBeenCalledWith({
       baseUrl: "https://groovenet.home.arpa/api",
       apiKey: "secret",
-      insecureTls: true,
+      caCert: "/ca.pem",
       clientName: "cli",
     });
   });

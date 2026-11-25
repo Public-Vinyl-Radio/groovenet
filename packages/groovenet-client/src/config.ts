@@ -9,8 +9,11 @@ export interface GroovenetConfig {
   player_api_key?: string;
   default_friend_id: number;
   username?: string;
-  /** Skip TLS certificate verification (e.g. internal CA / self-signed hosts). */
-  insecure_tls?: boolean;
+  /**
+   * Path to a PEM CA bundle to trust for the API host (e.g. Caddy's local root
+   * CA). `GROOVENET_CA_CERT` overrides it. Verification stays on.
+   */
+  ca_cert?: string;
   /** Let the local player's mpv open a window for embedded cover art. Default off. */
   player_artwork?: boolean;
   /** Log a digital spin when the local player has played a track long enough. Default off. */
@@ -50,24 +53,40 @@ export function parseNowPlayingTarget(value: unknown): string | undefined {
   return id.success ? id.data : undefined;
 }
 
-export function loadConfig(): GroovenetConfig {
-  if (!existsSync(CONFIG_PATH)) {
-    return { ...DEFAULT_CONFIG };
-  }
+export const INSECURE_TLS_REMOVED =
+  'The "insecure_tls" config option was removed because it disabled certificate verification. ' +
+  'Trust your CA instead: run "groovenet config set ca_cert <path-to-ca.pem>", set GROOVENET_CA_CERT, ' +
+  'or set NODE_EXTRA_CA_CERTS. Then remove "insecure_tls" from ~/.groovenet/config.json.';
+
+function readStoredConfig(): Record<string, unknown> {
+  if (!existsSync(CONFIG_PATH)) return {};
   try {
-    const raw = readFileSync(CONFIG_PATH, "utf-8");
-    return { ...DEFAULT_CONFIG, ...JSON.parse(raw) } as GroovenetConfig;
+    const parsed: unknown = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return {};
   }
+}
+
+export function loadConfig(): GroovenetConfig {
+  const stored = readStoredConfig();
+  if (stored.insecure_tls === true) throw new Error(INSECURE_TLS_REMOVED);
+  const config = { ...DEFAULT_CONFIG, ...stored } as GroovenetConfig & { insecure_tls?: unknown };
+  delete config.insecure_tls;
+  const envCaCert = process.env.GROOVENET_CA_CERT?.trim();
+  if (envCaCert) config.ca_cert = envCaCert;
+  return config;
 }
 
 export function saveConfig(updates: Partial<GroovenetConfig>): void {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
-  const current = loadConfig();
-  const merged = { ...current, ...updates };
+  // Read the file, not loadConfig(): the env override must not be written back,
+  // and a leftover `insecure_tls` must not block the `config set` that fixes it.
+  const current = readStoredConfig();
+  delete current.insecure_tls;
+  const merged = { ...DEFAULT_CONFIG, ...current, ...updates };
   if (existsSync(CONFIG_PATH)) chmodSync(CONFIG_PATH, 0o600);
   writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2) + "\n", {
     encoding: "utf-8",

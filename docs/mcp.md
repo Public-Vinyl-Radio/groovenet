@@ -107,9 +107,22 @@ API_BASE=http://localhost:3000/api
 | ----------------------------- | -------------------------------------------------------------------------------- |
 | `API_BASE`                    | Groovenet API URL (default `http://localhost:3000/api`)                          |
 | `API_KEY`                     | Optional API key                                                                 |
+| `GROOVENET_CA_CERT`           | Optional path to a PEM CA bundle to trust (private CA); verification stays on    |
 | `DEFAULT_FRIEND_ID`           | Friend used when a tool call omits `friend_id` (default `1`)                     |
 | `GROOVENET_PLAYER_SOCKET`     | Player daemon socket (default `~/.groovenet/player/player.sock`, the CLI's path) |
 | `GROOVENET_PLAYER_TIMEOUT_MS` | Per-request limit for player calls (default `15000`)                             |
+
+### Private CA (self-signed or Caddy local CA)
+
+If `API_BASE` is HTTPS signed by a private CA, set `GROOVENET_CA_CERT` to its PEM
+file; the server verifies the certificate against it. An unreadable path stops the
+server at startup with an error naming the file. Alternatively set Node's
+`NODE_EXTRA_CA_CERTS`, which needs no Groovenet setting. The server does not read
+`~/.groovenet/config.json`, so `ca_cert` there does not apply. Caddy's local root
+CA is `pki/authorities/local/root.crt` under its data directory (for the official
+Docker image, `/data/caddy/pki/authorities/local/root.crt`; on macOS,
+`~/Library/Application Support/Caddy/pki/authorities/local/root.crt`). There is no
+option to switch verification off.
 
 ## Register with an MCP client
 

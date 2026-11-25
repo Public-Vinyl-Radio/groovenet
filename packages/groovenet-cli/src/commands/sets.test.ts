@@ -630,12 +630,12 @@ describe("runShow()", () => {
 
 describe("makeClient()", () => {
   it("builds a client from the stored config", () => {
-    loadConfig.mockReturnValue({ api_base: "https://g/api", api_key: "k", insecure_tls: true });
+    loadConfig.mockReturnValue({ api_base: "https://g/api", api_key: "k", ca_cert: "/ca.pem" });
     makeClient();
     expect(GroovenetClientMock).toHaveBeenCalledWith({
       baseUrl: "https://g/api",
       apiKey: "k",
-      insecureTls: true,
+      caCert: "/ca.pem",
       clientName: "cli",
     });
   });

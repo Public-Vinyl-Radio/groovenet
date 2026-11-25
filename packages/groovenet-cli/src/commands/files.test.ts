@@ -197,7 +197,7 @@ describe("files command wiring", () => {
   }
 
   it("runs backfill against a client built from config", async () => {
-    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", insecure_tls: false });
+    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", ca_cert: undefined });
     const instance = {
       startAudioMetadataBackfill: vi.fn().mockResolvedValue(run({ total: 0, complete: true })),
     };
@@ -334,7 +334,7 @@ describe("files tags", () => {
       addFilesCommands(c);
       return c;
     };
-    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", insecure_tls: false });
+    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", ca_cert: undefined });
     const instance = {
       startEmbeddedTagsBackfill: vi.fn().mockResolvedValue(tagsRun({ total: 0, complete: true })),
     };
@@ -459,7 +459,7 @@ describe("files isrc wiring (#1156)", () => {
       addFilesCommands(c);
       return c;
     };
-    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", insecure_tls: false });
+    loadConfig.mockReturnValue({ api_base: "http://x", api_key: "k", ca_cert: undefined });
     const instance = {
       startIsrcBackfill: vi.fn().mockResolvedValue(isrcRun({ total: 0, complete: true })),
     };

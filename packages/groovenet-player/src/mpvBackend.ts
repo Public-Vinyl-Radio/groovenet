@@ -15,7 +15,8 @@ import { PlayerError } from "./types.js";
 
 export interface MpvBackendOptions {
   executable?: string;
-  insecureTls?: boolean;
+  /** PEM CA bundle for mpv to trust when streaming over https (e.g. an internal CA). */
+  caCert?: string;
   /** Let mpv decode and show embedded cover art in its own window. Off by default. */
   artwork?: boolean;
   startupTimeoutMs?: number;
@@ -65,11 +66,11 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
     this.spawnProcess =
       options.spawnProcess ?? ((executable, args) => spawn(executable, args, { stdio: "ignore" }));
     this.connectSocket = options.connectSocket ?? createConnection;
-    this.insecureTls = options.insecureTls ?? false;
+    this.caCert = options.caCert;
     this.artwork = options.artwork ?? false;
   }
 
-  private readonly insecureTls: boolean;
+  private readonly caCert?: string;
   private readonly artwork: boolean;
 
   // Keep EventEmitter's broad overload for compatibility and add typed event overloads.
@@ -190,7 +191,7 @@ export class MpvBackend extends EventEmitter implements PlaybackBackend {
   private async startMpv(): Promise<void> {
     this.spawnError = null;
     const args = ["--idle=yes", "--no-terminal", `--input-ipc-server=${this.socketPath}`];
-    if (this.insecureTls) args.push("--tls-verify=no");
+    if (this.caCert) args.push("--tls-verify=yes", `--tls-ca-file=${this.caCert}`);
     // Embedded cover art is a video track to mpv, which opens a window for it.
     // --audio-display=no and --force-window=no also cover user mpv.conf settings.
     if (!this.artwork) args.push("--vid=no", "--audio-display=no", "--force-window=no");
