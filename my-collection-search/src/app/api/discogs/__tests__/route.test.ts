@@ -101,9 +101,13 @@ describe("GET /api/discogs", () => {
 
   it("ends the stream with an error line when reading the job fails", async () => {
     service.get.mockRejectedValueOnce(new Error("db down"));
-    expect(await (await request()).text()).toBe("Error: db down\n\n");
+    expect(await (await request()).text()).toBe(
+      "Error: Could not read the import's progress; it carries on in the background\n\n",
+    );
     service.get.mockRejectedValueOnce("db down");
-    expect(await (await request()).text()).toBe("Error: db down\n\n");
+    expect(await (await request()).text()).toBe(
+      "Error: Could not read the import's progress; it carries on in the background\n\n",
+    );
   });
 
   it("stops only the stream when the client leaves: the import carries on", async () => {
@@ -141,8 +145,8 @@ describe("GET /api/discogs", () => {
 
   it("is a 500 when the import can't be queued", async () => {
     service.start.mockRejectedValueOnce(new Error("db down")).mockRejectedValueOnce("db down");
-    expect(await (await request()).json()).toEqual({ error: "db down" });
-    expect(await (await request()).json()).toEqual({ error: "db down" });
+    expect(await (await request()).json()).toEqual({ error: "Could not start the Discogs import" });
+    expect(await (await request()).json()).toEqual({ error: "Could not start the Discogs import" });
   });
 
   it("hands its lines to the client as the sync's progress readers expect", async () => {

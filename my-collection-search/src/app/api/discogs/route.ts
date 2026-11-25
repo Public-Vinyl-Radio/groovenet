@@ -16,6 +16,8 @@ import {
 /** How often the stream reads the job's log. */
 export const STREAM_POLL_MS = 1000;
 const PAGE_SIZE = 500;
+const START_FAILED = "Could not start the Discogs import";
+const STREAM_FAILED = "Could not read the import's progress; it carries on in the background";
 
 async function handleGet(request: NextRequest) {
   const username = new URL(request.url).searchParams.get("username");
@@ -27,11 +29,8 @@ async function handleGet(request: NextRequest) {
     if (!missing) console.error("[Discogs Sync] Could not start the import:", error);
     return new Response(
       JSON.stringify({
-        error: missing
-          ? MISSING_CREDENTIALS
-          : error instanceof Error
-            ? error.message
-            : String(error),
+        // Never the exception's own text: it can carry database or stack detail.
+        error: missing ? MISSING_CREDENTIALS : START_FAILED,
       }),
       { status: 500 },
     );
@@ -64,7 +63,8 @@ async function handleGet(request: NextRequest) {
           await new Promise((resolve) => setTimeout(resolve, STREAM_POLL_MS));
         }
       } catch (error) {
-        write(`Error: ${error instanceof Error ? error.message : String(error)}\n\n`);
+        console.error(`[Discogs Sync] Streaming import ${importId} failed:`, error);
+        write(`Error: ${STREAM_FAILED}\n\n`);
       } finally {
         open = false;
         try {
