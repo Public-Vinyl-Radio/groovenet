@@ -12,11 +12,11 @@ permissions:
 jobs:
   desktop-coverage:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Install native probe dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake clang llvm pkg-config libsdl2-dev libcurl4-openssl-dev libpng-dev python3 openssl
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang llvm pkg-config libsdl2-dev libcurl4-openssl-dev libpng-dev python3 openssl
       - name: Build and exercise local TLS fixture
         run: |
           cmake -S apps/groovenet-brick/probe -B /tmp/brick-probe -DCMAKE_CXX_COMPILER=clang++ -DPROBE_COVERAGE=ON
@@ -30,4 +30,8 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: /tmp/brick-probe/coverage.lcov
           flags: brick-probe
-          fail_ci_if_error: true
+          # Dependabot runs only see Dependabot secrets, so CODECOV_TOKEN is empty there
+          # and the upload is rejected. Tolerate that for the bot only; once the token
+          # is added as a Dependabot secret this goes back to strict. Normal PRs are
+          # always strict, so a missing token there still fails the job.
+          fail_ci_if_error: ${{ github.actor != 'dependabot[bot]' || secrets.CODECOV_TOKEN != '' }}
