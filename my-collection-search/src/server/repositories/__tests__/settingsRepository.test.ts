@@ -194,3 +194,17 @@ describe("updateServingModel()", () => {
     await expect(makeRepo().updateServingModel("audio_vibe", "m", 1)).resolves.toBeNull();
   });
 });
+
+describe("seedEmbeddingModelDefaults", () => {
+  it("atomically initializes only pending defaults", async () => {
+    dbQuery.mockResolvedValue({ rows: [] });
+    await makeRepo().seedEmbeddingModelDefaults("bge-small-en-v1.5", 384);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("WHERE NOT default_initialized"), [
+      "bge-small-en-v1.5",
+      384,
+      2,
+      1,
+      1,
+    ]);
+  });
+});

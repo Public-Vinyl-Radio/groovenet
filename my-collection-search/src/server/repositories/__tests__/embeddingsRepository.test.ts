@@ -1,3 +1,4 @@
+vi.mock("../vectorSearch", () => ({ exactOrderSuffix: vi.fn().mockResolvedValue(" + 0") }));
 import { coverUrlSql } from "../coverUrlSql";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EmbeddingsRepository, eraYearRange } from "../embeddingsRepository";

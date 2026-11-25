@@ -1,3 +1,4 @@
+import { exactOrderSuffix } from "./vectorSearch";
 import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { PoolClient } from "pg";
 import { dbQuery, withDbTransaction } from "@/lib/serverDb";
@@ -197,6 +198,7 @@ export class RecommendationRepository {
 
       const seedEmbedding = embeddingResult.rows[0].embedding;
       const vector = castVector("te.embedding", params.dims);
+      const orderSuffix = await exactOrderSuffix(client, kind, params.model);
       const values: unknown[] = [
         seedEmbedding,
         params.seedTrackId,
@@ -223,7 +225,7 @@ export class RecommendationRepository {
             AND NOT (te.track_id = $2 AND te.friend_id = $3)
             AND t.deleted_at IS NULL
             ${library}
-          ORDER BY ${vector} <=> $1::vector(${params.dims})
+          ORDER BY (${vector} <=> $1::vector(${params.dims}))${orderSuffix}
           LIMIT $4
         ) candidates
         ORDER BY distance
@@ -249,6 +251,7 @@ export class RecommendationRepository {
       } = buildSeedValues(params.seedTracks);
       const modelParamIndex = limitParamIndex + 1;
       const vector = castVector("te.embedding", params.dims);
+      const orderSuffix = await exactOrderSuffix(client, kind, params.model);
       const seedVector = castVector("se.embedding", params.dims);
       const values: unknown[] = [
         ...queryParams,
@@ -290,7 +293,7 @@ export class RecommendationRepository {
             )
             AND t.deleted_at IS NULL
             ${library}
-          ORDER BY ${vector} <=> ${seedVector}
+          ORDER BY (${vector} <=> ${seedVector})${orderSuffix}
           LIMIT $${limitParamIndex}
         ) candidates
         ORDER BY distance

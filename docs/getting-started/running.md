@@ -17,6 +17,13 @@ curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh   # upgrade to
 
 The installer rewrites the compose files and `IMAGE_TAG` on each run and leaves your `.env` otherwise alone. `.env.example` beside it is the current template, so `diff .env.example .env` shows settings added since you installed.
 
+The bundled local embedding model runs in Node inside `app`, on CPU. Images
+are amd64-only; ARM Macs run them under emulation. No OpenAI key is needed for
+suggestions. An OpenAI key is an optional quality upgrade; after adding it to
+`.env` and restarting, use the target → backfill → serving cutover documented
+in the install guide. YouTube enrichment requires `YOUTUBE_API_KEY` and has no
+local fallback.
+
 ## Installed from a clone
 
 ```bash

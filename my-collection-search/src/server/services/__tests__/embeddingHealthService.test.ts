@@ -35,10 +35,11 @@ afterEach(() => {
 });
 
 describe("checkEmbeddingProvider", () => {
-  it("throws without calling the provider when the key is unset", async () => {
+  it("probes the selected provider even when no OpenAI key is set", async () => {
     delete process.env.OPENAI_API_KEY;
-    await expect(checkEmbeddingProvider()).rejects.toThrow(/OPENAI_API_KEY is not set/);
-    expect(mockCreate).not.toHaveBeenCalled();
+    mockCreate.mockResolvedValueOnce({ data: [{ embedding: [0] }] });
+    await expect(checkEmbeddingProvider()).resolves.toBeUndefined();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 
   it("passes when the provider accepts the key", async () => {

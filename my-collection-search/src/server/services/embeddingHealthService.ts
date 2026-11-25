@@ -9,15 +9,11 @@ let cached: { checkedAt: number; error: string | null } | null = null;
  * embedding code currently targets (#386), and throws with the provider's
  * own message when it refuses — an `invalid_organization` or revoked key
  * otherwise only reaches a console.error inside a PATCH, and tracks silently
- * stay without embeddings. Both kinds share one OpenAI account/key today, so
+ * stay without embeddings. Both kinds share the same provider by default, so
  * probing identity's target model is enough; the result is cached so the
  * About page polling it costs one request a minute.
  */
 export async function checkEmbeddingProvider(): Promise<void> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set");
-  }
-
   if (cached && Date.now() - cached.checkedAt < CACHE_MS) {
     if (cached.error) throw new Error(cached.error);
     return;

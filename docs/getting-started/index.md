@@ -22,6 +22,17 @@ It asks for your Discogs username and token (press Enter to skip and add them la
 - writes `.env` (mode 600, with a random database password) in the install directory: `/srv/groovenet` on a Linux server (root or sudo), `~/groovenet` otherwise.
 - starts the stack, runs database migrations, waits for `/api/health`, and offers to import your Discogs collection.
 
+Suggestions work without an API key: the app image bundles the local
+`bge-small-en-v1.5` embedding model, and generates embeddings in the background
+after import. There is no first-run model download. OpenAI is an optional
+quality upgrade. **YouTube enrichment needs a YouTube API key; there is no
+local fallback.** The installer explains both keys and its final summary lists
+skipped keys and the full `.env` path. Add keys there and restart the app.
+
+Adding an OpenAI key later does not automatically switch existing vectors.
+Use the [embedding model cutover flow](https://github.com/Public-Vinyl-Radio/groovenet/blob/main/my-collection-search/docs/IDENTITY_EMBEDDINGS.md#switching-a-kinds-model)
+to set the OpenAI target, backfill, check coverage, then change serving for each kind.
+
 The app listens on `127.0.0.1` only, so nothing is exposed to the network. Open [http://localhost:3000](http://localhost:3000), or from a server use an SSH tunnel: `ssh -L 3000:127.0.0.1:3000 you@server`.
 
 Run the same command again to upgrade to the latest release. It keeps `.env` and your data, and does nothing when you are already current.
@@ -42,7 +53,7 @@ curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh -s -- --profil
 | `--audio-dir PATH`                                                        | Keep audio in an existing directory, such as a mounted disk, instead of a Docker volume.                                            |
 | `--port N`                                                                | Port on `127.0.0.1` for the app. Default 3000.                                                                                      |
 | `--discogs-username`, `--discogs-token`                                   | Discogs credentials (or the `DISCOGS_USERNAME` and `DISCOGS_USER_TOKEN` environment variables).                                     |
-| `--openai-key`, `--youtube-key`                                           | Optional keys (or `OPENAI_API_KEY`, `YOUTUBE_API_KEY`).                                                                             |
+| `--openai-key`, `--youtube-key`                                           | OpenAI quality upgrade / YouTube enrichment (or `OPENAI_API_KEY`, `YOUTUBE_API_KEY`).                                               |
 | `--apple-music-team-id`, `--apple-music-key-id`, `--apple-music-key-file` | Optional Apple Music credentials (or `APPLE_MUSIC_TEAM_ID`, `APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_PRIVATE_KEY`).                       |
 | `--import`, `--no-import`                                                 | Run or skip the first Discogs import. Default: ask when there is a terminal, skip otherwise.                                        |
 | `--yes`                                                                   | Answer yes to confirmations, such as installing Docker.                                                                             |

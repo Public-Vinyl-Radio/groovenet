@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  seedDefaults,
   findEmbeddingModelSettings,
   listEmbeddingModelSettings: listEmbeddingModelSettingsRepo,
   updateTargetModel,
   updateServingModel,
   createOpenAiEmbeddingProvider,
 } = vi.hoisted(() => ({
+  seedDefaults: vi.fn(),
   findEmbeddingModelSettings: vi.fn(),
   listEmbeddingModelSettings: vi.fn(),
   updateTargetModel: vi.fn(),
@@ -16,6 +18,7 @@ const {
 
 vi.mock("@/server/repositories/settingsRepository", () => ({
   settingsRepository: {
+    seedEmbeddingModelDefaults: seedDefaults,
     findEmbeddingModelSettings,
     listEmbeddingModelSettings: listEmbeddingModelSettingsRepo,
     updateTargetModel,
@@ -26,6 +29,7 @@ vi.mock("@/server/repositories/settingsRepository", () => ({
 vi.mock("../openaiProvider", () => ({ createOpenAiEmbeddingProvider }));
 
 import {
+  seedEmbeddingModelDefaults,
   getServingModel,
   getTargetModel,
   getTargetProvider,
@@ -224,5 +228,30 @@ describe("invalidateEmbeddingModelCache", () => {
     await getServingModel("identity");
 
     expect(findEmbeddingModelSettings).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("seedEmbeddingModelDefaults", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it.each([undefined, "", "  "])("seeds local without a usable key (%s)", async (key) => {
+    vi.stubEnv("OPENAI_API_KEY", key);
+    await seedEmbeddingModelDefaults();
+    expect(seedDefaults).toHaveBeenCalledWith("bge-small-en-v1.5", 384);
+  });
+  it("seeds OpenAI with a key and invalidates previously read settings", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    await getServingModel("identity");
+    await seedEmbeddingModelDefaults();
+    await getServingModel("identity");
+    expect(seedDefaults).toHaveBeenCalledWith("text-embedding-3-small", 1536);
+    expect(findEmbeddingModelSettings).toHaveBeenCalledTimes(2);
+  });
+  it("reads the selected local target", async () => {
+    findEmbeddingModelSettings.mockResolvedValue({
+      ...IDENTITY_ROW,
+      target_model: "bge-small-en-v1.5",
+      target_dims: 384,
+    });
+    expect((await getTargetProvider("identity")).model).toBe("bge-small-en-v1.5");
   });
 });

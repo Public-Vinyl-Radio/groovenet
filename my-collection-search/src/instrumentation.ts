@@ -32,6 +32,8 @@ export async function register() {
     // Embedding generation is a queue, not an inline request-path call, so a
     // provider outage retries instead of silently leaving tracks without
     // embeddings (#385).
+    const { seedEmbeddingModelDefaults } = await import("@/lib/embeddings/config");
+    await seedEmbeddingModelDefaults();
     const { startEmbeddingQueueWorker } = await import("@/server/services/embeddingQueueService");
     startEmbeddingQueueWorker();
 
