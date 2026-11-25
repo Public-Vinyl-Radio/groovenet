@@ -242,7 +242,6 @@ export default function AppShell({
         bg="bg"
       >
         <Flex direction="column" h="100%" py={3} gap={2}>
-          <ProfileMenu compact={!isExpanded} />
           <Flex
             px={isExpanded ? 3 : 2}
             // justify="space-between"
@@ -375,6 +374,7 @@ export default function AppShell({
                 </Tooltip>
               );
             })}
+            <ProfileMenu compact={!isExpanded} />
           </VStack>
 
           <Box mt="auto" px={isExpanded ? 2 : 1} pb={2}>
@@ -421,7 +421,6 @@ export default function AppShell({
           borderWidth="outline"
           borderColor="border.ink"
         >
-          <ProfileMenu />
           {secondaryMobileMenuItems.map((item) => {
             const active = isActiveRoute(current, item.href);
             return (
@@ -441,6 +440,7 @@ export default function AppShell({
               </Link>
             );
           })}
+          <ProfileMenu />
           {playbackLabel !== null && (
             <Box
               as="button"

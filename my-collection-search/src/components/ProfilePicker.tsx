@@ -33,7 +33,7 @@ export function ProfilePicker({
       dismissible={dismissible}
       title="Who's listening?"
     >
-      <VStack align="stretch" gap={3}>
+      <VStack align="stretch" gap={3} p={4}>
         {profiles.map((user) => (
           <Button
             key={user.id}
