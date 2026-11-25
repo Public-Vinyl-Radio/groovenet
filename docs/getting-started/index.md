@@ -37,6 +37,66 @@ The app listens on `127.0.0.1` only, so nothing is exposed to the network. Open 
 
 Run the same command again to upgrade to the latest release. It keeps `.env` and your data, and does nothing when you are already current.
 
+### Private access on a VPS
+
+Use `--tailscale-auth-key KEY` or the `TS_AUTHKEY` environment variable to install
+Tailscale on Linux, join your tailnet, and serve the app with HTTPS. The installer
+prints the actual `https://groovenet.<tailnet>.ts.net` address (a name collision may
+add a suffix). Enable MagicDNS and HTTPS certificates in your tailnet admin console
+before unattended installation; approve the node if your policy requires it.
+See [Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve).
+
+Use `--tailscale-hostname NAME` to choose the hostname on first join (default
+`groovenet`). `--tailscale-ssh` separately opts in to Tailscale SSH; normal SSH is
+sufficient for installation. Reruns keep the existing node identity and hostname,
+do not reuse a key for a running node, and leave an already configured Serve target
+alone. After the first successful join, upgrades remember tailnet mode without a
+key. Do not delete tailscaled's state to upgrade.
+
+The bundle's `docker-compose.local.yml` publishes only `127.0.0.1:${APP_PORT:-3000}`;
+Tailscale Serve proxies that loopback port. The installer checks UFW and warns about
+allow/limit rules outside `tailscale0`, including rules that might cover app ports
+through ranges or profiles. Review and remove public app-port allowances yourself.
+It never enables or changes your firewall. Also check provider firewalls and test
+from outside: Docker port publishing can bypass UFW. Existing public Tailscale
+Funnel configuration is refused; disable it before using private Serve.
+
+Without Tailscale, the summary always prints the SSH tunnel fallback:
+`ssh -L 3000:localhost:3000 user@host`. `--public` is refused pending
+[authentication #569](https://github.com/Public-Vinyl-Radio/groovenet/issues/569)
+and [hardening #1074](https://github.com/Public-Vinyl-Radio/groovenet/issues/1074).
+The fuller VPS walkthrough is tracked in
+[#1075](https://github.com/Public-Vinyl-Radio/groovenet/issues/1075).
+
+#### Unattended cloud-init
+
+This minimal `runcmd` example is suitable for the Terraform workflow (#1073).
+Provision `/run/secrets/tailscale-authkey` separately through your secret delivery
+system, readable only by root. Do not put a real key in cloud-init user data, inline
+commands, shell history or version control. Prefer a short-lived, one-use auth key.
+
+```yaml
+#cloud-config
+runcmd:
+  - [
+      sh,
+      -c,
+      "curl -fsSL https://groovenet.publicvinylradio.com/install.sh -o /run/groovenet-install.sh",
+    ]
+  - [
+      sh,
+      -c,
+      'set +x; TS_AUTHKEY="$(cat /run/secrets/tailscale-authkey)" sh /run/groovenet-install.sh --non-interactive --no-import --tailscale-hostname groovenet; result=$?; rm -f /run/secrets/tailscale-authkey; exit "$result"',
+    ]
+```
+
+`--non-interactive` implies `--yes`, so package installs and setup need no terminal.
+The key is never written to Groovenet's `.env`, summary or error output. Joining
+uses a temporary mode-600 key file, removed after use and on exit, so the Tailscale
+CLI receives a file path rather than the key in its arguments. Passing a literal
+key as an installer flag can expose it in your shell history and process list;
+use secret injection via `TS_AUTHKEY` instead.
+
 ### Options
 
 Pass options after `sh -s --`, or download the script and run `sh install.sh --help`:
@@ -51,6 +111,10 @@ curl -fsSL https://groovenet.publicvinylradio.com/install.sh | sh -s -- --profil
 | `--version vX.Y.Z`                                                        | Install this release instead of the latest. An older release than the installed one is refused, because migrations only go forward. |
 | `--profile NAME`                                                          | Also run an optional group of services: `downloads`, `analysis`, `optimize`, `fingerprint`, or `all`. Repeat or comma-separate.     |
 | `--audio-dir PATH`                                                        | Keep audio in an existing directory, such as a mounted disk, instead of a Docker volume.                                            |
+| `--tailscale-auth-key KEY`                                                | Install Tailscale and serve privately over HTTPS (or `TS_AUTHKEY`).                                                                 |
+| `--tailscale-hostname NAME`                                               | Hostname on first join, default `groovenet`.                                                                                        |
+| `--tailscale-ssh`                                                         | Opt in to Tailscale SSH.                                                                                                            |
+| `--public`                                                                | Refused until #569 and #1074 land.                                                                                                  |
 | `--port N`                                                                | Port on `127.0.0.1` for the app. Default 3000.                                                                                      |
 | `--discogs-username`, `--discogs-token`                                   | Discogs credentials (or the `DISCOGS_USERNAME` and `DISCOGS_USER_TOKEN` environment variables).                                     |
 | `--openai-key`, `--youtube-key`                                           | OpenAI quality upgrade / YouTube enrichment (or `OPENAI_API_KEY`, `YOUTUBE_API_KEY`).                                               |
