@@ -1,4 +1,4 @@
-exports.up = (pgm) => {
+export const up = (pgm) => {
   pgm.sql(`
     CREATE TABLE users (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -26,7 +26,7 @@ exports.up = (pgm) => {
     );
   `);
 };
-exports.down = (pgm) => {
+export const down = (pgm) => {
   pgm.dropTable("api_tokens");
   pgm.dropTable("profile_devices");
   pgm.dropTable("users");

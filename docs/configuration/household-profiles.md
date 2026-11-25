@@ -1,4 +1,9 @@
-# Household profiles and API tokens
+---
+title: Household profiles and API tokens
+description: Choose household identities and configure optional scoped API tokens for machine clients.
+sidebar:
+  order: 3
+---
 
 Groovenet's network remains the perimeter: household profiles identify people,
 without passwords or a login wall. They are separate from friends (Discogs
