@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, context: Params) {
   try {
     const t = await target(request, context);
     if (t instanceof NextResponse) return t;
-    const result = await trackLyricsService.get(t.trackId, t.friendId);
+    const result = await trackLyricsService.get(t.trackId, t.friendId, request);
     if (result.access !== "owner") return denied(result.access);
     if (!result.value) {
       return NextResponse.json({ error: "No lyrics for this track" }, { status: 404 });
@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest, context: Params) {
         { status: 400 },
       );
     }
-    const result = await trackLyricsService.save(t.trackId, t.friendId, parsed.data.text);
+    const result = await trackLyricsService.save(t.trackId, t.friendId, parsed.data.text, request);
     if (result.access !== "owner") return denied(result.access);
     return NextResponse.json(trackLyricsSchema.parse(result.value));
   } catch (error) {
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest, context: Params) {
   try {
     const t = await target(request, context);
     if (t instanceof NextResponse) return t;
-    const result = await trackLyricsService.clear(t.trackId, t.friendId);
+    const result = await trackLyricsService.clear(t.trackId, t.friendId, request);
     if (result.access !== "owner") return denied(result.access);
     return NextResponse.json(trackLyricsDeleteResponseSchema.parse({ deleted: result.value }));
   } catch (error) {

@@ -1448,3 +1448,12 @@ while both artists are unchanged, so it cannot discard later work.
 Artist review schemas live in `@groovenet/contracts`; the API, client and CLI
 share them. `just artists-test` includes merge survival and undo against real
 Postgres. See the CLI README for action examples and evidence limits.
+
+## Household identity (#1282)
+
+`getCurrentUser(request)` in `src/server/auth/currentUser.ts` resolves household
+users independently of libraries: bearer, device cookie, mapped Tailscale login,
+then the sole profile. Pass the request through owner-sensitive services. API
+scope enforcement is centralized in Next 16's Node proxy, and is off unless
+`AUTH_REQUIRE_TOKENS=true`. See [household profiles](../docs/household-profiles.md)
+for cookie/token storage, the ingest allowlist and client configuration.

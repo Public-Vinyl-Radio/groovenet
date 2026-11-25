@@ -258,3 +258,15 @@ is closed; #606 owns them (its album half is migrated).
 | GET | `/api/players/browser/session` | players | exception | App-only household browser session status; no worker credential in responses. |
 | POST | `/api/players/browser/session` | players | exception | App-only web passphrase unlock; scoped Secure HttpOnly cookie. |
 | DELETE | `/api/players/browser/session` | players | exception | App-only session logout; leaves server playback running. |
+
+## Household identity (#1282)
+
+| Method | Path | Family | Status | Notes |
+| --- | --- | --- | --- | --- |
+| GET | `/api/profiles` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| POST | `/api/profiles` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| PATCH | `/api/profiles` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| POST | `/api/profiles/select` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| GET | `/api/profiles/tokens` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| POST | `/api/profiles/tokens` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |
+| DELETE | `/api/profiles/tokens` | profiles | #552 | App-local Zod schemas in `src/api-contract/profiles.ts`; no machine consumer yet. |

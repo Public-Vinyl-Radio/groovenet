@@ -98,3 +98,12 @@ issues. Coverage is 100%.
   how the CLI knows to upload.
 - `createSetDerivation` can hand back an earlier equivalent run
   (`reused: true`) rather than starting one; `force: true` always starts one.
+
+## Household API tokens (#1282)
+
+`GROOVENET_TOKEN` optionally supplies `Authorization: Bearer` for app requests.
+Without it, requests retain their existing authentication behaviour. The CLI
+also accepts a token through `groovenet config set api_key <token>`; config output
+redacts it. The TypeScript client accepts `token` explicitly (then the environment,
+then legacy `apiKey`); the Python client accepts the optional `token` keyword.
+Remote player credentials remain separate.

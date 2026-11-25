@@ -4,6 +4,8 @@ import { AppleMusicAISearchArgs } from "@/services/aiService";
 import type { TrackAttributeFilters } from "@/lib/trackFilters";
 
 export const queryKeys = {
+  household: () => ["household"] as const,
+  householdTokens: () => ["household-tokens"] as const,
   albumsRoot: () => ["albums"] as const,
   albumDetail: (releaseId: string, friendId: number) => ["album", releaseId, friendId] as const,
   playlistRoot: () => ["playlist"] as const,

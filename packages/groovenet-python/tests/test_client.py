@@ -392,3 +392,32 @@ def test_broken_error_body_still_raises_api_error_and_closes_response(session):
         GroovenetClient(session=session).update_track(TRACK)
     assert (caught.value.status, caught.value.message) == (502, "HTTP 502")
     resp.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "explicit,environment,expected",
+    [
+        (None, None, None),
+        (None, "env-token", "env-token"),
+        ("explicit", "env-token", "explicit"),
+        ("", "env-token", None),
+    ],
+)
+def test_optional_bearer_header(session, monkeypatch, explicit, environment, expected):
+    monkeypatch.delenv("GROOVENET_TOKEN", raising=False)
+    if environment is not None:
+        monkeypatch.setenv("GROOVENET_TOKEN", environment)
+    session.request.return_value = response(204)
+    client = GroovenetClient("https://app.test", session=session, token=explicit)
+    client.update_track(TRACK)
+    headers = {"X-Groovenet-Client": "worker"}
+    if expected:
+        headers["Authorization"] = f"Bearer {expected}"
+    session.request.assert_called_once_with(
+        "PATCH",
+        "https://app.test/api/tracks",
+        headers=headers,
+        timeout=30,
+        allow_redirects=False,
+        json=TRACK,
+    )

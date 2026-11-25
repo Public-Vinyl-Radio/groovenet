@@ -3,10 +3,10 @@ import { librariesListResponseSchema } from "@/api-contract/schemas";
 import { friendService } from "@/server/services/friendService";
 
 /** Settings → Libraries: every library with its album count, last sync and which is your account. */
-export async function GET() {
+export async function GET(req?: Request) {
   try {
     return NextResponse.json(
-      librariesListResponseSchema.parse(await friendService.listLibraries()),
+      librariesListResponseSchema.parse(await friendService.listLibraries(req)),
     );
   } catch (error) {
     return NextResponse.json(

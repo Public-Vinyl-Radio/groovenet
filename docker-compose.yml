@@ -41,6 +41,7 @@ services:
       APPLE_MUSIC_PRIVATE_KEY: ${APPLE_MUSIC_PRIVATE_KEY}
       DISCOGS_USER_TOKEN: ${DISCOGS_USER_TOKEN}
       DISCOGS_USERNAME: ${DISCOGS_USERNAME}
+      AUTH_REQUIRE_TOKENS: ${AUTH_REQUIRE_TOKENS:-false}
       DISCOGS_FOLDER_ID: ${DISCOGS_FOLDER_ID}
       DISCOGS_IMPORT_LEASE_SECONDS: ${DISCOGS_IMPORT_LEASE_SECONDS:-60}
       DISCOGS_IMPORT_POLL_SECONDS: ${DISCOGS_IMPORT_POLL_SECONDS:-5}
@@ -281,6 +282,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://${POSTGRES_USER:-djplaylist}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-djplaylist}
+      GROOVENET_TOKEN: ${GROOVENET_TOKEN:-}
       GAMDL_COOKIE_FILE: /app/cookies/gamdl_cookies.txt
       GAMDL_WRAPPER_URL: ${GAMDL_WRAPPER_URL:-}
       GAMDL_WRAPPER_DECRYPT_HOST: ${GAMDL_WRAPPER_DECRYPT_HOST:-}
@@ -319,6 +321,7 @@ services:
       dockerfile: fingerprint-service/Dockerfile
     environment:
       REDIS_URL: redis://redis:6379
+      GROOVENET_TOKEN: ${GROOVENET_TOKEN:-}
       APP_URL: http://app:3000
       AUDIO_INGEST_DIR: /app/audio-ingest
       AUDIO_DIR: /app/audio

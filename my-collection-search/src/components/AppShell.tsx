@@ -1,5 +1,6 @@
 "use client";
 
+import ProfileMenu from "@/components/ProfileMenu";
 import React, { Suspense, useMemo, useState } from "react";
 import NextLink from "next/link";
 import {
@@ -241,6 +242,7 @@ export default function AppShell({
         bg="bg"
       >
         <Flex direction="column" h="100%" py={3} gap={2}>
+          <ProfileMenu compact={!isExpanded} />
           <Flex
             px={isExpanded ? 3 : 2}
             // justify="space-between"
@@ -419,6 +421,7 @@ export default function AppShell({
           borderWidth="outline"
           borderColor="border.ink"
         >
+          <ProfileMenu />
           {secondaryMobileMenuItems.map((item) => {
             const active = isActiveRoute(current, item.href);
             return (

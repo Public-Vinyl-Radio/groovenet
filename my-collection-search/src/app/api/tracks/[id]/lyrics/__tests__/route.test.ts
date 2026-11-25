@@ -1,3 +1,8 @@
+vi.mock("@/server/auth/currentUser", () => ({
+  getCurrentUser: vi.fn(async () => ({
+    discogs_username: process.env.DISCOGS_USERNAME?.trim() || null,
+  })),
+}));
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -168,4 +173,10 @@ describe("DELETE /api/tracks/[id]/lyrics", () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "Failed to clear lyrics" });
   });
+});
+
+it("denies lyrics when no household profile resolves, without an authentication error", async () => {
+  const { getCurrentUser } = await import("@/server/auth/currentUser");
+  vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+  expect((await get()).status).toBe(403);
 });

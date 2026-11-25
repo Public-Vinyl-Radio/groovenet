@@ -60,7 +60,7 @@ describe("SettingsShell on desktop", () => {
           .map((link) => link.textContent),
       ]),
     ).toEqual([
-      ["You", ["Appearance"]],
+      ["You", ["Appearance", "Profiles", "API tokens"]],
       ["Library", ["Libraries", "Ranking"]],
       ["Services", ["Apple Music", "AI metadata"]],
       ["About", ["About GrooveNet"]],
@@ -171,4 +171,9 @@ describe("SettingsShell on a phone", () => {
     const back = screen.getByRole("link", { name: "Back to Settings" });
     expect(back.getAttribute("href")).toBe("/settings");
   });
+});
+
+it.each(["profiles", "api-tokens"] as const)("renders household section %s", (section) => {
+  renderWithProviders(<SettingsShell section={section} />);
+  expect(screen.getByText(/Only the owner profile/)).toBeTruthy();
 });

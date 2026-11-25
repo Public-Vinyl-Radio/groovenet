@@ -1,5 +1,6 @@
 "use client";
 
+import { HouseholdProvider } from "@/providers/HouseholdProvider";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -61,33 +62,35 @@ export default function ClientProviders({
     <ChakraProvider>
       <ThemeColorSync />
       <QueryClientProvider client={client}>
-        <AppearanceSync />
-        {/* Discogs imports are server-side jobs (#1274): refresh the library when one ends. */}
-        <DiscogsImportWatcher />
-        <CommandPaletteProvider>
-          <JobWatcherProvider>
-            <UsernameProvider>
-              <TrackEditProvider>
-                <PlaylistsProvider>
-                  <PlaylistPlayerProvider>
-                    <PlaybackTargetProvider>
-                      {/* The sync dialog and the remove-friend stream outlive the page that opened them. */}
-                      <SettingsDialogsProvider>
-                        <SyncStreamsProvider>
-                          <InAppNavigationProvider>{children}</InAppNavigationProvider>
-                        </SyncStreamsProvider>
-                      </SettingsDialogsProvider>
-                      <PlaylistPlayer />
-                    </PlaybackTargetProvider>
-                  </PlaylistPlayerProvider>
-                </PlaylistsProvider>
-              </TrackEditProvider>
-            </UsernameProvider>
-          </JobWatcherProvider>
-        </CommandPaletteProvider>
-        {process.env.NODE_ENV === "development" && isDesktop && (
-          <ReactQueryDevtools initialIsOpen={false} />
-        )}
+        <HouseholdProvider>
+          <AppearanceSync />
+          {/* Discogs imports are server-side jobs (#1274): refresh the library when one ends. */}
+          <DiscogsImportWatcher />
+          <CommandPaletteProvider>
+            <JobWatcherProvider>
+              <UsernameProvider>
+                <TrackEditProvider>
+                  <PlaylistsProvider>
+                    <PlaylistPlayerProvider>
+                      <PlaybackTargetProvider>
+                        {/* The sync dialog and the remove-friend stream outlive the page that opened them. */}
+                        <SettingsDialogsProvider>
+                          <SyncStreamsProvider>
+                            <InAppNavigationProvider>{children}</InAppNavigationProvider>
+                          </SyncStreamsProvider>
+                        </SettingsDialogsProvider>
+                        <PlaylistPlayer />
+                      </PlaybackTargetProvider>
+                    </PlaylistPlayerProvider>
+                  </PlaylistsProvider>
+                </TrackEditProvider>
+              </UsernameProvider>
+            </JobWatcherProvider>
+          </CommandPaletteProvider>
+          {process.env.NODE_ENV === "development" && isDesktop && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
+        </HouseholdProvider>
       </QueryClientProvider>
     </ChakraProvider>
   );

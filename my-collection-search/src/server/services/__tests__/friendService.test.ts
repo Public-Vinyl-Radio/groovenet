@@ -1,3 +1,8 @@
+vi.mock("@/server/auth/currentUser", () => ({
+  getCurrentUser: vi.fn(async () => ({
+    discogs_username: process.env.DISCOGS_USERNAME?.trim() || null,
+  })),
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -202,4 +207,11 @@ describe("FriendService.removeFriend — database deletion", () => {
     expect(progress.join("\n")).toMatch(/Error deleting user tracks/);
     expect(mockDeleteFriendByUsername).toHaveBeenCalledWith("alice");
   });
+});
+
+it("has no account library when no household profile resolves", async () => {
+  const { getCurrentUser } = await import("@/server/auth/currentUser");
+  vi.mocked(getCurrentUser).mockResolvedValueOnce(null);
+  mockListFriendsWithReleaseCounts.mockResolvedValueOnce([]);
+  expect((await friendService.listLibraries()).account_username).toBeNull();
 });
