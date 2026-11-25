@@ -225,3 +225,59 @@ describe("central API scope enforcement", () => {
       expect(scopeAllows("ingest", method, path)).toBe(false);
   });
 });
+
+describe("legacy player-key compatibility", () => {
+  it.each(["/api/players", "/api/players/lounge"])(
+    "maps the configured player key to owner/write on %s",
+    async (path) => {
+      const key = "legacy-player-key-".repeat(3);
+      vi.stubEnv("PLAYER_API_KEY", key);
+      vi.stubEnv("AUTH_REQUIRE_TOKENS", "true");
+      repo.list.mockResolvedValue([other, owner]);
+      const request = req(
+        { authorization: `Bearer ${key}`, cookie: `${PROFILE_COOKIE}=device` },
+        path,
+        "POST",
+      );
+      expect(await bearerIdentity(request)).toEqual({ user: owner, scope: "write" });
+      expect(await getCurrentUser(request)).toEqual(owner);
+      expect(await enforceApiAuth(request)).toBeNull();
+      expect(repo.token).not.toHaveBeenCalled();
+    },
+  );
+  it.each([
+    ["/api/tracks", "legacy-player-key-".repeat(3), "legacy-player-key-".repeat(3)],
+    ["/api/players-extra", "legacy-player-key-".repeat(3), "legacy-player-key-".repeat(3)],
+    ["/api/players", "", "key"],
+    ["/api/players", "short", "short"],
+    ["/api/players", "legacy-player-key-".repeat(3), "incorrect"],
+  ])(
+    "keeps the legacy key confined and rejects invalid configuration: %s",
+    async (path, key, secret) => {
+      vi.stubEnv("PLAYER_API_KEY", key);
+      expect(await bearerIdentity(req({ authorization: `Bearer ${secret}` }, path))).toBeNull();
+    },
+  );
+  it("does not resolve a missing owner", async () => {
+    const key = "legacy-player-key-".repeat(3);
+    vi.stubEnv("PLAYER_API_KEY", key);
+    repo.list.mockResolvedValue([]);
+    expect(
+      await bearerIdentity(req({ authorization: `Bearer ${key}` }, "/api/players")),
+    ).toBeNull();
+  });
+  it("enforces read-token scopes on the player API", async () => {
+    vi.stubEnv("AUTH_REQUIRE_TOKENS", "true");
+    repo.token.mockResolvedValue(tokenRow());
+    expect(
+      (
+        await enforceApiAuth(
+          req({ authorization: "Bearer secret" }, "/api/players/lounge/commands", "POST"),
+        )
+      )?.status,
+    ).toBe(403);
+    expect(
+      await enforceApiAuth(req({ authorization: "Bearer secret" }, "/api/players")),
+    ).toBeNull();
+  });
+});

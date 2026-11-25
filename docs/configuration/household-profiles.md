@@ -35,9 +35,16 @@ or plaintext credentials. Do not put a token in a URL or commit it to a file.
 `GROOVENET_TOKEN` supplies the optional bearer header for `@groovenet/client`,
 the CLI, MCP and the shared Python client used by workers. The CLI also accepts
 `groovenet config set api_key <token>`; its config file is private and config
-output redacts the value. Explicit TypeScript `token` takes precedence over the
-environment, then legacy `apiKey`; Python accepts the optional `token` keyword.
-Remote-player credentials still use their existing separate key.
+output redacts the value. The TypeScript client reuses its existing `apiKey` field, with the environment
+alias taking precedence; Python accepts the optional `token` keyword.
+
+There is one bearer scheme. Previously, the app checked `PLAYER_API_KEY` only
+on `/api/players`; it had no general server-side `API_KEY` check. The existing
+player key now resolves to the owner with write scope on that same surface,
+and cannot authenticate arbitrary library routes. The player proxy also accepts
+hashed household tokens, forwarding only its configured worker key downstream.
+The CLI keeps `player_api_key` separate for player requests: it may hold the
+legacy player key or a scoped household token. No TLS agent settings change.
 
 ## Opt-in enforcement
 

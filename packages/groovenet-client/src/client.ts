@@ -169,8 +169,6 @@ import type {
 export interface GroovenetClientConfig {
   baseUrl: string;
   apiKey?: string;
-  /** Household API token; otherwise GROOVENET_TOKEN, then the legacy apiKey. */
-  token?: string;
   /** Separate household/admin key; never falls back to collection credentials. */
   playerApiKey?: string;
   /** Skip TLS certificate verification (internal CA / self-signed hosts). */
@@ -186,11 +184,10 @@ export interface GroovenetClientConfig {
 export class GroovenetClient {
   private http: AxiosInstance;
   private readonly playerApiKey?: string;
-  private readonly token?: string;
 
   constructor(private readonly config: GroovenetClientConfig) {
     this.playerApiKey = config.playerApiKey;
-    this.token = config.token ?? (process.env.GROOVENET_TOKEN || config.apiKey);
+    this.config = { ...config, apiKey: process.env.GROOVENET_TOKEN || config.apiKey };
     this.http = axios.create({
       baseURL: config.baseUrl,
       // Arrays repeat the key (`genre=a&genre=b`), as the API reads them, not `genre[]=`.
@@ -198,7 +195,7 @@ export class GroovenetClient {
       headers: {
         "Content-Type": "application/json",
         ...(config.clientName ? { "X-Groovenet-Client": config.clientName } : {}),
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
       ...(config.insecureTls ? { httpsAgent: new HttpsAgent({ rejectUnauthorized: false }) } : {}),
     });
@@ -261,7 +258,11 @@ export class GroovenetClient {
       maxContentLength: 4 * 1024 * 1024,
       maxRedirects: 0,
       headers: {
-        Authorization: sameOrigin ? (this.token ? `Bearer ${this.token}` : undefined) : null,
+        Authorization: sameOrigin
+          ? this.config.apiKey
+            ? `Bearer ${this.config.apiKey}`
+            : undefined
+          : null,
       },
       // An internal CA exception must never apply to third-party artwork hosts.
       ...(sameOrigin ? {} : { httpsAgent: new HttpsAgent() }),

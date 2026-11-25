@@ -580,6 +580,6 @@ copies and later source edits never propagate.
 `GROOVENET_TOKEN` optionally supplies `Authorization: Bearer` for app requests.
 Without it, requests retain their existing authentication behaviour. The CLI
 also accepts a token through `groovenet config set api_key <token>`; config output
-redacts it. The TypeScript client accepts `token` explicitly (then the environment,
-then legacy `apiKey`); the Python client accepts the optional `token` keyword.
-Remote player credentials remain separate.
+redacts it. The TypeScript client reuses `apiKey` (the environment alias overrides it);
+the Python client accepts the optional `token` keyword. Remote player credentials
+remain in `player_api_key`: either the legacy player key or a scoped household token.

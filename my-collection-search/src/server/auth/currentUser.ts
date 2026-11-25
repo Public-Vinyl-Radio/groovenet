@@ -27,6 +27,20 @@ export async function bearerIdentity(
 ): Promise<{ user: User; scope: TokenScope } | null> {
   const match = /^Bearer (\S+)$/i.exec(req.headers.get("authorization") || "");
   if (!match) return null;
+  // Keep the existing player key confined to its original API surface. It is
+  // a household owner credential there; arbitrary collection requests cannot use it.
+  const path = new URL(req.url).pathname;
+  const playerKey = process.env.PLAYER_API_KEY;
+  if (
+    (path === "/api/players" || path.startsWith("/api/players/")) &&
+    playerKey &&
+    playerKey.length >= 32 &&
+    verifySecret(match[1], hashSecret(playerKey))
+  ) {
+    await userRepository.ensureOwner();
+    const owner = (await userRepository.list()).find((user) => user.is_owner);
+    return owner ? { user: owner, scope: "write" } : null;
+  }
   const row = await userRepository.token(hashSecret(match[1]));
   if (!row || !verifySecret(match[1], row.token_hash)) return null;
   await userRepository.touchToken(row.token_id);

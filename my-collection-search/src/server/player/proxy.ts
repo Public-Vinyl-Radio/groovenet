@@ -1,3 +1,4 @@
+import { bearerIdentity } from "@/server/auth/currentUser";
 import { playerWebSession } from "./webSession";
 import { timingSafeEqual } from "node:crypto";
 import {
@@ -45,7 +46,10 @@ export async function proxyPlayer(
     );
   const actual = Buffer.from(request.headers.get("authorization") ?? "");
   const expected = Buffer.from(`Bearer ${key}`);
-  const bearer = actual.length === expected.length && timingSafeEqual(actual, expected);
+  const legacyBearer = actual.length === expected.length && timingSafeEqual(actual, expected);
+  // Household tokens use the same bearer path; the central proxy enforces
+  // their scopes when opted in, and the worker still receives its configured key.
+  const bearer = legacyBearer || !!(await bearerIdentity(request));
   const sessionExpiry = bearer ? null : playerWebSession(request);
   if (!bearer && !sessionExpiry)
     return Response.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
