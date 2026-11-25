@@ -219,4 +219,30 @@ describe("useDiscogsImportLog", () => {
     const { result } = renderHook(() => useDiscogsImportLog(7, false));
     await waitFor(() => expect(result.current.error).toBe("offline"));
   });
+
+  it("clears its timer on unmount", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    api.getDiscogsImportLog.mockResolvedValue({ lines: [], next_after: 0 });
+    const { unmount } = renderHook(() => useDiscogsImportLog(7, true));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    unmount();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(api.getDiscogsImportLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a read that lands after unmount, success or failure", async () => {
+    let resolve!: (v: unknown) => void;
+    api.getDiscogsImportLog.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    const first = renderHook(() => useDiscogsImportLog(7, false));
+    first.unmount();
+    await act(async () => resolve({ lines: [{ id: 1, line: "late" }], next_after: 1 }));
+    expect(first.result.current.lines).toEqual([]);
+
+    let reject!: (e: unknown) => void;
+    api.getDiscogsImportLog.mockReturnValueOnce(new Promise((_, r) => (reject = r)));
+    const second = renderHook(() => useDiscogsImportLog(7, false));
+    second.unmount();
+    await act(async () => reject(new Error("late")));
+    expect(second.result.current.error).toBeNull();
+  });
 });

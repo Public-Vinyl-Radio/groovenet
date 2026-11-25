@@ -246,6 +246,20 @@ describe("DiscogsImportWorker", () => {
     expect(repoMock.finish).not.toHaveBeenCalled();
   });
 
+  it("writes nothing at the end when the lease was lost during a run that never checked", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    repoMock.claimNext.mockResolvedValueOnce(row()).mockResolvedValueOnce(null);
+    repoMock.heartbeat.mockResolvedValue(false);
+    runnerMock.runDiscogsImport.mockImplementation(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+      return outcome;
+    });
+
+    await worker().tick();
+
+    expect(repoMock.finish).not.toHaveBeenCalled();
+  });
+
   it("flushes a long burst of lines early and survives a log write failing", async () => {
     repoMock.claimNext.mockResolvedValueOnce(row()).mockResolvedValueOnce(null);
     repoMock.appendLog.mockRejectedValueOnce(new Error("db blip"));
@@ -310,6 +324,29 @@ describe("startDiscogsImportWorker", () => {
     kickDiscogsImportWorker();
     await vi.waitFor(() => expect(repoMock.claimNext).toHaveBeenCalledTimes(3));
     expect(repoMock.claimNext.mock.calls[0][0]).toMatch(/^.+:\d+:[0-9a-f]{8}$/);
+  });
+
+  it("reads the Discogs token from the environment when it takes a job", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    vi.stubEnv("DISCOGS_USER_TOKEN", "  ");
+    repoMock.claimNext.mockResolvedValueOnce(row()).mockResolvedValue(null);
+    kickDiscogsImportWorker();
+    await vi.waitFor(() =>
+      expect(repoMock.finish).toHaveBeenCalledWith(
+        5,
+        expect.any(String),
+        "failed",
+        "Discogs credentials not set in environment",
+      ),
+    );
+
+    vi.stubEnv("DISCOGS_USER_TOKEN", "tok");
+    repoMock.finish.mockClear();
+    repoMock.claimNext.mockResolvedValueOnce(row()).mockResolvedValue(null);
+    runnerMock.runDiscogsImport.mockResolvedValue(outcome);
+    kickDiscogsImportWorker();
+    await vi.waitFor(() => expect(runnerMock.runDiscogsImport).toHaveBeenCalled());
+    vi.unstubAllEnvs();
   });
 
   it("logs a tick that throws", async () => {

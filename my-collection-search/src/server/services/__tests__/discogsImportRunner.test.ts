@@ -380,6 +380,26 @@ describe("runDiscogsImport — resume and checkpoints (#1182)", () => {
     expect(albumUpsert.getAlbumsFromManifestReleases).toHaveBeenCalledWith("dj", ["1", "2", "3"]);
   });
 
+  it("stamps a downloaded release with the date it joined the collection", async () => {
+    discogs.getCollectionPage.mockResolvedValue({
+      releases: [
+        { basic_information: { id: 1 }, date_added: "2024-05-01T00:00:00-07:00" },
+        { basic_information: { id: 2 } },
+      ],
+      pagination: { page: 1, pages: 1 },
+    });
+    const withDate: Record<string, unknown> = { id: 1 };
+    const without: Record<string, unknown> = { id: 2 };
+    discogs.getReleaseDetails.mockImplementation(async (id: string) =>
+      String(id) === "1" ? withDate : without,
+    );
+
+    await runSync();
+
+    expect(withDate.date_added).toBe("2024-05-01T00:00:00-07:00");
+    expect(without.date_added).toBeUndefined();
+  });
+
   it("fetches a release again when its file on disk doesn't parse", async () => {
     // hasDownloadedRelease is false for an unparseable file (tested in the
     // manifest service), so the route treats it as not yet downloaded.

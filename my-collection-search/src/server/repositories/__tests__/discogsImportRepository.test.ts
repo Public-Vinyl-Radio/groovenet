@@ -97,6 +97,11 @@ describe("DiscogsImportRepository", () => {
     expect(await repo.readLog(1, 0, 10)).toEqual([{ id: 12, line: "a" }]);
   });
 
+  it("treats a missing row count as the import no longer being the owner's", async () => {
+    db.dbQuery.mockResolvedValueOnce({ rows: [], rowCount: null });
+    expect(await repo.finish(1, "me", "completed", null)).toBe(false);
+  });
+
   it("prunes a username's old finished imports", async () => {
     db.dbQuery.mockResolvedValueOnce(result());
     await repo.prune("dj", 10);

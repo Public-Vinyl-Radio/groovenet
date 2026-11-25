@@ -16,10 +16,11 @@ const state = vi.hoisted(() => ({
   log: { lines: [] as string[], error: null as string | null },
   logArgs: [] as unknown[],
   importId: 7 as number | null,
+  syncOpen: true,
 }));
 vi.mock("@/providers/SettingsDialogProvider", () => ({
   useSettingsDialogs: () => ({
-    discogsSyncOpen: true,
+    discogsSyncOpen: state.syncOpen,
     setDiscogsSyncOpen: state.closeSync,
     discogsSyncImportId: state.importId,
     removeFriendOpen: true,
@@ -43,6 +44,7 @@ beforeEach(() => {
   state.imports = [];
   state.log = { lines: [], error: null };
   state.importId = 7;
+  state.syncOpen = true;
 });
 
 it("reads no log before an import is chosen", () => {
@@ -50,6 +52,13 @@ it("reads no log before an import is chosen", () => {
   renderWithProviders(<DiscogsSyncDialog />);
   expect(state.logArgs).toEqual([null, false]);
   expect(screen.queryByText("Runs in the background: you can close this.")).toBeNull();
+});
+
+it("reads no log while the dialog is closed", () => {
+  state.syncOpen = false;
+  state.imports = [syncJob("running")];
+  renderWithProviders(<DiscogsSyncDialog />);
+  expect(state.logArgs).toEqual([null, true]);
 });
 
 const syncJob = (status: string, last_error: string | null = null) => ({

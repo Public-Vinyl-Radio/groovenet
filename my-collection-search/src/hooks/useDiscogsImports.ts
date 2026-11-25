@@ -129,7 +129,7 @@ export function useDiscogsImportLog(id: number | null, active: boolean) {
           line.split("\n").filter((text) => text.trim()),
         );
         if (lines.length > 0) {
-          setState((s) => (s.id === id ? { ...s, lines: [...s.lines, ...lines], error: null } : s));
+          setState((s) => ({ ...s, lines: [...s.lines, ...lines], error: null }));
         }
       } catch (error) {
         if (!cancelled) {
