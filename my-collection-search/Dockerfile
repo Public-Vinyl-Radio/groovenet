@@ -64,17 +64,6 @@ RUN mkdir -p /app/my-collection-search /app/cookies /app/dumps /app/discogs_expo
 COPY --chmod=755 my-collection-search/entrypoint.sh /entrypoint.sh
 COPY --chmod=755 my-collection-search/link-volumes.sh /usr/local/bin/link-volumes.sh
 
-# Dev installs into its persistent volume at startup; it needs no app build.
-FROM runtime-base AS dev
-WORKDIR /app
-ENV NODE_ENV=development
-ENV NEXT_TELEMETRY_DISABLED=1
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
-
 FROM base AS workspace-deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
@@ -91,6 +80,24 @@ FROM workspace-deps AS deps
 COPY my-collection-search/package.json my-collection-search/package-lock.json ./my-collection-search/
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefix my-collection-search --ignore-scripts
+
+# Versioned weights are downloaded only while building, never by the app.
+FROM deps AS local-model
+COPY my-collection-search/scripts/bake-local-model.mjs /repo/my-collection-search/scripts/bake-local-model.mjs
+COPY my-collection-search/src/lib/embeddings/localModel.ts /repo/my-collection-search/src/lib/embeddings/localModel.ts
+RUN node my-collection-search/scripts/bake-local-model.mjs
+
+# Dev installs into its persistent volume at startup; it needs no app build.
+FROM runtime-base AS dev
+COPY --from=local-model /opt/groovenet/models /opt/groovenet/models
+WORKDIR /app
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
 
 FROM deps AS contracts
 COPY packages/groovenet-contracts/tsconfig.json ./packages/groovenet-contracts/
@@ -140,6 +147,7 @@ RUN --mount=type=cache,target=/repo/my-collection-search/.next/cache \
     npm run build
 
 FROM runtime-base AS runner
+COPY --from=local-model /opt/groovenet/models /opt/groovenet/models
 WORKDIR /app/my-collection-search
 
 ENV NODE_ENV=production

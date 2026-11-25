@@ -1,3 +1,4 @@
+import { exactOrderSuffix } from "./vectorSearch";
 import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import { effectiveAlbumTaxonomySql } from "@/lib/genres/albumTaxonomySql";
 import type { PoolClient } from "pg";
@@ -280,6 +281,7 @@ export class EmbeddingsRepository {
       filters,
     } = params;
     const vector = castVector("te.embedding", dims);
+    const orderSuffix = await exactOrderSuffix(client, "identity", model);
     const queryParams: unknown[] = [
       sourceEmbedding,
       sourceTrackId,
@@ -337,7 +339,7 @@ export class EmbeddingsRepository {
         AND te.template_version = $5
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
         ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
-      ORDER BY ${vector} <=> $1::vector(${dims})
+      ORDER BY (${vector} <=> $1::vector(${dims}))${orderSuffix}
       LIMIT $${idx}
       `,
       queryParams,
@@ -362,6 +364,7 @@ export class EmbeddingsRepository {
     },
   ): Promise<SimilarVibeTrack[]> {
     const vector = castVector("te.embedding", params.dims);
+    const orderSuffix = await exactOrderSuffix(client, "audio_vibe", params.model);
     const result = await client.query<SimilarVibeTrackRow>(
       `
       SELECT
@@ -399,7 +402,7 @@ export class EmbeddingsRepository {
         AND te.model = $5
         AND te.template_version = $6
         AND NOT (te.track_id = $2 AND te.friend_id = $3)
-      ORDER BY ${vector} <=> $1::vector(${params.dims})
+      ORDER BY (${vector} <=> $1::vector(${params.dims}))${orderSuffix}
       LIMIT $4
       `,
       [
@@ -553,6 +556,7 @@ export class EmbeddingsRepository {
     }
     const candidatePool = params.candidatePool ?? Math.max(limit * 10, 200);
     const vector = castVector("te.embedding", dims);
+    const orderSuffix = await exactOrderSuffix(client, "context", model);
     const values: unknown[] = [`[${params.queryEmbedding.join(",")}]`, model, templateVersion];
     const clauses: string[] = [];
     const bind = (value: unknown) => {
@@ -601,7 +605,7 @@ export class EmbeddingsRepository {
           AND te.template_version = $3
           AND t.deleted_at IS NULL
           ${clauses.map((c) => `AND ${c}`).join("\n          ")}
-        ORDER BY ${vector} <=> $1::vector(${dims})
+        ORDER BY (${vector} <=> $1::vector(${dims}))${orderSuffix}
         LIMIT ${bind(candidatePool)}
       ),
       ranked AS (

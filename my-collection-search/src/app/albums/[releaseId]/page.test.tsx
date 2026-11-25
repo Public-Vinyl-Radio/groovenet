@@ -406,7 +406,7 @@ it("shows and closes the raw Discogs file in the shared data viewer", async () =
   const { user } = renderWithProviders(<AlbumDetailPage />);
   await user.click(screen.getAllByRole("button", { name: "Album actions", hidden: true })[0]);
   await user.click(await screen.findByRole("button", { name: /View raw Discogs file/i }));
-  expect(fetchRawRelease).toHaveBeenCalled();
+  await waitFor(() => expect(fetchRawRelease).toHaveBeenCalled());
   expect(await screen.findByRole("dialog", { name: "Discogs Raw Release File" })).toBeTruthy();
   await user.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

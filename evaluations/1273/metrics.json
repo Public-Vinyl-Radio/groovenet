@@ -1,0 +1,624 @@
+{
+  "openai": {
+    "seeds_sha256": "a6ce1f66113a9cad070b97485534a3ad43c6c7f69becba55743ec472ac306be2",
+    "seeds": {
+      "tracks": 34,
+      "playlists": 5
+    },
+    "profiles": {
+      "default": {
+        "starved": 4,
+        "empty": 1,
+        "metrics": {
+          "bpm.mean_abs": 2.5372549019607837,
+          "bpm.mean_abs_hd": 2.5372549019607837,
+          "bpm.within": 1,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.251676658877537,
+          "vibe.mean": 0.9838170733077447,
+          "identity.mean": 0.5196743091065278,
+          "era.same": 0.26111111111111107,
+          "era.near": 0.5581871345029239,
+          "era.mean_abs_year": 18.89269005847953,
+          "era.coverage": 0.9973684210526316,
+          "energy.mean_abs": 0.13418302409150326,
+          "energy.within": 0.7408496732026145,
+          "energy.coverage": 0.8833333333333334,
+          "artists": 9.153846153846153,
+          "releases": 9.333333333333334,
+          "picks": 9.333333333333334
+        }
+      },
+      "beatmatcher": {
+        "starved": 2,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 8.756507936507933,
+          "bpm.mean_abs_hd": 2.7639682539682546,
+          "bpm.within": 0.9171428571428569,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.4619261565803642,
+          "vibe.mean": 0.9730685101979532,
+          "identity.mean": 0.5647424090086813,
+          "era.same": 0.44985754985754983,
+          "era.near": 0.7458689458689458,
+          "era.mean_abs_year": 12.894301994301992,
+          "era.coverage": 1,
+          "energy.mean_abs": 0.14505598029714287,
+          "energy.within": 0.7180952380952381,
+          "energy.coverage": 0.8974358974358975,
+          "artists": 9.564102564102564,
+          "releases": 9.76923076923077,
+          "picks": 9.76923076923077
+        }
+      },
+      "selector": {
+        "starved": 0,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 10.67142857142857,
+          "bpm.mean_abs_hd": 8.219999999999999,
+          "bpm.within": 0.5857142857142856,
+          "bpm.within_hd": 0.5942857142857142,
+          "key.compatible": 0.33714285714285724,
+          "key.clash": 0.6628571428571427,
+          "genre.mean": 0.6555500007680273,
+          "vibe.mean": 0.9771342352709086,
+          "identity.mean": 0.5857157516614514,
+          "era.same": 0.5025641025641026,
+          "era.near": 0.7564102564102563,
+          "era.mean_abs_year": 11.653846153846155,
+          "era.coverage": 1,
+          "energy.mean_abs": 0.11212083982857146,
+          "energy.within": 0.817142857142857,
+          "energy.coverage": 0.8974358974358975,
+          "artists": 9.512820512820513,
+          "releases": 10,
+          "picks": 10
+        }
+      },
+      "blend": {
+        "starved": 0,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 4.115555555555557,
+          "bpm.mean_abs_hd": 4.115555555555557,
+          "bpm.within": 0.7174603174603172,
+          "bpm.within_hd": 0.7174603174603172,
+          "key.compatible": 0.5123809523809525,
+          "key.clash": 0.4876190476190476,
+          "genre.mean": 0.37610726703809827,
+          "vibe.mean": 0.9818166211262088,
+          "identity.mean": 0.5661104291888143,
+          "era.same": 0.3789173789173789,
+          "era.near": 0.6384615384615384,
+          "era.mean_abs_year": 15.785185185185183,
+          "era.coverage": 0.9974358974358974,
+          "energy.mean_abs": 0.13902230807555552,
+          "energy.within": 0.7393650793650794,
+          "energy.coverage": 0.8948717948717948,
+          "artists": 9.58974358974359,
+          "releases": 10,
+          "picks": 10
+        }
+      },
+      "mixable": {
+        "starved": 2,
+        "empty": 1,
+        "metrics": {
+          "bpm.mean_abs": 2.330228758169935,
+          "bpm.mean_abs_hd": 2.330228758169935,
+          "bpm.within": 0.9470588235294118,
+          "bpm.within_hd": 0.9470588235294118,
+          "key.compatible": 0.7457516339869282,
+          "key.clash": 0.2542483660130719,
+          "genre.mean": 0.29235327047218473,
+          "vibe.mean": 0.9829665599194499,
+          "identity.mean": 0.5333630511123187,
+          "era.same": 0.3084795321637427,
+          "era.near": 0.5695906432748539,
+          "era.mean_abs_year": 18.34502923976608,
+          "era.coverage": 0.9973684210526316,
+          "energy.mean_abs": 0.13656349986928107,
+          "energy.within": 0.7602941176470589,
+          "energy.coverage": 0.886842105263158,
+          "artists": 9.307692307692308,
+          "releases": 9.615384615384615,
+          "picks": 9.615384615384615
+        }
+      },
+      "strict": {
+        "starved": 17,
+        "empty": 3,
+        "metrics": {
+          "bpm.mean_abs": 1.767323908730159,
+          "bpm.mean_abs_hd": 1.767323908730159,
+          "bpm.within": 1,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.4742011315096165,
+          "vibe.mean": 0.977161374525546,
+          "identity.mean": 0.5543241079504455,
+          "era.same": 0.2897707231040564,
+          "era.near": 0.5448853615520283,
+          "era.mean_abs_year": 19.151102292768957,
+          "era.coverage": 1,
+          "energy.mean_abs": 0.15123700507440477,
+          "energy.within": 0.7188864087301587,
+          "energy.coverage": 0.8525132275132276,
+          "artists": 7.3076923076923075,
+          "releases": 7.487179487179487,
+          "picks": 7.487179487179487
+        }
+      }
+    },
+    "ordering": {
+      "greedy": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 13.729606251452605,
+          "bpm_jump_hd": 8.235671392480647,
+          "bpm_jump_native": 13.729606251452605,
+          "key_clash": 0.6567065554843818,
+          "vibe_distance": 0.04179915149728435
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 9.351682283960765,
+          "bpm_jump_hd": 5.342350171289499,
+          "bpm_jump_native": 5.342350171289499,
+          "key_clash": 0.48087906564554317,
+          "vibe_distance": 0.040581853948039925
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 13.326138324064994,
+          "bpm_jump_hd": 11.765419361665542,
+          "bpm_jump_native": 13.326138324064994,
+          "key_clash": 0.727614739399986,
+          "vibe_distance": 0.03364663436519714
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 7.892848450836229,
+          "bpm_jump_hd": 6.914608547279871,
+          "bpm_jump_native": 7.892848450836229,
+          "key_clash": 0.7564747997528444,
+          "vibe_distance": 0.03123610876855736
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 9.439237955409933,
+          "bpm_jump_hd": 7.710355787090838,
+          "bpm_jump_native": 9.439237955409933,
+          "key_clash": 0.6006840242545175,
+          "vibe_distance": 0.03635644193013262
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 9.795193690348643,
+          "bpm_jump_hd": 8.201586199338273,
+          "bpm_jump_native": 9.795193690348643,
+          "key_clash": 0.4304592977225015,
+          "vibe_distance": 0.03653932934795474
+        }
+      },
+      "genetic": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 8.584767485291273,
+          "bpm_jump_hd": 8.366798621621843,
+          "bpm_jump_native": 8.584767485291273,
+          "key_clash": 0.820937220304309,
+          "vibe_distance": 0.046066000914169056
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 13.498167684199984,
+          "bpm_jump_hd": 9.460831612250207,
+          "bpm_jump_native": 9.460831612250207,
+          "key_clash": 0.5758327176485186,
+          "vibe_distance": 0.04739721752588727
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 16.64115693947645,
+          "bpm_jump_hd": 14.166397969846248,
+          "bpm_jump_native": 16.64115693947645,
+          "key_clash": 0.7753243918892108,
+          "vibe_distance": 0.03965533028691271
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 10.242830814851768,
+          "bpm_jump_hd": 8.458342513493104,
+          "bpm_jump_native": 10.242830814851768,
+          "key_clash": 0.8010953520992805,
+          "vibe_distance": 0.04355179847208915
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 15.356825157479893,
+          "bpm_jump_hd": 12.153982236784508,
+          "bpm_jump_native": 15.356825157479893,
+          "key_clash": 0.5928450811034836,
+          "vibe_distance": 0.045050324829181754
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 15.073644847804605,
+          "bpm_jump_hd": 12.010070666759885,
+          "bpm_jump_native": 15.073644847804605,
+          "key_clash": 0.48482697524600626,
+          "vibe_distance": 0.04436334595007224
+        }
+      },
+      "cohesive_blocks": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 13.860705168540175,
+          "bpm_jump_hd": 10.090288320002418,
+          "bpm_jump_native": 13.860705168540175,
+          "key_clash": 0.6815876543069909,
+          "vibe_distance": 0.044600199526623384
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 11.971791841215673,
+          "bpm_jump_hd": 7.212529926061134,
+          "bpm_jump_native": 7.212529926061134,
+          "key_clash": 0.5621139372776213,
+          "vibe_distance": 0.043430712044109324
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 15.264987878409965,
+          "bpm_jump_hd": 13.113318065609644,
+          "bpm_jump_native": 15.264987878409965,
+          "key_clash": 0.7570412927680497,
+          "vibe_distance": 0.03784332010500267
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 8.873871690654754,
+          "bpm_jump_hd": 8.003731805805135,
+          "bpm_jump_native": 8.873871690654754,
+          "key_clash": 0.7680251728483942,
+          "vibe_distance": 0.03558790579750441
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 12.34447281948373,
+          "bpm_jump_hd": 10.332712987579857,
+          "bpm_jump_native": 12.34447281948373,
+          "key_clash": 0.6314536838107332,
+          "vibe_distance": 0.04028568594794583
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 11.961599312952433,
+          "bpm_jump_hd": 10.651641091339913,
+          "bpm_jump_native": 11.961599312952433,
+          "key_clash": 0.5167023795352037,
+          "vibe_distance": 0.041573811510203985
+        }
+      }
+    }
+  },
+  "local": {
+    "seeds_sha256": "a6ce1f66113a9cad070b97485534a3ad43c6c7f69becba55743ec472ac306be2",
+    "seeds": {
+      "tracks": 34,
+      "playlists": 5
+    },
+    "profiles": {
+      "default": {
+        "starved": 4,
+        "empty": 1,
+        "metrics": {
+          "bpm.mean_abs": 2.4788398692810456,
+          "bpm.mean_abs_hd": 2.4788398692810456,
+          "bpm.within": 1,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.24520830439376118,
+          "vibe.mean": 0.9906542013472025,
+          "identity.mean": 0.7776716411005872,
+          "era.same": 0.2671679197994988,
+          "era.near": 0.47380952380952374,
+          "era.mean_abs_year": 21.793943191311616,
+          "era.coverage": 0.994736842105263,
+          "energy.mean_abs": 0.14359824396732027,
+          "energy.within": 0.7205882352941178,
+          "energy.coverage": 0.8646616541353385,
+          "artists": 9.076923076923077,
+          "releases": 9.282051282051283,
+          "picks": 9.282051282051283
+        }
+      },
+      "beatmatcher": {
+        "starved": 4,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 8.99061224489796,
+          "bpm.mean_abs_hd": 2.6800680272108846,
+          "bpm.within": 0.913061224489796,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.48989021043637,
+          "vibe.mean": 0.9860920973205781,
+          "identity.mean": 0.7978551870574757,
+          "era.same": 0.4478632478632478,
+          "era.near": 0.719871794871795,
+          "era.mean_abs_year": 14.366666666666669,
+          "era.coverage": 1,
+          "energy.mean_abs": 0.14958594953224494,
+          "energy.within": 0.7075510204081631,
+          "energy.coverage": 0.889102564102564,
+          "artists": 9.179487179487179,
+          "releases": 9.564102564102564,
+          "picks": 9.564102564102564
+        }
+      },
+      "selector": {
+        "starved": 0,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 11.525714285714285,
+          "bpm.mean_abs_hd": 9.297142857142859,
+          "bpm.within": 0.5257142857142858,
+          "bpm.within_hd": 0.5314285714285715,
+          "key.compatible": 0.42,
+          "key.clash": 0.58,
+          "genre.mean": 0.681110183562351,
+          "vibe.mean": 0.9871188162456447,
+          "identity.mean": 0.8131247280328145,
+          "era.same": 0.512820512820513,
+          "era.near": 0.7396011396011394,
+          "era.mean_abs_year": 12.643304843304842,
+          "era.coverage": 0.9974358974358974,
+          "energy.mean_abs": 0.11476146074285712,
+          "energy.within": 0.8228571428571428,
+          "energy.coverage": 0.8974358974358975,
+          "artists": 9.256410256410257,
+          "releases": 10,
+          "picks": 10
+        }
+      },
+      "blend": {
+        "starved": 0,
+        "empty": 0,
+        "metrics": {
+          "bpm.mean_abs": 4.182857142857143,
+          "bpm.mean_abs_hd": 4.182857142857143,
+          "bpm.within": 0.7228571428571429,
+          "bpm.within_hd": 0.7228571428571429,
+          "key.compatible": 0.5400000000000003,
+          "key.clash": 0.45999999999999996,
+          "genre.mean": 0.3716038492042808,
+          "vibe.mean": 0.9893133238649252,
+          "identity.mean": 0.7989489937917443,
+          "era.same": 0.36381766381766373,
+          "era.near": 0.5860398860398858,
+          "era.mean_abs_year": 18.790313390313386,
+          "era.coverage": 0.9923076923076922,
+          "energy.mean_abs": 0.14550697109142857,
+          "energy.within": 0.7485714285714286,
+          "energy.coverage": 0.8974358974358975,
+          "artists": 9.692307692307692,
+          "releases": 10,
+          "picks": 10
+        }
+      },
+      "mixable": {
+        "starved": 3,
+        "empty": 1,
+        "metrics": {
+          "bpm.mean_abs": 2.303104575163399,
+          "bpm.mean_abs_hd": 2.303104575163399,
+          "bpm.within": 0.9578431372549019,
+          "bpm.within_hd": 0.9578431372549019,
+          "key.compatible": 0.7544117647058823,
+          "key.clash": 0.2455882352941177,
+          "genre.mean": 0.2817903632643259,
+          "vibe.mean": 0.9903352951105078,
+          "identity.mean": 0.7843074534007446,
+          "era.same": 0.3008771929824561,
+          "era.near": 0.5067251461988305,
+          "era.mean_abs_year": 20.69736842105263,
+          "era.coverage": 0.994736842105263,
+          "energy.mean_abs": 0.14210473171895427,
+          "energy.within": 0.7444444444444446,
+          "energy.coverage": 0.8842105263157896,
+          "artists": 9.307692307692308,
+          "releases": 9.512820512820513,
+          "picks": 9.512820512820513
+        }
+      },
+      "strict": {
+        "starved": 15,
+        "empty": 3,
+        "metrics": {
+          "bpm.mean_abs": 1.7259176587301586,
+          "bpm.mean_abs_hd": 1.7259176587301586,
+          "bpm.within": 1,
+          "bpm.within_hd": 1,
+          "key.compatible": 1,
+          "key.clash": 0,
+          "genre.mean": 0.4645508271443383,
+          "vibe.mean": 0.9881128114716369,
+          "identity.mean": 0.7954070685205448,
+          "era.same": 0.2827711640211639,
+          "era.near": 0.4891975308641976,
+          "era.mean_abs_year": 21.021439594356263,
+          "era.coverage": 0.9972222222222222,
+          "energy.mean_abs": 0.15521724135813497,
+          "energy.within": 0.6894221230158728,
+          "energy.coverage": 0.8265542328042329,
+          "artists": 7.794871794871795,
+          "releases": 7.9743589743589745,
+          "picks": 7.9743589743589745
+        }
+      }
+    },
+    "ordering": {
+      "greedy": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 13.83385579937304,
+          "bpm_jump_hd": 8.442859457580104,
+          "bpm_jump_native": 13.83385579937304,
+          "key_clash": 0.6520953439111449,
+          "vibe_distance": 0.023324797560270318
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 9.282716766719386,
+          "bpm_jump_hd": 5.321660516117086,
+          "bpm_jump_native": 5.321660516117086,
+          "key_clash": 0.4774307897834742,
+          "vibe_distance": 0.021717030112700264
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 12.956749354239534,
+          "bpm_jump_hd": 10.205948885248318,
+          "bpm_jump_native": 12.956749354239534,
+          "key_clash": 0.7540533161004571,
+          "vibe_distance": 0.01825095057937048
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 8.185088932600937,
+          "bpm_jump_hd": 6.66877145842663,
+          "bpm_jump_native": 8.185088932600937,
+          "key_clash": 0.7133017208311839,
+          "vibe_distance": 0.017133669470577415
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 8.110623633604863,
+          "bpm_jump_hd": 6.825317778395037,
+          "bpm_jump_native": 8.110623633604863,
+          "key_clash": 0.5661774570548033,
+          "vibe_distance": 0.019826183494666767
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 9.104397879146898,
+          "bpm_jump_hd": 7.449126168462703,
+          "bpm_jump_native": 9.104397879146898,
+          "key_clash": 0.41956252680827105,
+          "vibe_distance": 0.019711334479461006
+        }
+      },
+      "genetic": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 8.57829170926072,
+          "bpm_jump_hd": 8.30595793943677,
+          "bpm_jump_native": 8.57829170926072,
+          "key_clash": 0.8096809902353332,
+          "vibe_distance": 0.024911445590903546
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 12.941038463452255,
+          "bpm_jump_hd": 9.567293547182242,
+          "bpm_jump_native": 9.567293547182242,
+          "key_clash": 0.581051457393666,
+          "vibe_distance": 0.024927875455591636
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 16.304849045420845,
+          "bpm_jump_hd": 13.26990192503069,
+          "bpm_jump_native": 16.304849045420845,
+          "key_clash": 0.7881740961400499,
+          "vibe_distance": 0.021274206325139305
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 9.910359881158659,
+          "bpm_jump_hd": 8.369849048570131,
+          "bpm_jump_native": 9.910359881158659,
+          "key_clash": 0.795662303650082,
+          "vibe_distance": 0.023240852099496726
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 15.41661804173808,
+          "bpm_jump_hd": 12.194406101924653,
+          "bpm_jump_native": 15.41661804173808,
+          "key_clash": 0.6205947672774386,
+          "vibe_distance": 0.024055969272393018
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 15.337843326952884,
+          "bpm_jump_hd": 12.103475564398742,
+          "bpm_jump_native": 15.337843326952884,
+          "key_clash": 0.48659469925292714,
+          "vibe_distance": 0.023785355366357678
+        }
+      },
+      "cohesive_blocks": {
+        "default": {
+          "playlists": 5,
+          "bpm_jump": 14.651414154011274,
+          "bpm_jump_hd": 10.570890988830753,
+          "bpm_jump_native": 14.651414154011274,
+          "key_clash": 0.6912621570194682,
+          "vibe_distance": 0.025020912670232365
+        },
+        "beatmatcher": {
+          "playlists": 5,
+          "bpm_jump": 11.734189213957873,
+          "bpm_jump_hd": 7.1232031608723005,
+          "bpm_jump_native": 7.1232031608723005,
+          "key_clash": 0.5499628699541401,
+          "vibe_distance": 0.022709268828324775
+        },
+        "selector": {
+          "playlists": 5,
+          "bpm_jump": 14.996162094852622,
+          "bpm_jump_hd": 13.013689555025218,
+          "bpm_jump_native": 14.996162094852622,
+          "key_clash": 0.7637601304558965,
+          "vibe_distance": 0.019817012374671
+        },
+        "blend": {
+          "playlists": 5,
+          "bpm_jump": 9.870841198667474,
+          "bpm_jump_hd": 8.127147968429068,
+          "bpm_jump_native": 9.870841198667474,
+          "key_clash": 0.8039815124494304,
+          "vibe_distance": 0.020224070264863732
+        },
+        "mixable": {
+          "playlists": 5,
+          "bpm_jump": 13.019888666549514,
+          "bpm_jump_hd": 11.212666258519599,
+          "bpm_jump_native": 13.019888666549514,
+          "key_clash": 0.5693879305620904,
+          "vibe_distance": 0.020668781786314292
+        },
+        "strict": {
+          "playlists": 5,
+          "bpm_jump": 13.587740943764512,
+          "bpm_jump_hd": 11.951848660578472,
+          "bpm_jump_native": 13.587740943764512,
+          "key_clash": 0.4538977100304032,
+          "vibe_distance": 0.021798806258020238
+        }
+      }
+    }
+  }
+}

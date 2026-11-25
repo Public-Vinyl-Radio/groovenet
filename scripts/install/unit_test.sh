@@ -125,6 +125,21 @@ assert_eq "a missing member is refused" bad "$(sh_run "(check_bundle_members '$t
 assert_eq "build-bundle rejects 'latest'" bad "$("$root/scripts/install/build-bundle.sh" latest "$tmp/n" >/dev/null 2>&1 && echo ok || echo bad)"
 assert_eq "build-bundle accepts a sha- tag" ok "$("$root/scripts/install/build-bundle.sh" sha-5029ad7 "$tmp/n" >/dev/null 2>&1 && echo ok || echo bad)"
 
+# --- final summary: identify skipped capabilities without exposing key values ---
+summary_dir="$tmp/summary"
+mkdir -p "$summary_dir"
+printf 'OPENAI_API_KEY=\nYOUTUBE_API_KEY=\n' >"$summary_dir/.env"
+summary() { sh_run "DIR='$summary_dir'; APP_PORT_FINAL=3000; IMAGE_TAG_FINAL=v1.0.0; CHANGED=1; FRESH=1; PREVIOUS_TAG=; print_summary"; }
+summary_out=$(summary)
+assert_eq "summary names the exact .env path" yes "$(printf '%s' "$summary_out" | grep -Fq "$summary_dir/.env" && echo yes || echo no)"
+assert_eq "summary explains local suggestions" yes "$(printf '%s' "$summary_out" | grep -q 'Skipped:.*OPENAI_API_KEY.*local model' && echo yes || echo no)"
+assert_eq "summary explains YouTube needs a key" yes "$(printf '%s' "$summary_out" | grep -q 'Skipped:.*YOUTUBE_API_KEY.*no local fallback' && echo yes || echo no)"
+printf 'OPENAI_API_KEY=secret-openai\nYOUTUBE_API_KEY=secret-youtube\n' >"$summary_dir/.env"
+summary_out=$(summary)
+assert_eq "configured keys are not called skipped or printed" no "$(printf '%s' "$summary_out" | grep -Eq 'Skipped:|secret-' && echo yes || echo no)"
+printf 'OPENAI_API_KEY=secret-openai\nYOUTUBE_API_KEY=\n' >"$summary_dir/.env"
+assert_eq "only the missing key is listed" 1 "$(summary | grep -c 'Skipped:')"
+
 echo
 if ((fails > 0)); then
   echo "$fails failure(s)"

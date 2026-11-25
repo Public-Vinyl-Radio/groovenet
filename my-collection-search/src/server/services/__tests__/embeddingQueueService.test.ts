@@ -48,6 +48,8 @@ const mockListAudioVibe = vi.hoisted(() => vi.fn());
 const mockGenerateContext = vi.hoisted(() => vi.fn());
 const mockListContext = vi.hoisted(() => vi.fn());
 const mockRunBatch = vi.hoisted(() => vi.fn());
+const mockSeedDefaults = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/embeddings/config", () => ({ seedEmbeddingModelDefaults: mockSeedDefaults }));
 
 vi.mock("@/server/services/embeddingBatchService", () => ({ runEmbeddingBatch: mockRunBatch }));
 
@@ -582,6 +584,7 @@ describe("startEmbeddingQueueWorker()", () => {
   beforeEach(() => {
     delete (globalThis as Record<string, unknown>)[GUARD];
     resetSweepClock();
+    mockSeedDefaults.mockResolvedValue(undefined);
     timers = [];
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -598,6 +601,54 @@ describe("startEmbeddingQueueWorker()", () => {
     for (const handle of timers) clearInterval(handle);
     vi.restoreAllMocks();
     delete (globalThis as Record<string, unknown>)[GUARD];
+  });
+
+  it("waits for defaults before consuming jobs and initializes only once", async () => {
+    let finish!: () => void;
+    mockSeedDefaults.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const tick = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    const sweep = vi
+      .spyOn(embeddingQueueService, "sweepTick")
+      .mockResolvedValue({ queued: 0, pending: 0 });
+    startEmbeddingQueueWorker();
+    expect(tick).not.toHaveBeenCalled();
+    expect(sweep).not.toHaveBeenCalled();
+    const callback = vi.mocked(setInterval).mock.calls[0][0] as () => void;
+    callback();
+    expect(mockSeedDefaults).toHaveBeenCalledTimes(1);
+    finish();
+    await vi.waitFor(() => expect(sweep).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    callback();
+    await vi.waitFor(() => expect(tick).toHaveBeenCalledTimes(2));
+    expect(mockSeedDefaults).toHaveBeenCalledOnce();
+  });
+
+  it("survives a missing database, skips all work, and retries initialization next tick", async () => {
+    mockSeedDefaults.mockRejectedValueOnce(new Error("database offline"));
+    const tick = vi.spyOn(embeddingQueueService, "tick").mockResolvedValue(undefined);
+    const sweep = vi
+      .spyOn(embeddingQueueService, "sweepTick")
+      .mockResolvedValue({ queued: 0, pending: 0 });
+    expect(() => startEmbeddingQueueWorker()).not.toThrow();
+    await vi.waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        "[embedding-queue] initialization failed:",
+        expect.any(Error),
+      ),
+    );
+    expect(tick).not.toHaveBeenCalled();
+    expect(sweep).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const callback = vi.mocked(setInterval).mock.calls[0][0] as () => void;
+    callback();
+    await vi.waitFor(() => expect(tick).toHaveBeenCalledOnce());
+    expect(mockSeedDefaults).toHaveBeenCalledTimes(2);
   });
 
   it("starts only once per process", () => {
@@ -659,6 +710,7 @@ describe("startEmbeddingQueueWorker()", () => {
         mock: { calls: [() => void, number][] };
       }
     ).mock.calls[0][0];
+    await vi.waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(1));
     registered();
     expect(tickSpy).toHaveBeenCalledTimes(1);
     finish();
@@ -679,6 +731,7 @@ describe("startEmbeddingQueueWorker()", () => {
       .spyOn(embeddingQueueService, "sweepTick")
       .mockResolvedValue({ queued: 0, pending: 0 });
     startEmbeddingQueueWorker();
+    await vi.waitFor(() => expect(finish).toBeDefined());
     expect(sweepSpy).not.toHaveBeenCalled();
     finish();
     await vi.waitFor(() => expect(sweepSpy).toHaveBeenCalledTimes(1));
