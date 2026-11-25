@@ -6,7 +6,8 @@ sidebar:
 ---
 
 Groovenet's network remains the perimeter: household profiles identify people,
-without passwords or a login wall. They are separate from friends (Discogs
+without passwords or a login wall. All profiles share the same libraries,
+including the configured Discogs account shown in Settings → Libraries. They are separate from friends (Discogs
 libraries) and ranking profiles. A single-profile install implies its owner and
 never shows the picker. The owner is created idempotently on first identity
 request from `DISCOGS_USERNAME`, or as `Owner` on a fresh install without one.

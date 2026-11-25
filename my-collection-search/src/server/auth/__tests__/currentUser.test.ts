@@ -10,6 +10,7 @@ const repo = vi.hoisted(() => ({
 vi.mock("@/server/repositories/userRepository", () => ({ userRepository: repo }));
 import {
   getCurrentUser,
+  getHouseholdOwner,
   bearerIdentity,
   cookieIdentity,
   deviceSecret,
@@ -30,7 +31,7 @@ const owner = {
   discogs_username: "dj",
   tailscale_login: "dj@example.test",
 };
-const other = { ...owner, id: "other", is_owner: false };
+const other = { ...owner, id: "other", is_owner: false, discogs_username: null };
 const req = (headers = {}, path = "/api/tracks", method = "GET") =>
   new Request(`http://lan${path}`, { headers, method });
 const tokenRow = () => ({
@@ -280,4 +281,11 @@ describe("legacy player-key compatibility", () => {
       await enforceApiAuth(req({ authorization: "Bearer secret" }, "/api/players")),
     ).toBeNull();
   });
+});
+
+it("keeps the household owner independent of a selected non-owner profile", async () => {
+  repo.list.mockResolvedValue([other, owner]);
+  repo.device.mockResolvedValue(other);
+  expect(await getCurrentUser(req({ cookie: `${PROFILE_COOKIE}=guest-device` }))).toEqual(other);
+  expect(await getHouseholdOwner()).toEqual(owner);
 });

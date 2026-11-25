@@ -28,6 +28,11 @@ export function matchesPlayerKey(req: Request, key: string): boolean {
   const expected = Buffer.from(`Bearer ${key}`);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
+/** Household configuration belongs to the owner, independent of the selected listener. */
+export async function getHouseholdOwner(): Promise<User | null> {
+  await userRepository.ensureOwner();
+  return (await userRepository.list()).find((user) => user.is_owner) ?? null;
+}
 export async function bearerIdentity(
   req: Request,
 ): Promise<{ user: User; scope: TokenScope } | null> {
@@ -43,8 +48,7 @@ export async function bearerIdentity(
     playerKey.length >= 32 &&
     matchesPlayerKey(req, playerKey)
   ) {
-    await userRepository.ensureOwner();
-    const owner = (await userRepository.list()).find((user) => user.is_owner);
+    const owner = await getHouseholdOwner();
     return owner ? { user: owner, scope: "write" } : null;
   }
   const row = await userRepository.token(hashSecret(match[1]));
