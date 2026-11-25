@@ -1,3 +1,4 @@
+vi.mock("@/server/services/discogsImportWorker", () => ({ startDiscogsImportWorker: vi.fn() }));
 import { afterEach, describe, expect, it, vi } from "vitest";
 const { seed, queue } = vi.hoisted(() => ({ seed: vi.fn(), queue: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureRequestError: vi.fn() }));

@@ -45,6 +45,7 @@ export const queryKeys = {
   // Under "friends", so adding or removing a friend refreshes it too.
   libraries: () => ["friends", "libraries"] as const,
   discogsUserLookup: (username: string) => ["discogs", "user-lookup", username] as const,
+  discogsImports: () => ["discogs", "imports"] as const,
   backups: () => ["backups"] as const,
   embeddingQueue: () => ["embeddings", "queue"] as const,
   spins: (args: {

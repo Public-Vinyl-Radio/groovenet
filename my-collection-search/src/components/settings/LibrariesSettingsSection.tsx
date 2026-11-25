@@ -8,16 +8,17 @@ import { LuPlus } from "react-icons/lu";
 import ConfirmDialog from "@/components/records/ConfirmDialog";
 import { HeaderButton } from "@/components/layout/ListHeader";
 import ManifestVerificationDialog from "@/components/settings/dialogs/ManifestVerificationDialog";
-import RemovedReleasesDialog from "@/components/settings/dialogs/RemovedReleasesDialog";
 import SuggestionScopeToggle from "@/components/SuggestionScopeToggle";
 import { SourceTag } from "@/components/ui/RoleTags";
 import { toaster } from "@/components/ui/toaster";
+import { isDiscogsImportActive } from "@groovenet/contracts";
+import { useCleanupManifests, useVerifyManifests } from "@/hooks/useDiscogsQuery";
 import {
-  useCleanupManifests,
-  useDeleteReleases,
-  useSyncDiscogs,
-  useVerifyManifests,
-} from "@/hooks/useDiscogsQuery";
+  IDLE_POLL_MS,
+  importFor,
+  useDiscogsImportsQuery,
+  useStartDiscogsImport,
+} from "@/hooks/useDiscogsImports";
 import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { useFriendsSync } from "@/hooks/useFriendsSync";
 import { useLibrariesQuery } from "@/hooks/useLibraries";
@@ -27,7 +28,7 @@ import {
 } from "@/hooks/useSuggestionScope";
 import { formatDate } from "@/lib/date";
 import { queryKeys } from "@/lib/queryKeys";
-import { useSyncStreams } from "@/providers/SyncStreamsProvider";
+import { useSettingsDialogs } from "@/providers/SettingsDialogProvider";
 import { useUsername } from "@/providers/UsernameProvider";
 import type { VerificationResult } from "@/services/internalApi/discogs";
 import type { LibraryWithStats } from "@/services/internalApi/friends";
@@ -358,7 +359,10 @@ export default function LibrariesSettingsSection() {
   const { friend: defaultLibrary, setFriend, isSaving } = useUsername();
   const { addFriend } = useFriendsQuery();
   const { handleRemoveFriend } = useFriendsSync();
-  const { discogs } = useSyncStreams();
+  // Imports are background jobs (#1274): a row shows one started before a reload or elsewhere.
+  const imports = useDiscogsImportsQuery({ idlePollMs: IDLE_POLL_MS });
+  const startImport = useStartDiscogsImport();
+  const { setDiscogsSyncOpen, setDiscogsSyncImportId } = useSettingsDialogs();
 
   // Make default saves at once; `previous` is what UNDO restores.
   const [madeDefault, setMadeDefault] = useState<{ previous: Friend | null } | null>(null);
@@ -368,20 +372,29 @@ export default function LibrariesSettingsSection() {
   const [syncTarget, setSyncTarget] = useState<string | undefined>(undefined);
   // Manifests that need a look before that sync starts.
   const [verification, setVerification] = useState<VerificationResult[] | null>(null);
-  const [removed, setRemoved] = useState<{ username: string; ids: string[] } | null>(null);
   const [toRemove, setToRemove] = useState<string | null>(null);
 
   const refreshLibraries = () => qc.invalidateQueries({ queryKey: queryKeys.libraries() });
 
-  const discogsSync = useSyncDiscogs((data) => {
-    if (data.removedIds.length > 0) setRemoved({ username: data.username, ids: data.removedIds });
-  });
   const verifyManifests = useVerifyManifests();
   const cleanupManifests = useCleanupManifests();
-  const deleteReleases = useDeleteReleases();
 
+  // Queues the import, or gets back the one already running for that library.
   const runSync = (username: string | undefined, showDialog = true) =>
-    discogsSync.mutate({ username, showDialog }, { onSettled: refreshLibraries });
+    startImport.mutate(username, {
+      onSuccess: (result) => {
+        if (!showDialog) return;
+        setDiscogsSyncImportId(result.import.id);
+        setDiscogsSyncOpen(true);
+      },
+      onError: (err) =>
+        toaster.create({
+          title: "Sync failed to start",
+          description: errorText(err),
+          type: "error",
+        }),
+      onSettled: refreshLibraries,
+    });
 
   const rows = toRows(libraries.data?.results ?? [], libraries.data?.account_username ?? null);
   const account = rows.find((row) => row.isAccount);
@@ -422,34 +435,6 @@ export default function LibrariesSettingsSection() {
     runSync(syncTarget);
   };
 
-  const handleDeleteRemovedReleases = async (removed: { username: string; ids: string[] }) => {
-    try {
-      const result = await deleteReleases.mutateAsync({
-        username: removed.username,
-        releaseIds: removed.ids,
-      });
-      toaster.create({
-        title: "Releases Deleted",
-        description: `Deleted ${result.deletedFromDb} tracks from database and search index. Sync continuing in background...`,
-        type: "success",
-        duration: 5000,
-      });
-      setRemoved(null);
-    } catch (err) {
-      toaster.create({ title: "Delete Failed", description: errorText(err), type: "error" });
-    }
-  };
-
-  const handleSkipDeleteRemovedReleases = () => {
-    setRemoved(null);
-    toaster.create({
-      title: "Skipped Deletion",
-      description: "Files kept on disk. Sync continuing in background...",
-      type: "info",
-      duration: 5000,
-    });
-  };
-
   // Only a row with an id offers Make default.
   const makeDefault = (id: number, username: string) => {
     setMadeDefault({ previous: defaultLibrary });
@@ -470,12 +455,18 @@ export default function LibrariesSettingsSection() {
     runSync(username, false);
   };
 
-  const syncBusy = discogsSync.isPending || verifyManifests.isPending;
+  const starting = startImport.isPending || verifyManifests.isPending;
+  const isTarget = (row: LibraryRowData) =>
+    syncTarget === undefined ? row.isAccount : syncTarget === row.username;
+  const activeImport = (row: LibraryRowData) => {
+    const job = importFor(imports.data?.imports, row.username);
+    return job && isDiscogsImportActive(job.status) ? job : null;
+  };
   const progressFor = (row: LibraryRowData): string | null => {
-    if (!syncBusy) return null;
-    const syncing = syncTarget === undefined ? row.isAccount : syncTarget === row.username;
-    if (!syncing) return null;
-    return discogsSync.isPending ? librarySyncProgress(discogs.lines, discogs.error) : "Checking";
+    const job = activeImport(row);
+    if (job) return librarySyncProgress(job);
+    if (!starting || !isTarget(row)) return null;
+    return verifyManifests.isPending ? "Checking" : "Starting sync";
   };
 
   let list: React.ReactNode;
@@ -505,7 +496,7 @@ export default function LibrariesSettingsSection() {
         first={index === 0}
         isDefault={row.id !== null && row.id === defaultLibrary?.id}
         progress={progressFor(row)}
-        syncDisabled={syncBusy}
+        syncDisabled={starting || activeImport(row) !== null}
         onMakeDefault={() => makeDefault(row.id as number, row.username)}
         onSync={() => handleSyncClick(row)}
         onRemove={() => setToRemove(row.username)}
@@ -577,18 +568,6 @@ export default function LibrariesSettingsSection() {
           onCleanup={handleCleanupAndContinue}
           onContinue={handleContinueWithoutCleanup}
           cleanupPending={cleanupManifests.isPending}
-        />
-      ) : null}
-
-      {removed ? (
-        <RemovedReleasesDialog
-          open
-          onOpenChange={() => setRemoved(null)}
-          username={removed.username}
-          removedIds={removed.ids}
-          onDelete={() => handleDeleteRemovedReleases(removed)}
-          onSkip={handleSkipDeleteRemovedReleases}
-          deletePending={deleteReleases.isPending}
         />
       ) : null}
 

@@ -28,6 +28,7 @@ import {
   artistJsonSchemas,
   artistReviewJsonSchemas,
   rankingJsonSchemas,
+  discogsImportJsonSchemas,
 } from "@groovenet/contracts";
 import { getOpenApiDocument } from "../openapi";
 
@@ -98,6 +99,7 @@ const SHARED_COMPONENTS = new Set(
     ...artistJsonSchemas,
     ...artistReviewJsonSchemas,
     ...rankingJsonSchemas,
+    ...discogsImportJsonSchemas,
   }),
 );
 

@@ -37,6 +37,7 @@ import {
 } from "./recordCareQueue";
 import { playerContracts } from "./players";
 import { rankingProfileContracts } from "./rankingProfiles";
+import { discogsImportContracts } from "./discogsImports";
 import {
   artistReconcileRequestSchema,
   artistReconcileResponseSchema,
@@ -3908,6 +3909,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...artistReviewContracts,
   ...playerContracts,
   ...rankingProfileContracts,
+  ...discogsImportContracts,
   ...genreMutationContracts,
   ...genreReconciliationContracts,
   {
@@ -6777,7 +6779,8 @@ export const apiContractRoutes: ApiContractRoute[] = [
     operationId: "syncDiscogsCollectionStream",
     method: "get",
     path: "/api/discogs",
-    summary: "Sync Discogs collection and stream progress output",
+    summary:
+      "Queue a Discogs import (or join the one already running for that username) and stream its progress text until it ends. Leaving stops only the stream; the import is a background job (see /api/discogs/imports).",
     tags: ["Discogs"],
     successSchema: z.unknown(),
     errorSchema: apiErrorSchema,

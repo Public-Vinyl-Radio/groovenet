@@ -21,13 +21,13 @@ const mocks = vi.hoisted(() => ({
   handleRemoveFriend: vi.fn(),
   syncMutate: vi.fn(),
   syncIsPending: false,
-  onRemovedReleases: undefined as
-    undefined | ((data: { removedIds: string[]; username: string }) => void),
+  imports: [] as unknown[],
+  importsOptions: undefined as unknown,
+  setDiscogsSyncOpen: vi.fn(),
+  setDiscogsSyncImportId: vi.fn(),
   verifyMutateAsync: vi.fn(),
   verifyIsPending: false,
   cleanupMutateAsync: vi.fn(),
-  deleteMutateAsync: vi.fn(),
-  discogs: { lines: [] as string[], done: false, error: null as string | null },
   scope: {
     data: { scope: "library" } as unknown,
     isPending: false,
@@ -56,20 +56,26 @@ vi.mock("@/hooks/useFriendsQuery", () => ({
 vi.mock("@/hooks/useFriendsSync", () => ({
   useFriendsSync: () => ({ handleRemoveFriend: mocks.handleRemoveFriend }),
 }));
-vi.mock("@/hooks/useDiscogsQuery", () => ({
-  useSyncDiscogs: (cb: typeof mocks.onRemovedReleases) => {
-    mocks.onRemovedReleases = cb;
-    return { mutate: mocks.syncMutate, isPending: mocks.syncIsPending };
+vi.mock("@/hooks/useDiscogsImports", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/useDiscogsImports")>()),
+  useDiscogsImportsQuery: (options: unknown) => {
+    mocks.importsOptions = options;
+    return { data: { imports: mocks.imports } };
   },
+  useStartDiscogsImport: () => ({ mutate: mocks.syncMutate, isPending: mocks.syncIsPending }),
+}));
+vi.mock("@/providers/SettingsDialogProvider", () => ({
+  useSettingsDialogs: () => ({
+    setDiscogsSyncOpen: mocks.setDiscogsSyncOpen,
+    setDiscogsSyncImportId: mocks.setDiscogsSyncImportId,
+  }),
+}));
+vi.mock("@/hooks/useDiscogsQuery", () => ({
   useVerifyManifests: () => ({
     mutateAsync: mocks.verifyMutateAsync,
     isPending: mocks.verifyIsPending,
   }),
   useCleanupManifests: () => ({ mutateAsync: mocks.cleanupMutateAsync, isPending: false }),
-  useDeleteReleases: () => ({ mutateAsync: mocks.deleteMutateAsync, isPending: false }),
-}));
-vi.mock("@/providers/SyncStreamsProvider", () => ({
-  useSyncStreams: () => ({ discogs: mocks.discogs }),
 }));
 vi.mock("@/hooks/useSuggestionScope", () => ({
   useRecommendationSettingsQuery: () => mocks.scope,
@@ -117,6 +123,27 @@ function Section() {
   );
 }
 
+const importOf = (username: string, patch: Record<string, unknown> = {}) => ({
+  id: 7,
+  username,
+  status: "running",
+  phase: "listing",
+  found: 0,
+  total: null,
+  fetched: 0,
+  added: 0,
+  removed: 0,
+  failed_releases: 0,
+  last_error: null,
+  attempts: 1,
+  stalled: false,
+  created_at: "2026-11-24T10:00:00.000Z",
+  started_at: null,
+  updated_at: "2026-11-24T10:00:00.000Z",
+  finished_at: null,
+  ...patch,
+});
+
 const rows = () => screen.getAllByTestId("library-row");
 const row = (name: string) => rows().find((r) => within(r).queryByText(name))!;
 const button = (scope: HTMLElement, name: string | RegExp) =>
@@ -129,7 +156,7 @@ beforeEach(() => {
   mocks.isSaving = false;
   mocks.syncIsPending = false;
   mocks.verifyIsPending = false;
-  mocks.discogs = { lines: [], done: false, error: null };
+  mocks.imports = [];
   mocks.scope = { data: { scope: "library" }, isPending: false, error: null };
   mocks.updateIsPending = false;
   mocks.verifyMutateAsync.mockResolvedValue({ summary: { totalManifests: 0 }, results: [] });
@@ -233,27 +260,53 @@ describe("LibrariesSettingsSection: sync", () => {
     await user.click(button(rows()[0], "Sync owner"));
     await waitFor(() =>
       expect(mocks.syncMutate).toHaveBeenCalledWith(
-        { username: undefined, showDialog: true },
+        undefined,
         expect.objectContaining({ onSettled: expect.any(Function) }),
       ),
     );
+    // The queued import's log opens in the dialog.
+    const options = mocks.syncMutate.mock.calls[0][1];
+    options.onSuccess({ import: importOf("owner", { id: 12 }), created: true });
+    expect(mocks.setDiscogsSyncImportId).toHaveBeenCalledWith(12);
+    expect(mocks.setDiscogsSyncOpen).toHaveBeenCalledWith(true);
   });
 
-  it("shows the syncing row's progress and disables every sync", async () => {
+  it("says when an import could not be queued", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await user.click(button(rows()[0], "Sync owner"));
+    await waitFor(() => expect(mocks.syncMutate).toHaveBeenCalled());
+    act(() => mocks.syncMutate.mock.calls[0][1].onError(new Error("Too many requests")));
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Sync failed to start", description: "Too many requests" }),
+    );
+  });
+
+  it("shows an import already running after a reload, or from another device, and offers no second", () => {
+    mocks.imports = [importOf("Collector-2", { phase: "fetching", total: 40, fetched: 3 })];
+    renderWithProviders(<Section />);
+    expect(within(row("collector-2")).getAllByText("Fetching 3 of 40")).toHaveLength(2);
+    expect(button(row("collector-2"), "Sync collector-2").disabled).toBe(true);
+    // Another library can still queue its own.
+    expect(button(row("owner"), "Sync owner").disabled).toBe(false);
+    expect(mocks.importsOptions).toEqual({ idlePollMs: 15_000 });
+  });
+
+  it("shows nothing for a library whose last import ended", () => {
+    mocks.imports = [importOf("collector-2", { status: "failed" })];
+    renderWithProviders(<Section />);
+    expect(within(row("collector-2")).queryByText("Sync failed")).toBeNull();
+    expect(button(row("collector-2"), "Sync collector-2").disabled).toBe(false);
+  });
+
+  it("shows the syncing row's progress", async () => {
     const { user, rerender } = renderWithProviders(<Section />);
     await user.click(button(row("collector-2"), "Sync collector-2"));
     await waitFor(() => expect(mocks.syncMutate).toHaveBeenCalled());
 
-    mocks.syncIsPending = true;
-    mocks.discogs = {
-      lines: ["Found release ID: 1", "Found release ID: 2"],
-      done: false,
-      error: null,
-    };
+    mocks.imports = [importOf("collector-2", { found: 2 })];
     rerender(<Section />);
     expect(within(row("collector-2")).getAllByText("Reading collection · 2 found")).toHaveLength(2);
     expect(within(row("owner")).queryByText(/Reading collection/)).toBeNull();
-    expect(button(row("owner"), "Sync owner").disabled).toBe(true);
   });
 
   it("shows the account's progress on its own row", async () => {
@@ -261,7 +314,7 @@ describe("LibrariesSettingsSection: sync", () => {
     await user.click(button(row("owner"), "Sync owner"));
     await waitFor(() => expect(mocks.syncMutate).toHaveBeenCalled());
     mocks.syncIsPending = true;
-    mocks.discogs = { lines: [], done: false, error: null };
+    mocks.imports = [];
     rerender(<Section />);
     expect(within(row("owner")).getAllByText("Starting sync")).toHaveLength(2);
     expect(within(row("collector-2")).queryByText("Starting sync")).toBeNull();
@@ -285,10 +338,7 @@ describe("LibrariesSettingsSection: sync", () => {
     const dialog = await screen.findByRole("dialog", { name: "Manifest Verification" });
     expect(mocks.syncMutate).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "Proceed with Sync" }));
-    expect(mocks.syncMutate).toHaveBeenCalledWith(
-      { username: "collector-2", showDialog: true },
-      expect.anything(),
-    );
+    expect(mocks.syncMutate).toHaveBeenCalledWith("collector-2", expect.anything());
   });
 
   it("starts nothing when verification is cancelled", async () => {
@@ -299,14 +349,6 @@ describe("LibrariesSettingsSection: sync", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(mocks.syncMutate).not.toHaveBeenCalled();
-  });
-
-  it("closes the removed-releases prompt on Escape", async () => {
-    const { user } = renderWithProviders(<Section />);
-    act(() => mocks.onRemovedReleases?.({ removedIds: ["7"], username: "collector-2" }));
-    await screen.findByRole("dialog", { name: "Removed Releases Detected" });
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("cleans manifests up, then syncs", async () => {
@@ -356,43 +398,6 @@ describe("LibrariesSettingsSection: sync", () => {
       ),
     );
   });
-
-  it("offers to delete releases a sync found removed", async () => {
-    mocks.deleteMutateAsync.mockResolvedValue({ deletedFromDb: 3 });
-    const { user } = renderWithProviders(<Section />);
-    act(() => mocks.onRemovedReleases?.({ removedIds: ["7", "8"], username: "collector-2" }));
-    const dialog = await screen.findByRole("dialog", { name: "Removed Releases Detected" });
-    await user.click(within(dialog).getByRole("button", { name: /Delete 2 Releases/ }));
-    expect(mocks.deleteMutateAsync).toHaveBeenCalledWith({
-      username: "collector-2",
-      releaseIds: ["7", "8"],
-    });
-    await waitFor(() =>
-      expect(mocks.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Releases Deleted" }),
-      ),
-    );
-  });
-
-  it("keeps the files when asked, and reports a failed delete", async () => {
-    mocks.deleteMutateAsync.mockRejectedValue(new Error("locked"));
-    const { user } = renderWithProviders(<Section />);
-    act(() => mocks.onRemovedReleases?.({ removedIds: [], username: "collector-2" }));
-    expect(screen.queryByRole("dialog", { name: "Removed Releases Detected" })).toBeNull();
-
-    act(() => mocks.onRemovedReleases?.({ removedIds: ["7"], username: "collector-2" }));
-    let dialog = await screen.findByRole("dialog", { name: "Removed Releases Detected" });
-    await user.click(within(dialog).getByRole("button", { name: /Delete 1 Release/ }));
-    await waitFor(() =>
-      expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Delete Failed" })),
-    );
-
-    dialog = screen.getByRole("dialog", { name: "Removed Releases Detected" });
-    await user.click(within(dialog).getByRole("button", { name: "Keep Files" }));
-    expect(mocks.toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Skipped Deletion" }),
-    );
-  });
 });
 
 describe("LibrariesSettingsSection: remove", () => {
@@ -431,11 +436,11 @@ describe("LibrariesSettingsSection: add", () => {
 
     expect(mocks.addFriend).toHaveBeenCalledWith("collector-5");
     await waitFor(() =>
-      expect(mocks.syncMutate).toHaveBeenCalledWith(
-        { username: "collector-5", showDialog: false },
-        expect.anything(),
-      ),
+      expect(mocks.syncMutate).toHaveBeenCalledWith("collector-5", expect.anything()),
     );
+    // The new row shows its own progress: no dialog.
+    mocks.syncMutate.mock.calls[0][1].onSuccess({ import: importOf("collector-5"), created: true });
+    expect(mocks.setDiscogsSyncOpen).not.toHaveBeenCalled();
   });
 
   it("opens from the desktop ADD LIBRARY button", async () => {

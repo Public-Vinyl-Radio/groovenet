@@ -37,10 +37,14 @@ randomized; small differences should be treated as noise.
 
 ## Image and runtime cost
 
+The Transformers.js image helper uses the app's fixed `sharp ^0.35.5` through a
+scoped override, avoiding a vulnerable duplicate copy. Embedding inference still
+uses the same pinned q8 weights and ONNX runtime.
+
 Two amd64 `runner` images were built from HEAD and this change. OrbStack's lazy
 images were both materialized before measuring. The baseline and final image measured
-1,371,313,438 → 1,518,733,145 bytes uncompressed: **+147,419,707 bytes
-(+140.59 MiB, +10.75%)**. Baked q8 weights/tokenizer occupy about 34.7 MB.
+1,371,313,438 → 1,493,620,402 bytes uncompressed: **+122,306,964 bytes
+(+116.64 MiB, +8.92%)**. Baked q8 weights/tokenizer occupy about 34.7 MB.
 
 On this ARM Mac under amd64 emulation, an offline isolated provider benchmark
 used a shared CPU session, two intra-op threads, one inter-op thread and batches

@@ -33,6 +33,7 @@
     "test:audio-backfill": "RUN_DB_TESTS=1 vitest run src/server/services/__tests__/audioMetadataBackfill.integration.test.ts src/server/services/__tests__/embeddedTags.integration.test.ts src/server/services/__tests__/isrc.integration.test.ts",
     "test:record-care": "RUN_DB_TESTS=1 vitest run --no-file-parallelism src/server/services/__tests__/recordCareService.integration.test.ts src/server/repositories/__tests__/recordCareQueue.integration.test.ts src/server/services/__tests__/recordCareSessionService.integration.test.ts",
     "test:ranking-profiles": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/rankingProfileRepository.integration.test.ts",
+    "test:discogs-imports": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/discogsImportRepository.integration.test.ts",
     "test:redis": "RUN_REDIS_TESTS=1 vitest run --no-file-parallelism src/server/services/__tests__/redisJobService.integration.test.ts src/server/services/__tests__/ingestMetricsService.integration.test.ts src/server/services/__tests__/embeddingQueueService.integration.test.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc6 --noEmit",
@@ -113,5 +114,10 @@
     "vite": "^8.3.6",
     "vitest": "^5.0.0",
     "yaml": "^2.9.1"
+  },
+  "overrides": {
+    "@huggingface/transformers": {
+      "sharp": "^0.35.5"
+    }
   }
 }

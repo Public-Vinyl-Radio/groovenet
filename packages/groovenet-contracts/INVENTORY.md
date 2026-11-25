@@ -78,8 +78,12 @@ is closed; #606 owns them (its album half is migrated).
 | DELETE | `/api/backups/{filename}` | backups | contracts |  |
 | GET | `/api/backups/{filename}` | backups | exception | Binary dump download; no JSON body. |
 | GET | `/api/detections/recent` | vinyl ingest & fingerprints | contracts |  |
-| GET | `/api/discogs` | providers & Discogs | exception | Server-sent progress stream (`text/event-stream`), not JSON. |
+| GET | `/api/discogs` | providers & Discogs | exception | Progress stream (`text/event-stream`) of an import job's log, not JSON. |
 | POST | `/api/discogs/delete-releases` | providers & Discogs | contracts |  |
+| GET | `/api/discogs/imports` | providers & Discogs | contracts |  |
+| POST | `/api/discogs/imports` | providers & Discogs | contracts |  |
+| GET | `/api/discogs/imports/{id}` | providers & Discogs | contracts |  |
+| GET | `/api/discogs/imports/{id}/log` | providers & Discogs | contracts |  |
 | GET | `/api/discogs/users/{username}` | providers & Discogs | contracts |  |
 | GET | `/api/discogs/verify-manifests` | providers & Discogs | contracts |  |
 | POST | `/api/discogs/verify-manifests` | providers & Discogs | contracts |  |
