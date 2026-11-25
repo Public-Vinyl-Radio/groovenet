@@ -239,37 +239,6 @@ class TestDownloadAudioSuccess:
         )
 
 
-# ---------------------------------------------------------------------------
-# download_with_gamdl — error classification
-# ---------------------------------------------------------------------------
-
-
-class TestDownloadWithGamdl:
-    @patch("worker.jobs.download.run_subprocess")
-    def test_auth_error_raises_clear_message(self, mock_run):
-        mock_run.return_value = make_proc(returncode=1, stderr="Unauthorized 401")
-        from worker.jobs.download import download_with_gamdl
-
-        with pytest.raises(Exception, match="Authentication failed"):
-            download_with_gamdl("https://music.apple.com/track", "/app/downloads", "t1")
-
-    @patch("worker.jobs.download.run_subprocess")
-    def test_not_found_error(self, mock_run):
-        mock_run.return_value = make_proc(returncode=1, stderr="404 not found")
-        from worker.jobs.download import download_with_gamdl
-
-        with pytest.raises(Exception, match="not found on Apple Music"):
-            download_with_gamdl("https://music.apple.com/track", "/app/downloads", "t1")
-
-    @patch("worker.jobs.download.run_subprocess")
-    def test_rate_limit_error(self, mock_run):
-        mock_run.return_value = make_proc(returncode=1, stderr="rate limit exceeded")
-        from worker.jobs.download import download_with_gamdl
-
-        with pytest.raises(Exception, match="Rate limited"):
-            download_with_gamdl("https://music.apple.com/track", "/app/downloads", "t1")
-
-
 @patch("worker.jobs.download.os.makedirs")
 @patch("worker.jobs.download.cleanup_download_directory")
 @patch("worker.jobs.download.shutil.move")

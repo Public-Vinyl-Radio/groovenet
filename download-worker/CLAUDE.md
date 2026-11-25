@@ -67,9 +67,27 @@ yt-dlp runs a four-strategy ladder — android, iOS, web, then default extractio
 — and a strategy that exits 0 without producing a file is treated as a failure
 so the ladder continues.
 
+gamdl (4.x) runs **in-process through its Python API** (`run_gamdl`:
+`AppleMusicApi` → `MediaResolver.from_url` → `Downloader.download`), not as a
+CLI subprocess. `gamdl rip` reports results only through a Rich UI: already
+exists and not found are both "skipped" and exit 0, and paths wrap. The API
+returns each track's status and path and raises typed errors, which
+`describe_gamdl_error` turns into the messages the app shows (auth, not found,
+region, rate limit, subscription). A track the storefront can't play is skipped
+so the rest of an album still downloads; any other error stops the run. The
+whole call is bounded by `GAMDL_TIMEOUT_SECONDS` (600).
+
 gamdl needs a cookie file. `resolve_gamdl_cookie_file()` checks
-`GAMDL_COOKIE_FILE` first, then two legacy paths under `/app/cookies/`. A file
-with no Apple entries is skipped with a warning rather than passed through.
+`GAMDL_COOKIE_FILE` first, then two legacy paths under `/app/cookies/`.
+`usable_gamdl_cookie_file()` rejects a missing, empty or non-Apple file, and the
+job then fails with "Authentication failed - no usable Apple Music cookie file".
+
+Dependencies are `gamdl[widevine]`, never `[playready]`: every HLS `aac` track
+tested in #1291 decrypted through Widevine (none used the generic FairPlay key
+gamdl decrypts on its own, and without pywidevine they fail with "Widevine
+backend not installed"), and pyplayready pins an old `cryptography`. The
+URL-mismatch guard compares the song and album IDs in the URL with what Apple's
+catalog returned and logs `URL MISMATCH` to the job; it never fails the job.
 
 Analysis is not run inline. After the file is moved and `local_audio_url` is
 written, `enqueue_analyze_job` (`redis_utils.py`) pushes an `analyze-local` job
@@ -78,11 +96,12 @@ failed. The download job still completes with `analysis_status: 'queued'` and
 `analysis_job_id`; if the enqueue itself fails it is sent to Sentry and the job
 completes with `analysis_status: 'failed'` and `analysis_error`.
 
-Audio quality is one of `best`, `high`, `standard`, `lossless`. gamdl 3.x has
-no quality flag, so `gamdl_quality_args` passes nothing for the first three
-(gamdl's default `aac-web`, 256 kbps AAC). `lossless` becomes `--use-wrapper ...
---song-codec-priority alac,aac-web` only when `GAMDL_WRAPPER_URL` names a
-wrapper-v2 sidecar; without one it is AAC too. See `docs/lossless-alac.md`.
+Audio quality is one of `best`, `high`, `standard`, `lossless`.
+`gamdl_codec_priority` maps the first three to `aac` (HLS, 256 kbps AAC).
+`lossless` becomes `alac-lossless,aac`, signed in through the wrapper, only when
+`GAMDL_WRAPPER_URL` names a Wrapper v2 **1.0.0** sidecar (gamdl refuses any other
+version); without one it is AAC on cookies too. A signed-out wrapper fails the
+job rather than prompting. See `docs/lossless-alac.md`.
 
 ## Talking to the app
 
@@ -96,7 +115,7 @@ terminal status. Best-effort: a failed report is logged, never fails the job.
 ## Tests
 
 ```bash
-uv run --group dev pytest                     # 285 tests
+uv run --group dev pytest                     # ~370 tests
 uv run --group dev pytest --cov=worker --cov-report=term-missing
 ```
 
