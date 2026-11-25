@@ -1,6 +1,5 @@
-import { bearerIdentity } from "@/server/auth/currentUser";
+import { bearerIdentity, matchesPlayerKey } from "@/server/auth/currentUser";
 import { playerWebSession } from "./webSession";
-import { timingSafeEqual } from "node:crypto";
 import {
   createServerPlayerSchema,
   playerIdSchema,
@@ -44,9 +43,7 @@ export async function proxyPlayer(
       { error: "Server players are not configured", code: "PLAYERS_DISABLED" },
       { status: 503 },
     );
-  const actual = Buffer.from(request.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${key}`);
-  const legacyBearer = actual.length === expected.length && timingSafeEqual(actual, expected);
+  const legacyBearer = matchesPlayerKey(request, key);
   // Household tokens use the same bearer path; the central proxy enforces
   // their scopes when opted in, and the worker still receives its configured key.
   const bearer = legacyBearer || !!(await bearerIdentity(request));

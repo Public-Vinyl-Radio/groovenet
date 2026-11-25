@@ -1,5 +1,8 @@
 const householdAuth = vi.hoisted(() => ({ bearerIdentity: vi.fn().mockResolvedValue(null) }));
-vi.mock("@/server/auth/currentUser", () => householdAuth);
+vi.mock("@/server/auth/currentUser", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/auth/currentUser")>()),
+  ...householdAuth,
+}));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as list, POST as create } from "@/app/api/players/route";
 import { GET as allEvents } from "@/app/api/players/events/route";

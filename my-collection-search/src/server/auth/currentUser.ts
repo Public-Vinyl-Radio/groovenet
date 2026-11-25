@@ -22,6 +22,12 @@ export function deviceSecret(req: Request): string | null {
       ?.slice(PROFILE_COOKIE.length + 1) || null
   );
 }
+/** The existing player credential is compared directly, never password-hashed. */
+export function matchesPlayerKey(req: Request, key: string): boolean {
+  const actual = Buffer.from(req.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${key}`);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 export async function bearerIdentity(
   req: Request,
 ): Promise<{ user: User; scope: TokenScope } | null> {
@@ -35,7 +41,7 @@ export async function bearerIdentity(
     (path === "/api/players" || path.startsWith("/api/players/")) &&
     playerKey &&
     playerKey.length >= 32 &&
-    verifySecret(match[1], hashSecret(playerKey))
+    matchesPlayerKey(req, playerKey)
   ) {
     await userRepository.ensureOwner();
     const owner = (await userRepository.list()).find((user) => user.is_owner);
