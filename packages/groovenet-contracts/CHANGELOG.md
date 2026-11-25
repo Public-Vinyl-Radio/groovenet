@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.11.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.10.1...groovenet-contracts-v1.11.0) (2026-11-25)
+
+
+### Features
+
+* **import:** run the Discogs import as a background job ([#1278](https://github.com/Public-Vinyl-Radio/groovenet/issues/1278)) ([83b4e87](https://github.com/Public-Vinyl-Radio/groovenet/commit/83b4e8714661fc3cb6cdd5be359d0f099542aa45))
+* **onboarding:** empty states and first-import guidance for an empty library ([#1275](https://github.com/Public-Vinyl-Radio/groovenet/issues/1275)) ([91dd393](https://github.com/Public-Vinyl-Radio/groovenet/commit/91dd39340c06c2a81a58f8150ce838d35a67f9e0))
+
+
+### Bug Fixes
+
+* **player:** explain a lost speaker, say when it's back, and reclaim it on play ([#1277](https://github.com/Public-Vinyl-Radio/groovenet/issues/1277)) ([7996797](https://github.com/Public-Vinyl-Radio/groovenet/commit/799679767cdd544901a4fff796fe7615168990fd))
+
 ## [1.10.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.10.0...groovenet-contracts-v1.10.1) (2026-11-22)
 
 
