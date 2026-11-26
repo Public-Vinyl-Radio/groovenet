@@ -11,10 +11,22 @@ export const sansFallback = `"Helvetica Neue", Arial, sans-serif`;
 export const monoFallback = `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
 const systemSans = `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 
+/** How the picker groups choices, in display order. */
+export const fontKinds = ["sans", "mono", "slab", "system"] as const;
+export type FontKind = (typeof fontKinds)[number];
+export const fontKindLabels: Record<FontKind, string> = {
+  sans: "Sans",
+  mono: "Mono",
+  slab: "Slab",
+  system: "System",
+};
+
 export interface FontChoice {
   /** Stored and sent over the API. */
   id: string;
   label: string;
+  /** The picker's group. */
+  kind: FontKind;
   /** The self-hosted face, or absent for a system stack. */
   face?: string;
   /** The stack, for a system choice. */
@@ -37,14 +49,20 @@ export interface FontRole {
 // self-contained (its own localFont, files and licence), so dropping one is a
 // delete here, in fonts.ts and under fonts/.
 const extraMonoChoices = [
-  { id: "space-mono", label: "Space Mono", face: "space-mono" },
-  { id: "iosevka", label: "Iosevka", face: "iosevka" },
-  { id: "iosevka-charon-mono", label: "Iosevka Charon Mono", face: "iosevka-charon-mono" },
-  { id: "martian-mono", label: "Martian Mono", face: "martian-mono" },
-  { id: "monaspace-xenon", label: "Monaspace Xenon", face: "monaspace-xenon" },
-  { id: "commit-mono", label: "Commit Mono", face: "commit-mono" },
-  { id: "courier-prime", label: "Courier Prime", face: "courier-prime" },
-  { id: "dm-mono", label: "DM Mono", face: "dm-mono" },
+  { id: "space-mono", kind: "mono", label: "Space Mono", face: "space-mono" },
+  { id: "iosevka", kind: "mono", label: "Iosevka", face: "iosevka" },
+  {
+    id: "iosevka-charon-mono",
+    kind: "mono",
+    label: "Iosevka Charon Mono",
+    face: "iosevka-charon-mono",
+  },
+  { id: "martian-mono", kind: "mono", label: "Martian Mono", face: "martian-mono" },
+  { id: "monaspace-xenon", kind: "slab", label: "Monaspace Xenon", face: "monaspace-xenon" },
+  { id: "commit-mono", kind: "mono", label: "Commit Mono", face: "commit-mono" },
+  { id: "courier-prime", kind: "slab", label: "Courier Prime", face: "courier-prime" },
+  { id: "dm-mono", kind: "mono", label: "DM Mono", face: "dm-mono" },
+  { id: "maple-mono", kind: "mono", label: "Maple Mono", face: "maple-mono" },
 ] as const satisfies readonly FontChoice[];
 
 export const fontRoles = {
@@ -54,12 +72,12 @@ export const fontRoles = {
     variable: "--gn-font-heading",
     fallback: sansFallback,
     choices: [
-      { id: "default", label: "IBM Plex Sans", face: "plex-sans" },
-      { id: "barlow-condensed", label: "Barlow Condensed", face: "barlow-condensed" },
-      { id: "zilla-slab", label: "Zilla Slab", face: "zilla-slab" },
-      { id: "space-grotesk", label: "Space Grotesk", face: "space-grotesk" },
-      { id: "iosevka-charon", label: "Iosevka Charon", face: "iosevka-charon" },
-      { id: "system", label: "System", stack: systemSans },
+      { id: "default", kind: "sans", label: "IBM Plex Sans", face: "plex-sans" },
+      { id: "barlow-condensed", kind: "sans", label: "Barlow Condensed", face: "barlow-condensed" },
+      { id: "zilla-slab", kind: "slab", label: "Zilla Slab", face: "zilla-slab" },
+      { id: "space-grotesk", kind: "sans", label: "Space Grotesk", face: "space-grotesk" },
+      { id: "iosevka-charon", kind: "sans", label: "Iosevka Charon", face: "iosevka-charon" },
+      { id: "system", kind: "system", label: "System", stack: systemSans },
     ],
   },
   body: {
@@ -68,16 +86,16 @@ export const fontRoles = {
     variable: "--gn-font-body",
     fallback: sansFallback,
     choices: [
-      { id: "default", label: "IBM Plex Sans", face: "plex-sans" },
-      { id: "inter", label: "Inter", face: "inter" },
-      { id: "space-grotesk", label: "Space Grotesk", face: "space-grotesk" },
-      { id: "iosevka-charon", label: "Iosevka Charon", face: "iosevka-charon" },
+      { id: "default", kind: "sans", label: "IBM Plex Sans", face: "plex-sans" },
+      { id: "inter", kind: "sans", label: "Inter", face: "inter" },
+      { id: "space-grotesk", kind: "sans", label: "Space Grotesk", face: "space-grotesk" },
+      { id: "iosevka-charon", kind: "sans", label: "Iosevka Charon", face: "iosevka-charon" },
       // The Labels role's mono faces, offered for body text too (same files).
-      { id: "plex-mono", label: "IBM Plex Mono", face: "plex-mono" },
-      { id: "jetbrains-mono", label: "JetBrains Mono", face: "jetbrains-mono" },
+      { id: "plex-mono", kind: "mono", label: "IBM Plex Mono", face: "plex-mono" },
+      { id: "jetbrains-mono", kind: "mono", label: "JetBrains Mono", face: "jetbrains-mono" },
       ...extraMonoChoices,
-      { id: "system-mono", label: "System mono", stack: monoFallback },
-      { id: "system", label: "System", stack: systemSans },
+      { id: "system-mono", kind: "system", label: "System mono", stack: monoFallback },
+      { id: "system", kind: "system", label: "System", stack: systemSans },
     ],
   },
   label: {
@@ -86,10 +104,10 @@ export const fontRoles = {
     variable: "--gn-font-label",
     fallback: monoFallback,
     choices: [
-      { id: "default", label: "IBM Plex Mono", face: "plex-mono" },
-      { id: "jetbrains-mono", label: "JetBrains Mono", face: "jetbrains-mono" },
+      { id: "default", kind: "mono", label: "IBM Plex Mono", face: "plex-mono" },
+      { id: "jetbrains-mono", kind: "mono", label: "JetBrains Mono", face: "jetbrains-mono" },
       ...extraMonoChoices,
-      { id: "system", label: "System mono", stack: monoFallback },
+      { id: "system", kind: "system", label: "System mono", stack: monoFallback },
     ],
   },
 } as const satisfies Record<string, FontRole>;

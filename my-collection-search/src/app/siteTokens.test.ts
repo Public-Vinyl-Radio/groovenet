@@ -66,6 +66,7 @@ describe("siteTokens", () => {
       "Commit Mono",
       "Courier Prime",
       "DM Mono",
+      "Maple Mono",
     ]);
     expect(tokens.faces["iosevka-charon-mono"].licence).toBe("OFL-IosevkaCharon.txt");
     expect(tokens.faces.iosevka.licence).toBe("OFL-Iosevka.txt");

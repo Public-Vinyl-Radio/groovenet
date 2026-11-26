@@ -8,10 +8,18 @@
 // `:root[data-palette="custom"]` blocks of `--gn-*:#rrggbb;` declarations and
 // nothing else. A failure anywhere leaves the server-rendered values alone.
 //
+// A font installed on this device (#1294) is accepted only when its name
+// matches `localFontFamilyPattern` (letters, digits, spaces, `-`, `_`). It is
+// never put in a stylesheet: the script sets the role's `--gn-font-*` variable
+// on <html> through `style.setProperty`, as the quoted name followed by the
+// role's own generic stack (both injected here), so no name can end a string
+// or a declaration.
+//
 // It reads `document.currentScript.nonce` and gives the <style> it makes the
 // same one, so it works under a nonce-based Content-Security-Policy.
 import { cornerIds } from "./corners";
-import { fontChoiceIdsFor, fontRoleIds } from "./fontChoices";
+import { fontChoiceIdsFor, fontRoleIds, fontRoles } from "./fontChoices";
+import { localFontFamilyPattern } from "./localFont";
 import { customPaletteId, customPaletteStyleId } from "./palettes/custom";
 import { paletteIds } from "./palettes";
 import { serializeForInlineScript } from "@/lib/serializeForInlineScript";
@@ -23,6 +31,13 @@ export const customCssPattern = String.raw`^(?::root\[data-palette="custom"\](?:
 const dataKey = { display: "fontDisplay", body: "fontBody", label: "fontLabel" } as const;
 
 const config = {
+  family: localFontFamilyPattern,
+  roles: Object.fromEntries(
+    fontRoleIds.map((role) => [
+      role,
+      { prop: fontRoles[role].variable, fallback: fontRoles[role].fallback },
+    ]),
+  ) as Record<string, { prop: string; fallback: string }>,
   key: appearanceOverrideKey,
   v: appearanceOverrideVersion,
   palettes: [...paletteIds, customPaletteId],
@@ -56,6 +71,10 @@ if(typeof o.corners==="string"&&c.corners.indexOf(o.corners)>=0)d.corners=o.corn
 var f=o.fonts;
 if(f&&typeof f==="object"){for(var k in c.fonts){var v=f[k.replace(/^font/,"").toLowerCase()];
 if(typeof v==="string"&&c.fonts[k].indexOf(v)>=0)d[k]=v;}}
+var l=o.localFonts;
+if(l&&typeof l==="object"){var re=new RegExp(c.family,"u");
+for(var r in c.roles){var n=l[r];
+if(typeof n==="string"&&re.test(n))document.documentElement.style.setProperty(c.roles[r].prop,'"'+n+'", '+c.roles[r].fallback);}}
 }catch(e){}
 `;
 

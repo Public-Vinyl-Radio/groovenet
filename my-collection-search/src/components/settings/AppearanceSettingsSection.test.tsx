@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { fontRoleIds, fontRoles } from "@/app/fontChoices";
+import { fontRoles } from "@/app/fontChoices";
 import { paletteIds } from "@/app/palettes";
 import { customFromPreset } from "@/app/palettes/custom";
 
@@ -58,11 +59,14 @@ beforeEach(() => {
 });
 
 const stored = () => JSON.parse(localStorage.getItem(appearanceOverrideKey) ?? "null");
-const group = (role: string) => within(screen.getByRole("radiogroup", { name: `${role} font` }));
-const checked = (role: string, name: string) =>
-  group(role)
-    .getByRole("radio", { name: new RegExp(name, "i") })
-    .getAttribute("aria-checked");
+const trigger = (role: string) => screen.getByRole("combobox", { name: `${role} font` });
+/** The text on a role's closed select. */
+const shown = (role: string) => trigger(role).textContent;
+/** Open a role's select and pick an option by its exact label. */
+const pick = async (user: UserEvent, role: string, name: string) => {
+  await user.click(trigger(role));
+  await user.click(await screen.findByRole("option", { name }));
+};
 const scope = (container: HTMLElement, title: string) =>
   container.querySelector(`section[aria-label="${title}"] [data-scope]`)?.textContent;
 
@@ -170,41 +174,91 @@ describe("AppearanceSettingsSection mode", () => {
 });
 
 describe("AppearanceSettingsSection typography", () => {
-  it("shows a group per role with every registered choice, the saved one selected", async () => {
+  it("shows the saved choice on each role's closed select, in its own face", async () => {
     api.fetchAppearanceSettings.mockResolvedValue({
       palette: "sleeve",
       fonts: { display: "barlow-condensed", body: "default", label: "system" },
     });
     renderWithProviders(<Section />);
 
-    await waitFor(() => expect(checked("Display", "barlow condensed")).toBe("true"));
-    for (const role of fontRoleIds) {
-      const { label, choices } = fontRoles[role];
-      expect(group(label).getAllByRole("radio")).toHaveLength(choices.length);
-    }
-    expect(checked("Body", "ibm plex sans")).toBe("true");
-    expect(checked("Labels", "system mono")).toBe("true");
+    await waitFor(() => expect(shown("Display")).toBe("Barlow Condensed"));
+    expect(shown("Body")).toBe("IBM Plex Sans");
+    expect(shown("Labels")).toBe("System mono");
+    expect(
+      screen.getByText("Barlow Condensed", { selector: "[data-part=value-text]" }).style.fontFamily,
+    ).toContain("--face-barlow-condensed");
   });
 
-  it("renders each option in its own face", async () => {
-    renderWithProviders(<Section />);
-    const card = await group("Body").findByRole("radio", { name: /inter/i });
-    expect(card.style.fontFamily).toContain("--face-inter");
-    expect(group("Body").getByRole("radio", { name: "System" }).style.fontFamily).toMatch(
-      /^system-ui/,
-    );
+  it("lists every registered choice in groups, each in its own face", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await user.click(await screen.findByRole("combobox", { name: "Body font" }));
+
+    for (const choice of fontRoles.body.choices) {
+      expect(await screen.findByRole("option", { name: choice.label })).toBeTruthy();
+    }
+    const groups = [...document.querySelectorAll('[data-part="item-group-label"]')];
+    expect(groups.map((g) => g.textContent)).toEqual([
+      "Sans",
+      "Mono",
+      "Slab",
+      "System",
+      "This device",
+    ]);
+    expect(
+      screen.getByRole("option", { name: "Inter" }).querySelector("span")?.style.fontFamily,
+    ).toContain("--face-inter");
+    expect(
+      screen.getByRole("option", { name: "System" }).querySelector("span")?.style.fontFamily,
+    ).toMatch(/^system-ui/);
+    expect(screen.getByRole("option", { name: "Maple Mono" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Font on this device…" })).toBeTruthy();
+  });
+
+  it("offers Maple Mono for Body and Labels but not Display", async () => {
+    const { user } = renderWithProviders(<Section />);
+    for (const role of ["Body", "Labels"]) {
+      await user.click(await screen.findByRole("combobox", { name: `${role} font` }));
+      expect(await screen.findByRole("option", { name: "Maple Mono" })).toBeTruthy();
+      await user.keyboard("{Escape}");
+    }
+    await user.click(screen.getByRole("combobox", { name: "Display font" }));
+    await screen.findByRole("option", { name: "Zilla Slab" });
+    expect(screen.queryByRole("option", { name: "Maple Mono" })).toBeNull();
+  });
+
+  it("has a live preview for each role in the current face", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await screen.findByRole("combobox", { name: "Body font" });
+    expect(screen.getByTestId("font-preview-display").textContent).toMatch(/^Page titles/);
+    expect(screen.getByTestId("font-preview-body").textContent).toMatch(/^Interface text/);
+    expect(screen.getByTestId("font-preview-label").textContent).toBe("LP-342 · BUTTON");
+
+    await pick(user, "Body", "Maple Mono");
+    expect(screen.getByTestId("font-preview-body").style.fontFamily).toContain("--face-maple-mono");
   });
 
   it("applies a chosen font to this device, only for that role", async () => {
     const { user } = renderWithProviders(<Section />);
-    await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
+    await waitFor(() => expect(shown("Body")).toBe("IBM Plex Sans"));
 
-    await user.click(group("Body").getByRole("radio", { name: "JetBrains Mono" }));
+    await pick(user, "Body", "Maple Mono");
 
-    expect(document.documentElement.dataset.fontBody).toBe("jetbrains-mono");
+    expect(document.documentElement.dataset.fontBody).toBe("maple-mono");
     expect(document.documentElement.dataset.fontLabel).toBe("default");
-    expect(stored().fonts).toEqual({ body: "jetbrains-mono" });
+    expect(stored().fonts).toEqual({ body: "maple-mono" });
+    expect(shown("Body")).toBe("Maple Mono");
     expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
+  });
+
+  it("selects with the keyboard", async () => {
+    const { user } = renderWithProviders(<Section />);
+    await screen.findByRole("combobox", { name: "Body font" });
+    trigger("Body").focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("option", { name: "Inter" });
+    await user.keyboard("{ArrowDown}{Enter}");
+    await waitFor(() => expect(stored()?.fonts?.body).toBeTruthy());
+    expect(stored().fonts.body).not.toBe("default");
   });
 
   it("resets one role without touching the others", async () => {
@@ -214,11 +268,11 @@ describe("AppearanceSettingsSection typography", () => {
     );
     reloadAppearanceOverride();
     const { user } = renderWithProviders(<Section />);
-    await waitFor(() => expect(checked("Body", "inter")).toBe("true"));
+    await waitFor(() => expect(shown("Body")).toBe("Inter"));
 
     await user.click(screen.getByRole("button", { name: "Reset body font to the default" }));
 
-    await waitFor(() => expect(checked("Body", "ibm plex sans")).toBe("true"));
+    await waitFor(() => expect(shown("Body")).toBe("IBM Plex Sans"));
     expect(stored().fonts).toEqual({ label: "system" });
     expect(document.documentElement.dataset.fontLabel).toBe("system");
   });
@@ -230,8 +284,215 @@ describe("AppearanceSettingsSection typography", () => {
     );
     reloadAppearanceOverride();
     renderWithProviders(<Section />);
-    await waitFor(() => expect(checked("Display", "barlow condensed")).toBe("true"));
-    expect(checked("Body", "ibm plex sans")).toBe("true");
+    await waitFor(() => expect(shown("Display")).toBe("Barlow Condensed"));
+    expect(shown("Body")).toBe("IBM Plex Sans");
+  });
+});
+
+describe("AppearanceSettingsSection fonts installed on this device", () => {
+  const root = () => document.documentElement;
+  const openPanel = async (user: UserEvent, role = "Body") => {
+    await pick(user, role, "Font on this device…");
+    return screen.findByTestId(`local-font-panel-${role.toLowerCase().replace("labels", "label")}`);
+  };
+  const installFonts = (families: string[]) => {
+    (window as unknown as { queryLocalFonts?: unknown }).queryLocalFonts = vi.fn(async () =>
+      families.map((family) => ({ family })),
+    );
+  };
+  /** A canvas whose text is wider for a stack that names an installed family. */
+  const fakeCanvas = (installed: string[]) =>
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function () {
+      const ctx = {
+        font: "",
+        measureText: () => ({
+          width: installed.some((name) => ctx.font.includes(`"${name}"`)) ? 100 : 80,
+        }),
+      };
+      return ctx as unknown as CanvasRenderingContext2D;
+    });
+
+  afterEach(() => {
+    delete (window as unknown as { queryLocalFonts?: unknown }).queryLocalFonts;
+    root().style.removeProperty("--gn-font-body");
+    root().style.removeProperty("--gn-font-label");
+    vi.restoreAllMocks();
+  });
+
+  it("types a family name, previews it and applies it to this device only", async () => {
+    fakeCanvas(["Berkeley Mono"]);
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+
+    await user.type(panel.getByLabelText("Font family"), "Berkeley Mono");
+    expect(panel.getByTestId("local-font-sample-body").style.fontFamily).toContain("Berkeley Mono");
+    expect(panel.queryByRole("alert")).toBeNull();
+    await user.click(panel.getByRole("button", { name: "Use this font" }));
+
+    expect(stored().localFonts).toEqual({ body: "Berkeley Mono" });
+    expect(stored().fonts).toBeUndefined();
+    await waitFor(() =>
+      expect(root().style.getPropertyValue("--gn-font-body")).toBe(
+        '"Berkeley Mono", "Helvetica Neue", Arial, sans-serif',
+      ),
+    );
+    expect(shown("Body")).toBe("Berkeley Mono");
+    expect(screen.getByTestId("font-preview-body").style.fontFamily).toContain("Berkeley Mono");
+    // Never the shared default.
+    expect(api.updateAppearanceSettings).not.toHaveBeenCalled();
+    expect(
+      (screen.getByRole("button", { name: "Use as the default for everyone" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it("warns when the font doesn't look installed, and still lets it be used", async () => {
+    fakeCanvas([]);
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user, "Labels"));
+    await user.type(panel.getByLabelText("Font family"), "Nope Sans");
+    expect((await panel.findByRole("alert")).textContent).toMatch(
+      /doesn.t look installed.*monospace/,
+    );
+    await user.click(panel.getByRole("button", { name: "Use this font" }));
+    expect(stored().localFonts).toEqual({ label: "Nope Sans" });
+    expect(root().style.getPropertyValue("--gn-font-label")).toMatch(/^"Nope Sans", ui-monospace/);
+  });
+
+  it("says nothing about installation when the canvas can't measure", async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+    await user.type(panel.getByLabelText("Font family"), "Whatever");
+    expect(panel.queryByRole("alert")).toBeNull();
+  });
+
+  it.each(['Evil"; } body { x', "a;b", "}", "</style><script>", "url(http://x)", "a\\b", "a'b"])(
+    "refuses the name %j and never applies it",
+    async (name) => {
+      const { user } = renderWithProviders(<Section />);
+      const panel = within(await openPanel(user));
+      await user.click(panel.getByLabelText("Font family"));
+      await user.paste(name);
+      expect((await panel.findByRole("alert")).textContent).toMatch(/letters, numbers/i);
+      expect(
+        (panel.getByRole("button", { name: "Use this font" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+      expect(panel.queryByTestId("local-font-sample-body")).toBeNull();
+      expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
+    },
+  );
+
+  it("can be cancelled without changing anything", async () => {
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+    await user.click(panel.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("local-font-panel-body")).toBeNull();
+    expect(shown("Body")).toBe("IBM Plex Sans");
+  });
+
+  it("lists installed families to search where the browser allows it", async () => {
+    installFonts(["Menlo", "Berkeley Mono", "Menlo", "Bad;Name", "Avenir Next"]);
+    fakeCanvas(["Berkeley Mono"]);
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+    expect(panel.queryByRole("listbox")).toBeNull();
+
+    await user.click(panel.getByRole("button", { name: "Choose from installed fonts" }));
+    const list = await panel.findByRole("listbox", { name: "Installed fonts" });
+    expect(
+      within(list)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Avenir Next", "Berkeley Mono", "Menlo"]);
+
+    await user.type(panel.getByLabelText("Font family"), "berk");
+    expect(within(list).getAllByRole("option")).toHaveLength(1);
+    await user.click(within(list).getByRole("option", { name: "Berkeley Mono" }));
+    expect((panel.getByLabelText("Font family") as HTMLInputElement).value).toBe("Berkeley Mono");
+    await user.click(panel.getByRole("button", { name: "Use this font" }));
+    expect(stored().localFonts).toEqual({ body: "Berkeley Mono" });
+  });
+
+  it("falls back to typing when the permission is refused", async () => {
+    (window as unknown as { queryLocalFonts?: unknown }).queryLocalFonts = vi.fn(async () => {
+      throw new DOMException("denied", "NotAllowedError");
+    });
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+    await user.click(panel.getByRole("button", { name: "Choose from installed fonts" }));
+    expect((await panel.findByRole("status")).textContent).toMatch(/type the family name/i);
+    expect(panel.getByLabelText("Font family")).toBeTruthy();
+  });
+
+  it("has no list button where the API doesn't exist", async () => {
+    const { user } = renderWithProviders(<Section />);
+    const panel = within(await openPanel(user));
+    expect(panel.queryByRole("button", { name: "Choose from installed fonts" })).toBeNull();
+  });
+
+  it("restores a stored device font, badges it and resets it", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, localFonts: { body: "Berkeley Mono" } }),
+    );
+    reloadAppearanceOverride();
+    const { container, user } = renderWithProviders(<Section />);
+    await waitFor(() => expect(shown("Body")).toBe("Berkeley Mono"));
+    expect(scope(container, "Type")).toBe("Overridden on this device");
+    await waitFor(() =>
+      expect(root().style.getPropertyValue("--gn-font-body")).toContain('"Berkeley Mono"'),
+    );
+    // The panel stays open for a font in use, with no Cancel.
+    expect(
+      (
+        within(screen.getByTestId("local-font-panel-body")).getByLabelText(
+          "Font family",
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("Berkeley Mono");
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Reset body font to the default" }));
+
+    await waitFor(() => expect(shown("Body")).toBe("IBM Plex Sans"));
+    expect(root().style.getPropertyValue("--gn-font-body")).toBe("");
+    expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
+  });
+
+  it("picking a bundled font replaces the device font, even the one already underneath", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, localFonts: { body: "Berkeley Mono" } }),
+    );
+    reloadAppearanceOverride();
+    const { user } = renderWithProviders(<Section />);
+    await waitFor(() => expect(shown("Body")).toBe("Berkeley Mono"));
+
+    await pick(user, "Body", "IBM Plex Sans");
+
+    await waitFor(() => expect(shown("Body")).toBe("IBM Plex Sans"));
+    expect(stored().localFonts).toBeUndefined();
+    expect(root().style.getPropertyValue("--gn-font-body")).toBe("");
+  });
+
+  it("still lets a shared default go out, without the device font in it", async () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      JSON.stringify({ v: 1, fonts: { label: "system" }, localFonts: { body: "Berkeley Mono" } }),
+    );
+    reloadAppearanceOverride();
+    const { user } = renderWithProviders(<Section />);
+    await user.click(
+      await screen.findByRole("button", { name: "Use as the default for everyone" }),
+    );
+    await waitFor(() =>
+      expect(api.updateAppearanceSettings).toHaveBeenCalledWith({ fonts: { label: "system" } }),
+    );
+    await waitFor(() =>
+      expect(stored()).toEqual(expect.objectContaining({ localFonts: { body: "Berkeley Mono" } })),
+    );
+    expect(stored().fonts).toBeUndefined();
   });
 });
 
@@ -339,7 +600,7 @@ describe("AppearanceSettingsSection custom palette", () => {
 describe("AppearanceSettingsSection corners and scope", () => {
   it("says where each part applies", async () => {
     const { container } = renderWithProviders(<Section />);
-    await screen.findByRole("radiogroup", { name: "Body font" });
+    await screen.findByRole("combobox", { name: "Body font" });
     expect(scope(container, "Palette")).toBe("Default");
     expect(scope(container, "Corners")).toBe("Default");
     expect(scope(container, "Type")).toBe("Default");
@@ -434,7 +695,7 @@ describe("AppearanceSettingsSection default for everyone and reset", () => {
   it("doesn't write when the current value is chosen again", async () => {
     const { user } = renderWithProviders(<Section />);
     await user.click(await screen.findByRole("radio", { name: /sleeve/i }));
-    await user.click(group("Body").getByRole("radio", { name: "IBM Plex Sans" }));
+    await pick(user, "Body", "IBM Plex Sans");
     await user.click(screen.getByRole("radio", { name: "Square" }));
     expect(localStorage.getItem(appearanceOverrideKey)).toBeNull();
   });

@@ -4,13 +4,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import React from "react";
 import { Box, Button, chakra, Flex, Input, SegmentGroup, Spinner, Text } from "@chakra-ui/react";
 import { type CornerId } from "@/app/corners";
-import {
-  fontChoiceFamily,
-  fontRoleIds,
-  fontRoles,
-  type FontChoiceId,
-  type FontRoleId,
-} from "@/app/fontChoices";
+import { fontRoleIds, fontRoles, resolveFontChoice, type FontRoleId } from "@/app/fontChoices";
+import FontRoleSelect from "./FontRoleSelect";
 import { palettes, paletteIds, defaultPaletteId } from "@/app/palettes";
 import {
   customPaletteId,
@@ -226,9 +221,17 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
     );
   };
 
-  const chooseFont = (role: FontRoleId, choice: FontChoiceId) => {
-    if (choice !== resolved.fonts[role]) device.set({ fonts: { [role]: choice } });
+  const chooseFont = (role: FontRoleId, choice: string) => {
+    // The select only reports a change, so this is never the current choice; a device
+    // font draws over the choice, and picking the one underneath still clears it.
+    device.set({ fonts: { [role]: resolveFontChoice(role, choice) } });
   };
+
+  const chooseLocalFont = (role: FontRoleId, family: string) =>
+    device.set({ localFonts: { [role]: family } });
+
+  const resetFont = (role: FontRoleId) =>
+    device.reset({ fonts: { [role]: null }, localFonts: { [role]: null } });
 
   const corners = resolved.corners;
   const chooseCorners = (value: CornerId) => {
@@ -302,7 +305,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
           variant="outline"
           minH={touchTarget}
           onClick={setAsDefault}
-          disabled={overridden.length === 0}
+          disabled={!device.canSetAsDefault}
           loading={device.savingDefault}
         >
           Use as the default for everyone
@@ -393,12 +396,16 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
       <Part
         title="Type"
         overridden={fontRoleIds.some((role) => isOverridden(`font:${role}`))}
-        onReset={() => device.reset({ fonts: { display: null, body: null, label: null } })}
+        onReset={() =>
+          device.reset({
+            fonts: { display: null, body: null, label: null },
+            localFonts: { display: null, body: null, label: null },
+          })
+        }
         help="System uses the font your device already has."
       >
         {fontRoleIds.map((role) => {
-          const { label, description, choices } = fontRoles[role];
-          const current = resolved.fonts[role];
+          const { label, description } = fontRoles[role];
           return (
             <Flex
               key={role}
@@ -424,7 +431,7 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
                       variant="ghost"
                       color="fg.muted"
                       minH={touchTarget}
-                      onClick={() => device.reset({ fonts: { [role]: null } })}
+                      onClick={() => resetFont(role)}
                       aria-label={`Reset ${label.toLowerCase()} font to the default`}
                     >
                       Reset
@@ -432,31 +439,13 @@ export default function AppearanceSettingsSection(): React.JSX.Element {
                   </Flex>
                 ) : null}
               </Box>
-              <Flex gap={2} flexWrap="wrap" role="radiogroup" aria-label={`${label} font`}>
-                {choices.map(({ id, label: choiceLabel }) => {
-                  const isSelected = id === current;
-                  return (
-                    <chakra.button
-                      key={id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => chooseFont(role, id)}
-                      px={3}
-                      py={1}
-                      borderWidth={isSelected ? 2 : 1}
-                      borderColor={isSelected ? "accent.solid" : "border"}
-                      borderRadius="md"
-                      bg="bg.panel"
-                      cursor="pointer"
-                      _hover={{ bg: "bg.muted" }}
-                      style={{ fontFamily: fontChoiceFamily(role, id) }}
-                    >
-                      {choiceLabel}
-                    </chakra.button>
-                  );
-                })}
-              </Flex>
+              <FontRoleSelect
+                role={role}
+                choice={resolved.fonts[role]}
+                localFamily={resolved.localFonts[role]}
+                onChoose={(choice) => chooseFont(role, choice)}
+                onChooseLocal={(family) => chooseLocalFont(role, family)}
+              />
             </Flex>
           );
         })}

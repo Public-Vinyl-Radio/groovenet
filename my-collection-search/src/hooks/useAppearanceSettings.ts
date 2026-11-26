@@ -18,7 +18,8 @@ import {
   updateAppearanceOverride,
 } from "@/lib/appearanceOverrideStore";
 import { resolveCorners } from "@/app/corners";
-import { fontRoleIds, resolveFontChoice } from "@/app/fontChoices";
+import { fontRoleIds, fontRoles, resolveFontChoice, type FontRoleId } from "@/app/fontChoices";
+import { localFontStack } from "@/app/localFont";
 import {
   customPaletteCss,
   customPaletteStyleId,
@@ -70,6 +71,20 @@ export function applyAppearance(patch: AppearancePatch) {
   for (const role of fontRoleIds) {
     const choice = patch.fonts?.[role];
     if (choice) dataset[fontDataKey[role]] = choice;
+  }
+}
+
+/**
+ * Draws each role's installed font over its choice, or removes the inline
+ * variable when the role has none. An inline custom property beats the
+ * `[data-font-<role>]` rules, so the choice underneath stays the fallback.
+ */
+export function applyLocalFonts(localFonts: Partial<Record<FontRoleId, string>>) {
+  const { style } = document.documentElement;
+  for (const role of fontRoleIds) {
+    const family = localFonts[role];
+    if (family) style.setProperty(fontRoles[role].variable, localFontStack(role, family));
+    else style.removeProperty(fontRoles[role].variable);
   }
 }
 
@@ -173,6 +188,7 @@ export function useAppearanceOverride(): AppearanceOverride {
 export function applyResolvedAppearance(resolved: ResolvedAppearance) {
   applyCustomPaletteStyle(resolved.customPalette);
   applyAppearance(resolved);
+  applyLocalFonts(resolved.localFonts);
 }
 
 /** What the override clears once its value is the saved default. */
@@ -211,6 +227,11 @@ export function useDeviceAppearance() {
     [saved.data, override],
   );
   const overridden = useMemo(() => overriddenFields(override), [override]);
+  // A font installed here can't be anyone else's default, so it doesn't count.
+  const canSetAsDefault = useMemo(
+    () => Object.keys(overrideAsDefaultPatch(override)).length > 0,
+    [override],
+  );
 
   const setAsDefault = (options?: Parameters<typeof update.mutate>[1]) => {
     const patch = overrideAsDefaultPatch(override);
@@ -228,6 +249,7 @@ export function useDeviceAppearance() {
     override,
     resolved,
     overridden,
+    canSetAsDefault,
     set: updateAppearanceOverride,
     reset: updateAppearanceOverride,
     resetAll: resetAppearanceOverride,

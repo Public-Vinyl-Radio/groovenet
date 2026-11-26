@@ -66,6 +66,7 @@ describe("fonts", () => {
       "CommitMono",
       "CourierPrime",
       "DMMono",
+      "MapleMono",
     ];
     for (const family of licences) {
       const file = path.join(import.meta.dirname, `fonts/OFL-${family}.txt`);

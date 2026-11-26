@@ -78,13 +78,13 @@ describe("PUT /api/settings/appearance", () => {
     [
       "an unknown font",
       { fonts: { body: "comic-sans" } },
-      "fonts.body must be one of: default, inter, space-grotesk, iosevka-charon, plex-mono, jetbrains-mono, space-mono, iosevka, iosevka-charon-mono, martian-mono, monaspace-xenon, commit-mono, courier-prime, dm-mono, system-mono, system",
+      "fonts.body must be one of: default, inter, space-grotesk, iosevka-charon, plex-mono, jetbrains-mono, space-mono, iosevka, iosevka-charon-mono, martian-mono, monaspace-xenon, commit-mono, courier-prime, dm-mono, maple-mono, system-mono, system",
     ],
     ["another role's font", { fonts: { body: "zilla-slab" } }, "fonts.body must be one of"],
     [
       "a non-string font",
       { fonts: { label: 4 } },
-      "fonts.label must be one of: default, jetbrains-mono, space-mono, iosevka, iosevka-charon-mono, martian-mono, monaspace-xenon, commit-mono, courier-prime, dm-mono, system",
+      "fonts.label must be one of: default, jetbrains-mono, space-mono, iosevka, iosevka-charon-mono, martian-mono, monaspace-xenon, commit-mono, courier-prime, dm-mono, maple-mono, system",
     ],
     ["an unknown role", { fonts: { heading: "inter" } }, "Body may only contain"],
     ["unknown corners", { corners: "pill" }, "corners must be one of: square, rounded"],
