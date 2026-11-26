@@ -338,3 +338,42 @@ def test_flac_filename_is_published_and_queued_for_analysis(monkeypatch, fake_re
     import json
 
     assert json.loads(fake_redis.rpop("download_queue"))["local_audio_url"] == "flac.flac"
+
+
+@patch("worker.jobs.download.os.makedirs")
+@patch("worker.jobs.download.cleanup_download_directory")
+@patch("worker.jobs.download.download_with_gamdl")
+@patch("groovenet_client.GroovenetClient.update_track")
+def test_published_file_is_0644_despite_0600_source_and_umask(
+    mock_update, mock_gamdl, mock_cleanup, mock_makedirs, tmp_path, fake_redis, monkeypatch
+):
+    import os
+    import stat
+
+    from worker.jobs import download
+
+    source = tmp_path / "dl" / "track-perm.m4a"
+    source.parent.mkdir()
+    source.write_bytes(b"audio")
+    source.chmod(0o600)
+    final_dir = tmp_path / "audio"
+    final_dir.mkdir()
+    mock_gamdl.return_value = str(source)
+    real_join = os.path.join
+    monkeypatch.setattr(
+        download.os.path, "join", lambda a, *p: real_join(str(final_dir) if a == "/app/audio" else a, *p)
+    )
+    old = os.umask(0o077)
+    try:
+        result = download.download_audio(
+            {
+                "track_id": "track-perm",
+                "friend_id": 1,
+                "job_id": "job-perm",
+                "apple_music_url": "https://music.apple.com/track/perm",
+            }
+        )
+    finally:
+        os.umask(old)
+    assert result["success"] is True
+    assert stat.S_IMODE((final_dir / "track-perm.m4a").stat().st_mode) == 0o644

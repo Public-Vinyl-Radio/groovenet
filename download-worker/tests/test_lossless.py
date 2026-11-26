@@ -166,3 +166,15 @@ def test_invalid_cap_keeps_original(alac):
     with pytest.raises(ValueError, match="sample-rate cap"):
         lossless.convert_alac_to_flac(str(alac), sample_rate_cap=12345)
     assert alac.exists()
+
+
+def test_flac_output_is_world_readable_under_restrictive_umask(alac):
+    import os
+    import stat
+
+    old = os.umask(0o077)
+    try:
+        output = lossless.convert_alac_to_flac(str(alac))
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE(Path(output).stat().st_mode) == 0o644

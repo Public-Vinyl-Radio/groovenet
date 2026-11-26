@@ -559,3 +559,23 @@ Start these only after step 2 has been done by hand with a real account.
 3. **Browser playback.** Convert ALAC to FLAC after download, keeping tags and
    cover. Serve `.flac` as `audio/flac`. Show a player error instead of failing
    silently when `<audio>` raises `MEDIA_ERR_SRC_NOT_SUPPORTED`.
+
+## File permissions for server players
+
+OwnTone engines mount the audio library read-only and run as `nobody`, so every
+published file must be world-readable. gamdl and `NamedTemporaryFile` stage
+files as 0600, and moves keep that mode. The worker therefore sets 0644 on each
+file as it lands in `/app/audio` (and on the FLAC temp file before it replaces
+the ALAC). Files are never made group- or world-writable and ownership is not
+changed.
+
+Files downloaded before this fix stay 0600 and show up in OwnTone as "Audio
+file is missing, ambiguous, or not yet indexed". Repair them by hand, then
+rescan:
+
+```bash
+docker exec groovenet_download_worker find /app/audio -type f -perm 600 -exec chmod 644 {} +
+curl -X PUT http://localhost:<engine-port>/api/update
+```
+
+There is deliberately no automatic chmod at startup.

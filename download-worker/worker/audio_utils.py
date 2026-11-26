@@ -11,6 +11,23 @@ if TYPE_CHECKING:
     from .types import JobData
 
 
+LIBRARY_FILE_MODE = 0o644
+
+
+def make_library_readable(path: str) -> None:
+    """Set a published audio file to 0644 so other containers can read it.
+
+    gamdl, ffmpeg temp files and Python's NamedTemporaryFile all create 0600
+    files, and the OwnTone engines run as another user on a read-only mount.
+    An explicit chmod keeps the result independent of the process umask. A
+    failure is logged, not raised: the download itself already succeeded.
+    """
+    try:
+        os.chmod(path, LIBRARY_FILE_MODE)
+    except OSError as e:
+        logger.warning(f"Could not make {path} world-readable: {e}")
+
+
 def cleanup_download_directory(download_dir: str, track_id: str) -> None:
     try:
         for item in os.listdir(download_dir):
