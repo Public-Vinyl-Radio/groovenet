@@ -288,6 +288,8 @@ it("keeps browser playback errors visible in phone Now playing", () => {
   player.playlist = [track(1)];
   player.currentTrack = player.playlist[0];
   controller.playbackError = "This browser can't play ALAC.";
-  renderWithProviders(<QueueDrawer isOpen onClose={() => {}} />);
+  renderWithProviders(
+    <QueueDrawer isOpen onClose={() => {}} onQueueToggle={() => {}} isQueueOpen />,
+  );
   expect(screen.getByRole("alert").textContent).toBe(controller.playbackError);
 });
