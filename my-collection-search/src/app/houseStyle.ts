@@ -33,7 +33,7 @@ export const playerCoverBorder = {
 /** Shared cover treatment; CSS variables also let Storybook preview token changes. */
 export const coverTokens = {
   borderWidth: "var(--gn-cover-border-width, var(--chakra-border-widths-outline))",
-  borderColor: "var(--gn-cover-border-color, var(--gn-ink))",
+  borderColor: "var(--gn-cover-border-color, var(--gn-outline))",
   radius: "var(--gn-radius)",
   monochrome: "var(--gn-cover-grayscale, 0)",
   transition: "filter 150ms ease",
@@ -268,7 +268,7 @@ export const roleRecipes = {
       borderWidth: "outline",
       bg: "transparent",
       color: "fg",
-      borderColor: "fg",
+      borderColor: "border.ink",
       fontSize: "10px",
       fontWeight: "semibold",
       letterSpacing: "0.08em",
@@ -314,7 +314,7 @@ export const roleRecipes = {
       },
       variant: {
         plain: {},
-        strong: { bg: "fg", color: "bg", borderColor: "fg" },
+        strong: { bg: "fg", color: "bg", borderColor: "border.ink" },
         dot: { bg: "accent.solid", color: "accent.contrast", borderColor: "accent.solid" },
       },
     },
@@ -794,7 +794,7 @@ export const slotRecipes = {
           control: {
             borderRadius: "md",
             bg: "bg.panel",
-            boxShadow: "inset 0 0 0 2px var(--gn-ink)",
+            boxShadow: "inset 0 0 0 2px var(--gn-outline)",
             focusVisibleRing: "outside",
             // Chakra's own `_checked` sets the `bg` shorthand, which resets
             // the hatch, so a disabled checked switch repeats it.
@@ -813,7 +813,7 @@ export const slotRecipes = {
             ms: "var(--switch-inset)",
             scale: "1",
             bg: "transparent",
-            boxShadow: "inset 0 0 0 2px var(--gn-ink)",
+            boxShadow: "inset 0 0 0 2px var(--gn-outline)",
             _checked: {
               bg: "accent.contrast",
               boxShadow: "none",

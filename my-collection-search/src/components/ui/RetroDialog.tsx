@@ -124,7 +124,7 @@ export default function RetroDialog({
               <Flex
                 align="center"
                 gap={3}
-                bg="border.ink"
+                bg="fg"
                 color="bg"
                 pl={header ? "10px" : "14px"}
                 pr="4px"

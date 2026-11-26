@@ -348,7 +348,7 @@ export function SpinDetailPanel({ onClose, ...props }: DetailProps & { onClose: 
   const { play } = props.selection;
   return (
     <Box borderWidth="outline" borderColor="border.ink" boxShadow="md" bg="bg" borderRadius="md">
-      <Flex align="center" gap={3} py={3} pl={3} pr={1} bg="border.ink" color="bg">
+      <Flex align="center" gap={3} py={3} pl={3} pr={1} bg="fg" color="bg">
         <SpinDetailHeading
           play={play}
           variant="panel"

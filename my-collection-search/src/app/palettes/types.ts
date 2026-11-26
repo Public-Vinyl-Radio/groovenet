@@ -21,6 +21,7 @@ export const paletteVariableNames = [
   "--gn-ground",
   "--gn-surface",
   "--gn-ink",
+  "--gn-outline",
   "--gn-ink-muted",
   "--gn-border",
   ...accentParts.map((part) => `--gn-accent-${part}` as const),

@@ -50,7 +50,7 @@ function Bar({ value, max, label }: { value: number; max: number; label: string 
       borderWidth="rule"
       borderColor="border"
     >
-      <Box h="full" w={`${pct}%`} bg="border.ink" />
+      <Box h="full" w={`${pct}%`} bg="fg" />
     </Box>
   );
 }
@@ -175,7 +175,7 @@ export default function StorageOverview() {
                   borderColor="border"
                   overflow="clip"
                 >
-                  <Box w={`${(disk.audio_bytes / disk.total_bytes) * 100}%`} bg="border.ink" />
+                  <Box w={`${(disk.audio_bytes / disk.total_bytes) * 100}%`} bg="fg" />
                   <Box w={`${(disk.other_bytes / disk.total_bytes) * 100}%`} bg="fg.muted" />
                 </Flex>
                 <Flex wrap="wrap" gap={4} mt={3} fontFamily="mono" fontSize="xs">

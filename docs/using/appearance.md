@@ -32,9 +32,9 @@ A palette is the set of colours for the whole app. Each card shows four swatches
 
 ### Make your own
 
-Choose **Create custom palette**, then **Start from** a preset. You set five colours for light mode and five for dark: the page background, panels and menus, text and outlines, the accent used for primary actions and selection, and the hard offset shadow. The rest, and the status colours, come from the preset you started from.
+Choose **Create custom palette**, then **Start from** a preset. You set six colours for light mode and six for dark: the page background, panels and menus, **Ink** (text), **Outline** (the strong lines round buttons, cards, inputs and chips), the accent used for primary actions and selection, and the hard offset shadow. Outline starts out the same as Ink, as in every preset, so set it to something else to give cream text a darker or tinted outline. A palette saved before Outline existed keeps looking the same: its outline is its ink. The rest, and the status colours, come from the preset you started from.
 
-The editor shows a live preview, and beside each colour the contrast it makes against what it sits on, marked **Pass** or **Fail** against the level it needs. Fix any failures before saving, so text stays readable. Save it and it becomes the selected palette. **Edit custom palette** reopens it, and you can delete it from the editor. Deleting returns the app to a preset.
+The editor shows a live preview, and beside each colour the contrast it makes against what it sits on, marked **Pass** or **Fail** against the level it needs: 4.5:1 for text, 3:1 for outlines. Fix any failures before saving, so text stays readable. Save it and it becomes the selected palette. **Edit custom palette** reopens it, and you can delete it from the editor. Deleting returns the app to a preset.
 
 ## Corners
 

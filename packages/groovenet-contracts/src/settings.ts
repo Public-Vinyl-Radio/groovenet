@@ -132,11 +132,17 @@ const hexColour = () =>
     .regex(/^#[0-9a-fA-F]{6}$/, "must be a #rrggbb colour")
     .meta({ example: "#f4ede0" });
 
+// A palette saved before `outline` existed has none, and a request may leave it
+// out; both mean `ink`. The app's own schema always fills it in.
 const appearanceCustomColoursSchema = z
   .object({
     ground: hexColour(),
     surface: hexColour(),
-    ink: hexColour(),
+    ink: hexColour().meta({ description: "Text." }),
+    outline: hexColour().optional().meta({
+      description:
+        "Buttons, cards, inputs and chips. Optional: a request may leave it out, and a palette saved without it, to use `ink`.",
+    }),
     accent: hexColour(),
     shadow: hexColour(),
   })
@@ -151,7 +157,7 @@ export const appearanceCustomPaletteSchema = z
   .strict()
   .meta({
     description:
-      "The inputs of the one saved custom palette: the preset it started from (it supplies the status colours) and five #rrggbb colours per mode. Everything else is derived when rendering.",
+      "The inputs of the one saved custom palette: the preset it started from (it supplies the status colours) and six #rrggbb colours per mode. Everything else is derived when rendering.",
   });
 
 export const appearanceFontsSchema = z.object(appearanceFontsShape).meta({
