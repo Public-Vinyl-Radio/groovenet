@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.4.1...v0.4.2) (2026-11-26)
+
+
+### Features
+
+* **audio:** keep the AAC file alongside the lossless FLAC ([#1312](https://github.com/Public-Vinyl-Radio/groovenet/issues/1312)) ([fe7463e](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe7463e427a2747262e86073921af6b61643ba32))
+* **playlists:** playlist owners and private playlists ([#1313](https://github.com/Public-Vinyl-Radio/groovenet/issues/1313)) ([18d5ac6](https://github.com/Public-Vinyl-Radio/groovenet/commit/18d5ac6e83851efd99955528b4ddf68569be9051))
+
+
+### Bug Fixes
+
+* **deploy:** honour COMPOSE_PROFILES when server players are enabled ([#1307](https://github.com/Public-Vinyl-Radio/groovenet/issues/1307)) ([cdbea79](https://github.com/Public-Vinyl-Radio/groovenet/commit/cdbea79f0421d9340682bb2541c3db2c1bf26895))
+* **download-worker:** publish downloaded audio world-readable for server players ([#1308](https://github.com/Public-Vinyl-Radio/groovenet/issues/1308)) ([59624f1](https://github.com/Public-Vinyl-Radio/groovenet/commit/59624f1cd9fd0fe94de9a7a3aaad6c4d879a92bf))
+
 ## [0.4.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.4.0...v0.4.1) (2026-11-26)
 
 

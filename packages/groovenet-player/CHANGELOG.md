@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.2.1...groovenet-player-v0.2.2) (2026-11-26)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^4.1.0 to ^4.2.0
+    * @groovenet/contracts bumped from 1.12.0 to 1.13.0
+
 ## [0.2.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.2.0...groovenet-player-v0.2.1) (2026-11-26)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v4.1.0...groovenet-cli-v4.2.0) (2026-11-26)
+
+
+### Features
+
+* **audio:** keep the AAC file alongside the lossless FLAC ([#1312](https://github.com/Public-Vinyl-Radio/groovenet/issues/1312)) ([fe7463e](https://github.com/Public-Vinyl-Radio/groovenet/commit/fe7463e427a2747262e86073921af6b61643ba32))
+* **playlists:** playlist owners and private playlists ([#1313](https://github.com/Public-Vinyl-Radio/groovenet/issues/1313)) ([18d5ac6](https://github.com/Public-Vinyl-Radio/groovenet/commit/18d5ac6e83851efd99955528b4ddf68569be9051))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^4.1.0 to ^4.2.0
+    * @groovenet/contracts bumped from 1.12.0 to 1.13.0
+    * @groovenet/player bumped from 0.2.1 to 0.2.2
+
 ## [4.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v4.0.0...groovenet-cli-v4.1.0) (2026-11-26)
 
 
