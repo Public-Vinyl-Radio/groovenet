@@ -53,7 +53,7 @@ Star ratings belong to the profile that gave them (#1283), in `track_ratings`,
 one per profile per collection row. The rating stars everywhere, the minimum
 rating filter, suggestions and any ranking profile that weighs rating use the
 current profile's ratings. A track's page also shows the other profiles'
-ratings read-only, by profile name: "You ★5 · Sam ★3". The API keeps
+ratings read-only, by profile name: "You ★5 · <other profile> ★3". The API keeps
 `star_rating` as the requesting profile's rating (0 when unrated) and adds
 `other_ratings`. Switching profile reloads every list with the new profile's
 ratings.

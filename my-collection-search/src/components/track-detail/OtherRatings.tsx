@@ -5,7 +5,7 @@ const stars = (rating: number) => (rating > 0 ? `★${rating}` : "not rated");
 
 /**
  * Other household profiles' ratings of a track, read-only (#1283):
- * "You ★5 · Sam ★3". Rendered only when someone else has rated it, so a
+ * "You ★5 · <other profile> ★3". Rendered only when someone else has rated it, so a
  * single-profile household never sees it. Names are the profiles' display
  * names from `users`.
  */

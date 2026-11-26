@@ -16,7 +16,7 @@ export const trackGenreSchema = z.object({
 
 /**
  * Another household profile's rating of a track (#1283), shown read-only
- * beside the viewer's own: "you ★5 · Sam ★3". `name` is the profile's
+ * beside the viewer's own: "you ★5 · <other profile> ★3". `name` is the profile's
  * display name.
  */
 export const trackOtherRatingSchema = z.object({
