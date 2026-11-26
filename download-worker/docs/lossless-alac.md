@@ -47,7 +47,7 @@ pins the project name, and keep `lossless` in the deployed `.env`:
    ```bash
    ssh beelink
    cd /srv/docker/groovenet
-   just wrapper-build ~/wrapper/apple-music.apkm --arch x86_64   # or ./scripts/wrapper/build.sh …
+   ./scripts/wrapper/build.sh ~/wrapper/apple-music.apkm --arch x86_64
    docker image inspect wrapper-v2:1.0.0-local-amd64 --format '{{.Id}}'
    ```
 
@@ -62,9 +62,13 @@ pins the project name, and keep `lossless` in the deployed `.env`:
    device fingerprint on its own; `GAMDL_WRAPPER_SESSION_VOLUME` is not needed:
 
    ```bash
-   ssh -t beelink 'cd /srv/docker/groovenet && just wrapper-login'
-   ssh beelink 'cd /srv/docker/groovenet && just wrapper-status'   # Wrapper v2 1.0.0 x86_64: signed in
+   ssh -t beelink 'cd /srv/docker/groovenet && ./scripts/wrapper/session.sh login'
+   ssh beelink 'cd /srv/docker/groovenet && ./scripts/wrapper/session.sh status'   # Wrapper v2 1.0.0 x86_64: signed in
    ```
+
+   A non-interactive `ssh beelink "..."` has no `just` on its PATH, so these
+   steps call the scripts directly. `ssh -t` needs a real terminal; it does not
+   work from Claude Code's `!` prompt.
 
 5. Set Settings → Apple Music → Download quality to **Lossless** for the
    library, download one track, and confirm its file is FLAC.
