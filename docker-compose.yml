@@ -309,9 +309,9 @@ services:
   # Private, owner-built Apple libraries. Never push this image to a registry.
   gamdl-wrapper:
     profiles: [lossless]
-    image: wrapper-v2:1.0.0-local-amd64
+    image: ${GAMDL_WRAPPER_IMAGE:-wrapper-v2:1.0.0-local-amd64}
     pull_policy: never
-    platform: linux/amd64
+    platform: ${GAMDL_WRAPPER_PLATFORM:-linux/amd64}
     user: "1000:1000"
     init: true
     read_only: true
@@ -324,7 +324,9 @@ services:
     tmpfs:
       - /srv/wrapper/rootfs/tmp:rw,nosuid,nodev,mode=1777
     volumes:
-      - gamdl_wrapper_session:/srv/wrapper/rootfs/data/data/com.apple.android.music/files
+      # Opt-in second session/identity; the original volume is never rewritten.
+      # Only declared keys below are accepted; anything else fails to start.
+      - ${GAMDL_WRAPPER_SESSION_VOLUME:-gamdl_wrapper_session}:/srv/wrapper/rootfs/data/data/com.apple.android.music/files
     restart: unless-stopped
     stop_grace_period: 15s
 
@@ -394,6 +396,7 @@ services:
 
 volumes:
   gamdl_wrapper_session:
+  gamdl_wrapper_session_fresh:
   db_data:
   music_data:
   db_dumps:

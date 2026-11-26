@@ -10,29 +10,179 @@ first sign-in and real download check **on or after 2026-12-03**.
 ### Build and start
 
 Supply an authorized Apple Music **3.6.0-beta, build 1109** `.apk` or `.apkm`, kept
-outside this repository. Do not download it through an agent. On the amd64 owner
-machine, from this checkout:
+outside this repository. The owner's `.apkm` contains both `x86_64` and
+`arm64_v8a` splits; the build selects and verifies the matching libraries.
+
+#### Apple Silicon Mac — local worktree
+
+With Docker Desktop running, from this checkout:
 
 ```bash
 just wrapper-build ~/path/to.apkm
-just worktree-services add downloads lossless
+just worktree-up --profile downloads,lossless
 just wrapper-login
 just wrapper-status
 ```
 
+The build defaults to `uname -m`, mapping macOS `arm64` to upstream's `aarch64`
+alias. It produces `wrapper-v2:1.0.0-local-arm64`. The worktree flow applies
+`docker-compose.mac.yml`, selecting this image and `linux/arm64` for the wrapper
+and download worker without extra environment settings. The wrapper runs an ARM64
+worker; upstream's Docker build still uses an x86-64 NDK builder stage, which
+Docker Desktop can emulate. No local Android NDK or Rust toolchain is needed.
+
+#### Beelink — amd64 production path
+
+Never start the sidecar with a hand-typed `docker compose` on beelink: without
+`-p dj-playlist` Compose can name the project after the directory (`groovenet`)
+and create a second stack beside production. Go through `just deploy`, which
+pins the project name, and keep `lossless` in the deployed `.env`:
+
+1. Deploy the release that contains the wrapper tooling as usual, still
+   without `lossless`, so the stack directory checks out the new scripts:
+   `just deploy vX.Y.Z`.
+2. Copy the package to beelink **outside** `/srv/docker/groovenet`, then build
+   the private amd64 image there. It is never pushed:
+
+   ```bash
+   ssh beelink
+   cd /srv/docker/groovenet
+   just wrapper-build ~/wrapper/apple-music.apkm --arch x86_64   # or ./scripts/wrapper/build.sh …
+   docker image inspect wrapper-v2:1.0.0-local-amd64 --format '{{.Id}}'
+   ```
+
+3. Enable the profile where deploys read it. `COMPOSE_PROFILES` unset means
+   `all`, which excludes `lossless`, and every deploy re-renders beelink's
+   `.env` from `.env.tpl`, so a one-off variable would be lost. Set
+   `COMPOSE_PROFILES=all,lossless` in `.env.tpl`, then run `just deploy vX.Y.Z`
+   again. Do this only after step 2: the service uses `pull_policy: never`, so
+   a deploy with `lossless` and no local image fails.
+4. Sign in from the stack directory, in an interactive terminal (`ssh -t`).
+   The new beelink volume is empty, so the patched build generates the fresh
+   device fingerprint on its own; `GAMDL_WRAPPER_SESSION_VOLUME` is not needed:
+
+   ```bash
+   ssh -t beelink 'cd /srv/docker/groovenet && just wrapper-login'
+   ssh beelink 'cd /srv/docker/groovenet && just wrapper-status'   # Wrapper v2 1.0.0 x86_64: signed in
+   ```
+
+5. Set Settings → Apple Music → Download quality to **Lossless** for the
+   library, download one track, and confirm its file is FLAC.
+
+To roll back, drop `lossless` from `COMPOSE_PROFILES` and redeploy. Lossless
+requests then use AAC again. Keep the session volume.
+
+The base Compose file retains the amd64 image and `linux/amd64` defaults.
+For an amd64 scratch worktree, use `just worktree-up --profile downloads,lossless`
+instead of the production Compose command. Perform the end-to-end checks below
+only in a scratch worktree. These are owner commands; agents must not run real
+builds, sign-ins or production operations.
+
 `wrapper-build` clones **tag 1.0.0 exactly** from
 [glomatico/wrapper-v2](https://github.com/glomatico/wrapper-v2/tree/1.0.0) into a
 scratch directory under `/tmp`, verifies the exact tag, and runs upstream
-`tools/build-docker.sh <package> --arch x86_64`. The helper handles the isolated
+`tools/build-docker.sh <package> --arch <architecture>`. The optional
+`--arch x86_64|aarch64` overrides host detection; upstream also calls ARM64
+`arm64-v8a`. Unsupported targets fail before cloning or building. The helper handles the isolated
 BuildKit package context; our script never copies the package into the checkout
 or normal source context. Scratch source is removed on exit. The resulting
-`wrapper-v2:1.0.0-local-amd64` image contains proprietary Apple libraries: keep
+`wrapper-v2:1.0.0-local-amd64` or `wrapper-v2:1.0.0-local-arm64` image contains
+proprietary Apple libraries: keep
 it local, never push/export it into the repository, an issue or a PR.
+
+#### ARM64 compatibility on newer Mac VM kernels
+
+ARM64 builds apply the local source patch in
+`scripts/wrapper/compat/explicit-symbol-scopes.patch` after checking the exact
+upstream **1.0.0** tag. The standalone helper is
+`scripts/wrapper/compat/symbol_lookup.hpp`. amd64 builds do not get this patch.
+A patch that no longer applies aborts the build; do not bypass that check.
+
+The bundled API 22 Android linker crashes when a global
+`dlsym(RTLD_DEFAULT, ...)` lookup reaches a kernel vDSO with only a GNU hash table.
+This was reproduced on the local ARM64 VM kernel 6.18.58. The workaround retains
+explicit handles for the main executable and five already-loaded Apple libraries
+and searches those handles and their dependency scopes. It avoids the global vDSO
+lookup without changing the pinned Android binaries, Apple libraries, protocol,
+capabilities or saved identity/session format. Handles live until worker exit.
+
+Rebuild an existing ARM64 image with the same owner command, then let Compose
+recreate the sidecar from its new image ID:
+
+```bash
+just wrapper-build ~/path/to.apkm
+just worktree-up --profile downloads,lossless
+just wrapper-login
+just wrapper-status
+```
+
+Preserve the named session/identity volume. A successful status says
+`Wrapper v2 1.0.0 arm64-v8a: signed in`. While verifying a real lossless download,
+disable **Retry lossless failures as AAC** so fallback cannot hide a wrapper error,
+and confirm ALAC input becomes a final FLAC file rather than an AAC result.
+
+Validation boundary: fake git/build helpers check ARM64-only patch application,
+source drift rejection and scratch cleanup. A standalone C++ test compiles only
+the public lookup helper against a fake loader that rejects global lookups. An
+isolated, network-disabled debugger probe using the existing image and synthetic
+session state validated the explicit-handle lookup strategy through native
+initialization. The patched source has **not** been built into a real wrapper by
+an agent; owner rebuild, real sign-in and Apple downloads remain unverified.
+
+#### Fresh-login device fingerprint (both architectures)
+
+Every build also applies `scripts/wrapper/compat/fresh-device-fingerprint.patch`.
+It is a backport of `src/device_info.rs` only from upstream
+[PR #24](https://github.com/glomatico/wrapper-v2/pull/24) (head `6918066`, still
+open), for [issue #23](https://github.com/glomatico/wrapper-v2/issues/23). The
+issue's symptom matches ours: `authentication_failed` at `native_response`, with
+response type 4, one credential callback and no 2FA prompt. The PR's unrelated
+profile, metadata and builder changes are not taken. Newly generated identities
+use `Music/5.0.2/Android/10/Pixel 8/7663314/en-US/en-US/` plus a 16-hex
+(64-bit) Android ID instead of `Music/4.9/Android/10/Samsung S9/7663313/...`
+plus 32 hex. Explicit `WRAPPER_DEVICE_INFO` overrides and every stored
+`.wrapper-device-info`/`.worker-device` identity are preserved: nothing is
+migrated or rotated.
+
+Because stored identities are kept, rebuilding alone does not change a volume
+that already holds an identity generated by the unpatched build. To try the new
+fingerprint, opt this worktree into a second, empty session volume. Your
+original `gamdl_wrapper_session` volume stays intact and remains the default.
+The setting lives in the worktree env file, so it persists across
+`just worktree-up`:
+
+```bash
+just wrapper-build ~/path/to.apkm
+env_file="$(ls .worktree/*.env)"   # this worktree's single env file
+grep -q '^GAMDL_WRAPPER_SESSION_VOLUME=' "$env_file" ||
+  printf 'GAMDL_WRAPPER_SESSION_VOLUME=gamdl_wrapper_session_fresh\n' >>"$env_file"
+just worktree-up --profile downloads,lossless
+just wrapper-login
+just wrapper-status
+```
+
+Only the declared `gamdl_wrapper_session` and `gamdl_wrapper_session_fresh` keys
+are accepted. Any other value makes Compose refuse the project rather than
+create an arbitrary volume. To return to the original session, delete that line
+and rerun `just worktree-up --profile downloads,lossless`. Delete neither volume.
+Leaving the variable unset gives byte-identical `docker compose config` output.
+Do not retry sign-in repeatedly if it still fails; capture only the whitelisted
+`session.auth_diagnostic` fields.
+
+Validation boundary: an agent applied the backport to public tag 1.0.0 and
+confirmed it reproduces the PR's reviewed file (blob `b9d09b7`).
+`scripts/wrapper/check-device-patch.sh`, also run in CI, compiles that file
+standalone and passes upstream's own tests, including that legacy identities are
+never rewritten. Upstream reports amd64 login, 2FA, restore, playback and keys
+working with this fingerprint. The report changed the client tuple and ID length
+together, so their separate effects are unknown. ARM64 sign-in with it, and real
+lossless downloads, are **unverified** until the owner runs the steps above.
 
 `lossless` is opt-in and excluded from `all`. `just worktree-up --profile downloads
 --profile lossless` also works after building. The sidecar has no published port,
-uses `linux/amd64`, init and a read-only root, and persists session **and device
-identity** in the named `gamdl_wrapper_session` volume. Do not delete that volume
+uses the selected architecture (`linux/amd64` by default), init and a read-only root, and persists session **and device
+identity** in the named `gamdl_wrapper_session` volume (or the opt-in
+`gamdl_wrapper_session_fresh`, above). Do not delete either volume
 when resolving an expired session. It uses precisely the
 [1.0.0 upstream Compose capabilities](https://github.com/glomatico/wrapper-v2/blob/1.0.0/compose.yaml):
 `SYS_ADMIN` for namespaces/mounts and `SYS_CHROOT` for the Android chroot, with
@@ -49,7 +199,12 @@ API: `/session/credentials` exports account tokens to trusted clients.
 
 ### First sign-in, 2FA and expired sessions
 
-`just wrapper-login` runs the login client inside the download worker. Enter the
+`just wrapper-login` runs the login client inside the existing download worker
+with an explicit Docker TTY (`docker exec -it`). It bypasses Compose/1Password
+injection so output-masking pipes cannot remove the hidden-input terminal; the
+worker already has its configured environment. Run it from an interactive
+terminal, without piping or redirecting it. Status uses a non-TTY exec and works
+unattended. Enter the
 Apple ID and password at the hidden terminal prompts, then the six-digit 2FA
 code if requested. Input stays in process memory: no shell arguments, environment
 variables, files or request bodies are printed. Do not run it under command/body
@@ -85,7 +240,8 @@ of retrying; per-track codec availability fallback still applies. Without a
 configured wrapper, lossless requests use AAC as before. AAC requires valid
 browser cookies independently of the wrapper. Startup readiness warns but keeps
 the worker available for AAC; each lossless session repeats the compatibility
-(version 1.0.0, protocol 1, amd64 profile) and authentication checks.
+(version 1.0.0, protocol 1, exact supported profile matching the worker's
+architecture) and authentication checks.
 
 ### Remaining owner end-to-end check
 

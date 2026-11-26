@@ -13,3 +13,7 @@ services:
 
   download-worker:
     platform: linux/arm64
+
+  gamdl-wrapper:
+    image: ${GAMDL_WRAPPER_IMAGE:-wrapper-v2:1.0.0-local-arm64}
+    platform: ${GAMDL_WRAPPER_PLATFORM:-linux/arm64}

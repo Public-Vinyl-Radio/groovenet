@@ -131,7 +131,8 @@ comment at the top of that file.
 ## Opt-in lossless wrapper
 
 `gamdl-wrapper` is excluded from `all`: only the `lossless` profile starts it.
-It uses the owner-built `wrapper-v2:1.0.0-local-amd64` image with `pull_policy:
+It uses the owner-built `wrapper-v2:1.0.0-local-amd64` or `wrapper-v2:1.0.0-local-arm64` image
+with the matching platform with `pull_policy:
 never`, no ports, uid 1000, a read-only root, memory limit, init and session volume.
 The exact [1.0.0 Compose source](https://github.com/glomatico/wrapper-v2/blob/1.0.0/compose.yaml)
 drops all capabilities and adds only `SYS_ADMIN` (PID/mount namespaces and mounts)

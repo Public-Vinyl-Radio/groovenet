@@ -12,6 +12,8 @@ repos:
       - id: trailing-whitespace
         # Markdown uses two trailing spaces as a hard line break.
         args: [--markdown-linebreak-ext=md]
+        # A unified diff's blank context lines are a single space; keep them.
+        exclude: '\.patch$'
       - id: end-of-file-fixer
       - id: check-merge-conflict
       - id: check-added-large-files

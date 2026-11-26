@@ -24,7 +24,8 @@ INFO = {
 
 
 @pytest.fixture
-def stub():
+def stub(monkeypatch):
+    monkeypatch.setattr(wrapper.platform, "machine", lambda: "x86_64")
     data = SimpleNamespace(
         info=dict(INFO),
         state="authenticated",
@@ -130,9 +131,39 @@ def test_signed_out_is_actionable(stub, state):
         {"decryption": "server_side"},
     ],
 )
-def test_requires_exact_amd64_profile(stub, patch):
+def test_requires_exact_supported_profile(stub, patch):
     stub.info.update(patch)
-    with pytest.raises(wrapper.WrapperNotReady, match="version 1.0.0.*amd64"):
+    with pytest.raises(wrapper.WrapperNotReady, match="version 1.0.0.*matching worker architecture"):
+        wrapper.check_wrapper_ready(stub.url)
+    assert stub.paths == [("GET", "/info")]
+
+
+@pytest.mark.parametrize("machine", ["aarch64", "arm64"])
+def test_arm64_ready_and_status(stub, monkeypatch, capsys, machine):
+    monkeypatch.setattr(wrapper.platform, "machine", lambda: machine)
+    stub.info.update(architecture="arm64-v8a", profile="apple-music-1109-arm64-v8a")
+    assert wrapper.check_wrapper_ready(stub.url) == "arm64-v8a"
+    monkeypatch.setattr("sys.argv", ["wrapper", "status"])
+    monkeypatch.setattr(wrapper_cli, "wrapper_url", lambda: stub.url)
+    assert wrapper_cli.main() == 0
+    assert capsys.readouterr().out == "Wrapper v2 1.0.0 arm64-v8a: signed in\n"
+
+
+@pytest.mark.parametrize(
+    "machine,architecture,profile",
+    [
+        ("aarch64", "x86_64", "apple-music-1109-x86_64"),
+        ("x86_64", "arm64-v8a", "apple-music-1109-arm64-v8a"),
+        ("aarch64", "arm64-v8a", "apple-music-1109-x86_64"),
+        ("aarch64", "arm64-v8a", "unknown"),
+        ("riscv64", "x86_64", "apple-music-1109-x86_64"),
+        ("x86_64", "unknown", "apple-music-1109-x86_64"),
+    ],
+)
+def test_mismatch_and_unknown_profiles_rejected(stub, monkeypatch, machine, architecture, profile):
+    monkeypatch.setattr(wrapper.platform, "machine", lambda: machine)
+    stub.info.update(architecture=architecture, profile=profile)
+    with pytest.raises(wrapper.WrapperNotReady, match="matching worker architecture"):
         wrapper.check_wrapper_ready(stub.url)
     assert stub.paths == [("GET", "/info")]
 
