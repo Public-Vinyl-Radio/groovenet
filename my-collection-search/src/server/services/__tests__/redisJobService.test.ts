@@ -188,7 +188,8 @@ describe("createDownloadJob()", () => {
   it("fetches gamdl settings and merges them into the payload", async () => {
     settingsRepo.findGamdlSettingsByFriendId.mockResolvedValue({
       audio_quality: "lossless",
-      audio_format: "flac",
+      sample_rate_cap: 96000,
+      lossless_fallback: false,
       save_cover: true,
       cover_format: "png",
       save_lyrics: false,
@@ -206,7 +207,9 @@ describe("createDownloadJob()", () => {
 
     const payload = JSON.parse(mockRedis.lpush.mock.calls[0][1]);
     expect(payload.quality).toBe("lossless");
-    expect(payload.format).toBe("flac");
+    expect(payload.sample_rate_cap).toBe(96000);
+    expect(payload.lossless_fallback).toBe(false);
+    expect(payload).not.toHaveProperty("format");
     expect(payload.job_type).toBe("download");
   });
 
@@ -220,13 +223,15 @@ describe("createDownloadJob()", () => {
 
     const payload = JSON.parse(mockRedis.lpush.mock.calls[0][1]);
     expect(payload.quality).toBe("best");
-    expect(payload.format).toBe("m4a");
+    expect(payload.sample_rate_cap).toBe(48000);
+    expect(payload.lossless_fallback).toBe(true);
   });
 
   it("provided data takes precedence over fetched settings", async () => {
     settingsRepo.findGamdlSettingsByFriendId.mockResolvedValue({
       audio_quality: "standard",
-      audio_format: "m4a",
+      sample_rate_cap: 48000,
+      lossless_fallback: true,
     });
 
     await makeService().createDownloadJob({

@@ -127,3 +127,17 @@ at, a `statement` saying why it is safe and what removes it, and an `expired_at`
 makes the entry stop working, so an exception cannot be forgotten. Prefer a fix (bump the
 dependency, or `apk upgrade` / `apt-get upgrade` the package). To run the scan locally, see the
 comment at the top of that file.
+
+## Opt-in lossless wrapper
+
+`gamdl-wrapper` is excluded from `all`: only the `lossless` profile starts it.
+It uses the owner-built `wrapper-v2:1.0.0-local-amd64` image with `pull_policy:
+never`, no ports, uid 1000, a read-only root, memory limit, init and session volume.
+The exact [1.0.0 Compose source](https://github.com/glomatico/wrapper-v2/blob/1.0.0/compose.yaml)
+drops all capabilities and adds only `SYS_ADMIN` (PID/mount namespaces and mounts)
+and `SYS_CHROOT` (Android chroot). `SYS_PTRACE` from the older spike is unnecessary.
+AppArmor is unconfined for namespace/mount operations. `no-new-privileges` would
+prevent the non-root launcher's file capabilities taking effect; that rule and
+registry digest pinning have a narrowly validated exception for this exact local
+image/service/profile. Other hardening rules remain enforced. Real runtime
+validation is still an owner step; no real wrapper has been started here.

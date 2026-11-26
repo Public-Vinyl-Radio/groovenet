@@ -14,6 +14,7 @@ if [[ " $* " == *" config --services "* ]]; then
   printf 'app\ndb\nredis\n'
   case ",${COMPOSE_PROFILES:-}," in *,downloads,*|*,analysis,*|*,all,*) echo essentia ;; esac
   case ",${COMPOSE_PROFILES:-}," in *,downloads,*|*,all,*) echo download-worker ;; esac
+  case ",${COMPOSE_PROFILES:-}," in *,lossless,*) echo gamdl-wrapper ;; esac
   case ",${COMPOSE_PROFILES:-}," in *,fingerprint,*|*,all,*) printf 'fingerprint-service\nfingerprint-set-worker\n' ;; esac
 fi
 exit 0
@@ -36,6 +37,12 @@ EOF_ENV
 grep -q -- '--profile \* stop download-worker' "$TEST_DIR/calls"
 if grep -q -- 'stop .*essentia' "$TEST_DIR/calls"; then exit 1; fi
 if "$SCRIPT_DIR/services.sh" add invalid >/dev/null 2>&1; then exit 1; fi
+"$SCRIPT_DIR/services.sh" add lossless
+[[ "$("$SCRIPT_DIR/services.sh" list)" == analysis,fingerprint,lossless ]]
+"$SCRIPT_DIR/services.sh" remove lossless
+[[ "$("$SCRIPT_DIR/services.sh" list)" == analysis,fingerprint ]]
+grep -q -- '--profile \* stop gamdl-wrapper' "$TEST_DIR/calls"
+[[ "$(normalize_profiles all)" == all ]]
 "$SCRIPT_DIR/teardown.sh"
 grep -q -- '--profile \* down --remove-orphans' "$TEST_DIR/calls"
 echo 'profile and cleanup tests passed'

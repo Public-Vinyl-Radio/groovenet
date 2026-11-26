@@ -72,7 +72,6 @@ import {
   gamdlActionRequestSchema,
   gamdlActionResponseSchema,
   gamdlActionSchema,
-  gamdlAudioFormatSchema as sharedGamdlAudioFormatSchema,
   gamdlAudioQualitySchema as sharedGamdlAudioQualitySchema,
   gamdlConnectionTestDetailsSchema as sharedGamdlConnectionTestDetailsSchema,
   gamdlConnectionTestResponseSchema as sharedGamdlConnectionTestResponseSchema,
@@ -321,7 +320,6 @@ export const gamdlCookieFileInfoSchema = sharedGamdlCookieFileInfoSchema;
 export const gamdlCookieUploadResponseSchema = sharedGamdlCookieUploadResponseSchema;
 export const gamdlCookieDeleteResponseSchema = sharedGamdlCookieDeleteResponseSchema;
 export const gamdlAudioQualitySchema = sharedGamdlAudioQualitySchema;
-export const gamdlAudioFormatSchema = sharedGamdlAudioFormatSchema;
 export const gamdlCoverFormatSchema = sharedGamdlCoverFormatSchema;
 export const gamdlLyricsFormatSchema = sharedGamdlLyricsFormatSchema;
 export const gamdlSettingsSchema = sharedGamdlSettingsSchema;

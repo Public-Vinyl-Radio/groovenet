@@ -11,6 +11,7 @@ import {
   type GamdlConnectionTestResponse,
 } from "@/services/internalApi/settings";
 import SettingsRow from "./SettingsRow";
+import GamdlDownloadSettings from "./GamdlDownloadSettings";
 
 export const APPLE_MUSIC_INTRO =
   "Downloads from Apple Music feed audio analysis and vinyl play tracking. They need a cookie file from your signed-in browser.";
@@ -118,6 +119,7 @@ export default function AppleMusicSettingsSection(): React.JSX.Element {
 
   return (
     <Flex direction="column" gap={6}>
+      <GamdlDownloadSettings />
       <Box borderWidth="outline" borderColor="border.ink" borderRadius="md" px={{ base: 4, md: 5 }}>
         <SettingsRow
           label="Cookie file"

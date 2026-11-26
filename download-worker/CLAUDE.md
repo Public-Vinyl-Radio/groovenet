@@ -96,12 +96,22 @@ failed. The download job still completes with `analysis_status: 'queued'` and
 `analysis_job_id`; if the enqueue itself fails it is sent to Sentry and the job
 completes with `analysis_status: 'failed'` and `analysis_error`.
 
-Audio quality is one of `best`, `high`, `standard`, `lossless`.
-`gamdl_codec_priority` maps the first three to `aac` (HLS, 256 kbps AAC).
-`lossless` becomes `alac-lossless,aac`, signed in through the wrapper, only when
-`GAMDL_WRAPPER_URL` names a Wrapper v2 **1.0.0** sidecar (gamdl refuses any other
-version); without one it is AAC on cookies too. A signed-out wrapper fails the
-job rather than prompting. See `docs/lossless-alac.md`.
+Audio quality is one of `best`, `high`, `standard`, `lossless`. The first
+three use AAC on cookies. Lossless uses Wrapper v2 **1.0.0** with the amd64
+`apple-music-1109-x86_64` profile, checked at startup and before each lossless
+session. `COMPOSE_PROFILES` containing `lossless` enables the default internal
+URL; explicit `GAMDL_WRAPPER_URL` overrides it. Startup readiness failures warn
+without stopping AAC. No worker path prompts for Apple credentials.
+
+`sample_rate_cap` defaults to 48000 Hz. At up to 48 kHz, request `alac-lossless,aac`;
+above that, `alac-hires,alac-lossless,aac`. gamdl 4.1.1 selects a tier, not an exact
+rate. The FLAC converter downsamples only when the source exceeds the cap, keeps
+24-bit depth, and preserves tags/covers. At or below the cap conversion is
+bit-exact. `lossless_fallback` defaults true: any failed lossless attempt retries
+once as AAC with cookies and logs that decision. False preserves a clear failure.
+The unused `audio_format` setting and queue field are removed. See
+`docs/lossless-alac.md` for the owner-only build/login/runbook and verification
+boundary. Stub tests use a local HTTP server; no APK or real wrapper is needed.
 
 ## Talking to the app
 

@@ -1,0 +1,25 @@
+name: wrapper-scaffold
+on:
+  pull_request:
+    paths:
+      - scripts/wrapper/**
+      - scripts/worktree/**
+      - .github/workflows/wrapper-scaffold.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/wrapper/**
+      - scripts/worktree/**
+      - .github/workflows/wrapper-scaffold.yml
+permissions:
+  contents: read
+jobs:
+  stub-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test build and session commands with fake git and Docker
+        run: python3 -m unittest discover -s scripts/wrapper -p 'test_*.py' -v
+      - name: Test profile persistence with fake Docker
+        run: ./scripts/worktree/profiles_test.sh

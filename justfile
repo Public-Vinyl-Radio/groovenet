@@ -1103,3 +1103,19 @@ brick-package:
 # Check generated ALAC → FLAC in the active downloads + fingerprint worktree stack.
 lossless-test:
   ./scripts/lossless-smoke.sh
+
+# Owner-only build: Apple Music 3.6.0-beta build 1109, Wrapper v2 tag 1.0.0.
+wrapper-build package:
+  ./scripts/wrapper/build.sh {{quote(package)}}
+
+# Interactive hidden Apple ID/password/2FA input; never pass secrets as arguments.
+wrapper-login:
+  ./scripts/wrapper/session.sh login
+
+# Prints only readiness and signed-in state, never session credentials.
+wrapper-status:
+  ./scripts/wrapper/session.sh status
+
+# Fake git/Docker only: never builds a real wrapper or reads an APK.
+wrapper-test:
+  python3 -m unittest discover -s scripts/wrapper -p 'test_*.py' -v

@@ -195,7 +195,12 @@ export const appearanceSettingsUpdateSchema = appearanceSettingsUpdateObjectSche
 // ─── GAMDL ───────────────────────────────────────────────────────────────────
 
 export const gamdlAudioQualitySchema = z.enum(["best", "high", "standard", "lossless"]);
-export const gamdlAudioFormatSchema = z.enum(["m4a", "mp3", "aac", "flac"]);
+export const gamdlSampleRateCapSchema = z.union([
+  z.literal(44100),
+  z.literal(48000),
+  z.literal(96000),
+  z.literal(192000),
+]);
 export const gamdlCoverFormatSchema = z.enum(["jpg", "png", "raw"]);
 export const gamdlLyricsFormatSchema = z.enum(["lrc", "srt", "ttml"]);
 
@@ -207,7 +212,8 @@ export const gamdlSettingsSchema = z.object({
   id: z.number().int(),
   friend_id: z.number().int(),
   audio_quality: gamdlAudioQualitySchema,
-  audio_format: gamdlAudioFormatSchema,
+  sample_rate_cap: gamdlSampleRateCapSchema,
+  lossless_fallback: z.boolean(),
   save_cover: z.boolean(),
   cover_format: gamdlCoverFormatSchema,
   save_lyrics: z.boolean(),
@@ -222,7 +228,8 @@ export const gamdlSettingsSchema = z.object({
 /** What can change; the repository drops any other field rather than reject it. */
 export const gamdlSettingsChangesSchema = z.object({
   audio_quality: gamdlAudioQualitySchema.optional(),
-  audio_format: gamdlAudioFormatSchema.optional(),
+  sample_rate_cap: gamdlSampleRateCapSchema.optional(),
+  lossless_fallback: z.boolean().optional(),
   save_cover: z.boolean().optional(),
   cover_format: gamdlCoverFormatSchema.optional(),
   save_lyrics: z.boolean().optional(),

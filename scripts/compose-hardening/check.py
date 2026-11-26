@@ -220,14 +220,25 @@ def check_service(name: str, svc: dict, relaxed: bool = False) -> list[str]:
     if svc.get("network_mode") == "host":
         problems.append("uses network_mode: host, which publishes every port")
 
-    if "no-new-privileges:true" not in (svc.get("security_opt") or []):
+    # The pinned, owner-built launcher uses file capabilities to enter its
+    # Android chroot. Keep this exception narrower than a profile-wide waiver.
+    wrapper = (name == "gamdl-wrapper" and svc.get("profiles") == ["lossless"]
+               and svc.get("image") == "wrapper-v2:1.0.0-local-amd64")
+    if wrapper:
+        if set(svc.get("cap_add") or []) != {"SYS_ADMIN", "SYS_CHROOT"}:
+            problems.append("wrapper requires exactly SYS_ADMIN and SYS_CHROOT")
+        if svc.get("security_opt") != ["apparmor:unconfined"]:
+            problems.append("wrapper requires only apparmor:unconfined (launcher file capabilities)")
+        if svc.get("platform") != "linux/amd64" or svc.get("pull_policy") != "never" or svc.get("build"):
+            problems.append("wrapper must use the locally built amd64 image with pull_policy: never")
+    if not wrapper and "no-new-privileges:true" not in (svc.get("security_opt") or []):
         problems.append("missing security_opt: no-new-privileges:true")
     if "ALL" not in [str(c).upper() for c in svc.get("cap_drop") or []]:
         problems.append("missing cap_drop: [ALL]")
     if not svc.get("mem_limit"):
         problems.append("missing mem_limit")
     image = str(svc.get("image") or "")
-    if image and not image.startswith(OWN_IMAGE_PREFIX) and "@sha256:" not in image:
+    if not wrapper and image and not image.startswith(OWN_IMAGE_PREFIX) and "@sha256:" not in image:
         problems.append(f"image {image} is not pinned by digest")
     build = svc.get("build")
     if build:

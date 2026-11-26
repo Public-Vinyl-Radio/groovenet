@@ -22,6 +22,8 @@ vi.mock("@/services/internalApi/settings", () => ({
 }));
 vi.mock("@/components/ui/toaster", () => ({ toaster: { create: mocks.toast } }));
 
+vi.mock("./GamdlDownloadSettings", () => ({ default: () => <div>Download preferences</div> }));
+
 import AppleMusicSettingsSection from "./AppleMusicSettingsSection";
 
 const present = {

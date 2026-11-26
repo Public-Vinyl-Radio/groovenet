@@ -208,3 +208,20 @@ describe("seedEmbeddingModelDefaults", () => {
     ]);
   });
 });
+
+it("persists lossless caps and retry choices and ignores the retired format field", async () => {
+  const row = { friend_id: 2, sample_rate_cap: 96000, lossless_fallback: false };
+  dbQuery.mockResolvedValue({ rows: [row] });
+  expect(
+    await makeRepo().updateGamdlSettings(2, { sample_rate_cap: 96000, lossless_fallback: false }),
+  ).toEqual(row);
+  expect(dbQuery.mock.calls[0][0]).toContain("sample_rate_cap = $2, lossless_fallback = $3");
+  expect(dbQuery.mock.calls[0][1]).toEqual([2, 96000, false]);
+  dbQuery.mockClear();
+  expect(
+    await makeRepo().updateGamdlSettings(2, { audio_format: "flac" } as unknown as Parameters<
+      SettingsRepository["updateGamdlSettings"]
+    >[1]),
+  ).toBeNull();
+  expect(dbQuery).not.toHaveBeenCalled();
+});
