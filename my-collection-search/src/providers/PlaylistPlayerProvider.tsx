@@ -17,6 +17,7 @@ import {
 
 type PlaylistPlayerContextValue = {
   isPlaying: boolean;
+  playbackError: string | null;
   currentTrackIndex: number | null;
   currentTrack: Track | null;
   finishedTrack: Track | null;
@@ -104,15 +105,17 @@ export function PlaylistPlayerProvider({
   });
   const [volume, setVolumeState] = useState(1);
 
-  const { currentTime, duration, pendingSeekRef, seek, audioElement } = useAudioEngine({
-    audioRef,
-    playlistRef,
-    currentTrackIndex,
-    isPlaying,
-    plVersion,
-    volume,
-    onEnded: playNext,
-  });
+  const { playbackError, currentTime, duration, pendingSeekRef, seek, audioElement } =
+    useAudioEngine({
+      audioRef,
+      playlistRef,
+      currentTrackIndex,
+      isPlaying,
+      plVersion,
+      volume,
+      onEnded: playNext,
+      onPlaybackError: pause,
+    });
 
   const { isAirPlayAvailable, isAirPlayActive, showAirPlayPicker } = useAirPlay({
     audioRef,
@@ -151,6 +154,7 @@ export function PlaylistPlayerProvider({
     void plVersion;
     return {
       isPlaying,
+      playbackError,
       currentTrackIndex,
       currentTrack, // use state here
       finishedTrack,
@@ -182,6 +186,7 @@ export function PlaylistPlayerProvider({
       audioElement,
     };
   }, [
+    playbackError,
     isPlaying,
     currentTrackIndex,
     currentTrack,

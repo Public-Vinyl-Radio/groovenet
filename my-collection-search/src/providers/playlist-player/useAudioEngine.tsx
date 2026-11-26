@@ -12,6 +12,7 @@ type UseAudioEngineArgs = {
   plVersion: number;
   volume: number;
   onEnded: () => void;
+  onPlaybackError: () => void;
 };
 
 function toAudioFilename(localAudioUrl: string | null | undefined): string {
@@ -30,16 +31,37 @@ export function useAudioEngine({
   plVersion,
   volume,
   onEnded,
+  onPlaybackError,
 }: UseAudioEngineArgs) {
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const pendingSeekRef = useRef<number | null>(null);
   const lastTrackIdRef = useRef<string | null>(null);
   const playRequestedRef = useRef(false);
 
+  const failPlayback = useCallback(
+    (decodeError: boolean) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const track = currentTrackIndex === null ? null : playlistRef.current[currentTrackIndex];
+      setPlaybackError(
+        decodeError && track?.audio_codec?.toLowerCase() === "alac"
+          ? "This browser can't play ALAC. Choose another track or download it as FLAC."
+          : "This browser couldn't play this audio file. Try another track or download it again.",
+      );
+      playRequestedRef.current = false;
+      pendingSeekRef.current = null;
+      audio.pause();
+      onPlaybackError();
+    },
+    [audioRef, currentTrackIndex, playlistRef, onPlaybackError],
+  );
+
   const tryPlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    const source = audio.src;
     audio.play().catch((err: unknown) => {
       const name =
         typeof err === "object" &&
@@ -48,15 +70,19 @@ export function useAudioEngine({
         typeof (err as { name?: unknown }).name === "string"
           ? (err as { name: string }).name
           : "Error";
+      if (audio.src === source && (name === "NotSupportedError" || name === "EncodingError")) {
+        failPlayback(true);
+      }
       console.warn("[Player] audio.play() failed:", name);
     });
-  }, [audioRef]);
+  }, [audioRef, failPlayback]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const pl = playlistRef.current;
     if (isPlaying && currentTrackIndex !== null && pl[currentTrackIndex]) {
+      setPlaybackError(null);
       playRequestedRef.current = true;
       tryPlay();
     } else {
@@ -73,6 +99,7 @@ export function useAudioEngine({
     const track = currentTrackIndex !== null ? pl[currentTrackIndex] : null;
 
     if (!track) {
+      setPlaybackError(null);
       playRequestedRef.current = false;
       audio.pause();
       audio.removeAttribute("src");
@@ -82,6 +109,7 @@ export function useAudioEngine({
     }
 
     if (lastTrackIdRef.current !== track.track_id) {
+      setPlaybackError(null);
       const filename = toAudioFilename(track.local_audio_url);
       audio.src = `/api/audio?filename=${encodeURIComponent(filename)}`;
       audio.load();
@@ -131,6 +159,7 @@ export function useAudioEngine({
       const code = audio.error?.code ?? "unknown";
       const msg = audio.error?.message ?? "Unknown media error";
       console.error(`[Player] media error code=${code}: ${msg}`);
+      failPlayback(code === 3 || code === 4);
     };
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -144,7 +173,7 @@ export function useAudioEngine({
       audio.removeEventListener("canplay", onCanPlay);
       audio.removeEventListener("error", onError);
     };
-  }, [audioRef, currentTrackIndex, plVersion, tryPlay]);
+  }, [audioRef, currentTrackIndex, plVersion, tryPlay, failPlayback]);
 
   const seek = useCallback(
     (time: number) => {
@@ -184,6 +213,7 @@ export function useAudioEngine({
   );
 
   return {
+    playbackError,
     currentTime,
     duration,
     pendingSeekRef,

@@ -24,6 +24,7 @@ export default function PlayerControls({
   showVolumeControls = true,
 }: PlayerControlsProps) {
   const {
+    playbackError,
     isPlaying,
     currentTrack,
     isQueueFinished,
@@ -49,6 +50,7 @@ export default function PlayerControls({
       isQueueOpen={isQueueOpen}
       compact={compact}
       showVolumeControls={showVolumeControls}
+      playbackError={playbackError}
       isPlaying={isPlaying}
       currentTrack={currentTrack}
       isQueueFinished={isQueueFinished}

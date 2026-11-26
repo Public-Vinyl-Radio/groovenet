@@ -389,6 +389,11 @@ export default function QueueDrawer({ isOpen, onClose }: QueueDrawerProps) {
                       }
                     />
                   </Flex>
+                  {model.controller.playbackError && (
+                    <Text role="alert" fontSize="13px">
+                      {model.controller.playbackError}
+                    </Text>
+                  )}
                   <ServerNotice />
                   <PlayOnRow />
                 </Flex>
