@@ -30,6 +30,9 @@ jobs:
         run: python3 -m unittest discover -s scripts/wrapper -p 'test_*.py' -v
       - name: Test profile persistence with fake Docker
         run: ./scripts/worktree/profiles_test.sh
+      - name: Check the fingerprint backport against public 1.0.0 source
+        # Public source and upstream's own unit tests only; no wrapper build.
+        run: ./scripts/wrapper/check-device-patch.sh
       - name: Cover the compatibility helper with a fake loader
         run: |
           coverage_dir="$RUNNER_TEMP/wrapper-compat-coverage"

@@ -38,6 +38,19 @@ RUNTIME_CPP_FIXTURE = '''    cached_session=stat((directory+"/mpl_db/kvs.sqlited
     call<void>(names::resolv,0u,servers.data(),int(servers.size()),".");
     call<void>(names::FootHillConfig_config,&parts[8]);
 '''
+DEVICE_PATCH = ROOT / "scripts/wrapper/compat/fresh-device-fingerprint.patch"
+
+
+def device_info_fixture():
+    """Pre-image excerpt of public device_info.rs, rebuilt from the patch's own
+    context and removed lines, so git apply exercises the real patch."""
+    lines, in_hunk = [], False
+    for line in DEVICE_PATCH.read_text().splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+        elif in_hunk and line[:1] in (" ", "-"):
+            lines.append(line[1:])
+    return "\n".join(lines) + "\n"
 
 
 class WrapperBuildTest(unittest.TestCase):
@@ -56,6 +69,10 @@ class WrapperBuildTest(unittest.TestCase):
         fixtures.mkdir()
         (fixtures / "runtime.hpp").write_text(RUNTIME_HPP_FIXTURE)
         (fixtures / "runtime.cpp").write_text(RUNTIME_CPP_FIXTURE)
+        rust = self.root / "rust-fixture"
+        rust.mkdir()
+        (rust / "device_info.rs").write_text(device_info_fixture())
+        self.env["TEST_RUST_FIXTURES"] = str(rust)
         self.env["TEST_NATIVE_FIXTURES"] = str(fixtures)
         self.env["TEST_REAL_GIT"] = shutil.which("git")
         git = self.root / "git"
@@ -66,6 +83,10 @@ if [[ "$1" == clone ]]; then
   dest="${@: -1}"
   mkdir -p "$dest/tools"
   cp -R "$TEST_NATIVE_FIXTURES" "$dest/native"
+  cp -R "$TEST_RUST_FIXTURES" "$dest/src"
+  if [[ "${TEST_DEVICE_DRIFT:-}" == 1 ]]; then
+    echo '// incompatible source' > "$dest/src/device_info.rs"
+  fi
   if [[ "${TEST_SOURCE_DRIFT:-}" == 1 ]]; then
     echo '// incompatible source' > "$dest/native/runtime.hpp"
   fi
@@ -73,6 +94,11 @@ if [[ "$1" == clone ]]; then
 #!/usr/bin/env bash
 set -eu
 source="$(dirname "$0")/../native"
+device="$(dirname "$0")/../src/device_info.rs"
+grep -q 'Music/5.0.2/Android/10/Pixel 8/7663314/en-US/en-US/' "$device"
+grep -q 'random_hex::<8>' "$device"
+grep -q 'random_hex::<16>' "$device"
+! grep -q 'Samsung S9/7663313/en-US/en-US/";' "$device"
 if [[ "$3" == aarch64 ]]; then
   test -f "$source/symbol_lookup.hpp"
   ! grep -q RTLD_DEFAULT "$source/runtime.hpp"
@@ -141,6 +167,25 @@ fi
         self.env["TEST_SOURCE_DRIFT"] = "1"
         self.assertNotEqual(self.run_build(self.package, "--arch", "aarch64").returncode, 0)
         self.assertFalse(self.trace.exists())
+
+    def test_device_patch_drift_never_builds_either_arch(self):
+        self.env["TEST_DEVICE_DRIFT"] = "1"
+        for arch in ("x86_64", "aarch64"):
+            with self.subTest(arch=arch):
+                self.assertNotEqual(self.run_build(self.package, "--arch", arch).returncode, 0)
+                self.assertFalse(self.trace.exists())
+
+    def test_device_patch_is_the_reviewed_upstream_backport(self):
+        text = DEVICE_PATCH.read_text()
+        self.assertIn("6918066e51926427c133230ececae6154d4d70dd", text)
+        self.assertIn("index 7936fb7..b9d09b7", text)
+        # Only device_info.rs: no upstream profile, metadata or builder changes.
+        self.assertEqual(
+            [line for line in text.splitlines() if line.startswith("diff --git")],
+            ["diff --git a/src/device_info.rs b/src/device_info.rs"],
+        )
+        # The legacy-identity test proves stored identities are never migrated.
+        self.assertIn("existing_generated_identity_is_never_migrated_or_rotated", text)
 
     def test_failed_patched_build_still_removes_scratch(self):
         self.env["TEST_BUILD_EXIT"] = "7"

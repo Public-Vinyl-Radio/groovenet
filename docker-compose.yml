@@ -324,7 +324,9 @@ services:
     tmpfs:
       - /srv/wrapper/rootfs/tmp:rw,nosuid,nodev,mode=1777
     volumes:
-      - gamdl_wrapper_session:/srv/wrapper/rootfs/data/data/com.apple.android.music/files
+      # Opt-in second session/identity; the original volume is never rewritten.
+      # Only declared keys below are accepted; anything else fails to start.
+      - ${GAMDL_WRAPPER_SESSION_VOLUME:-gamdl_wrapper_session}:/srv/wrapper/rootfs/data/data/com.apple.android.music/files
     restart: unless-stopped
     stop_grace_period: 15s
 
@@ -394,6 +396,7 @@ services:
 
 volumes:
   gamdl_wrapper_session:
+  gamdl_wrapper_session_fresh:
   db_data:
   music_data:
   db_dumps:

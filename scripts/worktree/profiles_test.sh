@@ -10,6 +10,7 @@ mkdir -p "$WORKTREE_STATE_DIR" "$SEED_ROOT" "$CADDY_WORKTREE_DIR"
 cat >"$TEST_DIR/docker" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$TEST_DIR/calls"
+[[ "$1" != compose ]] || printf 'session-volume=%s\n' "${GAMDL_WRAPPER_SESSION_VOLUME:-}" >>"$TEST_DIR/calls"
 if [[ " $* " == *" config --services "* ]]; then
   printf 'app\ndb\nredis\n'
   case ",${COMPOSE_PROFILES:-}," in *,downloads,*|*,analysis,*|*,all,*) echo essentia ;; esac
@@ -29,6 +30,7 @@ COMPOSE_PROJECT_NAME=$(compose_project_name "$REPO_ROOT" "$CURRENT_BRANCH")
 WORKTREE_HOST=test
 APP_PORT=34567
 COMPOSE_PROFILES=
+GAMDL_WRAPPER_SESSION_VOLUME=gamdl_wrapper_session_fresh
 EOF_ENV
 "$SCRIPT_DIR/services.sh" add downloads,analysis fingerprint
 [[ "$("$SCRIPT_DIR/services.sh" list)" == downloads,analysis,fingerprint ]]
@@ -42,6 +44,10 @@ if "$SCRIPT_DIR/services.sh" add invalid >/dev/null 2>&1; then exit 1; fi
 "$SCRIPT_DIR/services.sh" remove lossless
 [[ "$("$SCRIPT_DIR/services.sh" list)" == analysis,fingerprint ]]
 grep -q -- '--profile \* stop gamdl-wrapper' "$TEST_DIR/calls"
+# The opt-in wrapper session volume persists across profile edits and reaches Compose.
+[[ "$(grep -c '^GAMDL_WRAPPER_SESSION_VOLUME=gamdl_wrapper_session_fresh$' "$(worktree_env_file)")" == 1 ]]
+if grep -q '^session-volume=$' "$TEST_DIR/calls"; then exit 1; fi
+grep -q '^session-volume=gamdl_wrapper_session_fresh$' "$TEST_DIR/calls"
 [[ "$(normalize_profiles all)" == all ]]
 "$SCRIPT_DIR/teardown.sh"
 grep -q -- '--profile \* down --remove-orphans' "$TEST_DIR/calls"

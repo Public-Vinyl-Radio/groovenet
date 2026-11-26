@@ -18,10 +18,14 @@ scratch="$(mktemp -d /tmp/groovenet-wrapper-1.0.0.XXXXXX)"
 trap 'rm -rf "$scratch"' EXIT
 git clone --quiet --depth 1 --branch 1.0.0 https://github.com/glomatico/wrapper-v2.git "$scratch/source"
 [[ "$(git -C "$scratch/source" describe --tags --exact-match)" == 1.0.0 ]]
+compat="$repo/scripts/wrapper/compat"
+# Fresh-login device fingerprint (upstream PR #24), both architectures. Only
+# newly generated identities change; stored ones and overrides are preserved.
+git -C "$scratch/source" apply --check "$compat/fresh-device-fingerprint.patch"
+git -C "$scratch/source" apply "$compat/fresh-device-fingerprint.patch"
 if [[ "$arch" == aarch64 ]]; then
   # Source workaround for GNU-only vDSO mappings on newer ARM64 Linux kernels.
   # Keep the pinned Android runtime and Apple libraries unchanged.
-  compat="$repo/scripts/wrapper/compat"
   git -C "$scratch/source" apply --check "$compat/explicit-symbol-scopes.patch"
   git -C "$scratch/source" apply "$compat/explicit-symbol-scopes.patch"
   cp "$compat/symbol_lookup.hpp" "$scratch/source/native/symbol_lookup.hpp"
