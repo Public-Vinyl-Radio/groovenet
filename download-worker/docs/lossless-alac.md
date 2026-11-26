@@ -33,16 +33,44 @@ Docker Desktop can emulate. No local Android NDK or Rust toolchain is needed.
 
 #### Beelink — amd64 production path
 
-On beelink, from its checkout, the owner builds the amd64 image explicitly and
-starts the opt-in sidecar using the normal production Compose configuration:
+Never start the sidecar with a hand-typed `docker compose` on beelink: without
+`-p dj-playlist` Compose can name the project after the directory (`groovenet`)
+and create a second stack beside production. Go through `just deploy`, which
+pins the project name, and keep `lossless` in the deployed `.env`:
 
-```bash
-just wrapper-build ~/path/to.apkm --arch x86_64
-COMPOSE_PROFILES=downloads,lossless docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-  up -d download-worker gamdl-wrapper
-just wrapper-login
-just wrapper-status
-```
+1. Deploy the release that contains the wrapper tooling as usual, still
+   without `lossless`, so the stack directory checks out the new scripts:
+   `just deploy vX.Y.Z`.
+2. Copy the package to beelink **outside** `/srv/docker/groovenet`, then build
+   the private amd64 image there. It is never pushed:
+
+   ```bash
+   ssh beelink
+   cd /srv/docker/groovenet
+   just wrapper-build ~/wrapper/apple-music.apkm --arch x86_64   # or ./scripts/wrapper/build.sh …
+   docker image inspect wrapper-v2:1.0.0-local-amd64 --format '{{.Id}}'
+   ```
+
+3. Enable the profile where deploys read it. `COMPOSE_PROFILES` unset means
+   `all`, which excludes `lossless`, and every deploy re-renders beelink's
+   `.env` from `.env.tpl`, so a one-off variable would be lost. Set
+   `COMPOSE_PROFILES=all,lossless` in `.env.tpl`, then run `just deploy vX.Y.Z`
+   again. Do this only after step 2: the service uses `pull_policy: never`, so
+   a deploy with `lossless` and no local image fails.
+4. Sign in from the stack directory, in an interactive terminal (`ssh -t`).
+   The new beelink volume is empty, so the patched build generates the fresh
+   device fingerprint on its own; `GAMDL_WRAPPER_SESSION_VOLUME` is not needed:
+
+   ```bash
+   ssh -t beelink 'cd /srv/docker/groovenet && just wrapper-login'
+   ssh beelink 'cd /srv/docker/groovenet && just wrapper-status'   # Wrapper v2 1.0.0 x86_64: signed in
+   ```
+
+5. Set Settings → Apple Music → Download quality to **Lossless** for the
+   library, download one track, and confirm its file is FLAC.
+
+To roll back, drop `lossless` from `COMPOSE_PROFILES` and redeploy. Lossless
+requests then use AAC again. Keep the session volume.
 
 The base Compose file retains the amd64 image and `linux/amd64` defaults.
 For an amd64 scratch worktree, use `just worktree-up --profile downloads,lossless`
