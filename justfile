@@ -76,6 +76,10 @@ worktree-test:
   set -euo pipefail
   for t in scripts/worktree/*_test.sh; do echo "== $t"; "$t"; done
 
+# Real-Postgres check of the worktree seed restore (#1305): a >64 MB dump into a throwaway db container with the compose 64 MB /tmp tmpfs.
+seed-restore-test:
+  RUN_SEED_RESTORE_TESTS=1 ./scripts/worktree/seed_restore_integration_test.sh
+
 # Format tracked files: Prettier for web/Node/docs, ruff for the Python services.
 # The ruff version follows ruff-pre-commit's rev in .pre-commit-config.yaml.
 # Symlinks (AGENTS.md) are skipped: Prettier refuses them, and pre-commit's

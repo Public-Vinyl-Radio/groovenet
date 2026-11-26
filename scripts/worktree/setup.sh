@@ -8,6 +8,8 @@ source "$SCRIPT_DIR/lib.sh"
 SEED_MODE="auto"
 SEED_DIR_OVERRIDE=""
 REQUESTED_PROFILES=""
+RESEED=0
+ASSUME_YES=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,15 +32,26 @@ while [[ $# -gt 0 ]]; do
       [[ -n "$SEED_DIR_OVERRIDE" ]] || usage_error "--seed requires a path"
       shift 2
       ;;
+    --reseed)
+      RESEED=1
+      shift
+      ;;
+    --yes|-y)
+      ASSUME_YES=1
+      shift
+      ;;
     -h|--help)
       cat <<EOF
-Usage: $(basename "$0") [--no-seed] [--seed PATH] [--profile NAME]
+Usage: $(basename "$0") [--no-seed] [--seed PATH] [--profile NAME] [--reseed [--yes]]
 
 Bootstraps the current git worktree with:
 - a unique Docker Compose project
 - a loopback app port
 - a Caddy vhost fragment with local TLS
 - optional database seed restore from the latest golden dump
+
+--reseed drops this worktree's database contents and restores the seed again
+(after confirmation, or --yes). Other volumes, and other worktrees, are untouched.
 EOF
       exit 0
       ;;
@@ -76,25 +89,33 @@ if [[ -d "$seed_dir" ]]; then
 fi
 echo "Selected golden seed: $seed_dir"
 
-if database_is_empty; then
+force_restore=0
+if [[ "$RESEED" == "1" ]]; then
+  [[ "$SEED_MODE" != "skip" ]] || usage_error "--reseed cannot be combined with --no-seed"
+  [[ -f "$seed_dir/db.dump" ]] || usage_error "--reseed needs a seed, but no db.dump found at $seed_dir"
+  if [[ "$ASSUME_YES" != "1" ]]; then
+    [[ -t 0 ]] || usage_error "--reseed would erase this worktree's database; pass --yes to confirm non-interactively"
+    read -r -p "Erase the database of $COMPOSE_PROJECT_NAME and restore $seed_dir? [y/N] " answer
+    [[ "$answer" == [yY]* ]] || usage_error "Reseed cancelled"
+  fi
+  # Release any connections held by the app and workers before dropping the schema.
+  to_stop=()
+  while IFS= read -r service; do
+    case "$service" in ""|db|redis) ;; *) to_stop+=("$service") ;; esac
+  done < <(compose_exec --profile '*' config --services)
+  if ((${#to_stop[@]})); then compose_exec --profile '*' stop "${to_stop[@]}"; fi
+  force_restore=1
+fi
+
+if [[ "$force_restore" == "1" ]] || database_is_empty; then
   if [[ "$SEED_MODE" == "skip" ]]; then
     echo "Database is empty; skipping seed restore by request."
   elif [[ -f "$seed_dir/db.dump" ]]; then
     echo "Empty database detected. Restoring golden seed from $seed_dir/db.dump"
-    compose_exec exec -T db sh -lc '
-      export PGPASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
-      psql -U "${POSTGRES_USER:-djplaylist}" -d "${POSTGRES_DB:-djplaylist}" -v ON_ERROR_STOP=1 \
-        -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
-      cat > /tmp/worktree-seed.dump
-      pg_restore \
-        -U "${POSTGRES_USER:-djplaylist}" \
-        -d "${POSTGRES_DB:-djplaylist}" \
-        --single-transaction \
-        --no-owner \
-        --no-acl \
-        /tmp/worktree-seed.dump
-      rm -f /tmp/worktree-seed.dump
-    ' <"$seed_dir/db.dump"
+    if ! restore_seed_database "$seed_dir/db.dump"; then
+      restore_failed_message "$seed_dir/db.dump"
+      exit 1
+    fi
 
     if [[ -d "$seed_dir/app" || -d "$seed_dir/audio" || -d "$seed_dir/dumps" || -d "$seed_dir/public" ]]; then
       restore_assets=1
@@ -107,8 +128,7 @@ if database_is_empty; then
 else
   echo "Database already contains tables; skipping seed restore."
   echo "Refreshing the golden seed does not replace an existing worktree database."
-  echo "To recreate this worktree with the selected seed, run 'just worktree-purge' then 'just worktree-up'."
-  echo "Warning: worktree-purge deletes this worktree's database and other Compose volumes."
+  echo "To replace this worktree's database with the selected seed, run 'just worktree-up --reseed' (database only)."
 fi
 
 # Rebuild the migrator from this worktree's source, then bring up the rest of

@@ -547,6 +547,56 @@ database_is_empty() {
   [[ "$result" == "0" ]]
 }
 
+# Runs inside the db container (a dash `sh`: no pipefail guarantee, so there is
+# deliberately no pipeline in it). The dump arrives on stdin and goes straight
+# into pg_restore: the db service's /tmp is a 64 MB tmpfs, so staging a real
+# seed there fails, and a pg_restore reading a pipe restores a custom-format
+# archive sequentially, which needs no data offsets. `set -eu` makes the first
+# failing step the exit status. Nothing here echoes the password or any rows.
+seed_restore_remote_script() {
+  cat <<'REMOTE'
+set -eu
+# shellcheck disable=SC3040
+(set -o pipefail) 2>/dev/null && set -o pipefail
+export PGPASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+psql -U "${POSTGRES_USER:-djplaylist}" -d "${POSTGRES_DB:-djplaylist}" -v ON_ERROR_STOP=1 -q \
+  -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+pg_restore \
+  -U "${POSTGRES_USER:-djplaylist}" \
+  -d "${POSTGRES_DB:-djplaylist}" \
+  --single-transaction \
+  --exit-on-error \
+  --no-owner \
+  --no-acl
+REMOTE
+}
+
+# Restore a custom-format dump into the (empty or about-to-be-replaced) database.
+# Returns non-zero on any failure; the caller decides what to do about it.
+restore_seed_database() {
+  local dump="$1"
+  [[ -s "$dump" ]] || { echo "Seed dump is missing or empty: $dump" >&2; return 1; }
+  [[ "$(head -c 5 "$dump")" == "PGDMP" ]] || {
+    echo "Seed dump is not a pg_dump custom-format archive: $dump" >&2
+    return 1
+  }
+  compose_exec exec -T db sh -c "$(seed_restore_remote_script)" <"$dump"
+}
+
+restore_failed_message() {
+  cat >&2 <<MSG
+
+Error: the golden seed did not restore, so setup stopped before migrations,
+the remaining services and the asset restore. The restore is one transaction,
+so the database holds no partial data. To recover (only this worktree's
+database is touched):
+  1. Check the seed:       pg_restore --list "$1" >/dev/null
+  2. Refresh it if bad:    just worktree-seed   (or just worktree-seed-prod)
+  3. Retry:                just worktree-up --reseed
+Nothing outside this worktree's db volume is deleted; no purge is needed.
+MSG
+}
+
 app_container_id() {
   compose_exec ps -q app | tr -d '[:space:]'
 }
