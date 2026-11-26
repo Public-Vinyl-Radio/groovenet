@@ -149,3 +149,27 @@ def test_ensure_local_audio_file_downloads_fallback(mock_get, tmp_path):
             {"track_id": "t1", "friend_id": 1, "local_audio_url": "track.m4a"},
         )
     assert result == "/tmp/track.m4a"
+
+
+def test_make_library_readable_sets_0644_from_0600(tmp_path):
+    import os
+    import stat
+
+    from worker.audio_utils import make_library_readable
+
+    f = tmp_path / "a.m4a"
+    f.write_bytes(b"x")
+    f.chmod(0o600)
+    old = os.umask(0o077)
+    try:
+        make_library_readable(str(f))
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE(f.stat().st_mode) == 0o644
+
+
+def test_make_library_readable_logs_missing_file(tmp_path, caplog):
+    from worker.audio_utils import make_library_readable
+
+    make_library_readable(str(tmp_path / "missing.m4a"))
+    assert "Could not make" in caplog.text

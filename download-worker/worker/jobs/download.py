@@ -23,7 +23,7 @@ from gamdl.media import MediaResolver, SongCodec
 from gamdl.media.exceptions import MediaNotFoundError, MediaNotStreamableError, UnsupportedMediaError
 from gamdl.media.url import AppleMusicUrlInfo
 
-from ..audio_utils import cleanup_download_directory
+from ..audio_utils import cleanup_download_directory, make_library_readable
 from ..config import logger
 from ..lossless import convert_alac_to_flac
 from ..observability import capture_exception
@@ -605,6 +605,7 @@ def download_audio(job_data: JobData) -> JobResult:
         final_filename = f"{track_id}{file_ext}"
         final_file_path = os.path.join(final_audio_dir, final_filename)
         shutil.move(downloaded_file, final_file_path)
+        make_library_readable(final_file_path)
         downloaded_file = final_file_path
         logger.info(f"Moved file to {final_file_path}")
 

@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from mutagen.flac import FLAC, Picture
 from mutagen.mp4 import MP4, MP4Cover
 
+from .audio_utils import make_library_readable
 from .subprocess_utils import run_subprocess
 
 # ffmpeg maps ordinary MP4 fields to Vorbis comments. Keep an exact, typed
@@ -108,6 +109,7 @@ def convert_alac_to_flac(
             or [p.data for p in verified.pictures] != [bytes(c) for c in tags.get("covr", [])]
         ):
             raise RuntimeError("FLAC verification failed; original retained")
+        make_library_readable(str(temporary))
         os.replace(temporary, target)
         os.unlink(file_path)
         return str(target)
