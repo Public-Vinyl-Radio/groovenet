@@ -9,7 +9,10 @@ const withDbTransaction = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/serverDb", () => ({ dbQuery, dbPool, withDbTransaction }));
 
-import { PlaylistRepository } from "../playlistRepository";
+import { PlaylistRepository, playlistVisibleSql } from "../playlistRepository";
+
+const VIEWER = "00000000-0000-4000-8000-000000000002";
+const VISIBLE = /p\.visibility = 'household' OR p\.owner_id = \$\d/;
 
 function repo() {
   return new PlaylistRepository();
@@ -159,30 +162,94 @@ describe("PlaylistRepository — reads", () => {
 
   it("findPlaylistById returns null when not found", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(repo().findPlaylistById(5)).resolves.toBeNull();
+    await expect(repo().findPlaylistById(5, VIEWER)).resolves.toBeNull();
   });
 
-  it("deletePlaylistById deletes the playlist's tracks then the playlist in one transaction", async () => {
+  it("deletePlaylistById checks visibility, then deletes the tracks and the playlist in one transaction", async () => {
     const client = { query: vi.fn() };
     client.query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 5, name: "gone" }] });
     withDbTransaction.mockImplementation((fn: (c: typeof client) => unknown) => fn(client));
 
-    await expect(repo().deletePlaylistById(5)).resolves.toEqual({ id: 5, name: "gone" });
-    expect(client.query.mock.calls[0]).toEqual([
+    await expect(repo().deletePlaylistById(5, VIEWER)).resolves.toEqual({ id: 5, name: "gone" });
+    expect(client.query.mock.calls[0][0]).toMatch(VISIBLE);
+    expect(client.query.mock.calls[0][1]).toEqual([5, VIEWER]);
+    expect(client.query.mock.calls[1]).toEqual([
       "DELETE FROM playlist_tracks WHERE playlist_id = $1",
       [5],
     ]);
-    expect(client.query.mock.calls[1][0]).toMatch(/DELETE FROM playlists WHERE id = \$1 RETURNING/);
-    expect(client.query.mock.calls[1][1]).toEqual([5]);
+    expect(client.query.mock.calls[2][0]).toMatch(/DELETE FROM playlists WHERE id = \$1 RETURNING/);
+    expect(client.query.mock.calls[2][1]).toEqual([5]);
     expect(dbQuery).not.toHaveBeenCalled();
   });
 
-  it("deletePlaylistById returns null when the playlist does not exist", async () => {
+  it("deletePlaylistById deletes nothing when the playlist is missing or not visible", async () => {
     const client = { query: vi.fn().mockResolvedValue({ rows: [] }) };
     withDbTransaction.mockImplementation((fn: (c: typeof client) => unknown) => fn(client));
-    await expect(repo().deletePlaylistById(404)).resolves.toBeNull();
+    await expect(repo().deletePlaylistById(404, VIEWER)).resolves.toBeNull();
+    expect(client.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists only the playlists the viewer may see, with owner names", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ id: 1, owner_name: "Sam" }] });
+    await expect(repo().listPlaylists(VIEWER)).resolves.toEqual([{ id: 1, owner_name: "Sam" }]);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(VISIBLE);
+    expect(sql).toMatch(/LEFT JOIN users u ON u\.id = p\.owner_id/);
+    expect(params).toEqual([VIEWER]);
+  });
+
+  it("scopes single-playlist reads to the viewer", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [{ id: 2, name: "Mix" }] });
+    await expect(repo().findPlaylistById(2, VIEWER)).resolves.toEqual({ id: 2, name: "Mix" });
+    expect(dbQuery.mock.calls[0][0]).toMatch(VISIBLE);
+    expect(dbQuery.mock.calls[0][1]).toEqual([2, VIEWER]);
+
+    const header = {
+      id: 2,
+      name: "Mix",
+      owner_id: VIEWER,
+      owner_name: "Me",
+      visibility: "private",
+    };
+    dbQuery.mockResolvedValueOnce({ rows: [header] });
+    await expect(repo().findPlaylistHeaderById(2, VIEWER)).resolves.toEqual(header);
+    dbQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(repo().findPlaylistHeaderById(3, VIEWER)).resolves.toBeNull();
+    expect(dbQuery.mock.calls[2]).toEqual([expect.stringMatching(VISIBLE), [3, VIEWER]]);
+
+    const client = { query: vi.fn().mockResolvedValue({ rows: [] }) };
+    await expect(repo().findPlaylistHeaderByIdWithClient(client, 3, VIEWER)).resolves.toBeNull();
+    expect(client.query).toHaveBeenCalledWith(expect.stringMatching(VISIBLE), [3, VIEWER]);
+  });
+
+  it("creates a playlist for its owner, household by default", async () => {
+    const client = { query: vi.fn().mockResolvedValue({ rows: [{ id: 9, owner_name: "Me" }] }) };
+    await expect(repo().createPlaylistWithClient(client, "New", VIEWER)).resolves.toEqual({
+      id: 9,
+      owner_name: "Me",
+    });
+    expect(client.query.mock.calls[0][0]).toMatch(
+      /INSERT INTO playlists \(name, owner_id, visibility\)/,
+    );
+    expect(client.query.mock.calls[0][1]).toEqual(["New", VIEWER, "household"]);
+    await repo().createPlaylistWithClient(client, "Mine", VIEWER, "private");
+    expect(client.query.mock.calls[1][1]).toEqual(["Mine", VIEWER, "private"]);
+  });
+
+  it("updates visibility", async () => {
+    const client = { query: vi.fn().mockResolvedValue({ rows: [] }) };
+    await repo().updatePlaylistVisibility(client, 4, "private");
+    expect(client.query).toHaveBeenCalledWith(
+      "UPDATE playlists SET visibility = $1 WHERE id = $2",
+      ["private", 4],
+    );
+  });
+
+  it("builds the visibility predicate", () => {
+    expect(playlistVisibleSql("x", "$7")).toBe("(x.visibility = 'household' OR x.owner_id = $7)");
   });
 
   it("lists playlist entries with the snapshots needed for spins", async () => {

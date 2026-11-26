@@ -5,6 +5,7 @@ import {
   type EmbeddedTags,
 } from "@/server/services/trackAudioMetadataService";
 import { dbQuery } from "@/lib/serverDb";
+import { playlistVisibleSql } from "@/server/repositories/playlistRepository";
 import { stripNullBytes } from "@/lib/stripNullBytes";
 import type { Track } from "@/types/track";
 import type { DiscogsTrack } from "@/server/types/discogsTrack";
@@ -514,7 +515,11 @@ export class TrackRepository {
     return rows;
   }
 
-  async getPlaylistCountsForTracks(trackRefs: TrackRef[]): Promise<Record<string, number>> {
+  /** Counts only the playlists the viewer may see (#1284). */
+  async getPlaylistCountsForTracks(
+    trackRefs: TrackRef[],
+    viewerId: string,
+  ): Promise<Record<string, number>> {
     if (!trackRefs || trackRefs.length === 0) return {};
 
     const values: string[] = [];
@@ -524,6 +529,8 @@ export class TrackRepository {
       values.push(`($${offset + 1}::text, $${offset + 2}::integer)`);
       params.push(ref.track_id, ref.friend_id);
     });
+    params.push(viewerId);
+    const viewerParam = `$${params.length}::uuid`;
 
     const { rows } = await dbQuery<{
       track_id: string;
@@ -541,7 +548,10 @@ export class TrackRepository {
       FROM refs r
       LEFT JOIN playlist_tracks pt
         ON pt.track_id = r.track_id AND pt.friend_id = r.friend_id
-        AND EXISTS (SELECT 1 FROM playlists p WHERE p.id = pt.playlist_id)
+        AND EXISTS (
+          SELECT 1 FROM playlists p
+          WHERE p.id = pt.playlist_id AND ${playlistVisibleSql("p", viewerParam)}
+        )
       GROUP BY r.track_id, r.friend_id
       `,
       params,
@@ -662,9 +672,11 @@ export class TrackRepository {
     return rows[0] ?? null;
   }
 
+  /** The playlists the viewer may see that hold this track (#1284). */
   async listPlaylistsForTrack(
     trackId: string,
     friendId: number,
+    viewerId: string,
   ): Promise<TrackPlaylistMembershipRow[]> {
     const { rows } = await dbQuery<TrackPlaylistMembershipRow>(
       `
@@ -674,10 +686,10 @@ export class TrackRepository {
         pt.position
       FROM playlist_tracks pt
       JOIN playlists p ON p.id = pt.playlist_id
-      WHERE pt.track_id = $1 AND pt.friend_id = $2
+      WHERE pt.track_id = $1 AND pt.friend_id = $2 AND ${playlistVisibleSql("p", "$3")}
       ORDER BY p.name ASC, pt.position ASC
       `,
-      [trackId, friendId],
+      [trackId, friendId, viewerId],
     );
     return rows;
   }

@@ -16,6 +16,8 @@ beforeEach(() => {
   inspectLocalAudio.mockResolvedValue({ fields: {}, tags: null });
 });
 
+const VIEWER = "00000000-0000-4000-8000-000000000002";
+
 function makeRepo() {
   return new TrackRepository();
 }
@@ -314,7 +316,7 @@ describe("findCoverArtBackfillCandidates()", () => {
 
 describe("getPlaylistCountsForTracks()", () => {
   it("returns empty object without querying for an empty input", async () => {
-    const result = await makeRepo().getPlaylistCountsForTracks([]);
+    const result = await makeRepo().getPlaylistCountsForTracks([], VIEWER);
 
     expect(result).toEqual({});
     expect(dbQuery).not.toHaveBeenCalled();
@@ -328,29 +330,38 @@ describe("getPlaylistCountsForTracks()", () => {
       ],
     });
 
-    const result = await makeRepo().getPlaylistCountsForTracks([
-      { track_id: "t1", friend_id: 1 },
-      { track_id: "t2", friend_id: 1 },
-    ]);
+    const result = await makeRepo().getPlaylistCountsForTracks(
+      [
+        { track_id: "t1", friend_id: 1 },
+        { track_id: "t2", friend_id: 1 },
+      ],
+      VIEWER,
+    );
 
     expect(result["t1:1"]).toBe(3);
     expect(result["t2:1"]).toBe(0);
   });
 
-  it("only counts memberships whose playlist still exists", async () => {
+  it("only counts memberships of playlists that exist and the viewer may see", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
+    await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }], VIEWER);
 
-    expect(dbQuery.mock.calls[0][0]).toMatch(
-      /EXISTS \(SELECT 1 FROM playlists p WHERE p\.id = pt\.playlist_id\)/,
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toMatch(
+      /EXISTS \(\s*SELECT 1 FROM playlists p\s*WHERE p\.id = pt\.playlist_id AND/,
     );
+    expect(sql).toContain("p.visibility = 'household' OR p.owner_id = $3::uuid");
+    expect(params).toEqual(["t1", 1, VIEWER]);
   });
 
   it("fills in 0 for any refs missing from the query result", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
 
-    const result = await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
+    const result = await makeRepo().getPlaylistCountsForTracks(
+      [{ track_id: "t1", friend_id: 1 }],
+      VIEWER,
+    );
 
     expect(result["t1:1"]).toBe(0);
   });
@@ -360,7 +371,10 @@ describe("getPlaylistCountsForTracks()", () => {
       rows: [{ track_id: "t1", friend_id: 1, count: "5" }],
     });
 
-    const result = await makeRepo().getPlaylistCountsForTracks([{ track_id: "t1", friend_id: 1 }]);
+    const result = await makeRepo().getPlaylistCountsForTracks(
+      [{ track_id: "t1", friend_id: 1 }],
+      VIEWER,
+    );
 
     expect(typeof result["t1:1"]).toBe("number");
     expect(result["t1:1"]).toBe(5);
@@ -493,10 +507,13 @@ describe("listPlaylistsForTrack()", () => {
     const rows = [{ id: 1, name: "Playlist A", position: 0 }];
     dbQuery.mockResolvedValue({ rows });
 
-    const result = await makeRepo().listPlaylistsForTrack("t1", 1);
+    const result = await makeRepo().listPlaylistsForTrack("t1", 1, VIEWER);
 
     expect(result).toEqual(rows);
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("playlist_tracks"), ["t1", 1]);
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringContaining("p.visibility = 'household' OR p.owner_id = $3"),
+      ["t1", 1, VIEWER],
+    );
   });
 });
 

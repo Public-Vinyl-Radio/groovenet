@@ -28,8 +28,13 @@ function iso(value: string | Date): string {
 }
 
 export class PlaylistSpinService {
-  async log(playlistId: number, input: LogPlaylistSpinsInput): Promise<LogPlaylistSpinsResult> {
-    const playlist = await playlistRepository.findPlaylistHeaderById(playlistId);
+  /** `viewerId`: a private playlist of someone else's is "Playlist not found" (#1284). */
+  async log(
+    playlistId: number,
+    input: LogPlaylistSpinsInput,
+    viewerId: string,
+  ): Promise<LogPlaylistSpinsResult> {
+    const playlist = await playlistRepository.findPlaylistHeaderById(playlistId, viewerId);
     if (!playlist) throw new Error("Playlist not found");
     if (input.performed_at != null && input.performance_id != null) {
       throw new Error("Provide either performed_at or performance_id, not both");
@@ -51,9 +56,11 @@ export class PlaylistSpinService {
     let entries: EntryToLog[];
 
     if (input.derivation_id) {
-      const view = await setDerivationService.view(input.derivation_id, {
-        playlist_id: playlistId,
-      });
+      const view = await setDerivationService.view(
+        input.derivation_id,
+        { playlist_id: playlistId },
+        viewerId,
+      );
       if (!view.diff || view.derivation.status !== "processed") {
         throw new Error("Set derivation is not ready for this playlist");
       }

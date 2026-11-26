@@ -16,6 +16,7 @@ import {
 import { MetaTag } from "@/components/ui/RoleTags";
 import { playlistDayParts, type PlaylistMonthGroup } from "@/lib/playlistGroups";
 import type { Playlist } from "@/types/track";
+import PlaylistOwnerTag from "@/components/PlaylistOwnerTag";
 
 /** `Fri 30 · 12 tracks · 49m`: day, count and length, whatever is known. */
 export function phoneMeta(playlist: Playlist): string {
@@ -79,6 +80,7 @@ function PhoneRow({
             <Text fontWeight="semibold" fontSize="sm" truncate>
               {title}
             </Text>
+            <PlaylistOwnerTag playlist={playlist} />
             {set && (
               <MetaTag size="xs" flexShrink={0}>
                 Set

@@ -1,4 +1,4 @@
-import { getCurrentUser, getHouseholdOwner } from "@/server/auth/currentUser";
+import { resolveViewer } from "@/server/auth/viewer";
 import {
   ratingKey,
   trackRatingRepository,
@@ -7,18 +7,8 @@ import {
 import type { TrackOtherRating } from "@groovenet/contracts";
 import type { User } from "@/types/user";
 
-/**
- * Whose ratings a request reads and writes (#1283): the current profile
- * (token, device, mapped tailnet login or the sole profile), else the owner.
- * The fallback is for machine clients without a token on a household with
- * several profiles; a browser in that state is shown the picker first.
- */
-export async function resolveRatingViewer(req?: Request): Promise<User> {
-  const viewer = (await getCurrentUser(req)) ?? (await getHouseholdOwner());
-  // ensureOwner (run by both helpers) always leaves an owner row.
-  if (!viewer) throw new Error("No household profile to rate as");
-  return viewer;
-}
+/** Whose ratings a request reads and writes (#1283): see `resolveViewer`. */
+export const resolveRatingViewer = resolveViewer;
 
 export type WithViewerRatings<T> = T & { star_rating: number; other_ratings: TrackOtherRating[] };
 

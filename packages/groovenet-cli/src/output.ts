@@ -92,6 +92,12 @@ export function printTrack(track: Track, json: boolean): void {
   }
 }
 
+/** The owning profile (#1284), marked when private; "-" from a server without owners. */
+export function playlistOwner(p: Pick<Playlist, "owner_name" | "visibility">): string {
+  const name = p.owner_name ?? "-";
+  return p.visibility === "private" ? `${name} (private)` : name;
+}
+
 export function printPlaylists(playlists: Playlist[], json: boolean): void {
   if (json) {
     printJson(playlists);
@@ -102,13 +108,20 @@ export function printPlaylists(playlists: Playlist[], json: boolean): void {
     return;
   }
   const table = new Table({
-    head: [chalk.cyan("ID"), chalk.cyan("Name"), chalk.cyan("Tracks"), chalk.cyan("Created")],
-    colWidths: [6, 40, 8, 22],
+    head: [
+      chalk.cyan("ID"),
+      chalk.cyan("Name"),
+      chalk.cyan("Owner"),
+      chalk.cyan("Tracks"),
+      chalk.cyan("Created"),
+    ],
+    colWidths: [6, 40, 18, 8, 22],
   });
   for (const p of playlists) {
     table.push([
       p.id,
       p.name,
+      playlistOwner(p),
       p.tracks?.length ?? 0,
       p.created_at ? new Date(p.created_at).toLocaleDateString() : "-",
     ]);

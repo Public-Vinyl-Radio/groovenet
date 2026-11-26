@@ -4,6 +4,7 @@ import {
   SetDerivationNotFound,
   setDerivationService,
 } from "@/server/services/setDerivationService";
+import { resolveViewer } from "@/server/auth/viewer";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         { status: 400 },
       );
     }
-    return NextResponse.json(await setDerivationService.view(id, parsed.data));
+    const viewer = await resolveViewer(req);
+    return NextResponse.json(await setDerivationService.view(id, parsed.data, viewer.id));
   } catch (error) {
     if (error instanceof SetDerivationNotFound) {
       return NextResponse.json({ error: error.message }, { status: 404 });

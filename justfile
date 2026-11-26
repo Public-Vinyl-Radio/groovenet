@@ -994,6 +994,26 @@ track-ratings-test:
   {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
   {{mise_exec}} npm run test:track-ratings --prefix {{app_dir}}
 
+# Run the playlist owners migration (backfill to the owner, rollback) and cross-profile privacy queries against a throwaway pgvector db (#1284).
+playlist-owners-test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  name="groovenet-playlistownerstest-$$"
+  port="${PLAYLIST_OWNERS_TEST_PORT:-55464}"
+  cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+  trap cleanup EXIT
+  echo "→ starting throwaway pgvector ($name) on :$port"
+  docker run -d --name "$name" --tmpfs /var/lib/postgresql/data \
+    -e POSTGRES_USER=djplaylist -e POSTGRES_PASSWORD=test -e POSTGRES_DB=djplaylist \
+    -p "$port:5432" pgvector/pgvector:pg15 >/dev/null
+  for i in $(seq 1 60); do
+    docker exec "$name" pg_isready -h 127.0.0.1 -U djplaylist -d djplaylist >/dev/null 2>&1 && break
+    sleep 1
+  done
+  export DATABASE_URL="postgres://djplaylist:test@localhost:$port/djplaylist"
+  {{mise_exec}} npm run migrate --prefix {{app_dir}} -- up
+  {{mise_exec}} npm run test:playlist-owners --prefix {{app_dir}}
+
 # Run the Discogs import job queries (one active per username, SKIP LOCKED, lease) against a throwaway pgvector db (#1274).
 discogs-imports-test:
   #!/usr/bin/env bash

@@ -86,6 +86,7 @@ export type {
   PlaylistSpinsInput,
   PlaylistSpinsResult,
   PlaylistTrackRef,
+  PlaylistVisibility,
   Friend,
   FriendListResponse,
   SpinAggregateRequest,

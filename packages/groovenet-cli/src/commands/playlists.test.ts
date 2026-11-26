@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     getPlaylistTracks: vi.fn(),
     batchGetTracks: vi.fn(),
     optimizePlaylist: vi.fn(),
+    createPlaylist: vi.fn(),
+    setPlaylistVisibility: vi.fn(),
   },
   printTracks: vi.fn(),
   readTracksSource: vi.fn(),
@@ -514,5 +516,70 @@ describe("playlists generate (#1193)", () => {
     mocks.client.optimizePlaylist.mockRejectedValueOnce("boom");
     await run();
     expect(mocks.printError).toHaveBeenLastCalledWith("boom");
+  });
+});
+
+describe("playlist owners (#1284)", () => {
+  const run = async (...args: string[]) => {
+    const program = new Command().exitOverride();
+    addPlaylistsCommands(program);
+    await program.parseAsync(["node", "test", "playlists", ...args]);
+  };
+
+  it("creates a household playlist, or a private one", async () => {
+    await run("create", "Warmup");
+    expect(mocks.client.createPlaylist).toHaveBeenLastCalledWith("Warmup", [], undefined, {});
+    expect(mocks.printSuccess).toHaveBeenLastCalledWith('✓ Playlist "Warmup" created.');
+    await run("create", "Mine", "--private");
+    expect(mocks.client.createPlaylist).toHaveBeenLastCalledWith("Mine", [], undefined, {
+      visibility: "private",
+    });
+    expect(mocks.printSuccess).toHaveBeenLastCalledWith('✓ Playlist "Mine" created (private).');
+  });
+
+  it("changes visibility", async () => {
+    await run("visibility", "9", "private");
+    expect(mocks.client.setPlaylistVisibility).toHaveBeenLastCalledWith(9, "private");
+    expect(mocks.printSuccess).toHaveBeenLastCalledWith("✓ Playlist 9 is private.");
+    await run("visibility", "9", "household");
+    expect(mocks.printSuccess).toHaveBeenLastCalledWith(
+      "✓ Playlist 9 is shared with the household.",
+    );
+  });
+
+  it.each([
+    [["visibility", "x", "private"], "Invalid playlist id: x"],
+    [["visibility", "9", "public"], "Visibility must be household or private, not public"],
+  ])("rejects bad input %j", async (args, message) => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    await run(...args);
+    expect(mocks.printError).toHaveBeenCalledWith(message);
+    expect(mocks.client.setPlaylistVisibility).not.toHaveBeenCalled();
+    exit.mockRestore();
+  });
+
+  it("reports a failed create", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    mocks.client.createPlaylist.mockRejectedValueOnce("down");
+    await run("create", "Mine", "--private");
+    expect(mocks.printError).toHaveBeenCalledWith("down");
+    mocks.client.createPlaylist.mockRejectedValueOnce(new Error("API Error: boom"));
+    await run("create", "Mine");
+    expect(mocks.printError).toHaveBeenCalledWith("API Error: boom");
+    expect(exit).toHaveBeenCalledWith(1);
+    exit.mockRestore();
+  });
+
+  it("reports a refused change, e.g. from someone else", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    mocks.client.setPlaylistVisibility.mockRejectedValueOnce(
+      new Error("API Error: Only the playlist's owner can change its visibility"),
+    );
+    await run("visibility", "9", "private");
+    expect(mocks.printError).toHaveBeenCalledWith(
+      "API Error: Only the playlist's owner can change its visibility",
+    );
+    expect(exit).toHaveBeenCalledWith(1);
+    exit.mockRestore();
   });
 });

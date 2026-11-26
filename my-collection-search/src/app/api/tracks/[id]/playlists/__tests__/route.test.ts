@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listPlaylistsForTrack = vi.fn();
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: { listPlaylistsForTrack: (...a: unknown[]) => listPlaylistsForTrack(...a) },
 }));
@@ -24,7 +25,11 @@ describe("GET /api/tracks/[id]/playlists", () => {
     const res = await call("?friend_id=2");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ playlists: [{ id: 1, name: "Warmup", position: 3 }] });
-    expect(listPlaylistsForTrack).toHaveBeenCalledWith("t1", 2);
+    expect(listPlaylistsForTrack).toHaveBeenCalledWith(
+      "t1",
+      2,
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("validates friend_id", async () => {

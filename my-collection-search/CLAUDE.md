@@ -1481,7 +1481,13 @@ A route that returns tracks passes them through `withViewerRatings` /
 `withRequestRatings` (`trackRatingService.ts`), which set `star_rating` to the
 viewer's rating (`resolveRatingViewer`: current profile, else the owner) and add
 `other_ratings`. Filters and ranking read `viewerRatingSql` or the retriever's
-`ratingViewerId`. Never read or write the deprecated `tracks.star_rating`. API
+`ratingViewerId`. Never read or write the deprecated `tracks.star_rating`. Playlists have an
+owner and a `visibility` (#1284): every query that lists playlists or takes a
+playlist id filters with `playlistVisibleSql` (`playlistRepository.ts`) for the
+viewer from `resolveViewer` (`src/server/auth/viewer.ts`), so someone else's
+private playlist is a 404, never a 403. Only the owner changes visibility
+(`PlaylistForbiddenError`, 403); the household still edits the rest.
+`just playlist-owners-test` checks the backfill and every such query. API
 scope enforcement is centralized in Next 16's Node proxy, and is off unless
 `AUTH_REQUIRE_TOKENS=true`. See [household profiles](../docs/configuration/household-profiles.md)
 for cookie/token storage, the ingest allowlist and client configuration.

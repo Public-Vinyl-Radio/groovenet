@@ -35,6 +35,7 @@
     "test:ranking-profiles": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/rankingProfileRepository.integration.test.ts",
     "test:discogs-imports": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/discogsImportRepository.integration.test.ts",
     "test:track-ratings": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/trackRatings.integration.test.ts",
+    "test:playlist-owners": "RUN_DB_TESTS=1 vitest run src/server/repositories/__tests__/playlistOwners.integration.test.ts",
     "test:redis": "RUN_REDIS_TESTS=1 vitest run --no-file-parallelism src/server/services/__tests__/redisJobService.integration.test.ts src/server/services/__tests__/ingestMetricsService.integration.test.ts src/server/services/__tests__/embeddingQueueService.integration.test.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc6 --noEmit",

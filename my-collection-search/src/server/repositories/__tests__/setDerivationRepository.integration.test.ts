@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { SetDerivationRepository } from "../setDerivationRepository";
 import { SetRecordingRepository } from "../setRecordingRepository";
+import { householdOwnerId } from "@/test/householdOwnerId";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const derivations = new SetDerivationRepository();
@@ -190,10 +191,10 @@ describe("set derivations (DB integration)", () => {
   });
 
   dbTest("resolves a live set to its playlist and checks playlists exist", async () => {
-    expect(await derivations.findPlaylistIdForLiveSet(liveSetId)).toBe(playlistId);
-    expect(await derivations.findPlaylistIdForLiveSet(-1)).toBeNull();
-    expect(await derivations.playlistExists(playlistId)).toBe(true);
-    expect(await derivations.playlistExists(-1)).toBe(false);
+    expect(await derivations.findPlaylistIdForLiveSet(liveSetId, null)).toBe(playlistId);
+    expect(await derivations.findPlaylistIdForLiveSet(-1, null)).toBeNull();
+    expect(await derivations.playlistExists(playlistId, await householdOwnerId())).toBe(true);
+    expect(await derivations.playlistExists(-1, await householdOwnerId())).toBe(false);
   });
 
   dbTest("attaches a recording to a live set only once", async () => {

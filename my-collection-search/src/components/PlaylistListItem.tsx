@@ -7,6 +7,7 @@ import PlaylistItemActionsMenu from "@/components/PlaylistItemActionsMenu";
 import { formatDateWithRelative } from "@/lib/date";
 import type { Playlist } from "@/types/track";
 import { FiMapPin } from "react-icons/fi";
+import PlaylistOwnerTag from "@/components/PlaylistOwnerTag";
 
 export function formatDuration(seconds?: number) {
   if (!seconds) return null;
@@ -252,6 +253,7 @@ export default function PlaylistListItem({
               <Text fontWeight="semibold" fontSize="sm" lineClamp={2}>
                 {playlist.set?.title || playlist.name}
               </Text>
+              <PlaylistOwnerTag playlist={playlist} />
               {playlist.set && (
                 <Text
                   data-testid="live-set-stamp"

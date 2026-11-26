@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackPlaylistsResponseSchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { resolveViewer } from "@/server/auth/viewer";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "friend_id must be a number" }, { status: 400 });
     }
 
-    const rows = await trackRepository.listPlaylistsForTrack(track_id, friend_id);
+    const viewer = await resolveViewer(request);
+    const rows = await trackRepository.listPlaylistsForTrack(track_id, friend_id, viewer.id);
 
     return NextResponse.json(trackPlaylistsResponseSchema.parse({ playlists: rows }));
   } catch (error) {

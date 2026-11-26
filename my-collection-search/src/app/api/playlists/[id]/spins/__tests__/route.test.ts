@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const log = vi.hoisted(() => vi.fn());
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/services/playlistSpinService", () => ({
   playlistSpinService: { log },
 }));
@@ -27,7 +28,11 @@ describe("POST /api/playlists/:id/spins", () => {
     });
     const response = await POST(request({ performance_id: 4 }), context("9"));
     expect(response.status).toBe(200);
-    expect(log).toHaveBeenCalledWith(9, { performance_id: 4 });
+    expect(log).toHaveBeenCalledWith(
+      9,
+      { performance_id: 4 },
+      "00000000-0000-4000-8000-000000000001",
+    );
     expect(await response.json()).toMatchObject({ created: 2, skipped: 0 });
   });
 

@@ -13,6 +13,8 @@ import {
   FiCopy,
   FiEdit,
   FiLayers,
+  FiLock,
+  FiUnlock,
   FiMoreVertical,
   FiPlay,
   FiSave,
@@ -36,6 +38,11 @@ export interface PlaylistActionsMenuProps {
   onOpenRecommendations?: () => void;
   /** Turns the playlist into a set; given only while it isn't one. */
   onCreateSet?: () => void;
+  /**
+   * Who sees it (#1284): given only to the owner, in a household with several
+   * profiles. Toggles between the household and private.
+   */
+  visibility?: { value: "household" | "private"; onToggle: () => void };
   isGeneticSorting?: boolean;
   isCohesiveBlocksSorting?: boolean;
   enqueuePlaylist: () => void;
@@ -79,6 +86,7 @@ export default function PlaylistActionsMenu({
   onRename,
   onOpenRecommendations,
   onCreateSet,
+  visibility,
   enqueuePlaylist,
   isGeneticSorting,
   isCohesiveBlocksSorting,
@@ -89,6 +97,7 @@ export default function PlaylistActionsMenu({
 }: PlaylistActionsMenuProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const orderingName = ordering?.options.find((profile) => profile.id === ordering.value)?.name;
+  const visibilityLabel = visibility?.value === "private" ? "Share with household" : "Make private";
 
   return (
     <>
@@ -145,6 +154,7 @@ export default function PlaylistActionsMenu({
               ? [{ label: "Suggestions", onClick: onOpenRecommendations }]
               : []),
             ...(onCreateSet ? [{ label: "Create set", onClick: onCreateSet }] : []),
+            ...(visibility ? [{ label: visibilityLabel, onClick: visibility.onToggle }] : []),
           ]}
           exportImport={[
             { label: "Export JSON", onClick: onExportJson },
@@ -263,7 +273,7 @@ export default function PlaylistActionsMenu({
               <Menu.Item value="save" onSelect={onOpenSaveDialog}>
                 <FiSave /> Save Playlist
               </Menu.Item>
-              {(onDuplicate || onRename) && (
+              {(onDuplicate || onRename || visibility) && (
                 <>
                   {menuDivider}
                   {onDuplicate && (
@@ -274,6 +284,11 @@ export default function PlaylistActionsMenu({
                   {onRename && (
                     <Menu.Item value="rename" onSelect={onRename}>
                       <FiEdit /> Rename Playlist
+                    </Menu.Item>
+                  )}
+                  {visibility && (
+                    <Menu.Item value="visibility" onSelect={visibility.onToggle}>
+                      {visibility.value === "private" ? <FiUnlock /> : <FiLock />} {visibilityLabel}
                     </Menu.Item>
                   )}
                 </>

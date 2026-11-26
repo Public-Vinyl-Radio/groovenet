@@ -25,7 +25,7 @@ Switching rotates it. An expired or unknown cookie cannot select a user.
 Server code uses `getCurrentUser(request)` from `src/server/auth/currentUser.ts`:
 a valid bearer token, a valid device cookie, an explicitly mapped Tailscale login,
 then the sole profile, otherwise `null`. The stable UUID identifies the user for
-personal ratings and, later, playlist ownership.
+personal ratings and playlist ownership.
 
 Settings → API tokens lets the owner create a named token for any profile with a
 `read`, `write` or `ingest` scope, see its last use and revoke it. Tokens contain
@@ -69,6 +69,31 @@ migration creates it as `Owner`, and the app renames it from
 `DISCOGS_USERNAME` on its first request. `tracks.star_rating` is deprecated and
 no longer written; it stays for one release so an older image still starts,
 and rolling the migration back copies the owner's current ratings into it.
+
+## Playlist owners
+
+Every playlist belongs to one profile (#1284) and is visible to the whole
+household by default, or **private** to its owner. Upgrading gives every
+existing playlist to the owner, visible to everyone, so nothing changes until
+someone makes one private. A new playlist belongs to the current profile; from
+the CLI, MCP or the API it belongs to the token's profile, or to the owner
+without one.
+
+A private playlist is invisible to every other profile: it is missing from the
+playlist list, the "Add to playlist" dialog, the command palette, Home, a
+track's playlist count and memberships, and a request for it by id (its
+tracks, its set, logging its spins, diffing a set recording against it)
+answers 404, as for a playlist that doesn't exist.
+
+Anyone who can see a household playlist may still rename it, change its
+tracks or delete it, as before profiles. Only the owner may change who sees
+it: the playlist page's menu has **Make private** / **Share with household**,
+the CLI has `groovenet playlists visibility <id> household|private` and
+`groovenet playlists create <name> --private`, MCP's `create_playlist` takes
+`visibility`, and `PATCH /api/playlists` with `visibility` answers 403 for
+anyone else. With several profiles, the playlist list filters by All, Mine or
+another profile, and tags another profile's playlists with its name and your
+private ones Private.
 
 ## Opt-in enforcement
 

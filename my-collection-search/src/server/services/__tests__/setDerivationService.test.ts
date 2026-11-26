@@ -18,6 +18,7 @@ import type {
 } from "@/types/setDerivation";
 
 const SHA = "a".repeat(64);
+const VIEWER = "00000000-0000-4000-8000-000000000002";
 const recording: SetRecordingRow = {
   sha256: SHA,
   file_path: `${SHA}.mp3`,
@@ -194,12 +195,23 @@ describe("create", () => {
   });
 
   it("lists the recording in a live set's media when asked", async () => {
-    await service.create({ recording_sha256: SHA, live_set_id: 7 }, NOW);
+    repository.findPlaylistIdForLiveSet.mockResolvedValue(176);
+    await service.create({ recording_sha256: SHA, live_set_id: 7, viewer_id: VIEWER }, NOW);
+    expect(repository.findPlaylistIdForLiveSet).toHaveBeenCalledWith(7, VIEWER);
     expect(repository.attachToLiveSet).toHaveBeenCalledWith(
       7,
       `/api/set-recordings/${SHA}`,
       "set.mp3",
     );
+  });
+
+  it("never attaches to a live set the requester can't see (#1284)", async () => {
+    repository.findPlaylistIdForLiveSet.mockResolvedValue(null);
+    await expect(
+      service.create({ recording_sha256: SHA, live_set_id: 7 }, NOW),
+    ).rejects.toBeInstanceOf(SetDerivationNotFound);
+    expect(repository.findPlaylistIdForLiveSet).toHaveBeenCalledWith(7, null);
+    expect(repository.attachToLiveSet).not.toHaveBeenCalled();
   });
 
   it("uses the stall window from the environment", () => {
@@ -379,7 +391,7 @@ describe("view", () => {
   });
 
   it("returns a tracklist with each play's track resolved", async () => {
-    const view = await service.view("d1");
+    const view = await service.view("d1", {}, VIEWER);
 
     expect(
       view.tracklist.map((p) => [p.track_id, p.start_seconds, p.end_seconds, p.track?.title]),
@@ -408,7 +420,7 @@ describe("view", () => {
     };
     repository.listUnindexedOnReleases.mockResolvedValue([sibling]);
 
-    const view = await service.view("d1");
+    const view = await service.view("d1", {}, VIEWER);
 
     expect(repository.listUnindexedOnReleases).toHaveBeenCalledWith(["10", "11"], engine);
     expect(view.unidentified).toEqual([
@@ -420,8 +432,9 @@ describe("view", () => {
   it("diffs against a playlist when given one", async () => {
     repository.listPlannedEntries.mockResolvedValue(plan);
 
-    const view = await service.view("d1", { playlist_id: 176 });
+    const view = await service.view("d1", { playlist_id: 176 }, VIEWER);
 
+    expect(repository.playlistExists).toHaveBeenCalledWith(176, VIEWER);
     expect(repository.listPlannedEntries).toHaveBeenCalledWith(176, engine);
     expect(view.diff?.played_instead_of).toEqual([{ play: 1, planned: plan[1] }]);
   });
@@ -429,44 +442,45 @@ describe("view", () => {
   it("diffs against a live set's playlist", async () => {
     repository.findPlaylistIdForLiveSet.mockResolvedValue(176);
     repository.listPlannedEntries.mockResolvedValue(plan);
-    expect((await service.view("d1", { live_set_id: 3 })).diff?.playlist_id).toBe(176);
+    expect((await service.view("d1", { live_set_id: 3 }, VIEWER)).diff?.playlist_id).toBe(176);
+    expect(repository.findPlaylistIdForLiveSet).toHaveBeenCalledWith(3, VIEWER);
   });
 
   it("refuses an unknown playlist or live set", async () => {
     repository.playlistExists.mockResolvedValue(false);
-    await expect(service.view("d1", { playlist_id: 9 })).rejects.toThrow("no playlist 9");
+    await expect(service.view("d1", { playlist_id: 9 }, VIEWER)).rejects.toThrow("no playlist 9");
     repository.findPlaylistIdForLiveSet.mockResolvedValue(null);
-    await expect(service.view("d1", { live_set_id: 9 })).rejects.toThrow("no live set 9");
+    await expect(service.view("d1", { live_set_id: 9 }, VIEWER)).rejects.toThrow("no live set 9");
   });
 
   it("returns an unfinished run with nothing to show yet", async () => {
     repository.findById.mockResolvedValue(row({ status: "processing" }));
-    const view = await service.view("d1", {});
+    const view = await service.view("d1", {}, VIEWER);
     expect(view).toMatchObject({ summary: null, tracklist: [], unidentified: [], diff: null });
     expect(repository.findTracks).not.toHaveBeenCalled();
   });
 
   it("falls back to the recording's duration, and copes with neither", async () => {
     repository.findById.mockResolvedValue({ ...processed, duration_seconds: null });
-    expect((await service.view("d1")).summary?.duration_seconds).toBe(300);
+    expect((await service.view("d1", {}, VIEWER)).summary?.duration_seconds).toBe(300);
 
     recordings.find.mockResolvedValue({ ...recording, duration_seconds: null });
-    const view = await service.view("d1");
+    const view = await service.view("d1", {}, VIEWER);
     expect(view.summary?.identified_fraction).toBeNull();
     expect(view.unidentified).toEqual([]);
   });
 
   it("keeps a play whose track has since been deleted, unresolved", async () => {
     repository.findTracks.mockResolvedValue([]);
-    const view = await service.view("d1");
+    const view = await service.view("d1", {}, VIEWER);
     expect(view.tracklist[0].track).toBeNull();
   });
 
   it("refuses an unknown run or recording", async () => {
     repository.findById.mockResolvedValue(null);
-    await expect(service.view("x")).rejects.toThrow("no derivation x");
+    await expect(service.view("x", {}, VIEWER)).rejects.toThrow("no derivation x");
     repository.findById.mockResolvedValue(processed);
     recordings.find.mockResolvedValue(null);
-    await expect(service.view("d1")).rejects.toThrow(`no recording ${SHA}`);
+    await expect(service.view("d1", {}, VIEWER)).rejects.toThrow(`no recording ${SHA}`);
   });
 });

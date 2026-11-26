@@ -12,6 +12,7 @@ import {
   playlistSpinsInputSchema,
   playlistSpinsResultSchema,
   playlistUpdateSchema,
+  playlistVisibilitySchema,
 } from "./playlists.js";
 
 describe("playlist contracts", () => {
@@ -190,5 +191,29 @@ describe("playlist contracts", () => {
     ]);
     expect(playlistJsonSchemas.PlaylistCreate.required).toEqual(["name"]);
     expect(playlistJsonSchemas.PlaylistSpinsInput.properties).toHaveProperty("derivation_id");
+  });
+
+  it("carries a playlist's owner and visibility (#1284)", () => {
+    expect(playlistVisibilitySchema.options).toEqual(["household", "private"]);
+    expect(playlistVisibilitySchema.safeParse("public").success).toBe(false);
+    const owned = {
+      owner_id: "0b6f7d1e-3c1a-4b8e-9a52-6f1c2d3e4a5b",
+      owner_name: "Sam",
+      visibility: "private" as const,
+    };
+    expect(
+      playlistSchema.parse({ id: 1, name: "Mine", created_at: "x", tracks: [], ...owned }),
+    ).toMatchObject(owned);
+    expect(
+      playlistDetailSchema.parse({ playlist_id: 1, playlist_name: "Mine", tracks: [], ...owned }),
+    ).toMatchObject(owned);
+    expect(playlistCreateSchema.parse({ name: "New", visibility: "private" }).visibility).toBe(
+      "private",
+    );
+    expect(playlistCreateSchema.parse({ name: "New" }).visibility).toBeUndefined();
+    expect(playlistUpdateSchema.safeParse({ id: 1, visibility: "public" }).success).toBe(false);
+    expect(playlistJsonSchemas.PlaylistVisibility).toMatchObject({
+      enum: ["household", "private"],
+    });
   });
 });

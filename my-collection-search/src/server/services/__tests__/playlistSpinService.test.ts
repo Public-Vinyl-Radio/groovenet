@@ -59,6 +59,8 @@ const entries = [
   },
 ];
 
+const VIEWER = "00000000-0000-4000-8000-000000000002";
+
 describe("PlaylistSpinService", () => {
   const service = new PlaylistSpinService();
 
@@ -77,7 +79,7 @@ describe("PlaylistSpinService", () => {
   });
 
   it("logs one playlist-provenance session per entry, spaced by duration", async () => {
-    await expect(service.log(9, {})).resolves.toEqual({
+    await expect(service.log(9, {}, VIEWER)).resolves.toEqual({
       playlist_id: 9,
       performance_id: 4,
       performed_at: "2026-10-01T20:00:00.000Z",
@@ -109,7 +111,7 @@ describe("PlaylistSpinService", () => {
 
   it("uses one supplied timestamp for every entry and reports idempotent skips", async () => {
     mocks.createSession.mockResolvedValue(null);
-    const result = await service.log(9, { performed_at: "2026-10-02T01:00:00Z" });
+    const result = await service.log(9, { performed_at: "2026-10-02T01:00:00Z" }, VIEWER);
     expect(result).toMatchObject({ performance_id: null, created: 0, skipped: 2 });
     expect(mocks.findPerformance).not.toHaveBeenCalled();
     expect(mocks.createSession).toHaveBeenNthCalledWith(
@@ -135,7 +137,7 @@ describe("PlaylistSpinService", () => {
       },
     });
 
-    const result = await service.log(9, { derivation_id: "d1" });
+    const result = await service.log(9, { derivation_id: "d1" }, VIEWER);
     expect(result.created).toBe(1);
     expect(mocks.createSession).toHaveBeenCalledWith(
       expect.anything(),
@@ -148,23 +150,28 @@ describe("PlaylistSpinService", () => {
 
   it("requires a timestamp when no performance exists", async () => {
     mocks.findPerformance.mockResolvedValue(null);
-    await expect(service.log(9, {})).rejects.toThrow("provide performed_at");
+    await expect(service.log(9, {}, VIEWER)).rejects.toThrow("provide performed_at");
   });
 
   it("rejects missing playlists and conflicting time sources", async () => {
     mocks.findPlaylist.mockResolvedValueOnce(null);
-    await expect(service.log(9, {})).rejects.toThrow("Playlist not found");
+    await expect(service.log(9, {}, VIEWER)).rejects.toThrow("Playlist not found");
+    expect(mocks.findPlaylist).toHaveBeenLastCalledWith(9, VIEWER);
     await expect(
-      service.log(9, {
-        performed_at: "2026-10-01T20:00:00Z",
-        performance_id: 4,
-      }),
+      service.log(
+        9,
+        {
+          performed_at: "2026-10-01T20:00:00Z",
+          performance_id: 4,
+        },
+        VIEWER,
+      ),
     ).rejects.toThrow("either performed_at or performance_id");
   });
 
   it("rejects a performance that does not belong to the playlist", async () => {
     mocks.findPerformance.mockResolvedValue(null);
-    await expect(service.log(9, { performance_id: 99 })).rejects.toThrow(
+    await expect(service.log(9, { performance_id: 99 }, VIEWER)).rejects.toThrow(
       "Performance not found for playlist",
     );
   });
@@ -180,7 +187,7 @@ describe("PlaylistSpinService", () => {
         ],
       },
     });
-    await service.log(9, { derivation_id: "d1" });
+    await service.log(9, { derivation_id: "d1" }, VIEWER);
     expect(mocks.createSession).toHaveBeenNthCalledWith(
       1,
       expect.anything(),
@@ -201,7 +208,7 @@ describe("PlaylistSpinService", () => {
 
   it("rejects unfinished derivations and playlists changed since review", async () => {
     mocks.view.mockResolvedValueOnce({ derivation: { status: "queued" }, diff: null });
-    await expect(service.log(9, { derivation_id: "d1" })).rejects.toThrow("not ready");
+    await expect(service.log(9, { derivation_id: "d1" }, VIEWER)).rejects.toThrow("not ready");
 
     mocks.view.mockResolvedValueOnce({
       derivation: { status: "processed" },
@@ -212,14 +219,14 @@ describe("PlaylistSpinService", () => {
         ],
       },
     });
-    await expect(service.log(9, { derivation_id: "d2" })).rejects.toThrow(
+    await expect(service.log(9, { derivation_id: "d2" }, VIEWER)).rejects.toThrow(
       "Playlist changed since the set derivation was reviewed",
     );
   });
 
   it("rejects unresolved playlist entries", async () => {
     mocks.listEntries.mockResolvedValue([{ ...entries[0], release_id: null }]);
-    await expect(service.log(9, {})).rejects.toThrow("missing or has no release");
+    await expect(service.log(9, {}, VIEWER)).rejects.toThrow("missing or has no release");
   });
 
   it("handles nullable optional metadata and offsets", async () => {
@@ -241,7 +248,7 @@ describe("PlaylistSpinService", () => {
         played_as_planned: [{ play: 0, planned: { ...entries[0], index: 0 } }],
       },
     });
-    await service.log(9, { derivation_id: "d1" });
+    await service.log(9, { derivation_id: "d1" }, VIEWER);
     expect(mocks.insertEvents).toHaveBeenCalledWith(expect.anything(), 100, [
       expect.objectContaining({ album_snapshot: "", played_at: "2026-10-01T20:00:00.000Z" }),
     ]);

@@ -29,6 +29,7 @@ import type {
   PlaylistSpinsInput,
   PlaylistSpinsResult,
   PlaylistTrackRef,
+  PlaylistVisibility,
   LiveSet,
   LiveSetDeleteResponse,
   LiveSetMutationResponse,
@@ -578,11 +579,14 @@ export class GroovenetClient {
    * Create a playlist. The API only accepts track objects (`{ track_id,
    * friend_id? }`), so bare track id strings are wrapped here; `defaultFriendId`
    * is the friend they belong to, and an object that names its own friend keeps it.
+   * The playlist is owned by the token's profile (else the owner), visible to the
+   * household unless `visibility: "private"` (#1284).
    */
   async createPlaylist(
     name: string,
     tracks: Array<string | { track_id: string; friend_id?: number }> = [],
     defaultFriendId?: number,
+    options: { visibility?: PlaylistVisibility } = {},
   ): Promise<Playlist> {
     const refs = tracks.map((track) => {
       const ref = typeof track === "string" ? { track_id: track } : track;
@@ -590,7 +594,22 @@ export class GroovenetClient {
         ? ref
         : { ...ref, friend_id: defaultFriendId };
     });
-    return this.request<Playlist>("POST", "/playlists", { name, tracks: refs });
+    return this.request<Playlist>("POST", "/playlists", {
+      name,
+      tracks: refs,
+      ...(options.visibility ? { visibility: options.visibility } : {}),
+    });
+  }
+
+  /**
+   * Who sees a playlist: the household, or only its owner (#1284). Only the
+   * owner may change it; anyone else gets a 403.
+   */
+  async setPlaylistVisibility(
+    playlistId: number,
+    visibility: PlaylistVisibility,
+  ): Promise<Playlist> {
+    return this.request<Playlist>("PATCH", "/playlists", { id: playlistId, visibility });
   }
 
   /**

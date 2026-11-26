@@ -7,6 +7,7 @@ import {
   SetDerivationQueueError,
   setDerivationService,
 } from "@/server/services/setDerivationService";
+import { resolveViewer } from "@/server/auth/viewer";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,11 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { derivation, reused } = await setDerivationService.create(parsed.data);
+    const viewer = await resolveViewer(req);
+    const { derivation, reused } = await setDerivationService.create({
+      ...parsed.data,
+      viewer_id: viewer.id,
+    });
     analytics.track(
       "set_derivation_started",
       { derivation_id: derivation.id, reused },

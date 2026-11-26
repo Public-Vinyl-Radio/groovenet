@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  PlaylistForbiddenError,
   PlaylistManagementService,
   normalizePlaylistCreatedAt,
 } from "../playlistManagementService";
@@ -25,6 +26,7 @@ const repo = vi.hoisted(() => ({
   findAnyFriendIdForTrack: vi.fn(),
   getDefaultFriendId: vi.fn(),
   findPlaylistById: vi.fn(),
+  updatePlaylistVisibility: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/playlistRepository", () => ({
@@ -37,6 +39,9 @@ vi.mock("@/lib/serverDb", () => ({
 }));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+
+const ME = "00000000-0000-4000-8000-000000000001";
+const SAM = "00000000-0000-4000-8000-000000000002";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -81,7 +86,7 @@ describe("normalizePlaylistCreatedAt()", () => {
 describe("getPlaylistTrackDetails()", () => {
   it("returns notFound:true when the playlist does not exist", async () => {
     repo.findPlaylistHeaderById.mockResolvedValue(null);
-    const result = await makeService().getPlaylistTrackDetails(99);
+    const result = await makeService().getPlaylistTrackDetails(99, ME);
     expect(result).toEqual({ notFound: true });
   });
 
@@ -91,7 +96,7 @@ describe("getPlaylistTrackDetails()", () => {
       { track_id: "t1", friend_id: 1, position: 0 },
     ]);
 
-    const result = await makeService().getPlaylistTrackDetails(1);
+    const result = await makeService().getPlaylistTrackDetails(1, ME);
     expect(result).toEqual({
       notFound: false,
       detail: {
@@ -106,12 +111,12 @@ describe("getPlaylistTrackDetails()", () => {
     repo.findPlaylistHeaderById.mockResolvedValue({ id: 2, name: "Empty" });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    const result = await makeService().getPlaylistTrackDetails(2);
+    const result = await makeService().getPlaylistTrackDetails(2, ME);
     expect(result).toMatchObject({ notFound: false, detail: { tracks: [] } });
   });
 });
 
-describe("getAllPlaylistsWithTracks()", () => {
+describe("getAllPlaylistsWithTracks(ME)", () => {
   it("enriches playlists with batched duration and optional set summaries", async () => {
     repo.listPlaylists.mockResolvedValue([
       { id: 1, name: "Set", created_at: "2026-01-01T00:00:00.000Z" },
@@ -124,7 +129,7 @@ describe("getAllPlaylistsWithTracks()", () => {
       1: { id: 7, status: "performed", collaborators: [] },
     });
     repo.listCoverUrlsByPlaylistIds.mockResolvedValue({ 1: ["/a.jpg"] });
-    const result = await makeService().getAllPlaylistsWithTracks();
+    const result = await makeService().getAllPlaylistsWithTracks(ME);
     expect(result).toMatchObject([
       {
         id: 1,
@@ -141,10 +146,10 @@ describe("getAllPlaylistsWithTracks()", () => {
 
 // ─── getAllPlaylistsWithTracks ─────────────────────────────────────────────────
 
-describe("getAllPlaylistsWithTracks()", () => {
+describe("getAllPlaylistsWithTracks(ME)", () => {
   it("returns an empty array when there are no playlists", async () => {
     repo.listPlaylists.mockResolvedValue([]);
-    const result = await makeService().getAllPlaylistsWithTracks();
+    const result = await makeService().getAllPlaylistsWithTracks(ME);
     expect(result).toEqual([]);
     expect(repo.listPlaylistTracksByPlaylistIds).not.toHaveBeenCalled();
   });
@@ -160,7 +165,7 @@ describe("getAllPlaylistsWithTracks()", () => {
       { playlist_id: 2, track_id: "t3", friend_id: 1, position: 0 },
     ]);
 
-    const result = await makeService().getAllPlaylistsWithTracks();
+    const result = await makeService().getAllPlaylistsWithTracks(ME);
 
     expect(result).toHaveLength(2);
     expect(result[0].tracks).toHaveLength(2);
@@ -174,7 +179,7 @@ describe("getAllPlaylistsWithTracks()", () => {
     ]);
     repo.listPlaylistTracksByPlaylistIds.mockResolvedValue([]);
 
-    const result = await makeService().getAllPlaylistsWithTracks();
+    const result = await makeService().getAllPlaylistsWithTracks(ME);
     expect(result[0].tracks).toEqual([]);
     expect(result[0].cover_urls).toEqual([]);
   });
@@ -191,6 +196,7 @@ describe("createPlaylistWithTracks()", () => {
     });
 
     const result = await makeService().createPlaylistWithTracks({
+      ownerId: ME,
       name: "Empty Playlist",
       tracks: [],
     });
@@ -212,6 +218,7 @@ describe("createPlaylistWithTracks()", () => {
     repo.insertPlaylistTracks.mockResolvedValue(undefined);
 
     const result = await makeService().createPlaylistWithTracks({
+      ownerId: ME,
       name: "Mix",
       tracks: [{ track_id: "t1", username: "alice" }],
     });
@@ -239,6 +246,7 @@ describe("createPlaylistWithTracks()", () => {
     repo.insertPlaylistTracks.mockResolvedValue(undefined);
 
     const result = await makeService().createPlaylistWithTracks({
+      ownerId: ME,
       name: "Mix",
       tracks: [{ track_id: "t2", username: "unknown" }],
     });
@@ -260,6 +268,7 @@ describe("createPlaylistWithTracks()", () => {
     repo.insertPlaylistTracks.mockResolvedValue(undefined);
 
     const result = await makeService().createPlaylistWithTracks({
+      ownerId: ME,
       name: "Mix",
       tracks: [{ track_id: "t3" }],
     });
@@ -279,6 +288,7 @@ describe("createPlaylistWithTracks()", () => {
     repo.insertPlaylistTracks.mockResolvedValue(undefined);
 
     const result = await makeService().createPlaylistWithTracks({
+      ownerId: ME,
       name: "Mix",
       tracks: [{ track_id: "t1" }, { track_id: "t2" }, { track_id: "t3" }],
     });
@@ -293,7 +303,7 @@ describe("updatePlaylist()", () => {
   it("returns notFound:true when the playlist does not exist", async () => {
     repo.findPlaylistHeaderByIdWithClient.mockResolvedValue(null);
 
-    const result = await makeService().updatePlaylist({ id: 99 });
+    const result = await makeService().updatePlaylist({ id: 99 }, ME);
     expect(result).toEqual({ notFound: true });
   });
 
@@ -307,7 +317,7 @@ describe("updatePlaylist()", () => {
     });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    const result = await makeService().updatePlaylist({ id: 1, name: "New Name" });
+    const result = await makeService().updatePlaylist({ id: 1, name: "New Name" }, ME);
 
     expect(repo.updatePlaylistName).toHaveBeenCalledWith({}, 1, "New Name");
     expect(result).toMatchObject({ notFound: false, playlist: { name: "New Name" } });
@@ -322,7 +332,7 @@ describe("updatePlaylist()", () => {
     });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    await makeService().updatePlaylist({ id: 1 });
+    await makeService().updatePlaylist({ id: 1 }, ME);
     expect(repo.updatePlaylistName).not.toHaveBeenCalled();
   });
 
@@ -341,10 +351,13 @@ describe("updatePlaylist()", () => {
       { track_id: "t1", friend_id: 3, position: 0 },
     ]);
 
-    const result = await makeService().updatePlaylist({
-      id: 1,
-      tracks: ["t1"],
-    });
+    const result = await makeService().updatePlaylist(
+      {
+        id: 1,
+        tracks: ["t1"],
+      },
+      ME,
+    );
 
     expect(repo.deletePlaylistTracks).toHaveBeenCalledWith({}, 1);
     expect(repo.insertPlaylistTracks).toHaveBeenCalled();
@@ -363,10 +376,13 @@ describe("updatePlaylist()", () => {
     });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    await makeService().updatePlaylist({
-      id: 1,
-      tracks: [{ track_id: "t1", friend_id: 42 }],
-    });
+    await makeService().updatePlaylist(
+      {
+        id: 1,
+        tracks: [{ track_id: "t1", friend_id: 42 }],
+      },
+      ME,
+    );
 
     const insertCall = repo.insertPlaylistTracks.mock.calls[0];
     expect(insertCall[2][0].friend_id).toBe(42);
@@ -386,11 +402,14 @@ describe("updatePlaylist()", () => {
     });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    await makeService().updatePlaylist({
-      id: 1,
-      default_friend_id: 9,
-      tracks: [{ track_id: "t1" }],
-    });
+    await makeService().updatePlaylist(
+      {
+        id: 1,
+        default_friend_id: 9,
+        tracks: [{ track_id: "t1" }],
+      },
+      ME,
+    );
 
     const insertCall = repo.insertPlaylistTracks.mock.calls[0];
     expect(insertCall[2][0].friend_id).toBe(9);
@@ -408,7 +427,7 @@ describe("updatePlaylist()", () => {
     });
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    await makeService().updatePlaylist({ id: 1, tracks: [] });
+    await makeService().updatePlaylist({ id: 1, tracks: [] }, ME);
 
     expect(repo.deletePlaylistTracks).toHaveBeenCalled();
     expect(repo.insertPlaylistTracks).not.toHaveBeenCalled();
@@ -419,7 +438,86 @@ describe("updatePlaylist()", () => {
     repo.findPlaylistById.mockResolvedValue(null);
     repo.listTrackRefsForPlaylist.mockResolvedValue([]);
 
-    const result = await makeService().updatePlaylist({ id: 1 });
+    const result = await makeService().updatePlaylist({ id: 1 }, ME);
     expect(result).toEqual({ notFound: true });
+  });
+});
+
+// ─── ownership and visibility (#1284) ─────────────────────────────────────────
+
+describe("playlist ownership", () => {
+  const header = (owner: string, visibility: "household" | "private" = "household") => ({
+    id: 1,
+    name: "Mix",
+    owner_id: owner,
+    owner_name: owner === ME ? "Me" : "Sam",
+    visibility,
+  });
+
+  beforeEach(() => {
+    repo.findPlaylistById.mockResolvedValue({ id: 1, name: "Mix", created_at: "2024-01-01" });
+    repo.listTrackRefsForPlaylist.mockResolvedValue([]);
+  });
+
+  it("scopes every read to the viewer", async () => {
+    repo.listPlaylists.mockResolvedValue([]);
+    await makeService().getAllPlaylistsWithTracks(SAM);
+    expect(repo.listPlaylists).toHaveBeenCalledWith(SAM);
+
+    repo.findPlaylistHeaderById.mockResolvedValue(null);
+    expect(await makeService().getPlaylistTrackDetails(1, SAM)).toEqual({ notFound: true });
+    expect(repo.findPlaylistHeaderById).toHaveBeenCalledWith(1, SAM);
+  });
+
+  it("returns the owner and visibility with a playlist's tracks", async () => {
+    repo.findPlaylistHeaderById.mockResolvedValue(header(SAM, "private"));
+    const result = await makeService().getPlaylistTrackDetails(1, SAM);
+    expect(result).toMatchObject({
+      detail: { owner_id: SAM, owner_name: "Sam", visibility: "private" },
+    });
+  });
+
+  it("creates the playlist for its owner with the requested visibility", async () => {
+    repo.createPlaylistWithClient.mockResolvedValue({ id: 3, name: "Mine", created_at: "x" });
+    await makeService().createPlaylistWithTracks({
+      name: "Mine",
+      tracks: [],
+      ownerId: SAM,
+      visibility: "private",
+    });
+    expect(repo.createPlaylistWithClient).toHaveBeenCalledWith({}, "Mine", SAM, "private");
+  });
+
+  it("lets the owner change visibility", async () => {
+    repo.findPlaylistHeaderByIdWithClient.mockResolvedValue(header(ME));
+    await makeService().updatePlaylist({ id: 1, visibility: "private" }, ME);
+    expect(repo.updatePlaylistVisibility).toHaveBeenCalledWith({}, 1, "private");
+    expect(repo.findPlaylistById).toHaveBeenCalledWith(1, ME);
+  });
+
+  it("refuses a visibility change from anyone else, before changing anything", async () => {
+    repo.findPlaylistHeaderByIdWithClient.mockResolvedValue(header(ME));
+    await expect(
+      makeService().updatePlaylist({ id: 1, name: "Renamed", visibility: "private" }, SAM),
+    ).rejects.toThrow(PlaylistForbiddenError);
+    expect(repo.updatePlaylistVisibility).not.toHaveBeenCalled();
+    expect(repo.updatePlaylistName).not.toHaveBeenCalled();
+  });
+
+  it("lets the household edit someone else's playlist, echoing its visibility", async () => {
+    repo.findPlaylistHeaderByIdWithClient.mockResolvedValue(header(ME));
+    const result = await makeService().updatePlaylist(
+      { id: 1, name: "Renamed", visibility: "household" },
+      SAM,
+    );
+    expect(repo.updatePlaylistName).toHaveBeenCalledWith({}, 1, "Renamed");
+    expect(repo.updatePlaylistVisibility).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ notFound: false });
+  });
+
+  it("is not found when the playlist disappears before it is read back", async () => {
+    repo.findPlaylistHeaderByIdWithClient.mockResolvedValue(header(ME));
+    repo.findPlaylistById.mockResolvedValue(null);
+    expect(await makeService().updatePlaylist({ id: 1 }, ME)).toEqual({ notFound: true });
   });
 });

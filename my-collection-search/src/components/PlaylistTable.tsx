@@ -15,6 +15,7 @@ import {
 } from "@/components/PlaylistListItem";
 import { formatGroupCount, playlistDayParts, type PlaylistMonthGroup } from "@/lib/playlistGroups";
 import type { Playlist } from "@/types/track";
+import PlaylistOwnerTag from "@/components/PlaylistOwnerTag";
 
 const Table = chakra("table");
 const Thead = chakra("thead");
@@ -179,6 +180,7 @@ function PlaylistTableRow({
           <Text fontWeight="semibold" fontSize="sm" lineClamp={2}>
             {title}
           </Text>
+          <PlaylistOwnerTag playlist={playlist} />
           {set && (
             <Text
               data-testid="live-set-stamp"

@@ -26,13 +26,14 @@ async function failedJobs(friendId: number, now: Date): Promise<number | null> {
 }
 
 export const homeService = {
-  async getHome({ friend_id }: HomeQuery): Promise<HomeResponse> {
+  /** `viewerId`: whose private playlists count and show (#1284). */
+  async getHome({ friend_id }: HomeQuery, viewerId: string): Promise<HomeResponse> {
     const now = new Date();
     const [counts, arrivals, attention, playlists, care, failed_jobs] = await Promise.all([
-      homeRepository.counts(friend_id),
+      homeRepository.counts(friend_id, viewerId),
       homeRepository.arrivals(friend_id, now),
       homeRepository.attention(friend_id),
-      homeRepository.playlists(friend_id),
+      homeRepository.playlists(friend_id, viewerId),
       recordCopyRepository.careCounts(friend_id, defaultOverdueDays(), DEFAULT_TARGET_SLEEVE),
       failedJobs(friend_id, now),
     ]);

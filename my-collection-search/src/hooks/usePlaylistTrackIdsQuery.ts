@@ -14,6 +14,11 @@ type Options = {
   gcTime?: number;
 };
 
+/** The API's 404 for a playlist that is missing or not visible to this profile. */
+export function isPlaylistNotFound(error: unknown): boolean {
+  return error instanceof Error && error.message === "Playlist not found";
+}
+
 export function usePlaylistTrackIdsQuery(
   playlistId: number | string | null | undefined,
   options?: Options,
@@ -33,6 +38,8 @@ export function usePlaylistTrackIdsQuery(
     staleTime: options?.staleTime ?? 30_000,
     gcTime: options?.gcTime ?? 5 * 60_000,
     refetchOnWindowFocus: false,
+    // A 404 is an answer (missing, or someone else's private playlist, #1284).
+    retry: (failures, error) => !isPlaylistNotFound(error) && failures < 3,
   });
 
   const rawTracks = Array.isArray(query.data) ? query.data : (query.data?.tracks ?? []);
@@ -47,6 +54,16 @@ export function usePlaylistTrackIdsQuery(
     isPending: query.isPending && query.fetchStatus !== "idle",
     tracks,
     playlistName: Array.isArray(query.data) ? null : (query.data?.playlist_name ?? null),
+    notFound: isPlaylistNotFound(query.error),
+    /** Whose playlist it is and who sees it (#1284); null before it loads. */
+    ownership:
+      query.data && !Array.isArray(query.data) && "owner_id" in query.data && query.data.owner_id
+        ? {
+            owner_id: query.data.owner_id,
+            owner_name: query.data.owner_name ?? null,
+            visibility: query.data.visibility ?? "household",
+          }
+        : null,
   };
 }
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { printTrack } from "./output.js";
+import { playlistOwner, printPlaylists, printTrack } from "./output.js";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -29,5 +29,24 @@ describe("printTrack ratings (#1283)", () => {
   it("leaves the line out when no one else has rated it", () => {
     const out = printed({ track_id: "t1", title: "Song", artist: "Artist", other_ratings: [] });
     expect(out).not.toContain("Others' Ratings");
+  });
+});
+
+describe("playlist owners (#1284)", () => {
+  it("names the owner, marks private, and copes with an older server", () => {
+    expect(playlistOwner({ owner_name: "Sam", visibility: "household" })).toBe("Sam");
+    expect(playlistOwner({ owner_name: "Sam", visibility: "private" })).toBe("Sam (private)");
+    expect(playlistOwner({})).toBe("-");
+  });
+
+  it("lists the owner column", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    printPlaylists(
+      [{ id: 1, name: "Mix", created_at: "2026-01-01", tracks: [], owner_name: "Sam" }],
+      false,
+    );
+    const out = log.mock.calls.flat().join("\n");
+    expect(out).toContain("Owner");
+    expect(out).toContain("Sam");
   });
 });

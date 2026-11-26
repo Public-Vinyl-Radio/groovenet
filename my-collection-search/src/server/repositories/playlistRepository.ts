@@ -30,6 +30,31 @@ export type PlaylistPerformance = {
   performed_at: Date | string;
 };
 
+export type PlaylistVisibility = "household" | "private";
+
+/** The fields of a playlist row that say whose it is. */
+export type PlaylistHeader = {
+  id: number;
+  name: string;
+  owner_id: string;
+  owner_name: string | null;
+  visibility: PlaylistVisibility;
+};
+
+/**
+ * A playlist the viewer may see (#1284): any household playlist, or one of
+ * their own. Every query that reads or accepts a playlist id goes through
+ * this, so a private playlist is "not found" to everyone but its owner.
+ */
+export function playlistVisibleSql(alias: string, viewerParam: string): string {
+  return `(${alias}.visibility = 'household' OR ${alias}.owner_id = ${viewerParam})`;
+}
+
+const HEADER_SQL = `SELECT p.id, p.name, p.owner_id, u.name AS owner_name, p.visibility
+  FROM playlists p
+  LEFT JOIN users u ON u.id = p.owner_id
+  WHERE p.id = $1 AND ${playlistVisibleSql("p", "$2")}`;
+
 function normalizeStringArray(arr?: unknown): string[] | null {
   if (!arr) return null;
   if (Array.isArray(arr)) return arr.map(String);
@@ -146,8 +171,16 @@ export class PlaylistRepository {
     return result.rows[0]?.username ?? null;
   }
 
-  async listPlaylists(): Promise<Playlist[]> {
-    const res = await dbQuery("SELECT * FROM playlists ORDER BY created_at DESC");
+  /** Every playlist the viewer may see, newest first, with its owner's name. */
+  async listPlaylists(viewerId: string): Promise<Playlist[]> {
+    const res = await dbQuery(
+      `SELECT p.*, u.name AS owner_name
+       FROM playlists p
+       LEFT JOIN users u ON u.id = p.owner_id
+       WHERE ${playlistVisibleSql("p", "$1")}
+       ORDER BY p.created_at DESC`,
+      [viewerId],
+    );
     return res.rows as Playlist[];
   }
 
@@ -160,45 +193,61 @@ export class PlaylistRepository {
     return res.rows as PlaylistTrackRow[];
   }
 
-  async createPlaylist(name: string): Promise<Playlist> {
-    const res = await dbQuery("INSERT INTO playlists (name) VALUES ($1) RETURNING *", [name]);
-    return res.rows[0] as Playlist;
-  }
-
-  async createPlaylistWithClient(client: Queryable, name: string): Promise<Playlist> {
+  /** A new playlist owned by `ownerId`, with its owner's name. */
+  async createPlaylistWithClient(
+    client: Queryable,
+    name: string,
+    ownerId: string,
+    visibility: PlaylistVisibility = "household",
+  ): Promise<Playlist> {
     const res = await client.query<Playlist>(
-      "INSERT INTO playlists (name) VALUES ($1) RETURNING *",
-      [name],
+      `WITH created AS (
+         INSERT INTO playlists (name, owner_id, visibility) VALUES ($1, $2, $3) RETURNING *
+       )
+       SELECT created.*, u.name AS owner_name
+       FROM created LEFT JOIN users u ON u.id = created.owner_id`,
+      [name, ownerId, visibility],
     );
     return res.rows[0] as Playlist;
   }
 
-  async findPlaylistById(id: number): Promise<Playlist | null> {
-    const res = await dbQuery("SELECT * FROM playlists WHERE id = $1", [id]);
+  async findPlaylistById(id: number, viewerId: string): Promise<Playlist | null> {
+    const res = await dbQuery(
+      `SELECT p.*, u.name AS owner_name
+       FROM playlists p
+       LEFT JOIN users u ON u.id = p.owner_id
+       WHERE p.id = $1 AND ${playlistVisibleSql("p", "$2")}`,
+      [id, viewerId],
+    );
     return (res.rows[0] as Playlist | undefined) ?? null;
   }
 
-  async findPlaylistHeaderById(id: number): Promise<{ id: number; name: string } | null> {
-    const res = await dbQuery<{ id: number; name: string }>(
-      "SELECT id, name FROM playlists WHERE id = $1",
-      [id],
-    );
+  /** The playlist's name and ownership, or null when it is missing or not visible. */
+  async findPlaylistHeaderById(id: number, viewerId: string): Promise<PlaylistHeader | null> {
+    const res = await dbQuery<PlaylistHeader>(HEADER_SQL, [id, viewerId]);
     return res.rows[0] ?? null;
   }
 
   async findPlaylistHeaderByIdWithClient(
     client: Queryable,
     id: number,
-  ): Promise<{ id: number; name: string } | null> {
-    const res = await client.query<{ id: number; name: string }>(
-      "SELECT id, name FROM playlists WHERE id = $1",
-      [id],
-    );
+    viewerId: string,
+  ): Promise<PlaylistHeader | null> {
+    const res = await client.query<PlaylistHeader>(HEADER_SQL, [id, viewerId]);
     return res.rows[0] ?? null;
   }
 
   async updatePlaylistName(client: Queryable, id: number, name: string): Promise<void> {
     await client.query("UPDATE playlists SET name = $1 WHERE id = $2", [name, id]);
+  }
+
+  /** Owner only: the caller checks ownership first. */
+  async updatePlaylistVisibility(
+    client: Queryable,
+    id: number,
+    visibility: PlaylistVisibility,
+  ): Promise<void> {
+    await client.query("UPDATE playlists SET visibility = $1 WHERE id = $2", [visibility, id]);
   }
 
   async deletePlaylistTracks(client: Queryable, playlistId: number): Promise<void> {
@@ -225,8 +274,11 @@ export class PlaylistRepository {
     await client.query(sql, params);
   }
 
-  async deletePlaylistById(id: number): Promise<Playlist | null> {
+  /** Deletes a playlist the viewer may see; a private one of someone else's is not found. */
+  async deletePlaylistById(id: number, viewerId: string): Promise<Playlist | null> {
     return withDbTransaction(async (client) => {
+      const visible = await this.findPlaylistHeaderByIdWithClient(client, id, viewerId);
+      if (!visible) return null;
       await this.deletePlaylistTracks(client, id);
       const res = await client.query("DELETE FROM playlists WHERE id = $1 RETURNING *", [id]);
       return (res.rows[0] as Playlist | undefined) ?? null;
