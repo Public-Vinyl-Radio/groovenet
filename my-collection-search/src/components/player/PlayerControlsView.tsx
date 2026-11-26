@@ -292,9 +292,9 @@ export default function PlayerControlsView({
             borderWidth="outline"
             borderRadius="md"
             borderColor="border.ink"
-            bg={isQueueOpen ? "border.ink" : "bg"}
+            bg={isQueueOpen ? "fg" : "bg"}
             color={isQueueOpen ? "bg" : "fg"}
-            _hover={{ bg: isQueueOpen ? "border.ink" : "bg.muted" }}
+            _hover={{ bg: isQueueOpen ? "fg" : "bg.muted" }}
           >
             <FiList size={18} />
           </BarButton>

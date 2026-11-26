@@ -34,8 +34,13 @@ import {
   type UpdateAppearanceSettingsBody,
 } from "@/services/internalApi/settings";
 
-/** A change to the palette, corners and/or some fonts; what isn't named stays as it is. */
-export type AppearancePatch = UpdateAppearanceSettingsBody;
+/**
+ * A change to the palette, corners and/or some fonts; what isn't named stays as it is.
+ * A custom palette here is always whole (`outline` included); only an API request may omit it.
+ */
+export type AppearancePatch = Omit<UpdateAppearanceSettingsBody, "customPalette"> & {
+  customPalette?: CustomPalette | null;
+};
 
 /** The attribute on <html> that carries a font role's choice. */
 const fontDataKey = {

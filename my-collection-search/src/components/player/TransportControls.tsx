@@ -34,11 +34,11 @@ const keyCss: SystemStyleObject = {
 /** The solid key: an ink fill, ground-coloured glyph. Pressed dims rather than moves. */
 const solidKeyCss: SystemStyleObject = {
   ...keyCss,
-  bg: "border.ink",
+  bg: "fg",
   color: "bg",
-  _hover: { bg: "border.ink", filter: "brightness(0.9)" },
-  _active: { bg: "border.ink", filter: "brightness(0.8)" },
-  _disabled: { bg: "border.ink", color: "bg", opacity: 0.5, cursor: "not-allowed" },
+  _hover: { bg: "fg", filter: "brightness(0.9)" },
+  _active: { bg: "fg", filter: "brightness(0.8)" },
+  _disabled: { bg: "fg", color: "bg", opacity: 0.5, cursor: "not-allowed" },
 };
 
 const Key = chakra("button");

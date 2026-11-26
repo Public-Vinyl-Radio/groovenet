@@ -96,7 +96,7 @@ function OptionRow({
         borderWidth="outline"
         borderRadius="md"
         borderColor="border.ink"
-        bg={checked ? "border.ink" : "transparent"}
+        bg={checked ? "fg" : "transparent"}
       />
       <Flex direction="column" gap="2px" flex="1" minW={0}>
         <Text fontSize="16px" lineHeight="22px" fontWeight="semibold" truncate>

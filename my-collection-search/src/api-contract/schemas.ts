@@ -734,7 +734,11 @@ export const appearanceSettingsPutBodySchema = appearanceSettingsUpdateObjectSch
     message: "palette custom needs a custom palette",
   });
 
-export const appearanceSettingsResponseSchema = appearanceSettingsSchema;
+// The saved palette always comes back whole: `outline` is filled in from `ink`
+// for one saved before it existed.
+export const appearanceSettingsResponseSchema = appearanceSettingsSchema.extend({
+  customPalette: customPaletteSchema.nullable(),
+});
 
 export const recommendationSettingsQuerySchema = sharedRecommendationSettingsQuerySchema.extend({
   friend_id: intFromInputSchema,
