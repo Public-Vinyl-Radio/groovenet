@@ -19,4 +19,9 @@ export function down(pgm) {
   pgm.addColumns("gamdl_settings", {
     audio_format: { type: "varchar(10)", notNull: true, default: "m4a" },
   });
+  pgm.addConstraint(
+    "gamdl_settings",
+    "chk_audio_format",
+    "CHECK (audio_format IN ('m4a', 'mp3', 'aac', 'flac'))",
+  );
 }
