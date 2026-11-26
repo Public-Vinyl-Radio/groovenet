@@ -214,6 +214,7 @@ export function usePlayerControlsController() {
       ? (player?.name ?? server.players.find((p) => p.id === server.target)?.name ?? server.target)
       : null,
     isPlaying,
+    playbackError: server ? null : local.playbackError,
     currentTrack: displayTrack,
     currentTrackIndex,
     isQueueFinished,

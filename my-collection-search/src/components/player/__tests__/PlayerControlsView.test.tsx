@@ -396,3 +396,16 @@ describe("PlayerControlsView — Queue toggle and server volume", () => {
     expect(onVolumeCommit).toHaveBeenCalledWith(0);
   });
 });
+
+it.each([true, false])("shows a playback error in the player (compact=%s)", (compact) => {
+  renderWithProviders(
+    <PlaylistPlayerProvider>
+      <PlayerControlsView
+        {...baseProps}
+        compact={compact}
+        playbackError="This browser can't play ALAC."
+      />
+    </PlaylistPlayerProvider>,
+  );
+  expect(screen.getByRole("alert").textContent).toBe("This browser can't play ALAC.");
+});

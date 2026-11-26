@@ -30,6 +30,7 @@ interface PlayerControlsViewProps {
   compact: boolean;
   showVolumeControls: boolean;
   isPlaying: boolean;
+  playbackError?: string | null;
   currentTrack: Track | null;
   safeLen: number;
   canPrev: boolean;
@@ -69,6 +70,7 @@ export default function PlayerControlsView({
   isQueueOpen,
   compact,
   showVolumeControls,
+  playbackError,
   isPlaying,
   currentTrack,
   safeLen,
@@ -110,6 +112,12 @@ export default function PlayerControlsView({
     onPause,
     onNext: playNext,
   };
+
+  const errorNotice = playbackError ? (
+    <Text role="alert" fontSize="12px" lineHeight="16px">
+      {playbackError}
+    </Text>
+  ) : null;
 
   if (compact) {
     // The mini player (phones): progress line, then art + text (opens Now
@@ -157,6 +165,7 @@ export default function PlayerControlsView({
                 {secondaryText}
               </Text>
               <OutputTag />
+              {errorNotice}
             </VStack>
           </chakra.button>
           <SquarePlayButton {...transport} />
@@ -250,6 +259,7 @@ export default function PlayerControlsView({
       </Flex>
 
       <VStack gap="8px" minW={0}>
+        {errorNotice}
         <TransportStrip size="md" {...transport} />
         <Box w="100%" maxW="560px">
           <ProgressSlider seek={onSeek} layout="inline" seekOnRelease={serverMode} />
