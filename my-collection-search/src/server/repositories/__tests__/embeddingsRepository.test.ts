@@ -806,14 +806,28 @@ describe("findContextMatches()", () => {
 
     await makeRepo().findContextMatches(client as any, {
       ...base,
-      filters: { friendId: 6, bpmMin: 90, key: "A minor", minStarRating: 4 },
+      filters: { friendId: 6, bpmMin: 90, key: "A minor", minStarRating: 4, ratingViewerId: "u1" },
     });
 
     const [sql, params] = client.query.mock.calls[0];
     expect(sql).toContain("t.bpm >= $5");
     expect(sql).toContain("LOWER(t.key) = LOWER($6)");
-    expect(sql).toContain("t.star_rating >= $7");
-    expect(params).toEqual(["[0.1,0.2]", "context-model", 1, 6, 90, "A minor", 4, 200, 2, 10]);
+    // The viewer's rating (#1283).
+    expect(sql).toContain("vr.user_id = $7::uuid");
+    expect(sql).toContain("t.friend_id), 0) >= $8");
+    expect(params).toEqual([
+      "[0.1,0.2]",
+      "context-model",
+      1,
+      6,
+      90,
+      "A minor",
+      "u1",
+      4,
+      200,
+      2,
+      10,
+    ]);
   });
 
   it("excludes soft-deleted tracks and applies the missing-field chips on t", async () => {

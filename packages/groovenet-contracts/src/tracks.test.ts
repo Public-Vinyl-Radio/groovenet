@@ -11,6 +11,7 @@ import {
   trackLyricsUpdateRequestSchema,
 } from "./tracks.js";
 import { describe, expect, it } from "vitest";
+import { spinTopTrackSchema } from "./spins.js";
 import {
   trackAnalyzeAsyncRequestSchema,
   trackAnalyzeAsyncResponseSchema,
@@ -32,6 +33,7 @@ import {
   trackPreferredDownloaderSchema,
   trackRestoreResponseSchema,
   trackSchema,
+  trackOtherRatingSchema,
   trackSearchModeSchema,
   trackSearchQuerySchema,
   trackSearchResponseSchema,
@@ -463,5 +465,20 @@ describe("track lyrics contracts (#1171)", () => {
     expect(trackJsonSchemas).toHaveProperty("TrackLyrics");
     expect(trackJsonSchemas).toHaveProperty("TrackLyricsUpdateRequest");
     expect(trackJsonSchemas).toHaveProperty("TrackLyricsDeleteResponse");
+  });
+});
+
+describe("per-profile ratings (#1283)", () => {
+  const sam = { user_id: "6f1c2a52-6b8e-4d5c-9b0a-1c2d3e4f5a6b", name: "Sam", rating: 3 };
+
+  it("carries the viewer's star_rating and the others' read-only", () => {
+    expect(trackSchema.shape.other_ratings.parse([sam])).toEqual([sam]);
+    expect(trackSchema.shape.star_rating.parse(0)).toBe(0);
+    expect(trackOtherRatingSchema.safeParse({ ...sam, rating: 0 }).success).toBe(false);
+    expect(trackOtherRatingSchema.safeParse({ ...sam, rating: 6 }).success).toBe(false);
+  });
+
+  it("does the same on a spin top track", () => {
+    expect(spinTopTrackSchema.shape.other_ratings.safeParse([sam]).success).toBe(true);
   });
 });

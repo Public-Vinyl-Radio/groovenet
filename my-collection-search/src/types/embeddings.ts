@@ -17,7 +17,6 @@ export type SimilarTrackBase = Pick<
   | "audio_file_album_art_url"
   | "bpm"
   | "key"
-  | "star_rating"
   | "duration_seconds"
   | "position"
   | "discogs_url"

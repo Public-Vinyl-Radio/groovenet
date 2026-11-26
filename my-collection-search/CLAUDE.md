@@ -1475,7 +1475,13 @@ Postgres. See the CLI README for action examples and evidence limits.
 
 `getCurrentUser(request)` in `src/server/auth/currentUser.ts` resolves household
 users independently of libraries: bearer, device cookie, mapped Tailscale login,
-then the sole profile. Pass the request through owner-sensitive services. API
+then the sole profile. Pass the request through owner-sensitive services. Star ratings
+are per profile (#1283): `track_ratings` keyed `(user_id, track_id, friend_id)`.
+A route that returns tracks passes them through `withViewerRatings` /
+`withRequestRatings` (`trackRatingService.ts`), which set `star_rating` to the
+viewer's rating (`resolveRatingViewer`: current profile, else the owner) and add
+`other_ratings`. Filters and ranking read `viewerRatingSql` or the retriever's
+`ratingViewerId`. Never read or write the deprecated `tracks.star_rating`. API
 scope enforcement is centralized in Next 16's Node proxy, and is off unless
 `AUTH_REQUIRE_TOKENS=true`. See [household profiles](../docs/configuration/household-profiles.md)
 for cookie/token storage, the ingest allowlist and client configuration.

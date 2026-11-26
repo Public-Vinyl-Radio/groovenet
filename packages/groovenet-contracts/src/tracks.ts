@@ -14,6 +14,17 @@ export const trackGenreSchema = z.object({
   parent_name: z.string().nullable(),
 });
 
+/**
+ * Another household profile's rating of a track (#1283), shown read-only
+ * beside the viewer's own: "you ★5 · <other profile> ★3". `name` is the profile's
+ * display name.
+ */
+export const trackOtherRatingSchema = z.object({
+  user_id: z.string().meta({ format: "uuid" }),
+  name: z.string(),
+  rating: z.number().int().min(1).max(5),
+});
+
 /** A genre a widened search filter added (#485): the removable "+ Chicha, Porro" chip. */
 export const genreFilterRefSchema = z.object({
   id: z.string().uuid(),
@@ -224,7 +235,10 @@ const trackShape = z.object({
   notes: z.string().nullable().optional(),
   local_audio_url: z.string().nullable().optional(),
   audio_file_album_art_url: z.string().nullable().optional(),
+  /** The viewer's own rating (#1283): the current profile's, 0 when unrated. */
   star_rating: z.number().nullable().optional(),
+  /** Every other household profile's rating of this row, read-only (#1283). */
+  other_ratings: z.array(trackOtherRatingSchema).optional(),
   username: z.string().optional(),
   release_id: z.string().nullable().optional(),
   library_identifier: z.string().nullable().optional(),
@@ -484,6 +498,7 @@ export const trackGenreFacetsResponseSchema = z.object({
 });
 
 export type TrackGenre = z.infer<typeof trackGenreSchema>;
+export type TrackOtherRating = z.infer<typeof trackOtherRatingSchema>;
 export type GenreFilterRef = z.infer<typeof genreFilterRefSchema>;
 export type TrackSearchMode = z.infer<typeof trackSearchModeSchema>;
 /** Declared fields only; the schema itself passes unknown columns through. */
@@ -518,6 +533,7 @@ export type TrackGenreFacetsResponse = z.infer<typeof trackGenreFacetsResponseSc
 
 export const trackJsonSchemas = {
   TrackGenre: z.toJSONSchema(trackGenreSchema),
+  TrackOtherRating: z.toJSONSchema(trackOtherRatingSchema),
   GenreFilterRef: z.toJSONSchema(genreFilterRefSchema),
   TrackSearchMode: z.toJSONSchema(trackSearchModeSchema),
   Track: z.toJSONSchema(trackSchema),

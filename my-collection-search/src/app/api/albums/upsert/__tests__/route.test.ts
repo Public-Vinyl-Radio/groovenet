@@ -54,6 +54,18 @@ vi.mock("@/server/repositories/albumRepository", () => ({
 }));
 
 import { POST } from "../route";
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { withViewerRatings } from "@/server/services/trackRatingService";
+import { VIEWER } from "@/test/trackRatingMock";
+
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+vi.mock(
+  "@/server/repositories/trackRatingRepository",
+  async () => (await import("@/test/trackRatingMock")).trackRatingRepositoryMock,
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -190,6 +202,30 @@ describe("POST /api/albums/upsert — track reconciliation", () => {
     expect(mockGenTrackId).toHaveBeenCalledOnce();
     const body = await res.json();
     expect(body.tracks).toEqual([{ track_id: "local-trk-new" }]);
+  });
+});
+
+describe("POST /api/albums/upsert — ratings (#1283)", () => {
+  it("saves the editor's ratings as the current profile's; an absent one is left alone", async () => {
+    const client = { tx: true };
+    mockWithDbTransaction.mockImplementationOnce(async (cb: (c: unknown) => unknown) => cb(client));
+    await POST(
+      makeReq({
+        tracks: [
+          { track_id: "t1", title: "S1", artist: "A", star_rating: 0 },
+          { track_id: "t2", title: "S2", artist: "A" },
+        ],
+      }),
+    );
+    // 0 clears the viewer's rating; other profiles' are untouched.
+    expect(trackRatingRepository.set).toHaveBeenCalledOnce();
+    expect(trackRatingRepository.set).toHaveBeenCalledWith(
+      VIEWER.id,
+      { track_id: "t1", friend_id: 1 },
+      0,
+      client,
+    );
+    expect(withViewerRatings).toHaveBeenCalledWith(expect.any(Array), VIEWER);
   });
 });
 

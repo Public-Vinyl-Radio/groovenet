@@ -11,6 +11,8 @@ import { syncIdentityEmbeddings } from "@/server/services/trackEmbeddingSyncServ
 
 import { AlbumOverrideError, resolveAlbumOverrides } from "@/server/genres/albumOverrides";
 import { triggerGenreSimilarityRefresh } from "@/server/services/genreSimilarityService";
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { resolveRatingViewer, withViewerRatings } from "@/server/services/trackRatingService";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,6 +78,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Friend not found" }, { status: 404 });
     }
 
+    // Ratings in the editor are the current profile's (#1283); others' stay.
+    const viewer = await resolveRatingViewer(request);
     const { updatedAlbum, upsertedTracks, tracksToDelete } = await withDbTransaction(
       async (client) => {
         // Get existing album to preserve thumbnail if no new one uploaded
@@ -160,11 +164,18 @@ export async function POST(request: NextRequest) {
             track.bpm || null,
             track.key || null,
             track.notes || "",
-            track.star_rating || 0,
             releaseId,
             album.library_identifier || null,
           ]);
 
+          if (track.star_rating !== undefined) {
+            await trackRatingRepository.set(
+              viewer.id,
+              { track_id: trackId, friend_id: friendId },
+              track.star_rating,
+              client,
+            );
+          }
           upsertedTracks.push({
             ...upsertedTrack,
             album_genres: updatedAlbum.effective_genres,
@@ -193,7 +204,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       album: updatedAlbum,
-      tracks: upsertedTracks,
+      tracks: await withViewerRatings(upsertedTracks, viewer),
       deletedTracks: tracksToDelete.length,
     });
   } catch (error) {

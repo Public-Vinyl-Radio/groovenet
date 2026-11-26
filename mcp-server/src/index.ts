@@ -156,7 +156,11 @@ const tools = [
           type: "string",
           description: "Exact musical key, case-insensitive (e.g., 'A minor', 'C major')",
         },
-        star_rating: { type: "number", description: "Minimum star rating (0-5)" },
+        star_rating: {
+          type: "number",
+          description:
+            "Minimum star rating (0-5), by your own ratings: the token's profile, else the household owner",
+        },
         genre: {
           type: "array",
           items: { type: "string" },
@@ -185,12 +189,16 @@ const tools = [
   },
   {
     name: "update_track",
-    description: "Update track metadata (star rating, notes, tags, URLs, etc.)",
+    description:
+      "Update track metadata (star rating, notes, tags, URLs, etc.). The rating is your own: the GROOVENET_TOKEN profile's, else the household owner's; other profiles' ratings are unchanged.",
     inputSchema: {
       type: "object",
       properties: {
         track_id: { type: "string", description: "Track ID" },
-        star_rating: { type: "number", description: "Star rating (0-5)" },
+        star_rating: {
+          type: "number",
+          description: "Your star rating (0-5); 0 clears it. Ratings are per household profile",
+        },
         notes: { type: "string", description: "Track notes" },
         local_tags: { type: "string", description: "Comma-separated tags" },
         apple_music_url: { type: "string", description: "Apple Music URL" },
@@ -1186,7 +1194,7 @@ ${track.year ? `Year: ${track.year}` : ""}
 - Relaxed: ${track.mood_relaxed ?? 0}
 
 **Metadata:**
-- Star Rating: ${track.star_rating !== undefined ? `★${track.star_rating}/5` : "Not rated"}
+- Star Rating: ${track.star_rating ? `★${track.star_rating}/5` : "Not rated"}${track.other_ratings?.length ? ` (${track.other_ratings.map((o) => `${o.name} ★${o.rating}`).join(", ")})` : ""}
 - Genres: ${track.genres?.join(", ") ?? "N/A"}
 - Styles: ${track.styles?.join(", ") ?? "N/A"}
 - Tags: ${track.local_tags ?? "None"}

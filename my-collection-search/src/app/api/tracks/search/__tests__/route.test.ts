@@ -44,6 +44,12 @@ vi.mock("@/server/artists/artistFilter", async (importOriginal) => ({
 
 import { GET, parseTrackFilter } from "../route";
 import { QueryRateLimitError } from "@/server/services/queryEmbeddingService";
+import { VIEWER } from "@/test/trackRatingMock";
+
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -436,12 +442,15 @@ describe("GET /api/tracks/search — attribute filters", () => {
     expect(dataSql).toContain("t.bpm >= $2");
     expect(dataSql).toContain("t.bpm <= $3");
     expect(dataSql).toContain("LOWER(t.key) = LOWER($4)");
-    expect(dataSql).toContain("t.star_rating >= $5");
-    // friend + filters + q + limit + offset
-    expect(dataParams).toEqual([6, 120.5, 126, "A minor", 4, "house", 20, 0]);
+    // The viewer's rating (#1283), never tracks.star_rating.
+    expect(dataSql).toContain("vr.user_id = $5::uuid");
+    expect(dataSql).toContain("t.friend_id), 0) >= $6");
+    expect(dataSql).not.toContain("t.star_rating");
+    // friend + filters (viewer before its minimum) + q + limit + offset
+    expect(dataParams).toEqual([6, 120.5, 126, "A minor", VIEWER.id, 4, "house", 20, 0]);
     const [countSql, countParams] = mockDbQuery.mock.calls[1];
-    expect(countSql).toContain("t.star_rating >= $5");
-    expect(countParams).toEqual([6, 120.5, 126, "A minor", 4, "house"]);
+    expect(countSql).toContain("t.friend_id), 0) >= $6");
+    expect(countParams).toEqual([6, 120.5, 126, "A minor", VIEWER.id, 4, "house"]);
   });
 
   it("filters an empty-query listing too", async () => {
@@ -457,7 +466,13 @@ describe("GET /api/tracks/search — attribute filters", () => {
     await GET(req("?mode=semantic&q=dub&bpm_min=70&star_rating=3"));
     expect(mockSemanticSearch).toHaveBeenCalledWith(
       expect.objectContaining({
-        attributes: { bpmMin: 70, bpmMax: undefined, key: undefined, minStarRating: 3 },
+        attributes: {
+          bpmMin: 70,
+          bpmMax: undefined,
+          key: undefined,
+          minStarRating: 3,
+          ratingViewerId: VIEWER.id,
+        },
       }),
     );
   });

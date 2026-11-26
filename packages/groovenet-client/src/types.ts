@@ -180,7 +180,7 @@ export interface TrackSearchQuery {
     bpm_max?: number;
     /** Exact musical key, case-insensitive, e.g. "A minor". */
     key?: string;
-    /** Minimum star rating, 0–5. */
+    /** Minimum star rating, 0–5, by the caller's own ratings (the token's profile, else the owner). */
     star_rating?: number;
     friend_id?: number;
     /**
@@ -205,6 +205,7 @@ export interface TrackSearchResponse {
 }
 
 export interface TrackUpdate {
+  /** The caller's own rating, 0–5 (0 clears): the token's profile, else the owner (#1283). */
   star_rating?: number;
   notes?: string;
   local_tags?: string;

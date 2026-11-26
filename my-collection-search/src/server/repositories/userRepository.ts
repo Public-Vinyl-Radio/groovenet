@@ -7,7 +7,11 @@ export const userRepository = {
     await dbQuery(
       `INSERT INTO users (name, is_owner, discogs_username) VALUES ($1, true, $2)
        ON CONFLICT (is_owner) WHERE is_owner DO UPDATE
-       SET discogs_username = EXCLUDED.discogs_username
+       SET discogs_username = EXCLUDED.discogs_username,
+         -- The ratings migration (#1283) may seed a placeholder owner before
+         -- the app knows the username; it takes the configured name once.
+         name = CASE WHEN users.discogs_username IS NULL AND users.name = 'Owner'
+           THEN EXCLUDED.name ELSE users.name END
        WHERE users.discogs_username IS DISTINCT FROM EXCLUDED.discogs_username`,
       [username || "Owner", username],
     );

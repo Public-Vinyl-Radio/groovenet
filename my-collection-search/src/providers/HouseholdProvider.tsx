@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ProfilePicker, shouldShowPicker } from "@/components/ProfilePicker";
 import { profilesApi, type ProfilesResponse } from "@/services/internalApi/profiles";
 import { queryKeys } from "@/lib/queryKeys";
+import { useTrackStore } from "@/stores/trackStore";
 
 type HouseholdContext = { data?: ProfilesResponse; switchProfile: () => void };
 const Context = createContext<HouseholdContext>({ switchProfile: () => {} });
@@ -20,6 +21,9 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     mutationFn: profilesApi.select,
     onSuccess: async () => {
       setSwitching(false);
+      // Ratings are per profile (#1283). The store keeps a local rating over a
+      // refetched one, so drop the previous profile's tracks before refetching.
+      useTrackStore.getState().clearTracks();
       await client.invalidateQueries();
     },
   });

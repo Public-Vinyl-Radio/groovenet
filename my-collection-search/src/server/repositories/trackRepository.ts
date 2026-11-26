@@ -70,7 +70,6 @@ type UpdatableTrackFields = Partial<
     | "mood_sad"
     | "mood_relaxed"
     | "mood_aggressive"
-    | "star_rating"
     | "descriptors"
   >
 >;
@@ -158,7 +157,7 @@ const UPDATABLE_COLUMNS = {
   mood_sad: "mood_sad",
   mood_relaxed: "mood_relaxed",
   mood_aggressive: "mood_aggressive",
-  star_rating: "star_rating",
+  // star_rating is not here: ratings are per profile (track_ratings, #1283).
   descriptors: "descriptors",
 } as const;
 

@@ -7,6 +7,7 @@ import {
   parseTrackFilterSpec,
   trackArtistFilterClause,
   trackGenreFilterClause,
+  viewerRatingSql,
 } from "../trackFilterSpec";
 
 describe("parseTrackFilterSpec", () => {
@@ -67,18 +68,42 @@ describe("attributeFilterClauses", () => {
     const { values, bind } = binder();
     expect(
       attributeFilterClauses(
-        { bpmMin: 120, bpmMax: 126, key: "A minor", minStarRating: 4 },
+        { bpmMin: 120, bpmMax: 126, key: "A minor", minStarRating: 4, ratingViewerId: "u1" },
         bind,
         "t",
       ),
-    ).toEqual(["t.bpm >= $1", "t.bpm <= $2", "LOWER(t.key) = LOWER($3)", "t.star_rating >= $4"]);
-    expect(values).toEqual([120, 126, "A minor", 4]);
+    ).toEqual([
+      "t.bpm >= $1",
+      "t.bpm <= $2",
+      "LOWER(t.key) = LOWER($3)",
+      `${viewerRatingSql("t", "$4")} >= $5`,
+    ]);
+    expect(values).toEqual([120, 126, "A minor", "u1", 4]);
   });
 
   it("keeps a zero, which is a real bound", () => {
     const { values, bind } = binder();
-    expect(attributeFilterClauses({ minStarRating: 0 }, bind)).toEqual(["star_rating >= $1"]);
-    expect(values).toEqual([0]);
+    expect(attributeFilterClauses({ minStarRating: 0, ratingViewerId: "u1" }, bind, "t")).toEqual([
+      `${viewerRatingSql("t", "$1")} >= $2`,
+    ]);
+    expect(values).toEqual(["u1", 0]);
+  });
+
+  it("reads the viewer's rating, 0 when unrated, never tracks.star_rating (#1283)", () => {
+    const sql = viewerRatingSql("t", "$9");
+    expect(sql).toContain("FROM track_ratings vr");
+    expect(sql).toContain("vr.user_id = $9::uuid");
+    expect(sql).toContain("vr.track_id = t.track_id");
+    expect(sql).toContain("vr.friend_id = t.friend_id), 0)");
+    expect(sql).not.toContain("star_rating");
+  });
+
+  it.each([
+    [{ minStarRating: 3 }, "t"],
+    [{ minStarRating: 3, ratingViewerId: "u1" }, ""],
+  ])("refuses a rating filter without the viewer and the alias: %j %j", (filters, alias) => {
+    const { bind } = binder();
+    expect(() => attributeFilterClauses(filters, bind, alias)).toThrow(/viewer/);
   });
 });
 

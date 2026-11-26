@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { trackGenreSchema } from "./tracks.js";
+import { trackGenreSchema, trackOtherRatingSchema } from "./tracks.js";
 
 // Vinyl spins (#552). A spin session is one sitting with one album; its
 // selections say which sides or tracks were played, and its track events are
@@ -152,7 +152,9 @@ export const spinTopTrackSchema = z.object({
   local_audio_url: z.string().nullable().optional(),
   bpm: z.union([z.number(), z.string()]).nullable().optional(),
   key: z.string().nullable().optional(),
+  /** The viewer's own rating (#1283). */
   star_rating: z.number().nullable().optional(),
+  other_ratings: z.array(trackOtherRatingSchema).optional(),
   styles: z.array(z.string()).optional(),
   library_identifier: z.string().nullable().optional(),
   hasVectors: z.boolean().optional(),

@@ -39,6 +39,7 @@ export type TopTrackSpinEventRow = {
   local_audio_url?: string | null;
   bpm?: number | string | null;
   key?: string | null;
+  /** Set by the route from the viewer's ratings (#1283), never selected here. */
   star_rating?: number | null;
   styles?: string[];
   library_identifier?: string | null;
@@ -208,7 +209,6 @@ export class TrackSpinEventRepository {
         t.local_audio_url,
         t.bpm,
         t.key,
-        t.star_rating,
         ${effectiveAlbumValuesSql("aggregated", "styles", "t.styles")} AS styles,
         COALESCE(a.library_identifier, t.library_identifier) AS library_identifier,
         ${hasVectorsSelectSql("aggregated")},

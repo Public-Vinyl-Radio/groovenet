@@ -24,7 +24,7 @@ export function addTracksCommands(program: Command): void {
     .option("--bpm-min <n>", "Minimum BPM, inclusive", parseFloat)
     .option("--bpm-max <n>", "Maximum BPM, inclusive", parseFloat)
     .option("--key <k>", "Exact musical key, case-insensitive (e.g. 'A minor')")
-    .option("--rating <n>", "Minimum star rating (0-5)", intOption)
+    .option("--rating <n>", "Minimum star rating (0-5), by your own ratings", intOption)
     .option(
       "--genre <genre>",
       "Genre slug or name, including its subgenres; repeat for several (any of them)",
@@ -110,7 +110,7 @@ export function addTracksCommands(program: Command): void {
   tracks
     .command("update <id>")
     .description("Update track metadata")
-    .option("--rating <n>", "Star rating (0-5)", parseFloat)
+    .option("--rating <n>", "Your star rating (0-5, 0 clears); per household profile", parseFloat)
     .option("--notes <text>", "Notes")
     .option("--tags <tags>", "Comma-separated tags")
     .option("--apple-url <url>", "Apple Music URL")

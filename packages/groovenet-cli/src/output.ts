@@ -64,6 +64,12 @@ export function printTrack(track: Track, json: boolean): void {
     ["Danceability", track.danceability],
     ["Duration", track.duration_seconds ? formatDuration(track.duration_seconds) : track.duration],
     ["Star Rating", track.star_rating != null ? `★${track.star_rating}/5` : undefined],
+    [
+      "Others' Ratings",
+      track.other_ratings?.length
+        ? track.other_ratings.map((o) => `${o.name} ★${o.rating}`).join(", ")
+        : undefined,
+    ],
     ["Genres", track.genres?.join(", ")],
     ["Styles", track.styles?.join(", ")],
     ["Tags", track.local_tags],

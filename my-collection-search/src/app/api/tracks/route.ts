@@ -13,6 +13,16 @@ import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 import type { EmbeddingJob } from "@/types/embeddingQueue";
 import { normalizeIsrc } from "@/lib/isrc";
 import { isrcService } from "@/server/services/isrcService";
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { resolveRatingViewer, withViewerRatings } from "@/server/services/trackRatingService";
+
+/** A rating is the current profile's (#1283): null or 0 clears it, else 1–5. */
+function parseRating(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 5 ? n : undefined;
+}
 
 export async function PATCH(req: Request) {
   try {
@@ -36,8 +46,16 @@ export async function PATCH(req: Request) {
       );
     }
     const body = parsed.data;
-    const { genres, descriptors, genre_source, ...fields } = body;
+    const { genres, descriptors, genre_source, star_rating: rawRating, ...fields } = body;
     const data = fields as UpdateTrackInput;
+    const hasRating = rawRating !== undefined;
+    const rating = parseRating(rawRating);
+    if (hasRating && rating === undefined) {
+      return NextResponse.json(
+        { error: "star_rating must be an integer from 0 to 5, or null" },
+        { status: 400 },
+      );
+    }
 
     // The ISRC is stored normalised (#1156); anything that is not one is a 400
     // rather than a CHECK violation. null clears it.
@@ -80,10 +98,20 @@ export async function PATCH(req: Request) {
       data.friend_id,
     );
 
+    if ((genreIds !== undefined || hasRating) && !current) {
+      return NextResponse.json({ error: "Track not found" }, { status: 404 });
+    }
+    // The viewer's own rating, never `tracks.star_rating` (deprecated, #1283).
+    const viewer = await resolveRatingViewer(req);
+    if (hasRating) {
+      await trackRatingRepository.set(
+        viewer.id,
+        { track_id: data.track_id, friend_id: data.friend_id },
+        rating ?? null,
+      );
+    }
+
     if (genreIds !== undefined) {
-      if (!current) {
-        return NextResponse.json({ error: "Track not found" }, { status: 404 });
-      }
       await trackGenreRepository.replaceTrackGenres(
         data.track_id,
         data.friend_id,
@@ -165,14 +193,15 @@ export async function PATCH(req: Request) {
         changed_fields: Object.keys(body).filter(
           (key) => key !== "track_id" && key !== "friend_id" && key !== "genre_source",
         ),
-        has_rating_change: "star_rating" in data,
+        has_rating_change: hasRating,
         has_notes_change: "notes" in data,
         has_tags_change: "local_tags" in data,
       },
       { request: req },
     );
 
-    return NextResponse.json(result);
+    const [rated] = await withViewerRatings([result], viewer);
+    return NextResponse.json(rated);
   } catch (error) {
     console.error("Error updating track:", error);
     return NextResponse.json({ error: "Failed to update track" }, { status: 500 });

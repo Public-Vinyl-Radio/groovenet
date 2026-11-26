@@ -36,6 +36,12 @@ vi.mock("@/server/repositories/embeddingsRepository", () => ({
   },
 }));
 
+const { forTracks } = vi.hoisted(() => ({ forTracks: vi.fn() }));
+vi.mock("@/server/repositories/trackRatingRepository", () => ({
+  ratingKey: (trackId: string, friendId: number) => `${friendId}:${trackId}`,
+  trackRatingRepository: { forTracks },
+}));
+
 vi.mock("@/lib/embeddings/config", () => ({
   getServingModel: vi.fn(async () => ({ model: "text-embedding-3-small", dims: 1536 })),
 }));
@@ -68,7 +74,6 @@ function makeRow(overrides: Partial<RecommendationCandidateRow> = {}): Recommend
     mood_sad: 0.2,
     mood_relaxed: 0.3,
     mood_aggressive: 0.2,
-    star_rating: 4,
     album_thumbnail: "https://example.test/cover.jpg",
     ...overrides,
   };
@@ -77,6 +82,7 @@ function makeRow(overrides: Partial<RecommendationCandidateRow> = {}): Recommend
 describe("recommendation candidate retriever", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    forTracks.mockResolvedValue(new Map());
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
@@ -274,8 +280,10 @@ describe("retrieveSeedMetadata", () => {
 
   it("builds the seed's metadata the way candidates' is built", async () => {
     findTrackRow.mockResolvedValueOnce(makeRow({ track_id: "seed", year: "2004", bpm: 122 }));
-    const metadata = await retrieveSeedMetadata({ trackId: "seed", friendId: 1 });
+    forTracks.mockResolvedValueOnce(new Map([["1:seed", { rating: 4, others: [] }]]));
+    const metadata = await retrieveSeedMetadata({ trackId: "seed", friendId: 1 }, "viewer");
     expect(findTrackRow).toHaveBeenCalledWith({ trackId: "seed", friendId: 1 });
+    expect(forTracks).toHaveBeenCalledWith([{ track_id: "seed", friend_id: 1 }], "viewer");
     expect(metadata).toMatchObject({
       bpm: 122,
       eraBucket: "2000s",
@@ -284,8 +292,69 @@ describe("retrieveSeedMetadata", () => {
     });
   });
 
+  it("leaves the seed unrated without a viewer", async () => {
+    findTrackRow.mockResolvedValueOnce(makeRow({ track_id: "seed" }));
+    const metadata = await retrieveSeedMetadata({ trackId: "seed", friendId: 1 });
+    expect(forTracks).not.toHaveBeenCalled();
+    expect(metadata?.starRating).toBeNull();
+  });
+
   it("is null when the seed is missing", async () => {
     findTrackRow.mockResolvedValueOnce(null);
     expect(await retrieveSeedMetadata({ trackId: "gone", friendId: 1 })).toBeNull();
+  });
+});
+
+describe("candidates carry the viewer's ratings (#1283)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  it("rates each candidate by the viewer, 0 when the viewer has not rated it", async () => {
+    findIdentitySimilar.mockResolvedValue([makeRow({ track_id: "a" }), makeRow({ track_id: "b" })]);
+    findAudioSimilar.mockResolvedValue([]);
+    forTracks.mockResolvedValue(new Map([["1:a", { rating: 5, others: [] }]]));
+
+    const result = await retrieveCandidates("seed", 1, { ratingViewerId: "viewer" });
+
+    expect(forTracks).toHaveBeenCalledWith(
+      [
+        { track_id: "a", friend_id: 1 },
+        { track_id: "b", friend_id: 1 },
+      ],
+      "viewer",
+    );
+    const rating = Object.fromEntries(
+      result.candidates.map((c) => [c.trackId, c.metadata.starRating]),
+    );
+    expect(rating).toEqual({ a: 5, b: 0 });
+  });
+
+  it("does the same for a playlist's candidates", async () => {
+    findIdentitySimilarByCentroid.mockResolvedValue([makeRow({ track_id: "a" })]);
+    findAudioSimilarByCentroid.mockResolvedValue([makeRow({ track_id: "c", friend_id: 2 })]);
+    forTracks.mockResolvedValue(new Map([["2:c", { rating: 3, others: [] }]]));
+
+    const result = await retrieveCandidatesForSeedTracks([{ trackId: "s", friendId: 1 }], {
+      ratingViewerId: "viewer",
+    });
+
+    const rating = Object.fromEntries(
+      result.candidates.map((c) => [c.trackId, c.metadata.starRating]),
+    );
+    expect(rating).toEqual({ a: 0, c: 3 });
+  });
+
+  it("asks for no ratings without a viewer, or without candidates", async () => {
+    findIdentitySimilar.mockResolvedValue([makeRow({ track_id: "a" })]);
+    findAudioSimilar.mockResolvedValue([]);
+    const unrated = await retrieveCandidates("seed", 1);
+    expect(unrated.candidates[0].metadata.starRating).toBeNull();
+
+    findIdentitySimilar.mockResolvedValue([]);
+    await retrieveCandidates("seed", 1, { ratingViewerId: "viewer" });
+    expect(forTracks).not.toHaveBeenCalled();
   });
 });

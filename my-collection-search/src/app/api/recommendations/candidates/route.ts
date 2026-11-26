@@ -41,6 +41,7 @@ import {
   recommendationsBatchBodySchema,
   recommendationsResponseSchema,
 } from "@/api-contract/schemas";
+import { resolveRatingViewer } from "@/server/services/trackRatingService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -113,12 +114,14 @@ export async function GET(request: NextRequest) {
       requestedScope,
     );
 
-    // Retrieve candidates
+    // Candidates carry, and rank by, the current profile's ratings (#1283).
+    const viewer = await resolveRatingViewer(request);
     const result = await retrieveCandidates(track_id, friendIdNum, {
       limitIdentity,
       limitAudio,
       ivfflatProbes,
       libraryFriendId: libraryFriendId ?? undefined,
+      ratingViewerId: viewer.id,
     });
     analytics.track(
       "recommendations_requested",
@@ -132,6 +135,7 @@ export async function GET(request: NextRequest) {
           seed: { trackId: track_id, friendId: friendIdNum },
           ranker,
           libraryFriendId: library_friend_id ?? friendIdNum,
+          ratingViewerId: viewer.id,
         })
       : result;
     const response = {
@@ -217,11 +221,13 @@ export async function POST(request: NextRequest) {
       requestedScope,
     );
 
+    const viewer = await resolveRatingViewer(request);
     const result = await retrieveCandidatesForSeedTracks(seedTracks, {
       limitIdentity: limit_identity,
       limitAudio: limit_audio,
       ivfflatProbes: ivfflat_probes,
       libraryFriendId: libraryFriendId ?? undefined,
+      ratingViewerId: viewer.id,
     });
     analytics.track(
       "recommendations_requested",
@@ -240,6 +246,7 @@ export async function POST(request: NextRequest) {
           ranker,
           libraryFriendId: library_friend_id ?? seedTracks[0].friendId,
           config: ranking_config,
+          ratingViewerId: viewer.id,
         })
       : result;
     const response = {

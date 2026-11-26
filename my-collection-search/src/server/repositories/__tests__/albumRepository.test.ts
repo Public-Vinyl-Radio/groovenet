@@ -555,7 +555,7 @@ describe("insertTrack()", () => {
       "alice",
     ]);
     expect(client.query.mock.calls[0][0]).toContain(
-      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)",
+      "(SELECT date_added FROM albums WHERE release_id = $22::text AND friend_id = $2)",
     );
   });
 });
@@ -574,9 +574,11 @@ describe("upsertTrackByTrackIdUsername()", () => {
     expect(client.query).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT"), ["t1", 1]);
     const sql: string = client.query.mock.calls[0][0];
     expect(sql).toContain(
-      "(SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)",
+      "(SELECT date_added FROM albums WHERE release_id = $22::text AND friend_id = $2)",
     );
     expect(sql).toContain("date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)");
+    // Ratings are per profile (#1283): an album save never writes tracks.star_rating.
+    expect(sql).not.toContain("star_rating");
   });
 });
 

@@ -24,6 +24,8 @@ export async function attachRankingBreakdown<T extends { candidates: CandidateTr
     libraryFriendId: number;
     /** A whole config, scored instead of `ranker`: an unsaved profile's preview. */
     config?: RankingConfig;
+    /** Whose ratings the seed carries (#1283); candidates already carry theirs. */
+    ratingViewerId?: string;
   },
 ): Promise<T & { ranking: NonNullable<RecommendationsResponse["ranking"]> }> {
   const surface = "recommendations" as const;
@@ -32,7 +34,7 @@ export async function attachRankingBreakdown<T extends { candidates: CandidateTr
     ? { id: options.config.id, config: options.config, fallback: false }
     : await rankingProfileService.resolveRanker(options.ranker, options.libraryFriendId, surface);
   const [seedMetadata, genreContext] = await Promise.all([
-    retrieveSeedMetadata(options.seed),
+    retrieveSeedMetadata(options.seed, options.ratingViewerId),
     loadGenreOverlapContext(),
   ]);
   const rankings = defaultRanker.rank({
