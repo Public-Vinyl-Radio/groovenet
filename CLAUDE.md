@@ -142,10 +142,14 @@ have both finished copying. Each worktree gets its own random `POSTGRES_PASSWORD
 stack starts even when 1Password is locked (only API-key features are then
 unavailable). A worktree whose db volume predates this keeps using the
 1Password password; `just worktree-purge` then `just worktree-up` switches it.
-Existing worktree databases are preserved; to
-recreate one from the current seed, run `just worktree-purge` then
-`just worktree-up` in that worktree. Purging deletes all of that worktree's
-Compose volumes, including its database.
+Existing worktree databases are preserved. The seed streams
+into `pg_restore` on stdin (the db `/tmp` is a 64 MB tmpfs, so nothing is staged
+there), and a failed restore stops `worktree-up` before migrations, services and
+assets. To replace a worktree's database with the current seed, or to recover from
+a failed or half-applied restore, run `just worktree-up --reseed`: it asks first
+(`--yes` skips the prompt), stops the app services, and drops and restores only
+that worktree's database; its other volumes survive. `just worktree-purge`
+deletes all of the worktree's Compose volumes and is no longer needed for this.
 When the task is done, run `just herdr-done` from a pane inside that
 workspace to tear down the stack and remove the workspace in one step (it
 refuses on uncommitted or unpushed changes unless `--force`, and can delete
