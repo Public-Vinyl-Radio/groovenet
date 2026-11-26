@@ -2,6 +2,7 @@ import { Command } from "commander";
 import type {
   GroovenetClient,
   AudioMetadataBackfillRun,
+  TrackAudioFilesBackfillResponse,
   EmbeddedTagsBackfillRun,
   IsrcBackfillRun,
 } from "@groovenet/client";
@@ -14,6 +15,27 @@ export type FilesBackfillClient = Pick<
   GroovenetClient,
   "startAudioMetadataBackfill" | "getAudioMetadataBackfillRun"
 >;
+
+export type FilesAlternatesClient = Pick<GroovenetClient, "backfillTrackAudioFiles">;
+
+/** One `files alternates` run: link AAC files orphaned beside a lossless FLAC (#1310). */
+export async function runFilesAlternates(
+  client: FilesAlternatesClient,
+  opts: { json?: boolean },
+  io: FingerprintLibraryIO = consoleIO,
+): Promise<number> {
+  const result: TrackAudioFilesBackfillResponse = await client.backfillTrackAudioFiles();
+  if (opts.json) {
+    io.write(JSON.stringify(result, null, 2) + "\n");
+  } else {
+    io.log(
+      `  ${chalk.green(`✓ ${result.linked} linked`)}  ${chalk.gray(`⤼ ${result.already_linked} already linked`)}  ` +
+        (result.failed > 0 ? chalk.red(`✗ ${result.failed} failed`) : chalk.gray("0 failed")) +
+        chalk.gray(` (${result.scanned} FLAC tracks scanned)`),
+    );
+  }
+  return result.failed > 0 ? 1 : 0;
+}
 
 export interface FilesBackfillOptions {
   force?: boolean;
@@ -285,6 +307,19 @@ export function addFilesCommands(program: Command): void {
     .action(async (opts: FilesBackfillOptions) => {
       try {
         process.exitCode = await runFilesBackfill(makeClient(), opts);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
+
+  files
+    .command("alternates")
+    .description("Link the AAC file kept beside a lossless FLAC to its track")
+    .option("--json", "Output as JSON")
+    .action(async (opts: { json?: boolean }) => {
+      try {
+        process.exitCode = await runFilesAlternates(makeClient(), opts);
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);

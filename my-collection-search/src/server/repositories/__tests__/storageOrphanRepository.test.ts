@@ -13,6 +13,12 @@ describe("storageOrphanRepository", () => {
     expect(dbQuery.mock.calls[0][0]).toContain("local_audio_url IS NOT NULL");
   });
 
+  it("lists linked alternate filenames", async () => {
+    dbQuery.mockResolvedValue({ rows: [{ filename: "a.m4a" }] });
+    expect(await storageOrphanRepository.listAlternateFilenames()).toEqual(["a.m4a"]);
+    expect(dbQuery.mock.calls[0][0]).toContain("track_audio_files");
+  });
+
   it("upserts the single result row as JSON", async () => {
     dbQuery.mockResolvedValue({ rows: [] });
     const scannedAt = new Date("2026-11-06T00:00:00Z");

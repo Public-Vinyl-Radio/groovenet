@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const repo = vi.hoisted(() => ({
   listTracksWithAudio: vi.fn(),
+  listAlternateFilenames: vi.fn(),
   saveResult: vi.fn(),
   saveError: vi.fn(),
   getPage: vi.fn(),
@@ -41,6 +42,7 @@ beforeEach(() => {
   root = path.join(root, "audio");
   fs.mkdirSync(root, { recursive: true });
   repo.listTracksWithAudio.mockResolvedValue([]);
+  repo.listAlternateFilenames.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -49,6 +51,18 @@ afterEach(() => {
 });
 
 describe("scanOrphans", () => {
+  it("counts a linked alternate copy as referenced, and ignores one whose file is gone (#1310)", async () => {
+    put("t.flac");
+    put("t.m4a");
+    put("stray.m4a");
+    repo.listTracksWithAudio.mockResolvedValue([track("1", "t.flac")]);
+    repo.listAlternateFilenames.mockResolvedValue(["t.m4a", "missing.m4a"]);
+
+    const result = await scanOrphans(Date.now());
+
+    expect(result.files.map((f) => f.path)).toEqual(["stray.m4a"]);
+  });
+
   it("lists audio no track resolves to, largest first, and tracks with no file", async () => {
     put("kept.mp3");
     put("sub/small.flac", 5);

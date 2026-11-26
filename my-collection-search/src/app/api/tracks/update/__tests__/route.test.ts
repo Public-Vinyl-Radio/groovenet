@@ -8,9 +8,13 @@ const {
   mockResolveGenres,
   mockReplaceGenres,
   mockSyncIsrc,
+  mockLinkAlternate,
+  mockListFiles,
 } = vi.hoisted(() => {
   return {
     mockSyncIsrc: vi.fn().mockResolvedValue(undefined),
+    mockLinkAlternate: vi.fn(),
+    mockListFiles: vi.fn(),
     mockResolveGenres: vi.fn(),
     mockReplaceGenres: vi.fn().mockResolvedValue(undefined),
     mockFindTrack: vi.fn(),
@@ -37,6 +41,11 @@ vi.mock("@/server/repositories/trackGenreRepository", async (importOriginal) => 
 
 vi.mock("@/server/services/embeddingQueueService", () => ({
   embeddingQueueService: { enqueue: mockEnqueue },
+}));
+
+vi.mock("@/server/services/trackAudioFileService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/services/trackAudioFileService")>()),
+  trackAudioFileService: { linkAlternate: mockLinkAlternate, listFiles: mockListFiles },
 }));
 
 vi.mock("@/server/services/isrcService", () => ({
@@ -114,6 +123,9 @@ beforeEach(() => {
   mockStartFingerprintRun.mockReset();
   mockResolveGenres.mockReset();
   mockReplaceGenres.mockReset();
+  mockLinkAlternate.mockReset();
+  mockListFiles.mockReset();
+  mockListFiles.mockResolvedValue([]);
 
   mockEnqueue.mockResolvedValue(undefined);
   mockStartFingerprintRun.mockResolvedValue({ run_id: "run-1" });
@@ -684,5 +696,61 @@ describe("PATCH /api/tracks — ISRC (#1156)", () => {
     const res = await PATCH(makeReq({ ...PATCH_BODY, isrc: "nope" }));
     expect(res.status).toBe(400);
     expect(mockUpdateTrack).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/tracks alternate_audio_url (#1310)", () => {
+  it("links the alternate after the update and returns the track's audio files", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack());
+    const updated = baseTrack({ local_audio_url: "t1.flac" });
+    mockUpdateTrack.mockResolvedValue(updated);
+    mockLinkAlternate.mockResolvedValue(true);
+    mockListFiles.mockResolvedValue([
+      { filename: "t1.flac", primary: true },
+      { filename: "t1.m4a", primary: false },
+    ]);
+
+    const res = await PATCH(
+      makeReq({ ...PATCH_BODY, local_audio_url: "t1.flac", alternate_audio_url: "t1.m4a" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockUpdateTrack.mock.calls[0][0]).not.toHaveProperty("alternate_audio_url");
+    expect(mockLinkAlternate).toHaveBeenCalledWith(updated, "t1.m4a", undefined);
+    expect((await res.json()).audio_files).toHaveLength(2);
+  });
+
+  it("passes the audio source through to the probe", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack());
+    mockUpdateTrack.mockResolvedValue(baseTrack());
+    await PATCH(
+      makeReq({ ...PATCH_BODY, alternate_audio_url: "t1.m4a", audio_source: "apple_music" }),
+    );
+    expect(mockLinkAlternate.mock.calls[0][2]).toBe("apple_music");
+    // No new primary: the source describes the alternate, not the primary column.
+    expect(mockUpdateTrack.mock.calls[0][0]).not.toHaveProperty("audio_source");
+  });
+
+  it("answers 400 when the alternate cannot be linked", async () => {
+    const { AlternateAudioError } = await import("@/server/services/trackAudioFileService");
+    mockFindTrack.mockResolvedValue(baseTrack());
+    mockUpdateTrack.mockResolvedValue(baseTrack());
+    mockLinkAlternate.mockRejectedValueOnce(new AlternateAudioError("already the primary"));
+    let res = await PATCH(makeReq({ ...PATCH_BODY, alternate_audio_url: "t1.flac" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("already the primary");
+
+    mockLinkAlternate.mockRejectedValueOnce(new Error("Local audio file not found"));
+    res = await PATCH(makeReq({ ...PATCH_BODY, alternate_audio_url: "gone.m4a" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("answers 500 for an unexpected failure while linking", async () => {
+    mockFindTrack.mockResolvedValue(baseTrack());
+    mockUpdateTrack.mockResolvedValue(baseTrack());
+    mockLinkAlternate.mockRejectedValueOnce(new Error("db down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await PATCH(makeReq({ ...PATCH_BODY, alternate_audio_url: "t1.m4a" }));
+    expect(res.status).toBe(500);
   });
 });

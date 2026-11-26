@@ -19,6 +19,7 @@ import {
   formatTagsProgress,
   formatTagsReport,
   isrcSettled,
+  runFilesAlternates,
   runFilesBackfill,
   runFilesIsrc,
   runFilesTags,
@@ -116,6 +117,34 @@ describe("files backfill formatting", () => {
     expect(text).toContain("apple_music 3");
     expect(text).toContain("unknown 1");
     expect(formatReport(run()).join("\n")).toContain("0 missing files");
+  });
+});
+
+describe("runFilesAlternates", () => {
+  const counts = { scanned: 5, linked: 2, already_linked: 3, failed: 0 };
+
+  it("prints what was linked and exits 0", async () => {
+    const out = io();
+    const client = { backfillTrackAudioFiles: vi.fn().mockResolvedValue(counts) };
+    expect(await runFilesAlternates(client, {}, out)).toBe(0);
+    expect(out.lines.join("\n")).toContain("2 linked");
+    expect(out.lines.join("\n")).toContain("3 already linked");
+  });
+
+  it("exits non-zero and says so when a link failed", async () => {
+    const out = io();
+    const client = {
+      backfillTrackAudioFiles: vi.fn().mockResolvedValue({ ...counts, failed: 1 }),
+    };
+    expect(await runFilesAlternates(client, {}, out)).toBe(1);
+    expect(out.lines.join("\n")).toContain("1 failed");
+  });
+
+  it("prints JSON on request", async () => {
+    const out = io();
+    const client = { backfillTrackAudioFiles: vi.fn().mockResolvedValue(counts) };
+    await runFilesAlternates(client, { json: true }, out);
+    expect(JSON.parse(out.writes.join(""))).toEqual(counts);
   });
 });
 
@@ -491,6 +520,34 @@ describe("files isrc wiring (#1156)", () => {
       return { startIsrcBackfill: vi.fn().mockRejectedValue("plain") };
     });
     await p().parseAsync(["node", "groovenet", "files", "isrc"]);
+    expect(exit).toHaveBeenCalledTimes(2);
+  });
+
+  it("alternates runs the backfill and reports errors", async () => {
+    const p = () => {
+      const program = new Command();
+      addFilesCommands(program);
+      return program;
+    };
+    const counts = { scanned: 1, linked: 1, already_linked: 0, failed: 0 };
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    GroovenetClientMock.mockImplementation(function () {
+      return { backfillTrackAudioFiles: vi.fn().mockResolvedValue(counts) };
+    });
+    await p().parseAsync(["node", "groovenet", "files", "alternates"]);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("1 linked"));
+    process.exitCode = undefined;
+
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    GroovenetClientMock.mockImplementation(function () {
+      return { backfillTrackAudioFiles: vi.fn().mockRejectedValue(new Error("down")) };
+    });
+    await p().parseAsync(["node", "groovenet", "files", "alternates"]);
+    GroovenetClientMock.mockImplementation(function () {
+      return { backfillTrackAudioFiles: vi.fn().mockRejectedValue("plain") };
+    });
+    await p().parseAsync(["node", "groovenet", "files", "alternates"]);
     expect(exit).toHaveBeenCalledTimes(2);
   });
 });

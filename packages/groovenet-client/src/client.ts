@@ -96,6 +96,7 @@ import type {
   RankingProfilesResponse,
   AudioMetadataBackfillRequest,
   AudioMetadataBackfillRun,
+  TrackAudioFilesBackfillResponse,
   EmbeddedTagsBackfillRequest,
   EmbeddedTagsBackfillRun,
   TrackLyrics,
@@ -1083,6 +1084,14 @@ export class GroovenetClient {
       "GET",
       `/tracks/audio-metadata/backfill/${encodeURIComponent(runId)}`,
     );
+  }
+
+  /**
+   * Link every `<stem>.m4a` that sits beside a linked `<stem>.flac` as an
+   * alternate of the track (#1310). Synchronous and idempotent.
+   */
+  async backfillTrackAudioFiles(): Promise<TrackAudioFilesBackfillResponse> {
+    return this.request<TrackAudioFilesBackfillResponse>("POST", "/tracks/audio-files/backfill");
   }
 
   // ── Embedded tags (#673) ───────────────────────────────────────────────────

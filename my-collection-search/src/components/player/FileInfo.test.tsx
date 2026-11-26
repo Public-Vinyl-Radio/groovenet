@@ -60,6 +60,30 @@ describe("File info", () => {
     expect(screen.getByText("/audio/test.m4a")).toBeTruthy();
     expect(screen.queryByRole("link")).toBeNull();
   });
+  it("lists the other formats stored beside the primary file (#1310)", () => {
+    renderWithProviders(
+      <FileInfoDetails
+        track={{
+          ...track,
+          audio_files: [
+            { filename: "test.flac", primary: true, codec: "flac", lossless: true },
+            {
+              filename: "test.m4a",
+              primary: false,
+              codec: "aac",
+              lossless: false,
+              size_bytes: 9.7e6,
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByTestId("other-formats").textContent).toContain("AAC · 9.7 MB");
+  });
+  it("shows no other-formats row for a single file", () => {
+    renderWithProviders(<FileInfoDetails track={track} />);
+    expect(screen.queryByTestId("other-formats")).toBeNull();
+  });
   it("re-probes in details and reports errors", async () => {
     const onReprobe = vi
       .fn()

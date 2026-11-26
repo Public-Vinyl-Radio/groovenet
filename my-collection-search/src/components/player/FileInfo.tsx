@@ -6,7 +6,7 @@ import { Box, Button, Drawer, Flex, Link, Popover, Portal, Text } from "@chakra-
 import { FiFile } from "react-icons/fi";
 import { MetaTag, SourceTag, StatusTag } from "@/components/ui/RoleTags";
 import type { Track } from "@/types/track";
-import { fileInfo, fileSources } from "./audioQuality";
+import { alternateFormats, fileInfo, fileSources } from "./audioQuality";
 
 export function FileInfoDetails({
   track,
@@ -32,6 +32,7 @@ export function FileInfoDetails({
   }
   const info = fileInfo(track);
   const source = fileSources[info.source];
+  const alternates = alternateFormats(track);
   return (
     <Box p={4}>
       <Flex gap={2} wrap="wrap" mb={3}>
@@ -68,6 +69,18 @@ export function FileInfoDetails({
           </Flex>
         ))}
       </Box>
+      {alternates.length > 0 && (
+        <Flex gap={3} py={1} mt={2} fontSize="sm" data-testid="other-formats">
+          <Box color="fg.muted" flexShrink={0} w="100px">
+            Also stored
+          </Box>
+          <Box minW={0} fontFamily="mono">
+            {alternates.map((label) => (
+              <Box key={label}>{label}</Box>
+            ))}
+          </Box>
+        </Flex>
+      )}
       {!info.streamed && track.audio_probed_at && (
         <Text mt={3} fontSize="xs" color="fg.muted">
           Probed {new Date(track.audio_probed_at).toLocaleString()}

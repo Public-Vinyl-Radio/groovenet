@@ -22,6 +22,7 @@ from gamdl.exceptions import GamdlError
 from gamdl.media import MediaResolver, SongCodec
 from gamdl.media.exceptions import MediaNotFoundError, MediaNotStreamableError, UnsupportedMediaError
 from gamdl.media.url import AppleMusicUrlInfo
+from groovenet_client.types import TrackUpdate
 
 from ..audio_utils import cleanup_download_directory, make_library_readable
 from ..config import logger
@@ -327,6 +328,28 @@ def _audio_files_since(output_dir: str, before_files: set) -> list[str]:
     return downloaded_files
 
 
+LOSSY_EXTENSIONS = (".m4a", ".mp3", ".aac")
+
+
+def plan_audio_links(audio_dir: str, track_id: str, new_filename: str) -> tuple[str, str | None]:
+    """Decide which file is the track's primary and which is its alternate (#1310).
+
+    FLAC is primary whenever it exists: a lossless download keeps an AAC already
+    sitting beside it, and an AAC download never replaces an existing FLAC. The
+    other file is linked as the alternate, so neither is orphaned or clobbered.
+    """
+    if os.path.splitext(new_filename)[1].lower() == ".flac":
+        for ext in LOSSY_EXTENSIONS:
+            candidate = f"{track_id}{ext}"
+            if _non_empty_audio_file(os.path.join(audio_dir, candidate)):
+                return new_filename, candidate
+        return new_filename, None
+    flac = f"{track_id}.flac"
+    if _non_empty_audio_file(os.path.join(audio_dir, flac)):
+        return flac, new_filename
+    return new_filename, None
+
+
 def has_download_urls(job_data: JobData) -> bool:
     for key in ["apple_music_url", "youtube_url", "soundcloud_url"]:
         value = job_data.get(key)
@@ -609,16 +632,26 @@ def download_audio(job_data: JobData) -> JobResult:
         downloaded_file = final_file_path
         logger.info(f"Moved file to {final_file_path}")
 
+        primary_filename, alternate_filename = plan_audio_links(
+            final_audio_dir, track_id, os.path.basename(downloaded_file)
+        )
+        primary_changed = primary_filename == os.path.basename(downloaded_file)
+        if alternate_filename:
+            log_sink.append(f"Keeping {alternate_filename} beside {primary_filename}")
+
         try:
-            audio_filename = os.path.basename(downloaded_file)
-            get_groovenet_client().update_track(
-                {
-                    "track_id": track_id,
-                    "friend_id": friend_id,
-                    "local_audio_url": audio_filename,
-                    "audio_source": successful_url_key.removesuffix("_url"),
-                }
-            )
+            update: TrackUpdate = {
+                "track_id": track_id,
+                "friend_id": friend_id,
+                # Describes the file just downloaded; with no new primary the server
+                # applies it to the alternate only.
+                "audio_source": successful_url_key.removesuffix("_url"),
+            }
+            if primary_changed:
+                update["local_audio_url"] = primary_filename
+            if alternate_filename:
+                update["alternate_audio_url"] = alternate_filename
+            get_groovenet_client().update_track(update)
         except Exception as e:
             logger.warning(f"Failed to update local_audio_url: {e}")
 
@@ -628,7 +661,7 @@ def download_audio(job_data: JobData) -> JobResult:
         # captured and marked failed on that job instead of being swallowed here.
         analysis_job_id = None
         try:
-            analysis_job_id = enqueue_analyze_job(track_id, friend_id, os.path.basename(downloaded_file))
+            analysis_job_id = enqueue_analyze_job(track_id, friend_id, primary_filename)
             log_sink.append(f"Queued analysis job {analysis_job_id}")
         except Exception as e:
             capture_exception(e)
@@ -647,7 +680,7 @@ def download_audio(job_data: JobData) -> JobResult:
 
         result = {
             "success": True,
-            "local_audio_url": os.path.basename(downloaded_file),
+            "local_audio_url": primary_filename,
             "track_id": track_id,
             "friend_id": friend_id,
             "downloader": successful_downloader,

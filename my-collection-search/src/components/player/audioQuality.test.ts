@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleTrack } from "@/stories/fixtures/track";
-import { fileInfo, formatFileSize, formatSampleRate } from "./audioQuality";
+import { alternateFormats, fileInfo, formatFileSize, formatSampleRate } from "./audioQuality";
 
 describe("file info formatting", () => {
   it.each([
@@ -97,5 +97,25 @@ describe("file info formatting", () => {
     expect(info.source).toBe(source);
     expect(info.label).toBe(label);
     expect(info.details).toContainEqual(["Sample rate", "Not measured"]);
+  });
+});
+
+describe("alternateFormats", () => {
+  const base = { ...sampleTrack, audio_files: undefined };
+  it("labels non-primary files by codec, losslessness and size", () => {
+    expect(
+      alternateFormats({
+        ...base,
+        audio_files: [
+          { filename: "a.flac", primary: true, codec: "flac" },
+          { filename: "a.m4a", primary: false, codec: "aac", size_bytes: "9700000" },
+          { filename: "a.wav", primary: false, lossless: true },
+          { filename: "a.mp3", primary: false, container: "mp3" },
+        ],
+      }),
+    ).toEqual(["AAC · 9.7 MB", "AUDIO · lossless", "MP3"]);
+  });
+  it("is empty without audio_files", () => {
+    expect(alternateFormats(base)).toEqual([]);
   });
 });

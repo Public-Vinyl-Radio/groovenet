@@ -326,7 +326,12 @@ export interface OptimizedPlaylist {
 
 // ─── Audio file metadata backfill (#1049) ─────────────────────────────────────
 
-export type { AudioMetadataBackfillRequest, AudioMetadataBackfillRun } from "@groovenet/contracts";
+export type {
+  AudioMetadataBackfillRequest,
+  AudioMetadataBackfillRun,
+  TrackAudioFile,
+  TrackAudioFilesBackfillResponse,
+} from "@groovenet/contracts";
 export type { EmbeddedTagsBackfillRequest, EmbeddedTagsBackfillRun } from "@groovenet/contracts";
 export type {
   TrackLyrics,

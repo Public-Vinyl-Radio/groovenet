@@ -3,6 +3,7 @@ import { toWireRow } from "@/lib/wireRow";
 import { trackDeleteResponseSchema, trackEntitySchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
+import { trackAudioFileService } from "@/server/services/trackAudioFileService";
 import { withRequestRatings } from "@/server/services/trackRatingService";
 
 export async function DELETE(
@@ -71,7 +72,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const {
       tracks: [credited],
     } = await withArtistCredits([], await withRequestRatings(request, [track]));
-    return NextResponse.json(trackEntitySchema.parse(toWireRow(credited)));
+    const audio_files = await trackAudioFileService.listFiles(credited);
+    return NextResponse.json(trackEntitySchema.parse({ ...toWireRow(credited), audio_files }));
   } catch (error) {
     console.error("Error fetching track by id & friend_id:", error);
     return NextResponse.json({ error: "Failed to fetch track" }, { status: 500 });
