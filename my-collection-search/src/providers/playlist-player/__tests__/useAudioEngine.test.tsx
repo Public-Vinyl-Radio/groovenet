@@ -110,3 +110,21 @@ it("handles an absent element and an empty queue", () => {
   act(() => empty.audio.dispatchEvent(new Event("error")));
   expect(empty.result.current.playbackError).toContain("couldn't play");
 });
+
+it("ignores a decode rejection after the element unmounts", async () => {
+  const f = setup();
+  vi.mocked(f.audio.play).mockRejectedValue({ name: "NotSupportedError" });
+  await act(async () => {
+    f.audio.dispatchEvent(new Event("canplay"));
+    f.args.audioRef.current = null;
+  });
+  expect(f.onPlaybackError).not.toHaveBeenCalled();
+});
+
+it("uses a generic decode error without a selected track", () => {
+  const f = setup();
+  f.rerender({ ...f.args, currentTrackIndex: null, isPlaying: false });
+  Object.defineProperty(f.audio, "error", { value: { code: 3 } });
+  act(() => f.audio.dispatchEvent(new Event("error")));
+  expect(f.result.current.playbackError).toContain("couldn't play");
+});
