@@ -352,6 +352,11 @@
           "id": "dm-mono",
           "label": "DM Mono",
           "face": "dm-mono"
+        },
+        {
+          "id": "maple-mono",
+          "label": "Maple Mono",
+          "face": "maple-mono"
         }
       ]
     },
@@ -408,6 +413,11 @@
           "id": "dm-mono",
           "label": "DM Mono",
           "face": "dm-mono"
+        },
+        {
+          "id": "maple-mono",
+          "label": "Maple Mono",
+          "face": "maple-mono"
         }
       ]
     }
@@ -672,6 +682,24 @@
         }
       ],
       "licence": "OFL-DMMono.txt"
+    },
+    "maple-mono": {
+      "family": "Maple Mono",
+      "files": [
+        {
+          "weight": 400,
+          "file": "MapleMono-400.woff2"
+        },
+        {
+          "weight": 500,
+          "file": "MapleMono-500.woff2"
+        },
+        {
+          "weight": 600,
+          "file": "MapleMono-600.woff2"
+        }
+      ],
+      "licence": "OFL-MapleMono.txt"
     }
   }
 }

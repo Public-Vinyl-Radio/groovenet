@@ -473,7 +473,7 @@ after` on hover or focus (icon, desktop row layout) and in its menu. The modal a
   set of choices (Labels and Body run long, #1245); the first (`default`) is the app's own face and the last is
   `system` (`system-ui` / `ui-monospace`, no file). Body also offers the mono
   faces (`plex-mono`, `jetbrains-mono`, `space-mono`, `iosevka`, `iosevka-charon-mono`,
-  `martian-mono`, `monaspace-xenon`, `commit-mono`, `courier-prime`, `dm-mono`, `system-mono`) and the
+  `martian-mono`, `monaspace-xenon`, `commit-mono`, `courier-prime`, `dm-mono`, `maple-mono`, `system-mono`) and the
   proportional `space-grotesk` and `iosevka-charon`; ids are unique per role. A face with fewer
   weights than the role uses (Space Mono and Courier Prime: 400/700; Charon: 400/500/700) is
   declared with only the cuts that exist, so the browser picks the nearest real one and never
@@ -506,6 +506,23 @@ after` on hover or focus (icon, desktop row layout) and in its menu. The modal a
     the registry and that files and licences exist. Check it in Storybook (the
     toolbar has Display/Body/Labels font switchers) and in the app at 390px: buttons, chips, tags,
     tabs and track rows must hold. Inputs use 16px text so iOS doesn't zoom.
+  - **Picker (#1294):** each role is one Chakra `Select` (`FontRoleSelect`): options in
+    their own face, grouped by each choice's `kind` (`sans | mono | slab | system`, required
+    in the registry), the trigger in the current face, a live preview line under it. The last
+    option, "Font on this device…", opens `LocalFontPanel`: `queryLocalFonts` search on
+    Chromium after a click (it prompts), a text field elsewhere or if denied; the preview and
+    the installed check (`isLocalFontInstalled`, canvas width against three generics, never
+    `document.fonts.check`) warn but don't block.
+  - **Device fonts are override-only:** `AppearanceOverride.localFonts[role]` (`localFont.ts`)
+    beats `fonts[role]` for that role (setting one clears the other), is never in the API or
+    `overrideAsDefaultPatch`, and `useDeviceAppearance().canSetAsDefault` ignores it. The
+    name must match `localFontFamilyPattern` (Unicode letters, digits, space, `-`, `_`; 1–64
+    chars), is always emitted as `"Family", <role fallback>`, and reaches the page as an
+    inline `--gn-font-*` property (`applyLocalFonts`; the pre-paint script does the same with
+    `style.setProperty`, validating with the same pattern) — never as stylesheet text.
+    Nothing here may relax that pattern; the injection tests in `localFont.test.ts` and
+    `appearanceScript.test.ts` pin it. A new API font id also goes in
+    `packages/groovenet-contracts/src/settings.ts`, then `just site-tokens`.
 - **Leaving unsaved work (#1231):** a page with unsaved edits calls `useUnsavedChangesGuard`,
   which asks in a `RetroDialog` (Save and leave, Leave without saving, Stay) before an in-app link,
   back, or a programmatic route change leaves it; reload and closing keep the browser's own

@@ -75,6 +75,7 @@ describe("resolveAppearance", () => {
       palette: "riso",
       corners: "rounded",
       fonts: saved.fonts,
+      localFonts: {},
       customPalette: null,
     });
   });
@@ -157,5 +158,73 @@ describe("mergeOverride and serialize", () => {
         fonts: { label: "system" },
       }),
     ).toEqual(["palette", "corners", "font:label"]);
+  });
+});
+
+describe("fonts installed on this device", () => {
+  const { parse, merge } = {
+    parse: parseAppearanceOverride,
+    merge: mergeOverride,
+  };
+
+  it("reads a valid family per role and drops invalid ones alone", () => {
+    expect(
+      parse({
+        v: 1,
+        localFonts: { body: "Berkeley Mono", label: 'bad"; x', display: " Futura  PT ", nope: "X" },
+      }).localFonts,
+    ).toEqual({ body: "Berkeley Mono", display: "Futura PT" });
+  });
+
+  it.each(["x", null, [], 5])("ignores a non-table %j", (value) => {
+    expect(parse({ v: 1, localFonts: value })).toEqual({});
+  });
+
+  it("lets the local font win over a stored choice for the same role only", () => {
+    const parsed = parse({
+      v: 1,
+      fonts: { body: "inter", label: "system" },
+      localFonts: { body: "Menlo" },
+    });
+    expect(parsed.fonts).toEqual({ label: "system" });
+    expect(parse({ v: 1, fonts: { body: "inter" }, localFonts: { body: "Menlo" } }).fonts).toBe(
+      undefined,
+    );
+  });
+
+  it("is an override, and an overridden font field", () => {
+    const override = parse({ v: 1, localFonts: { label: "Menlo" } });
+    expect(isEmptyOverride(override)).toBe(false);
+    expect(overriddenFields(override)).toEqual(["font:label"]);
+  });
+
+  it("sets and clears a family, trading places with a choice", () => {
+    let o = merge({}, { localFonts: { body: "Menlo" } });
+    expect(o.localFonts).toEqual({ body: "Menlo" });
+    o = merge(o, { fonts: { body: "inter" } });
+    expect(o.localFonts).toBeUndefined();
+    expect(o.fonts).toEqual({ body: "inter" });
+    o = merge(o, { localFonts: { body: "Menlo" } });
+    expect(o.fonts).toBeUndefined();
+    o = merge(o, { localFonts: { body: null } });
+    expect(isEmptyOverride(o)).toBe(true);
+  });
+
+  it("refuses to store an unsafe family", () => {
+    expect(merge({}, { localFonts: { body: 'x"; }' } })).toEqual({});
+  });
+
+  it("round-trips through the stored text", () => {
+    const text = serializeOverride({ localFonts: { body: "Berkeley Mono" } });
+    expect(parse(text).localFonts).toEqual({ body: "Berkeley Mono" });
+  });
+
+  it("resolves with the local font beside the underlying choice", () => {
+    const resolved = resolveAppearance(
+      { fonts: { body: "inter" } },
+      { localFonts: { body: "Berkeley Mono" } },
+    );
+    expect(resolved.fonts.body).toBe("inter");
+    expect(resolved.localFonts).toEqual({ body: "Berkeley Mono" });
   });
 });

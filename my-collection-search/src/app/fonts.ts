@@ -221,6 +221,21 @@ const dmMono = localFont({
   fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
 });
 
+// Latin subset of the plain Maple Mono (no Nerd Font or CN builds), upright
+// only like the other faces. Ligatures stay, as in the source.
+const mapleMono = localFont({
+  src: [
+    { path: "./fonts/MapleMono-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/MapleMono-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/MapleMono-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--face-maple-mono",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+});
+
 /** Class names that define the `--face-*` variables; put them on <html>. */
 export const fontClassName = [
   plexSans,
@@ -239,6 +254,7 @@ export const fontClassName = [
   commitMono,
   courierPrime,
   dmMono,
+  mapleMono,
 ]
   .map((font) => font.variable)
   .join(" ");

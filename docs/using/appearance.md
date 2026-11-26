@@ -48,7 +48,19 @@ Typography has one choice for each kind of text:
 - **Body**, for interface text.
 - **Labels**, for buttons, tags, navigation and IDs such as `LP-342`.
 
-Each role is one compact row of faces, each shown in its own face. **System** uses the font your device already has, which loads fastest and is the safest choice if a custom face looks wrong.
+Each role is one dropdown. Open it and every option is shown in its own face, grouped as **Sans**, **Mono**, **Slab** and **System**; the closed dropdown shows your current choice in its face, and a preview line underneath (page titles, interface text, `LP-342 · BUTTON`) shows the result without opening anything. **System** uses the font your device already has, which loads fastest and is the safest choice if a custom face looks wrong. **Maple Mono** is offered for Body and Labels.
+
+Like the palette, a font you choose applies to this device. **Use as the default for everyone** saves it for every device.
+
+### A font installed on this device
+
+The last option in each dropdown is **Font on this device…**. Use it for a font you have installed that GrooveNet doesn't ship, such as Berkeley Mono.
+
+- In Chrome, Edge and other Chromium browsers, **Choose from installed fonts** asks for permission to read your font list, then lets you search it. In other browsers, or if you decline, type the family name instead.
+- A preview shows the font as you type. If the name doesn't look installed on this device, you get a warning and text uses the default sans-serif (or monospace, for Labels) font instead. You can still use the name.
+- Names may use letters, numbers, spaces, `-` and `_`, up to 64 characters.
+
+A font installed on this device applies **only here**. It is never saved as the default, and **Use as the default for everyone** leaves it out, so your other devices and other profiles keep the saved default. If you later uninstall the font, the same fallback takes over and the layout holds. **Reset** returns the role to the default.
 
 ## Light and dark
 

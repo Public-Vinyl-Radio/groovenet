@@ -105,6 +105,7 @@ describe("settings contracts", () => {
       "commit-mono",
       "courier-prime",
       "dm-mono",
+      "maple-mono",
       "system-mono",
       "system",
     ]);

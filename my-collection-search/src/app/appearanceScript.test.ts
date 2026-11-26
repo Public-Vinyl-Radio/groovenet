@@ -18,6 +18,9 @@ beforeEach(() => {
   html().dataset.palette = "sleeve";
   html().dataset.corners = "square";
   html().dataset.fontBody = "default";
+  for (const prop of ["--gn-font-heading", "--gn-font-body", "--gn-font-label"]) {
+    html().style.removeProperty(prop);
+  }
 });
 
 describe("the pre-paint script", () => {
@@ -162,5 +165,81 @@ describe("the pre-paint script", () => {
     delete (document as unknown as Record<string, unknown>).currentScript;
     if (original) Object.defineProperty(Document.prototype, "currentScript", original);
     expect(document.getElementById("gn-custom-palette")?.getAttribute("nonce")).toBe("n0nce");
+  });
+});
+
+describe("a font installed on this device", () => {
+  const prop = (name: string) => html().style.getPropertyValue(name);
+
+  it("sets the role's variable to the quoted family and its generic stack", () => {
+    store({
+      v: 1,
+      localFonts: { display: "Futura PT", body: "Berkeley Mono", label: "Fira Code" },
+    });
+    run();
+    expect(prop("--gn-font-heading")).toBe('"Futura PT", "Helvetica Neue", Arial, sans-serif');
+    expect(prop("--gn-font-body")).toBe('"Berkeley Mono", "Helvetica Neue", Arial, sans-serif');
+    expect(prop("--gn-font-label")).toBe(
+      '"Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    );
+  });
+
+  it("applies the same record the app's own serializer writes", () => {
+    localStorage.setItem(
+      appearanceOverrideKey,
+      serializeOverride({ localFonts: { body: "Berkeley Mono" } }),
+    );
+    run();
+    expect(prop("--gn-font-body")).toContain('"Berkeley Mono"');
+  });
+
+  it.each([
+    'Evil"; } body { color:red',
+    "</style><script>alert(1)</script>",
+    "url(https://evil.example/x)",
+    "a;b",
+    "a}b",
+    'a"b',
+    "x".repeat(65),
+    "",
+    7,
+    null,
+    ["Menlo"],
+  ])("never applies %j", (name) => {
+    store({ v: 1, localFonts: { body: name, label: name } });
+    run();
+    expect(prop("--gn-font-body")).toBe("");
+    expect(prop("--gn-font-label")).toBe("");
+    expect(document.head.querySelector("style")).toBeNull();
+  });
+
+  it("applies each valid role even when another is rejected", () => {
+    store({ v: 1, localFonts: { body: 'bad"', label: "Menlo" } });
+    run();
+    expect(prop("--gn-font-body")).toBe("");
+    expect(prop("--gn-font-label")).toContain('"Menlo"');
+  });
+
+  it("ignores a malformed table, an unknown role and a stale version", () => {
+    store({ v: 1, localFonts: "Menlo" });
+    expect(() => run()).not.toThrow();
+    store({ v: 1, localFonts: { nonsense: "Menlo" } });
+    run();
+    store({ v: 9, localFonts: { body: "Menlo" } });
+    run();
+    expect(prop("--gn-font-body")).toBe("");
+  });
+
+  it("leaves the stored choice on <html> as the fallback underneath", () => {
+    store({ v: 1, fonts: { body: "inter" }, localFonts: { body: "Menlo" } });
+    run();
+    expect(html().dataset.fontBody).toBe("inter");
+    expect(prop("--gn-font-body")).toContain('"Menlo"');
+  });
+
+  it("carries the validation pattern from the same source as the app", async () => {
+    const { localFontFamilyPattern } = await import("./localFont");
+    const [, json] = /\}\)\((\{.*\})\);$/s.exec(appearanceScript) ?? [];
+    expect(new Function(`return (${json});`)().family).toBe(localFontFamilyPattern);
   });
 });

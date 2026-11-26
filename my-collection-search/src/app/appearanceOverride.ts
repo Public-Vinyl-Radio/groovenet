@@ -24,6 +24,7 @@ import {
   type CustomPalette,
 } from "./palettes/custom";
 import { isPaletteId } from "./palettes";
+import { parseLocalFontFamily } from "./localFont";
 
 /** The one versioned localStorage key. */
 export const appearanceOverrideKey = "gn-appearance";
@@ -39,6 +40,11 @@ export interface AppearanceOverride {
   /** This device's own custom palette (not the saved one). */
   customPalette?: CustomPalette;
   fonts?: Partial<RoleFonts>;
+  /**
+   * A family installed on this device, per role. It beats `fonts` for that role
+   * and is never shared: the saved default can't name a font only this device has.
+   */
+  localFonts?: Partial<Record<FontRoleId, string>>;
 }
 
 /** The appearance a page renders: every field present. */
@@ -46,7 +52,9 @@ export interface ResolvedAppearance {
   palette: AppearancePaletteId;
   corners: CornerId;
   customPalette: CustomPalette | null;
+  /** The choice the role falls back to; a local font, when set, draws over it. */
   fonts: RoleFonts;
+  localFonts: Partial<Record<FontRoleId, string>>;
 }
 
 /** What `parseAppearanceOverride` and the store accept as a change: `null` clears a field. */
@@ -55,6 +63,7 @@ export interface AppearanceOverridePatch {
   corners?: CornerId | null;
   customPalette?: CustomPalette | null;
   fonts?: { [R in FontRoleId]?: FontRoleChoice<R> | null };
+  localFonts?: { [R in FontRoleId]?: string | null };
 }
 
 export const emptyOverride: AppearanceOverride = Object.freeze({});
@@ -93,6 +102,21 @@ export function parseAppearanceOverride(raw: unknown): AppearanceOverride {
       if (isFontChoiceId(role, id)) override.fonts = { ...override.fonts, [role]: id };
     }
   }
+  const storedLocal = stored.localFonts;
+  if (storedLocal && typeof storedLocal === "object" && !Array.isArray(storedLocal)) {
+    for (const role of fontRoleIds) {
+      const family = parseLocalFontFamily((storedLocal as Record<string, unknown>)[role]);
+      if (!family) continue;
+      override.localFonts = { ...override.localFonts, [role]: family };
+      // One source per role: the local font wins, as it does when set.
+      if (override.fonts?.[role]) {
+        const rest = { ...override.fonts };
+        delete rest[role];
+        if (Object.keys(rest).length > 0) override.fonts = rest;
+        else delete override.fonts;
+      }
+    }
+  }
   return override;
 }
 
@@ -101,13 +125,15 @@ export const isEmptyOverride = (override: AppearanceOverride) =>
   override.palette === undefined &&
   override.corners === undefined &&
   override.customPalette === undefined &&
-  Object.keys(override.fonts ?? {}).length === 0;
+  Object.keys(override.fonts ?? {}).length === 0 &&
+  Object.keys(override.localFonts ?? {}).length === 0;
 
 /** The override after a change; `null` fields are cleared, and what isn't named stays. */
 export function mergeOverride(
   override: AppearanceOverride,
   patch: AppearanceOverridePatch,
 ): AppearanceOverride {
+  const localFonts: Partial<Record<FontRoleId, string>> = { ...override.localFonts };
   const next: AppearanceOverride = { ...override, fonts: { ...override.fonts } };
   if (patch.palette !== undefined) {
     if (patch.palette === null) delete next.palette;
@@ -125,9 +151,24 @@ export function mergeOverride(
     const choice = patch.fonts?.[role];
     if (choice === undefined) continue;
     if (choice === null) delete next.fonts?.[role];
-    else next.fonts = { ...next.fonts, [role]: choice } as Partial<RoleFonts>;
+    else {
+      next.fonts = { ...next.fonts, [role]: choice } as Partial<RoleFonts>;
+      delete localFonts[role];
+    }
+  }
+  for (const role of fontRoleIds) {
+    const family = patch.localFonts?.[role];
+    if (family === undefined) continue;
+    const safe = family === null ? null : parseLocalFontFamily(family);
+    if (safe === null) delete localFonts[role];
+    else {
+      localFonts[role] = safe;
+      delete next.fonts?.[role];
+    }
   }
   if (Object.keys(next.fonts ?? {}).length === 0) delete next.fonts;
+  if (Object.keys(localFonts).length > 0) next.localFonts = localFonts;
+  else delete next.localFonts;
   return next;
 }
 
@@ -172,6 +213,7 @@ export function resolveAppearance(
     corners: override.corners ?? resolveCorners(saved.corners),
     customPalette,
     fonts,
+    localFonts: { ...override.localFonts },
   };
 }
 
@@ -185,7 +227,9 @@ export function overriddenFields(override: AppearanceOverride): OverriddenField[
   }
   if (override.corners !== undefined) fields.push("corners");
   for (const role of fontRoleIds) {
-    if (override.fonts?.[role] !== undefined) fields.push(`font:${role}`);
+    if (override.fonts?.[role] !== undefined || override.localFonts?.[role] !== undefined) {
+      fields.push(`font:${role}`);
+    }
   }
   return fields;
 }

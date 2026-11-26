@@ -64,6 +64,7 @@ describe("font registry", () => {
       "commit-mono",
       "courier-prime",
       "dm-mono",
+      "maple-mono",
     ]);
   });
 
@@ -98,6 +99,7 @@ describe("font registry", () => {
       "commit-mono",
       "courier-prime",
       "dm-mono",
+      "maple-mono",
       "system-mono",
       "system",
     ]);
@@ -127,6 +129,7 @@ describe("font registry", () => {
       "commit-mono",
       "courier-prime",
       "dm-mono",
+      "maple-mono",
       "system",
     ]);
   });
