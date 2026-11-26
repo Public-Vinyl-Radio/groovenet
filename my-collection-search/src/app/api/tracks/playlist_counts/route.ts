@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackPlaylistCountRefSchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { resolveViewer } from "@/server/auth/viewer";
 
 // POST: { track_refs: { track_id: string; friend_id: number }[] }
 //
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Returns: { ["track_id:friend_id"]: count }
-    const counts = await trackRepository.getPlaylistCountsForTracks(refs);
+    // Private playlists of other profiles don't count (#1284).
+    const viewer = await resolveViewer(req);
+    const counts = await trackRepository.getPlaylistCountsForTracks(refs, viewer.id);
     return NextResponse.json(counts);
   } catch (e) {
     console.error("Error getting playlist counts:", e);

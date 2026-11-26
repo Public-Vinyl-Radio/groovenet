@@ -14,6 +14,7 @@ vi.mock("@/server/repositories/recordCopyRepository", () => ({
 }));
 vi.mock("../redisJobService", () => ({ redisJobService: { getAllJobs: vi.fn() } }));
 const now = new Date("2026-10-31T12:00:00Z");
+const VIEWER = "00000000-0000-4000-8000-000000000002";
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
@@ -35,13 +36,16 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 it("returns an empty library and uses the chores overdue rule", async () => {
-  expect(await homeService.getHome({ friend_id: 7 })).toEqual(emptyHome);
+  expect(await homeService.getHome({ friend_id: 7 }, VIEWER)).toEqual(emptyHome);
   expect(recordCopyRepository.careCounts).toHaveBeenCalledWith(
     7,
     defaultOverdueDays(),
     DEFAULT_TARGET_SLEEVE,
   );
   expect(homeRepository.arrivals).toHaveBeenCalledWith(7, now);
+  // Playlists are the viewer's to see (#1284).
+  expect(homeRepository.counts).toHaveBeenCalledWith(7, VIEWER);
+  expect(homeRepository.playlists).toHaveBeenCalledWith(7, VIEWER);
 });
 it("shapes dates, keeps all-window unrated counts and draft durations", async () => {
   const arrival = {
@@ -90,7 +94,7 @@ it("shapes dates, keeps all-window unrated counts and draft durations", async ()
     overdue: 4,
     needs_sleeve: 1,
   });
-  const result = await homeService.getHome({ friend_id: 7 });
+  const result = await homeService.getHome({ friend_id: 7 }, VIEWER);
   expect(result.counts).toEqual({ tracks: 10, albums: 8, playlists: 1 });
   expect(result.new_arrivals).toEqual({
     window_days: 30,
@@ -117,17 +121,17 @@ it("counts failed jobs for this friend in the inclusive seven-day window", async
     { friend_id: 7, status: "completed", updated_at: start },
   ];
   vi.mocked(redisJobService.getAllJobs).mockResolvedValue(jobs as never);
-  expect((await homeService.getHome({ friend_id: 7 })).attention.failed_jobs).toBe(2);
+  expect((await homeService.getHome({ friend_id: 7 }, VIEWER)).attention.failed_jobs).toBe(2);
 });
 it("logs a Redis failure and returns a nullable count", async () => {
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   const error = new Error("Redis unavailable");
   vi.mocked(redisJobService.getAllJobs).mockRejectedValue(error);
-  expect((await homeService.getHome({ friend_id: 7 })).attention.failed_jobs).toBeNull();
+  expect((await homeService.getHome({ friend_id: 7 }, VIEWER)).attention.failed_jobs).toBeNull();
   expect(log).toHaveBeenCalledWith("Error getting Home failed jobs:", error);
   log.mockRestore();
 });
 it("propagates a database failure", async () => {
   vi.mocked(homeRepository.counts).mockRejectedValue(new Error("db down"));
-  await expect(homeService.getHome({ friend_id: 7 })).rejects.toThrow("db down");
+  await expect(homeService.getHome({ friend_id: 7 }, VIEWER)).rejects.toThrow("db down");
 });

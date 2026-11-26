@@ -723,6 +723,12 @@ jobs:
         env:
           DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
 
+      # Rolls back to before playlists.owner_id, seeds, migrates up and checks privacy (#1284).
+      - name: Run playlist owners migration and privacy tests
+        run: npm run test:playlist-owners
+        env:
+          DATABASE_URL: postgres://djplaylist:test@localhost:5432/djplaylist
+
       # Last: it drops and recreates the public schema in every case.
       - name: Run migrate-preflight test
         run: bash ./scripts/migrate-preflight-test.sh

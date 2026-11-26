@@ -25,7 +25,8 @@ config              set | show
 tracks              search | show | update | missing-apple-music | deleted
                     restore | recommend | similar-identity | similar-vibe
 albums              list | show | update | download | delete
-playlists           list | show | check | create | set-tracks | generate | log-spins
+playlists           list | show | check | create [--private] | visibility | set-tracks
+                    generate | log-spins
 friends             list | add
 profiles            list | show | create --from <preset> [--use] | use [--surface] | delete
 fingerprint-library (no subcommands — scope flags)
@@ -521,6 +522,14 @@ result like `playlists show`. One ref per line, in order: `track_id` or
 lines are ignored; `-` reads stdin. Every line is validated before any request,
 and all bad lines are reported together. Named `set-tracks` so it does not
 collide with `playlists set`, which manages the set record.
+
+## playlists owners (#1284)
+
+Playlists belong to the token's profile (else the owner). `create <name>
+--private` makes one only you can see; `visibility <id> household|private`
+changes it, owner only (the API's 403 is printed as the error). `list` shows an
+Owner column, `(private)` marked. Someone else's private playlist is "not
+found" to every command, as if it did not exist.
 
 ## playlists log-spins
 

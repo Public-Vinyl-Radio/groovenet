@@ -13,6 +13,7 @@ import { SetDerivationRepository } from "../setDerivationRepository";
 
 const repo = () => new SetDerivationRepository();
 const SHA = "a".repeat(64);
+const VIEWER = "00000000-0000-4000-8000-000000000002";
 const ENGINE = { fingerprint_type: "chromaprint", fingerprint_version: "1" };
 const KEY = { recording_sha256: SHA, ...ENGINE, window_seconds: 15, step_seconds: 15 };
 
@@ -134,16 +135,20 @@ describe("reads for the view", () => {
     expect(dbQuery.mock.calls[0][1]).toEqual([["1"], "chromaprint", "1"]);
   });
 
-  it("resolves a live set to its playlist, or null", async () => {
+  it("resolves a live set to its playlist when the viewer may see it, or null", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{ playlist_id: 176 }] });
-    expect(await repo().findPlaylistIdForLiveSet(3)).toBe(176);
-    expect(await repo().findPlaylistIdForLiveSet(4)).toBeNull();
+    expect(await repo().findPlaylistIdForLiveSet(3, VIEWER)).toBe(176);
+    expect(dbQuery.mock.calls[0][0]).toContain("p.owner_id = $2::uuid");
+    expect(dbQuery.mock.calls[0][1]).toEqual([3, VIEWER]);
+    expect(await repo().findPlaylistIdForLiveSet(4, null)).toBeNull();
   });
 
-  it("checks a playlist exists", async () => {
+  it("checks a playlist exists and is visible to the viewer", async () => {
     dbQuery.mockResolvedValueOnce({ rows: [{}] });
-    expect(await repo().playlistExists(176)).toBe(true);
-    expect(await repo().playlistExists(9)).toBe(false);
+    expect(await repo().playlistExists(176, VIEWER)).toBe(true);
+    expect(dbQuery.mock.calls[0][0]).toContain("p.visibility = 'household' OR p.owner_id = $2");
+    expect(dbQuery.mock.calls[0][1]).toEqual([176, VIEWER]);
+    expect(await repo().playlistExists(9, VIEWER)).toBe(false);
   });
 
   it("attaches a recording to a live set only if it is not already there", async () => {

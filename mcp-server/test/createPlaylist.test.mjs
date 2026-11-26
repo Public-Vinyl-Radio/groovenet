@@ -83,6 +83,32 @@ describe("create_playlist over MCP stdio", { timeout: 15_000 }, () => {
     assert.deepEqual(requests[0].body, { name: "Set", tracks: [] });
   });
 
+  it("creates a private playlist when asked (#1284)", async () => {
+    const result = await call({ name: "Mine", visibility: "private" });
+    assert.ok(!result.isError);
+    assert.match(result.content[0].text, /created \(private\)/);
+    assert.deepEqual(requests[0].body, { name: "Mine", tracks: [], visibility: "private" });
+  });
+
+  it("refuses an unknown visibility before calling the API", async () => {
+    const result = await call({ name: "Mine", visibility: "public" });
+    assert.equal(result.isError, true);
+    assert.equal(requests.length, 0);
+  });
+
+  it("lists playlists with their owner and privacy", async () => {
+    status = 200;
+    response = [
+      { id: 1, name: "Shared", owner_name: "Sam", visibility: "household", tracks: [] },
+      { id: 2, name: "Mine", owner_name: "Adam", visibility: "private", tracks: [] },
+      { id: 3, name: "Old", tracks: [] },
+    ];
+    const text = (await client.callTool({ name: "list_playlists", arguments: {} })).content[0].text;
+    assert.match(text, /• Shared \(ID: 1, Sam\)/);
+    assert.match(text, /• Mine \(ID: 2, Adam, private\)/);
+    assert.match(text, /• Old \(ID: 3\)/);
+  });
+
   it("reports an invalid payload as an MCP tool error", async () => {
     status = 400;
     response = { error: "Invalid playlist payload" };

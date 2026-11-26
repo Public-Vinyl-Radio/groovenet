@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const { mockGetCounts } = vi.hoisted(() => ({ mockGetCounts: vi.fn() }));
 
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/repositories/trackRepository", () => ({
   trackRepository: { getPlaylistCountsForTracks: mockGetCounts },
 }));
@@ -28,7 +29,10 @@ describe("POST /api/tracks/playlist_counts", () => {
     const res = await POST(req({ track_refs: [{ track_id: "t1", friend_id: 1 }] }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ "t1:1": 2 });
-    expect(mockGetCounts).toHaveBeenCalledWith([{ track_id: "t1", friend_id: 1 }]);
+    expect(mockGetCounts).toHaveBeenCalledWith(
+      [{ track_id: "t1", friend_id: 1 }],
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("drops malformed refs and looks up only the valid ones", async () => {
@@ -47,12 +51,18 @@ describe("POST /api/tracks/playlist_counts", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(mockGetCounts).toHaveBeenCalledWith([{ track_id: "t1", friend_id: 1 }]);
+    expect(mockGetCounts).toHaveBeenCalledWith(
+      [{ track_id: "t1", friend_id: 1 }],
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("strips unknown keys from a valid ref", async () => {
     await POST(req({ track_refs: [{ track_id: "t1", friend_id: 1, extra: true }] }));
-    expect(mockGetCounts).toHaveBeenCalledWith([{ track_id: "t1", friend_id: 1 }]);
+    expect(mockGetCounts).toHaveBeenCalledWith(
+      [{ track_id: "t1", friend_id: 1 }],
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it.each([

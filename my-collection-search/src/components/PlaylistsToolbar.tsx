@@ -1,36 +1,63 @@
 "use client";
 
 import React from "react";
-import { IconButton, Menu } from "@chakra-ui/react";
+import { Box, IconButton, Menu } from "@chakra-ui/react";
 import { FiMoreVertical } from "react-icons/fi";
 import { TbFileImport } from "react-icons/tb";
 import { HeaderButton, ListSearchRow, SearchField } from "@/components/layout/ListHeader";
 import type { PlaylistsViewMode } from "@/hooks/usePlaylistsViewMode";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import type { PlaylistOwnerFilter } from "@/lib/playlistOwners";
+
+export type PlaylistOwnerFilterProps = {
+  value: PlaylistOwnerFilter;
+  options: Array<{ value: PlaylistOwnerFilter; label: string }>;
+  onChange: (value: PlaylistOwnerFilter) => void;
+};
 
 /**
  * The search row under the Playlists header: the shared 48px field (44px on
  * phones) at the Albums width. The view switch and Import live in the page
- * header, as on Tracks and Albums.
+ * header, as on Tracks and Albums. With more than one household profile, an
+ * owner filter follows on every width (#1284): All, Mine, then each other
+ * profile.
  */
 export default function PlaylistsToolbar({
   query,
   onQueryChange,
+  owner,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
+  owner?: PlaylistOwnerFilterProps;
 }) {
+  const showOwner = !!owner && owner.options.length > 0;
   return (
-    <ListSearchRow
-      maxW="640px"
-      field={
-        <SearchField
-          value={query}
-          onChange={onQueryChange}
-          label="Search playlists"
-          placeholder="Search playlists"
-        />
-      }
-    />
+    <>
+      <ListSearchRow
+        maxW="640px"
+        mb={showOwner ? 3 : undefined}
+        field={
+          <SearchField
+            value={query}
+            onChange={onQueryChange}
+            label="Search playlists"
+            placeholder="Search playlists"
+          />
+        }
+      />
+      {showOwner && (
+        <Box maxW={{ md: "640px" }} mb={{ base: 3, md: 4 }}>
+          <SegmentedControl
+            framed
+            aria-label="Show playlists by owner"
+            items={owner.options}
+            value={owner.value}
+            onValueChange={owner.onChange}
+          />
+        </Box>
+      )}
+    </>
   );
 }
 

@@ -289,7 +289,8 @@ const tools = [
   },
   {
     name: "list_playlists",
-    description: "List all playlists in your collection",
+    description:
+      "List the playlists you can see: every household playlist plus your own private ones, each with its owner's profile name.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -305,7 +306,8 @@ const tools = [
   },
   {
     name: "create_playlist",
-    description: "Create a new playlist with optional tracks",
+    description:
+      "Create a new playlist with optional tracks. It is owned by your profile (the token's, else the household owner) and visible to the household unless visibility is private.",
     inputSchema: {
       type: "object",
       properties: {
@@ -318,6 +320,11 @@ const tools = [
         friend_id: {
           type: "number",
           description: "Friend whose tracks these are (defaults to the configured default friend)",
+        },
+        visibility: {
+          type: "string",
+          enum: ["household", "private"],
+          description: "household (default): everyone in the household sees it; private: only you",
         },
       },
       required: ["name"],
@@ -811,6 +818,7 @@ interface ToolArgs {
   name?: string;
   tracks?: string[];
   playlist?: Array<Record<string, unknown>>;
+  visibility?: string;
   // ai search
   title?: string;
   artist?: string;
@@ -1351,7 +1359,7 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
         content: [
           {
             type: "text",
-            text: `Your playlists:\n\n${playlists.map((p) => `• ${p.name} (ID: ${p.id})`).join("\n")}`,
+            text: `Your playlists:\n\n${playlists.map((p) => `• ${p.name} (ID: ${p.id}${p.owner_name ? `, ${p.owner_name}` : ""}${p.visibility === "private" ? ", private" : ""})`).join("\n")}`,
           },
         ],
       };
@@ -1375,16 +1383,21 @@ ${track.soundcloud_url ? `- SoundCloud: ${track.soundcloud_url}` : ""}
     }
 
     case "create_playlist": {
+      const visibility = args.visibility;
+      if (visibility !== undefined && visibility !== "household" && visibility !== "private") {
+        throw new Error("visibility must be household or private");
+      }
       await client.createPlaylist(
         args.name!,
         args.tracks ?? [],
         args.friend_id ?? DEFAULT_FRIEND_ID,
+        visibility ? { visibility } : {},
       );
       return {
         content: [
           {
             type: "text",
-            text: `✓ Playlist "${args.name}" created!${args.tracks?.length ? ` Added ${args.tracks.length} tracks.` : ""}`,
+            text: `✓ Playlist "${args.name}" created${visibility === "private" ? " (private)" : ""}!${args.tracks?.length ? ` Added ${args.tracks.length} tracks.` : ""}`,
           },
         ],
       };

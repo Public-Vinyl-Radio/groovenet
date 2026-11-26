@@ -49,6 +49,12 @@ import { useFriendsQuery } from "@/hooks/useFriendsQuery";
 import { analytics } from "@/lib/analytics/client";
 import type { Playlist } from "@/types/track";
 import { exportPlaylistToPDF } from "@/lib/exportPlaylistPdf";
+import { useHousehold } from "@/providers/HouseholdProvider";
+import {
+  filterPlaylistsByOwner,
+  ownerFilterOptions,
+  type PlaylistOwnerFilter,
+} from "@/lib/playlistOwners";
 
 export default function PlaylistManager() {
   const router = useRouter();
@@ -83,10 +89,20 @@ export default function PlaylistManager() {
   const [filter, setFilter] = useState("");
   usePaletteScope({ id: "playlists", label: "Playlists", onSearch: setFilter });
 
+  // Owner filter (#1284): only offered when the household has several profiles.
+  const { data: household } = useHousehold();
+  const currentId = household?.current?.id;
+  const ownerOptions = ownerFilterOptions(household?.users ?? [], currentId);
+  const [ownerChoice, setOwnerChoice] = useState<PlaylistOwnerFilter>("all");
+  // A stale choice (a profile switch, a renamed household) falls back to All.
+  const ownerFilter = ownerOptions.some((o) => o.value === ownerChoice) ? ownerChoice : "all";
+
   const filtered = React.useMemo(() => {
     const q = filter.toLowerCase();
-    return playlists.filter((pl) => !q || pl.name.toLowerCase().includes(q));
-  }, [playlists, filter]);
+    return filterPlaylistsByOwner(playlists, ownerFilter, currentId).filter(
+      (pl) => !q || pl.name.toLowerCase().includes(q),
+    );
+  }, [playlists, filter, ownerFilter, currentId]);
 
   const groups = React.useMemo(() => groupPlaylistsByMonth(filtered), [filtered]);
   // LIST is a table on desktop and compact ruled rows on a phone.
@@ -276,7 +292,11 @@ export default function PlaylistManager() {
         />
       </PageHeader>
       <PageHeader.Toolbar>
-        <PlaylistsToolbar query={filter} onQueryChange={setFilter} />
+        <PlaylistsToolbar
+          query={filter}
+          onQueryChange={setFilter}
+          owner={{ value: ownerFilter, options: ownerOptions, onChange: setOwnerChoice }}
+        />
       </PageHeader.Toolbar>
 
       {playlistsLoading ? (
@@ -306,7 +326,9 @@ export default function PlaylistManager() {
         </EmptyState.Root>
       ) : filtered.length === 0 ? (
         <Text fontSize="sm" color="fg.muted" px={2} py={1}>
-          {filter.trim() ? `No playlists match "${filter}"` : "No playlists yet"}
+          {/* With no playlists at all the empty state shows instead, so only the
+              owner filter can empty the list without a query. */}
+          {filter.trim() ? `No playlists match "${filter}"` : "No playlists here yet"}
         </Text>
       ) : showTable ? (
         <PlaylistTable groups={groups} loadingId={loadingId} getActions={playlistActions} />

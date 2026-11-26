@@ -5,6 +5,7 @@ import {
   playlistSpinsResponseSchema,
 } from "@/api-contract/schemas";
 import { playlistSpinService } from "@/server/services/playlistSpinService";
+import { resolveViewer } from "@/server/auth/viewer";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -21,7 +22,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const result = await playlistSpinService.log(parsedParams.data.id, parsedBody.data);
+    const viewer = await resolveViewer(request);
+    const result = await playlistSpinService.log(parsedParams.data.id, parsedBody.data, viewer.id);
     return NextResponse.json(playlistSpinsResponseSchema.parse(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to log playlist spins";

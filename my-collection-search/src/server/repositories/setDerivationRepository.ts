@@ -1,4 +1,5 @@
 import { dbQuery } from "@/lib/serverDb";
+import { playlistVisibleSql } from "@/server/repositories/playlistRepository";
 import type {
   PlannedEntry,
   SetDerivationRow,
@@ -200,16 +201,25 @@ export class SetDerivationRepository {
     return rows;
   }
 
-  async findPlaylistIdForLiveSet(liveSetId: number): Promise<number | null> {
+  /** Null when the set is missing or its playlist is someone else's private one (#1284). */
+  async findPlaylistIdForLiveSet(
+    liveSetId: number,
+    viewerId: string | null,
+  ): Promise<number | null> {
     const { rows } = await dbQuery<{ playlist_id: number }>(
-      "SELECT playlist_id FROM live_sets WHERE id = $1",
-      [liveSetId],
+      `SELECT s.playlist_id FROM live_sets s JOIN playlists p ON p.id = s.playlist_id
+       WHERE s.id = $1 AND ${playlistVisibleSql("p", "$2::uuid")}`,
+      [liveSetId, viewerId],
     );
     return rows[0]?.playlist_id ?? null;
   }
 
-  async playlistExists(playlistId: number): Promise<boolean> {
-    const { rows } = await dbQuery("SELECT 1 FROM playlists WHERE id = $1", [playlistId]);
+  /** False when the playlist is missing or someone else's private one (#1284). */
+  async playlistExists(playlistId: number, viewerId: string): Promise<boolean> {
+    const { rows } = await dbQuery(
+      `SELECT 1 FROM playlists p WHERE p.id = $1 AND ${playlistVisibleSql("p", "$2")}`,
+      [playlistId, viewerId],
+    );
     return rows.length > 0;
   }
 

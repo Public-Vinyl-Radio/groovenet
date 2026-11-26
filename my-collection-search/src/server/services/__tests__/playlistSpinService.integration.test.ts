@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { PlaylistSpinService } from "../playlistSpinService";
+import { householdOwnerId } from "@/test/householdOwnerId";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const service = new PlaylistSpinService();
@@ -66,11 +67,15 @@ afterAll(async () => {
 });
 
 dbTest("creates one spin per entry and a rerun creates none", async () => {
-  await expect(service.log(playlistId, { performance_id: performanceId })).resolves.toMatchObject({
+  await expect(
+    service.log(playlistId, { performance_id: performanceId }, await householdOwnerId()),
+  ).resolves.toMatchObject({
     created: 2,
     skipped: 0,
   });
-  await expect(service.log(playlistId, { performance_id: performanceId })).resolves.toMatchObject({
+  await expect(
+    service.log(playlistId, { performance_id: performanceId }, await householdOwnerId()),
+  ).resolves.toMatchObject({
     created: 0,
     skipped: 2,
   });

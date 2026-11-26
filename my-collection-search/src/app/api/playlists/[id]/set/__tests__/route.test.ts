@@ -6,6 +6,7 @@ const service = vi.hoisted(() => ({
   getByPlaylistId: vi.fn(),
   updateForPlaylist: vi.fn(),
 }));
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/services/liveSetService", () => ({ liveSetService: service }));
 import { DELETE, GET, POST, PUT } from "../route";
 
@@ -50,7 +51,10 @@ describe("playlist set lifecycle route", () => {
     service.deleteForPlaylist.mockResolvedValue(true);
     const response = await DELETE(new Request("http://localhost"), context("9"));
     expect(response.status).toBe(200);
-    expect(service.deleteForPlaylist).toHaveBeenCalledWith(9);
+    expect(service.deleteForPlaylist).toHaveBeenCalledWith(
+      9,
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("gets a set and returns 404 when absent", async () => {
@@ -79,7 +83,11 @@ describe("playlist set lifecycle route", () => {
       context("9"),
     );
     expect(valid.status).toBe(200);
-    expect(service.updateForPlaylist).toHaveBeenCalledWith(9, { status: "draft" });
+    expect(service.updateForPlaylist).toHaveBeenCalledWith(
+      9,
+      { status: "draft" },
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("rejects invalid nested media before updating", async () => {

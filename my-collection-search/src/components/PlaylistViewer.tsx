@@ -39,6 +39,8 @@ import PageHeader from "@/components/layout/PageHeader";
 import { SUGGESTIONS_DOCK_GAP } from "@/hooks/useSuggestionsForm";
 import { useRankingProfile } from "@/hooks/useRankingProfiles";
 import { useTrackStore } from "@/stores/trackStore";
+import { useHousehold } from "@/providers/HouseholdProvider";
+import { playlistOwnerLabel } from "@/lib/playlistOwners";
 
 // Keyed by playlist (below), so moving to another playlist starts from the skeleton and a
 // changed track list within one keeps the page, and the Suggestions panel, mounted (#1233).
@@ -59,6 +61,8 @@ const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
   const {
     tracks: tracksPlaylist,
     playlistName,
+    ownership,
+    notFound,
     isPending: trackIdsLoading,
     refetch: refetchTrackIds,
   } = usePlaylistTrackIdsQuery(playlistId);
@@ -269,6 +273,32 @@ const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
     } catch (err) {
       console.error("Duplicate playlist error:", err);
       toaster.create({ title: "Failed to duplicate playlist", type: "error" });
+    }
+  };
+
+  // Owner and visibility (#1284). Only the owner may change who sees it, and
+  // only a household with several profiles has anyone to hide it from.
+  const { data: household } = useHousehold();
+  const currentProfileId = household?.current?.id;
+  const profileCount = household?.users.length ?? 0;
+  const ownerLabel = ownership
+    ? playlistOwnerLabel(ownership, currentProfileId, profileCount)
+    : null;
+  const canChangeVisibility =
+    !!playlistId && !!ownership && profileCount > 1 && ownership.owner_id === currentProfileId;
+  const setVisibility = async (id: number, visibility: "household" | "private") => {
+    try {
+      await updatePlaylist(id, { visibility });
+      queryClient.invalidateQueries({ queryKey: queryKeys.playlistTrackIds(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.playlists() });
+      toaster.create({
+        title:
+          visibility === "private" ? "Only you can see this playlist" : "Shared with household",
+        type: "success",
+      });
+    } catch (err) {
+      console.error("Playlist visibility error:", err);
+      toaster.create({ title: "Failed to change who can see this playlist", type: "error" });
     }
   };
 
@@ -532,6 +562,18 @@ const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
       onRename={playlistId ? () => setRenameDialogOpen(true) : undefined}
       onOpenRecommendations={openSuggestions}
       onCreateSet={playlistId && !liveSet.loading && !liveSet.set ? liveSet.create : undefined}
+      visibility={
+        canChangeVisibility && playlistId && ownership
+          ? {
+              value: ownership.visibility,
+              onToggle: () =>
+                setVisibility(
+                  playlistId,
+                  ownership.visibility === "private" ? "household" : "private",
+                ),
+            }
+          : undefined
+      }
       enqueuePlaylist={() =>
         replacePlaylist(tracks, {
           autoplay: true,
@@ -550,6 +592,7 @@ const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
     trackIdsLoading || tracksLoading || trackCount === 0
       ? undefined
       : [
+          ownerLabel && (ownerLabel.kind === "private" ? "Private" : `By ${ownerLabel.label}`),
           `${trackCount} ${trackCount === 1 ? "track" : "tracks"}`,
           totalPlaytimeFormatted,
           durationMissingCount > 0 && `${durationMissingCount} missing timing`,
@@ -606,6 +649,28 @@ const PlaylistViewerPage = ({ playlistId }: { playlistId?: number }) => {
       </Box>
     </>
   );
+
+  // Before the skeleton: with no refs, the tracks query never leaves "pending".
+  if (notFound) {
+    return (
+      <Box overflowY="auto">
+        {header}
+        <EmptyState.Root size={"sm"}>
+          <EmptyState.Content>
+            <EmptyState.Indicator>
+              <FiHeadphones />
+            </EmptyState.Indicator>
+            <VStack textAlign="center">
+              <EmptyState.Title>Playlist not found</EmptyState.Title>
+              <EmptyState.Description>
+                It was deleted, or it is someone else&apos;s private playlist.
+              </EmptyState.Description>
+            </VStack>
+          </EmptyState.Content>
+        </EmptyState.Root>
+      </Box>
+    );
+  }
 
   if (trackIdsLoading || tracksLoading) {
     return (

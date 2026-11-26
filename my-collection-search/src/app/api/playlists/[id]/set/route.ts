@@ -7,18 +7,22 @@ import {
   playlistDetailParamsSchema,
 } from "@/api-contract/schemas";
 import { liveSetService } from "@/server/services/liveSetService";
+import { resolveViewer } from "@/server/auth/viewer";
 
 async function parsePlaylistId(params: Promise<{ id: string }>) {
   const { id } = await params;
   return playlistDetailParamsSchema.safeParse({ id });
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parsed = await parsePlaylistId(params);
     if (!parsed.success)
       return NextResponse.json({ error: "Invalid playlist id" }, { status: 400 });
-    const set = await liveSetService.getByPlaylistId(parsed.data.id);
+    const set = await liveSetService.getByPlaylistId(
+      parsed.data.id,
+      (await resolveViewer(request)).id,
+    );
     if (!set) return NextResponse.json({ error: "Set not found" }, { status: 404 });
     const response = liveSetResponseSchema.safeParse({
       ...set,
@@ -38,12 +42,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parsed = await parsePlaylistId(params);
     if (!parsed.success)
       return NextResponse.json({ error: "Invalid playlist id" }, { status: 400 });
-    const set = await liveSetService.createForPlaylist(parsed.data.id);
+    const set = await liveSetService.createForPlaylist(
+      parsed.data.id,
+      (await resolveViewer(request)).id,
+    );
     if (!set) return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     const response = liveSetMutationSchema.safeParse({ id: set.id, playlist_id: set.playlist_id });
     if (!response.success) throw new Error("Invalid live set creation response");
@@ -67,7 +74,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         { status: 400 },
       );
     }
-    const set = await liveSetService.updateForPlaylist(parsed.data.id, parsedUpdate.data);
+    const set = await liveSetService.updateForPlaylist(
+      parsed.data.id,
+      parsedUpdate.data,
+      (await resolveViewer(request)).id,
+    );
     if (!set) return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     const response = liveSetMutationSchema.safeParse({ id: set.id, playlist_id: set.playlist_id });
     if (!response.success) throw new Error("Invalid live set update response");
@@ -78,12 +89,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const parsed = await parsePlaylistId(params);
     if (!parsed.success)
       return NextResponse.json({ error: "Invalid playlist id" }, { status: 400 });
-    const deleted = await liveSetService.deleteForPlaylist(parsed.data.id);
+    const deleted = await liveSetService.deleteForPlaylist(
+      parsed.data.id,
+      (await resolveViewer(request)).id,
+    );
     if (!deleted) return NextResponse.json({ error: "Set not found" }, { status: 404 });
     const response = liveSetDeleteSchema.safeParse({ success: true });
     if (!response.success) throw new Error("Invalid live set deletion response");

@@ -48,11 +48,27 @@ export const playlistTrackInputSchema = z
   })
   .passthrough();
 
+/**
+ * Who can see a playlist (#1284): the whole household (the default) or only
+ * its owner. Only the owner may change it.
+ */
+export const playlistVisibilitySchema = z.enum(["household", "private"]);
+
+/** The household profile that owns a playlist, and whether others can see it. */
+const playlistOwnershipShape = {
+  /** The owning household profile's id. */
+  owner_id: z.string().optional(),
+  /** The owning profile's display name, for an owner badge. */
+  owner_name: z.string().nullable().optional(),
+  visibility: playlistVisibilitySchema.optional(),
+};
+
 export const playlistSchema = z
   .object({
     id: z.number().int(),
     name: z.string(),
     created_at: z.string(),
+    ...playlistOwnershipShape,
     total_duration_seconds: z.number().optional(),
     tracks: z.array(playlistTrackRefSchema),
     /** Album art of the first four tracks that have one, in position order. List endpoint only. */
@@ -66,6 +82,10 @@ export const playlistCreateSchema = z
     name: z.string(),
     tracks: z.array(playlistTrackInputSchema).optional().default([]),
     default_friend_id: z.number().int().optional(),
+    /** Default `household`. The new playlist is owned by the requesting profile. */
+    visibility: playlistVisibilitySchema
+      .optional()
+      .describe("Default household. The new playlist is owned by the requesting profile."),
   })
   .passthrough();
 
@@ -76,12 +96,19 @@ export const playlistUpdateSchema = z
     name: z.string().optional(),
     tracks: z.array(z.union([z.string(), playlistTrackInputSchema])).optional(),
     default_friend_id: z.number().int().optional(),
+    /** Owner only: anyone else gets a 403. Name and tracks stay editable by the household. */
+    visibility: playlistVisibilitySchema
+      .optional()
+      .describe(
+        "Owner only; anyone else gets a 403. Name and tracks stay editable by the household.",
+      ),
   })
   .passthrough();
 
 export const playlistDetailSchema = z.object({
   playlist_id: z.number().int(),
   playlist_name: z.string().nullable().optional(),
+  ...playlistOwnershipShape,
   tracks: z.array(playlistTrackRefSchema),
 });
 
@@ -162,6 +189,7 @@ export const playlistGeneticValidationErrorSchema = z.object({
 });
 
 export type PlaylistOptimizerMode = z.infer<typeof playlistOptimizerModeSchema>;
+export type PlaylistVisibility = z.infer<typeof playlistVisibilitySchema>;
 export type PlaylistTrackRef = z.infer<typeof playlistTrackRefSchema>;
 export type PlaylistTrackInput = z.infer<typeof playlistTrackInputSchema>;
 export type Playlist = z.infer<typeof playlistSchema>;
@@ -177,6 +205,7 @@ export type PlaylistGeneticValidationError = z.infer<typeof playlistGeneticValid
 
 export const playlistJsonSchemas = {
   PlaylistOptimizerMode: z.toJSONSchema(playlistOptimizerModeSchema),
+  PlaylistVisibility: z.toJSONSchema(playlistVisibilitySchema),
   PlaylistTrackRef: z.toJSONSchema(playlistTrackRefSchema),
   PlaylistTrackInput: z.toJSONSchema(playlistTrackInputSchema),
   Playlist: z.toJSONSchema(playlistSchema),

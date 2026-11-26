@@ -6,6 +6,7 @@ import { DEFAULT_TARGET_SLEEVE, defaultOverdueDays } from "@/lib/recordCare";
 import { homeRepository } from "../homeRepository";
 import { SpinSessionRepository } from "../spinSessionRepository";
 import { TrackSpinEventRepository } from "../trackSpinEventRepository";
+import { householdOwnerId } from "@/test/householdOwnerId";
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const now = new Date("2026-10-31T12:00:00Z");
 const start = new Date(now.getTime() - 30 * 86400000);
@@ -170,7 +171,11 @@ dbTest(
   },
 );
 dbTest("counts friend-scoped tracks, albums, member playlists and attention", async () => {
-  expect(await homeRepository.counts(friend)).toEqual({ tracks: 3, albums: 10, playlists: 5 });
+  expect(await homeRepository.counts(friend, await householdOwnerId())).toEqual({
+    tracks: 3,
+    albums: 10,
+    playlists: 5,
+  });
   expect(await homeRepository.attention(friend)).toEqual({
     missing_audio: 2,
     missing_bpm_or_key: 2,
@@ -184,7 +189,7 @@ dbTest("counts friend-scoped tracks, albums, member playlists and attention", as
 dbTest(
   "picks the latest draft and recent member playlists with partial known duration",
   async () => {
-    const result = await homeRepository.playlists(friend);
+    const result = await homeRepository.playlists(friend, await householdOwnerId());
     expect(result.draft_set).toEqual({
       id: latestDraft,
       playlist_id: playlistIds[2],
@@ -208,7 +213,10 @@ dbTest(
     expect(new Date(result.recent[0].created_at).toISOString()).toBe(
       new Date(now.getTime() + 4000).toISOString(),
     );
-    expect(await homeRepository.playlists(-1)).toEqual({ draft_set: null, recent: [] });
+    expect(await homeRepository.playlists(-1, await householdOwnerId())).toEqual({
+      draft_set: null,
+      recent: [],
+    });
     await dbQuery("DELETE FROM playlist_tracks WHERE playlist_id = $1", [playlistIds[0]]);
     // Membership remains on the null-duration entry, and zero known durations are reported as zero.
     await dbQuery(
@@ -219,7 +227,9 @@ dbTest(
       playlistIds[0],
       new Date(now.getTime() + 20000),
     ]);
-    expect((await homeRepository.playlists(friend)).draft_set).toMatchObject({
+    expect(
+      (await homeRepository.playlists(friend, await householdOwnerId())).draft_set,
+    ).toMatchObject({
       track_count: 1,
       duration_seconds: 0,
       duration_known_share: 0,

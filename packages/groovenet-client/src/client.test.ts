@@ -1889,6 +1889,27 @@ describe("set derivation (#282)", () => {
   });
 });
 
+describe("playlist visibility (#1284)", () => {
+  it("creates a private playlist", async () => {
+    const client = clientReturning({ id: 1, name: "Mine" });
+    await client.createPlaylist("Mine", [], undefined, { visibility: "private" });
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { name: "Mine", tracks: [], visibility: "private" } }),
+    );
+  });
+
+  it("changes a playlist's visibility", async () => {
+    const client = clientReturning({ id: 176, visibility: "household" });
+    await client.setPlaylistVisibility(176, "household");
+    expect(requestMock).toHaveBeenCalledWith({
+      method: "PATCH",
+      url: "/playlists",
+      data: { id: 176, visibility: "household" },
+      params: undefined,
+    });
+  });
+});
+
 describe("setPlaylistTracks", () => {
   it("replaces a playlist's tracks with the ordered list", async () => {
     const client = clientReturning({ id: 176 });

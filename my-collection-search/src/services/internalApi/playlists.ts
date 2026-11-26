@@ -149,7 +149,12 @@ export async function generateGeneticPlaylist(playlist: Track[]): Promise<Track[
 
 export async function updatePlaylist(
   id: number,
-  data: { name?: string; tracks?: CreatePlaylistTracks },
+  data: {
+    name?: string;
+    tracks?: CreatePlaylistTracks;
+    /** Owner only (#1284); the API answers 403 for anyone else. */
+    visibility?: PlaylistUpdate["visibility"];
+  },
 ): Promise<Playlist> {
   const body: PlaylistUpdate = { id, ...data };
   return await http<Playlist>("/api/playlists", {

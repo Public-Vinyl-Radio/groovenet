@@ -82,6 +82,11 @@ export type CreateDerivationRequest = {
   force?: boolean;
   /** Also list the recording in this live set's media. */
   live_set_id?: number | null;
+  /**
+   * The requesting profile (#1284): a live set on someone else's private
+   * playlist is not found. Without one, only household playlists' sets are.
+   */
+  viewer_id?: string | null;
 };
 
 export type ViewOptions = { playlist_id?: number | null; live_set_id?: number | null };
@@ -114,6 +119,11 @@ export class SetDerivationService {
     if (!engine) throw new NoFingerprintEngineError();
 
     if (request.live_set_id != null) {
+      const playlistId = await this.repository.findPlaylistIdForLiveSet(
+        request.live_set_id,
+        request.viewer_id ?? null,
+      );
+      if (playlistId == null) throw new SetDerivationNotFound(`live set ${request.live_set_id}`);
       await this.repository.attachToLiveSet(
         request.live_set_id,
         `/api/set-recordings/${recording.sha256}`,
@@ -216,14 +226,14 @@ export class SetDerivationService {
    * A run as a tracklist, its unidentified stretches, and — given a playlist
    * or live set — how the performance differed from the plan.
    */
-  async view(id: string, options: ViewOptions = {}): Promise<SetDerivationView> {
+  async view(id: string, options: ViewOptions, viewerId: string): Promise<SetDerivationView> {
     const row = await this.repository.findById(id);
     if (!row) throw new SetDerivationNotFound(`derivation ${id}`);
     const recording = await this.recordings.find(row.recording_sha256);
     if (!recording) throw new SetDerivationNotFound(`recording ${row.recording_sha256}`);
 
     const { windows, ...derivation } = row;
-    const playlistId = await this.resolvePlaylist(options);
+    const playlistId = await this.resolvePlaylist(options, viewerId);
 
     if (row.status !== "processed" || !windows) {
       return { derivation, recording, summary: null, tracklist: [], unidentified: [], diff: null };
@@ -270,15 +280,19 @@ export class SetDerivationService {
     };
   }
 
-  private async resolvePlaylist(options: ViewOptions): Promise<number | null> {
+  /** A private playlist of someone else's is not found, like a missing one (#1284). */
+  private async resolvePlaylist(options: ViewOptions, viewerId: string): Promise<number | null> {
     if (options.playlist_id != null) {
-      if (!(await this.repository.playlistExists(options.playlist_id))) {
+      if (!(await this.repository.playlistExists(options.playlist_id, viewerId))) {
         throw new SetDerivationNotFound(`playlist ${options.playlist_id}`);
       }
       return options.playlist_id;
     }
     if (options.live_set_id != null) {
-      const playlistId = await this.repository.findPlaylistIdForLiveSet(options.live_set_id);
+      const playlistId = await this.repository.findPlaylistIdForLiveSet(
+        options.live_set_id,
+        viewerId,
+      );
       if (playlistId == null) throw new SetDerivationNotFound(`live set ${options.live_set_id}`);
       return playlistId;
     }

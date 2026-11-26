@@ -1,6 +1,7 @@
 import { coverUrlSql } from "@/server/repositories/coverUrlSql";
 import type { HomeResponse } from "@groovenet/contracts";
 import { dbQuery } from "@/lib/serverDb";
+import { playlistVisibleSql } from "@/server/repositories/playlistRepository";
 
 type Arrival = HomeResponse["new_arrivals"]["items"][number];
 type Recent = HomeResponse["playlists"]["recent"][number];
@@ -35,8 +36,10 @@ export const homeAttentionSql = `SELECT
   (SELECT count(*)::int FROM tracks WHERE friend_id = $1
     AND (bpm IS NULL OR key IS NULL)) AS missing_bpm_or_key`;
 
-// Playlists currently have no owner column; membership is the available friend scope.
-const member = `EXISTS (SELECT 1 FROM playlist_tracks own WHERE own.playlist_id = p.id AND own.friend_id = $1)`;
+// A library's playlists are those holding its tracks, and only the ones the
+// viewer ($2) may see: household playlists and their own private ones (#1284).
+const member = `EXISTS (SELECT 1 FROM playlist_tracks own WHERE own.playlist_id = p.id AND own.friend_id = $1)
+  AND ${playlistVisibleSql("p", "$2::uuid")}`;
 const totals = `SELECT count(*)::int AS track_count,
   COALESCE(sum(t.duration_seconds), 0)::float8 AS duration_seconds,
   COALESCE(count(t.duration_seconds)::float8 / NULLIF(count(*), 0), 0) AS duration_known_share
@@ -63,8 +66,8 @@ export const homeCountsSql = `SELECT
   (SELECT count(*)::int FROM playlists p WHERE ${member}) AS playlists`;
 
 export const homeRepository = {
-  async counts(friendId: number) {
-    return (await dbQuery<HomeResponse["counts"]>(homeCountsSql, [friendId])).rows[0];
+  async counts(friendId: number, viewerId: string) {
+    return (await dbQuery<HomeResponse["counts"]>(homeCountsSql, [friendId, viewerId])).rows[0];
   },
   async arrivals(friendId: number, now: Date) {
     return (
@@ -82,11 +85,11 @@ export const homeRepository = {
       )
     ).rows[0];
   },
-  async playlists(friendId: number) {
+  async playlists(friendId: number, viewerId: string) {
     return (
       await dbQuery<{ draft_set: HomeResponse["playlists"]["draft_set"]; recent: RecentRow[] }>(
         homePlaylistsSql,
-        [friendId],
+        [friendId, viewerId],
       )
     ).rows[0];
   },

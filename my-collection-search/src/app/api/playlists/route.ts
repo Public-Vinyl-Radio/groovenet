@@ -8,9 +8,14 @@ import {
 } from "@/api-contract/schemas";
 import {
   normalizePlaylistCreatedAt,
+  PlaylistForbiddenError,
   playlistManagementService,
 } from "@/server/services/playlistManagementService";
 import { playlistRepository } from "@/server/repositories/playlistRepository";
+import { resolveViewer } from "@/server/auth/viewer";
+
+// Every handler acts as the requesting profile (#1284): a private playlist of
+// someone else's is a 404, and a new playlist is theirs.
 
 export async function DELETE(req: Request) {
   try {
@@ -26,7 +31,8 @@ export async function DELETE(req: Request) {
     }
 
     const { id } = parsedQuery.data;
-    const deletedPlaylist = await playlistRepository.deletePlaylistById(id);
+    const viewer = await resolveViewer(req);
+    const deletedPlaylist = await playlistRepository.deletePlaylistById(id, viewer.id);
     if (!deletedPlaylist) {
       return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     }
@@ -40,9 +46,10 @@ export async function DELETE(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const playlists = await playlistManagementService.getAllPlaylistsWithTracks();
+    const viewer = await resolveViewer(req);
+    const playlists = await playlistManagementService.getAllPlaylistsWithTracks(viewer.id);
     const validated = playlistSchema.array().safeParse(playlists);
     if (!validated.success) {
       console.warn(
@@ -68,10 +75,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, tracks } = parsedBody.data;
+    const { name, tracks, visibility } = parsedBody.data;
+    const viewer = await resolveViewer(req);
     const playlist = await playlistManagementService.createPlaylistWithTracks({
       name,
       tracks,
+      ownerId: viewer.id,
+      visibility,
     });
 
     analytics.track(
@@ -104,7 +114,8 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const result = await playlistManagementService.updatePlaylist(parsedBody.data);
+    const viewer = await resolveViewer(req);
+    const result = await playlistManagementService.updatePlaylist(parsedBody.data, viewer.id);
     if (result.notFound) {
       return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     }
@@ -112,6 +123,9 @@ export async function PATCH(req: Request) {
     const validated = playlistSchema.parse(result.playlist);
     return NextResponse.json(validated);
   } catch (error) {
+    if (error instanceof PlaylistForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     console.error("Error updating playlist:", error);
     return NextResponse.json({ error: "Failed to update playlist" }, { status: 500 });
   }

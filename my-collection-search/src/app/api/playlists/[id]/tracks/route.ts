@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { playlistDetailParamsSchema, playlistDetailResponseSchema } from "@/api-contract/schemas";
 import { playlistManagementService } from "@/server/services/playlistManagementService";
+import { resolveViewer } from "@/server/auth/viewer";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: idParam } = await params;
     const parsedParams = playlistDetailParamsSchema.safeParse({ id: idParam });
@@ -14,7 +15,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
     const id = parsedParams.data.id;
 
-    const result = await playlistManagementService.getPlaylistTrackDetails(id);
+    // A private playlist of someone else's is a 404, like a missing one (#1284).
+    const viewer = await resolveViewer(request);
+    const result = await playlistManagementService.getPlaylistTrackDetails(id, viewer.id);
     if (result.notFound) {
       return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
     }

@@ -2,6 +2,7 @@ import { emptyHome } from "@/test/homeFixture";
 import { beforeEach, expect, it, vi } from "vitest";
 import { homeService } from "@/server/services/homeService";
 import { GET } from "../route";
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/services/homeService", () => ({ homeService: { getHome: vi.fn() } }));
 const request = (query = "friend_id=1") => new Request(`http://localhost/api/home?${query}`);
 const empty = emptyHome;
@@ -23,7 +24,10 @@ it("returns the validated Home summary and coerces the friend ID", async () => {
   const response = await GET(request() as never);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(empty);
-  expect(homeService.getHome).toHaveBeenCalledWith({ friend_id: 1 });
+  expect(homeService.getHome).toHaveBeenCalledWith(
+    { friend_id: 1 },
+    "00000000-0000-4000-8000-000000000001",
+  );
 });
 it.each([
   [new Error("db down"), "db down"],

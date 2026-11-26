@@ -248,3 +248,30 @@ it("reads plain Order by when the chosen profile isn't among the options (#1231)
   await user.click(screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1]);
   expect((await screen.findByTestId("order-by-trigger")).textContent).toBe("Order by");
 });
+
+describe("PlaylistActionsMenu visibility (#1284)", () => {
+  it("makes a household playlist private from the desktop menu", async () => {
+    const onToggle = vi.fn();
+    const { user } = renderWithProviders(
+      <PlaylistActionsMenu {...handlers()} visibility={{ value: "household", onToggle }} />,
+    );
+    await chooseMenuItem(
+      user,
+      screen.getAllByRole("button", { name: "Playlist actions", hidden: true })[1],
+      /Make private/,
+    );
+    await waitFor(() => expect(onToggle).toHaveBeenCalledOnce());
+  });
+
+  it("shares a private playlist from the phone action sheet", async () => {
+    const onToggle = vi.fn();
+    const { user } = await openModal({ visibility: { value: "private", onToggle } });
+    await user.click(screen.getByRole("button", { name: "Share with household" }));
+    await waitFor(() => expect(onToggle).toHaveBeenCalledOnce());
+  });
+
+  it("offers nothing to anyone but the owner", async () => {
+    await openModal();
+    expect(screen.queryByRole("button", { name: /Make private|Share with household/ })).toBeNull();
+  });
+});

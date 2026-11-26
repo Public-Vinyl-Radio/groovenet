@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
   liveSet: { set: null as unknown, loading: false, create: vi.fn() },
   ordering: null as null | { onPersisted?: () => void },
   orderedBy: null as null | { id: string; name: string; fallback: boolean },
+  ownership: null as null | { owner_id: string; owner_name: string; visibility: string },
+  household: undefined as unknown,
+  notFound: false,
+  updatePlaylist: vi.fn(),
 }));
 
 const refs = [
@@ -43,9 +47,18 @@ vi.mock("@/hooks/usePlaylistTrackIdsQuery", () => ({
   usePlaylistTrackIdsQuery: () => ({
     tracks: mocks.empty ? [] : mocks.single ? refs.slice(0, 1) : refs,
     playlistName: "Set",
+    ownership: mocks.ownership,
+    notFound: mocks.notFound,
     isPending: mocks.pending,
     refetch: mocks.refetch,
   }),
+}));
+vi.mock("@/providers/HouseholdProvider", () => ({
+  useHousehold: () => ({ data: mocks.household }),
+}));
+vi.mock("@/services/internalApi/playlists", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/internalApi/playlists")>()),
+  updatePlaylist: mocks.updatePlaylist,
 }));
 vi.mock("@/hooks/usePlaylistTracksQuery", () => ({
   usePlaylistTracksQuery: () => ({ tracks, isPending: false }),
@@ -113,9 +126,11 @@ vi.mock("@/components/PlaylistActionsMenu", () => ({
     onCreateSet,
     ordering,
     view,
+    visibility,
   }: {
     onOpenRecommendations: () => void;
     onCreateSet?: () => void;
+    visibility?: { value: string; onToggle: () => void };
     ordering?: { value: string; onChange: (id: string) => void };
     view?: { value: string; onChange: (mode: "row" | "card") => void };
   }) => (
@@ -130,6 +145,9 @@ vi.mock("@/components/PlaylistActionsMenu", () => ({
         Recommendations
       </button>
       {onCreateSet && <button onClick={onCreateSet}>Create set</button>}
+      {visibility && (
+        <button onClick={visibility.onToggle}>toggle visibility {visibility.value}</button>
+      )}
     </>
   ),
 }));
@@ -181,6 +199,9 @@ beforeEach(async () => {
   mocks.empty = false;
   mocks.missingCount = 0;
   mocks.single = false;
+  mocks.ownership = null;
+  mocks.household = undefined;
+  mocks.notFound = false;
 });
 
 describe("PlaylistViewer view mode", () => {
@@ -619,4 +640,58 @@ describe("PlaylistViewer unsaved changes, more cases (#1231)", () => {
     expect(within(bar).queryByText("Save changes")).toBeNull();
     expect(within(bar).queryByText("Discard")).toBeNull();
   });
+});
+
+describe("PlaylistViewer owner and visibility (#1284)", () => {
+  const users = [
+    { id: "me", name: "Adam", is_owner: true },
+    { id: "sam", name: "Sam", is_owner: false },
+  ];
+
+  it("lets the owner make the playlist private, and says so in the meta", async () => {
+    mocks.household = { users, current: { id: "me" } };
+    mocks.ownership = { owner_id: "me", owner_name: "Adam", visibility: "household" };
+    mocks.updatePlaylist.mockResolvedValue({});
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("toggle visibility household"))[0]);
+    expect(mocks.updatePlaylist).toHaveBeenCalledWith(1, { visibility: "private" });
+  });
+
+  it("shares a private playlist back with the household", async () => {
+    mocks.household = { users, current: { id: "me" } };
+    mocks.ownership = { owner_id: "me", owner_name: "Adam", visibility: "private" };
+    mocks.updatePlaylist.mockResolvedValue({});
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    expect((await screen.findAllByText(/Private · 2 tracks/)).length).toBeGreaterThan(0);
+    await user.click(screen.getAllByText("toggle visibility private")[0]);
+    expect(mocks.updatePlaylist).toHaveBeenCalledWith(1, { visibility: "household" });
+  });
+
+  it("reports a refused change", async () => {
+    mocks.household = { users, current: { id: "me" } };
+    mocks.ownership = { owner_id: "me", owner_name: "Adam", visibility: "household" };
+    mocks.updatePlaylist.mockRejectedValue(new Error("nope"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { user } = renderWithProviders(<PlaylistViewer playlistId={1} />);
+    await user.click((await screen.findAllByText("toggle visibility household"))[0]);
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith("Playlist visibility error:", expect.any(Error)),
+    );
+  });
+
+  it("names another profile's playlist and offers them no visibility change", async () => {
+    mocks.household = { users, current: { id: "sam" } };
+    mocks.ownership = { owner_id: "me", owner_name: "Adam", visibility: "household" };
+    renderWithProviders(<PlaylistViewer playlistId={1} />);
+    expect((await screen.findAllByText(/By Adam · 2 tracks/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/toggle visibility/)).toBeNull();
+  });
+});
+
+it("says a missing or someone else's private playlist was not found (#1284)", async () => {
+  mocks.notFound = true;
+  mocks.empty = true;
+  renderWithProviders(<PlaylistViewer playlistId={182} />);
+  expect(await screen.findByText("Playlist not found")).toBeTruthy();
+  expect(screen.queryByText("Your playlist is empty")).toBeNull();
 });

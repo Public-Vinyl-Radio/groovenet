@@ -320,6 +320,9 @@ const playlistsListExample = [
     id: 42,
     name: "Warmup Set",
     created_at: "2026-02-17T12:00:00.000Z",
+    owner_id: "0b6f7d1e-3c1a-4b8e-9a52-6f1c2d3e4a5b",
+    owner_name: "saegey",
+    visibility: "household",
     tracks: [
       { track_id: "trk_001", friend_id: 1, position: 0 },
       { track_id: "trk_099", friend_id: 1, position: 1 },
@@ -330,6 +333,9 @@ const playlistsListExample = [
 const playlistDetailExample = {
   playlist_id: 42,
   playlist_name: "Warmup Set",
+  owner_id: "0b6f7d1e-3c1a-4b8e-9a52-6f1c2d3e4a5b",
+  owner_name: "saegey",
+  visibility: "household",
   tracks: [
     { track_id: "trk_001", friend_id: 1, position: 0 },
     { track_id: "trk_099", friend_id: 1, position: 1 },
@@ -4881,6 +4887,12 @@ export const apiContractRoutes: ApiContractRoute[] = [
         },
         "400": {
           description: "Validation error",
+          content: {
+            "application/json": { schema: errorResponseSchemaObject },
+          },
+        },
+        "403": {
+          description: "Only the owner can change visibility",
           content: {
             "application/json": { schema: errorResponseSchemaObject },
           },

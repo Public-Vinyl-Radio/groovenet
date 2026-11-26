@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { homeQuerySchema, homeResponseSchema } from "@/api-contract/schemas";
 import { homeService } from "@/server/services/homeService";
+import { resolveViewer } from "@/server/auth/viewer";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +13,10 @@ export async function GET(request: NextRequest) {
         { error: "Invalid home query", details: query.error.flatten() },
         { status: 400 },
       );
-    return NextResponse.json(homeResponseSchema.parse(await homeService.getHome(query.data)));
+    const viewer = await resolveViewer(request);
+    return NextResponse.json(
+      homeResponseSchema.parse(await homeService.getHome(query.data, viewer.id)),
+    );
   } catch (error) {
     console.error("Error getting home:", error);
     return NextResponse.json(

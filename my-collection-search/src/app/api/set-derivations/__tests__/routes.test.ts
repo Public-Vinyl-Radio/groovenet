@@ -15,6 +15,7 @@ const derivationService = vi.hoisted(() => ({
   claim: vi.fn(),
   report: vi.fn(),
 }));
+vi.mock("@/server/auth/viewer", async () => (await import("@/test/viewerMock")).viewerMock);
 vi.mock("@/server/services/setRecordingService", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/setRecordingService")>()),
   setRecordingService: recordingService,
@@ -217,7 +218,11 @@ describe("GET /api/set-derivations/{id}", () => {
       idParams(),
     );
     expect(response.status).toBe(200);
-    expect(derivationService.view).toHaveBeenCalledWith("d1", { playlist_id: 176 });
+    expect(derivationService.view).toHaveBeenCalledWith(
+      "d1",
+      { playlist_id: 176 },
+      "00000000-0000-4000-8000-000000000001",
+    );
   });
 
   it("rejects a non-numeric playlist", async () => {

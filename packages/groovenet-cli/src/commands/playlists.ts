@@ -216,12 +216,42 @@ export function addPlaylistsCommands(program: Command): void {
 
   playlists
     .command("create <name>")
-    .description("Create a new playlist")
-    .action(async (name: string) => {
+    .description(
+      "Create a new playlist, owned by your profile (the token's) and visible to the household",
+    )
+    .option("--private", "Only your profile can see it")
+    .action(async (name: string, opts: { private?: boolean }) => {
       try {
         const client = makeClient();
-        await client.createPlaylist(name);
-        printSuccess(`✓ Playlist "${name}" created.`);
+        await client.createPlaylist(
+          name,
+          [],
+          undefined,
+          opts.private ? { visibility: "private" } : {},
+        );
+        printSuccess(`✓ Playlist "${name}" created${opts.private ? " (private)" : ""}.`);
+      } catch (err: unknown) {
+        printError(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
+    });
+
+  playlists
+    .command("visibility <id> <visibility>")
+    .description("Who sees a playlist: household (everyone) or private (only you). Owner only")
+    .action(async (id: string, visibility: string) => {
+      try {
+        const playlistId = Number(id);
+        if (!Number.isInteger(playlistId) || playlistId < 1)
+          throw new Error(`Invalid playlist id: ${id}`);
+        if (visibility !== "household" && visibility !== "private")
+          throw new Error(`Visibility must be household or private, not ${visibility}`);
+        await makeClient().setPlaylistVisibility(playlistId, visibility);
+        printSuccess(
+          visibility === "private"
+            ? `✓ Playlist ${playlistId} is private.`
+            : `✓ Playlist ${playlistId} is shared with the household.`,
+        );
       } catch (err: unknown) {
         printError(err instanceof Error ? err.message : String(err));
         process.exit(1);
