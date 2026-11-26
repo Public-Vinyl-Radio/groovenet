@@ -2,8 +2,22 @@
 
 import argparse
 import getpass
+import warnings
 
 from .wrapper import WrapperNotReady, check_wrapper_ready, request_wrapper, wrapper_info, wrapper_url
+
+
+def hidden_input(prompt: str) -> str:
+    # getpass otherwise falls back to echoed input when terminal echo control
+    # is unavailable. Fail before reading any secret in that situation.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", getpass.GetPassWarning)
+        try:
+            return getpass.getpass(prompt)
+        except getpass.GetPassWarning:
+            raise WrapperNotReady(
+                "Hidden terminal input is unavailable; run just wrapper-login in an interactive terminal"
+            ) from None
 
 
 def login(url: str) -> None:
@@ -11,8 +25,8 @@ def login(url: str) -> None:
     if request_wrapper("GET", url, "/session").json().get("state") == "authenticated":
         print("Wrapper session is already signed in")
         return
-    username = getpass.getpass("Apple ID (hidden): ")
-    password = getpass.getpass("Password (hidden): ")
+    username = hidden_input("Apple ID (hidden): ")
+    password = hidden_input("Password (hidden): ")
     response = request_wrapper("POST", url, "/session/login", json={"username": username, "password": password})
     del username, password
     if response.status_code == 202:
@@ -23,7 +37,7 @@ def login(url: str) -> None:
             or not challenge["challenge_id"]
         ):
             raise WrapperNotReady("Wrapper returned an invalid two-factor challenge; retry login")
-        code = getpass.getpass("Six-digit 2FA code (hidden): ")
+        code = hidden_input("Six-digit 2FA code (hidden): ")
         if len(code) != 6 or not code.isascii() or not code.isdigit():
             raise WrapperNotReady("Expected a six-digit 2FA code; retry login")
         request_wrapper(

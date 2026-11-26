@@ -260,3 +260,16 @@ def test_missing_cached_session_is_an_actionable_sign_in_error(stub):
     stub.restore_status = 404
     with pytest.raises(wrapper.WrapperNotReady, match="just wrapper-login"):
         wrapper.check_wrapper_ready(stub.url)
+
+
+def test_owner_login_never_falls_back_to_echoed_input(stub, monkeypatch, capsys):
+    stub.state = "logged_out"
+
+    def no_echo_control(prompt):
+        raise wrapper_cli.getpass.GetPassWarning("synthetic-private-terminal-detail")
+
+    monkeypatch.setattr(wrapper_cli.getpass, "getpass", no_echo_control)
+    with pytest.raises(wrapper.WrapperNotReady, match="interactive terminal"):
+        wrapper_cli.login(stub.url)
+    assert ("POST", "/session/login") not in stub.paths
+    assert "synthetic-private-terminal-detail" not in capsys.readouterr().out
