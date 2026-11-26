@@ -123,8 +123,9 @@ const config = defineConfig({
         border: {
           DEFAULT: v("--gn-border"),
           subtle: v("--gn-border"),
-          // The outline of controls and containers in the house style.
-          ink: v("--gn-ink"),
+          // The outline of controls and containers in the house style. Named for the
+          // ink it was before `--gn-outline` split off; palettes may now differ.
+          ink: v("--gn-outline"),
           error: v("--gn-status-missing-border"),
           warning: v("--gn-status-analysis-border"),
           success: v("--gn-status-success-border"),

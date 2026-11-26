@@ -176,7 +176,7 @@ export default function FileInfo({
               maxH="85dvh"
               pb="env(safe-area-inset-bottom, 0px)"
             >
-              <Flex bg="border.ink" color="bg" align="center" pl={4} pr={1}>
+              <Flex bg="fg" color="bg" align="center" pl={4} pr={1}>
                 <Drawer.Title flex={1} fontFamily="label">
                   File info
                 </Drawer.Title>
@@ -215,7 +215,7 @@ export default function FileInfo({
             maxH="80dvh"
             overflowY="auto"
           >
-            <Flex bg="border.ink" color="bg" align="center" pl={4} pr={1}>
+            <Flex bg="fg" color="bg" align="center" pl={4} pr={1}>
               <Popover.Title flex={1} fontFamily="label">
                 File info
               </Popover.Title>

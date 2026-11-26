@@ -91,6 +91,30 @@ describe("the pre-paint script", () => {
     expect(document.getElementById("gn-custom-palette")?.textContent).toBe(css);
   });
 
+  it("skips stored CSS that predates --gn-outline, leaving the server's values", () => {
+    const stale = customPaletteCss(customFromPreset("sleeve")).replace(
+      /--gn-outline:#[0-9a-f]{6};/g,
+      "",
+    );
+    expect(stale).not.toContain("--gn-outline");
+    store({ v: 1, palette: "custom", customCss: stale });
+    run();
+    expect(document.getElementById("gn-custom-palette")).toBeNull();
+    expect(html().dataset.palette).toBe("sleeve");
+  });
+
+  it("paints a custom outline that differs from ink", () => {
+    const custom = customFromPreset("sleeve");
+    custom.light.outline = "#336699";
+    const css = customPaletteCss(custom);
+    store({ v: 1, palette: "custom", customCss: css });
+    run();
+    expect(document.getElementById("gn-custom-palette")?.textContent).toContain(
+      "--gn-outline:#336699;",
+    );
+    expect(html().dataset.palette).toBe("custom");
+  });
+
   it("replaces the server-rendered custom style in place, without a duplicate", () => {
     const server = document.createElement("style");
     server.id = "gn-custom-palette";

@@ -6,7 +6,7 @@
 // Nothing here trusts storage. Ids are checked against the injected lists, and
 // the custom palette's stored CSS is applied only when it matches `cssPattern`:
 // `:root[data-palette="custom"]` blocks of `--gn-*:#rrggbb;` declarations and
-// nothing else. A failure anywhere leaves the server-rendered values alone.
+// nothing else, and in both modes sets `--gn-outline`. A failure anywhere leaves the server-rendered values alone.
 //
 // A font installed on this device (#1294) is accepted only when its name
 // matches `localFontFamilyPattern` (letters, digits, spaces, `-`, `_`). It is
@@ -48,6 +48,10 @@ const config = {
   ) as Record<string, string[]>,
   styleId: customPaletteStyleId,
   css: customCssPattern,
+  // CSS stored before `--gn-outline` existed lacks it in both blocks. Applied as
+  // is, it would leave outlines on the default palette's colour until the page
+  // rewrites storage, so it is skipped and the server's values stand.
+  outline: "--gn-outline:",
 };
 
 const body = `
@@ -57,7 +61,7 @@ if(!raw)return;
 var o=JSON.parse(raw);
 if(!o||typeof o!=="object"||o.v!==c.v)return;
 var d=document.documentElement.dataset;
-var css=typeof o.customCss==="string"&&o.customCss.length<20000&&new RegExp(c.css).test(o.customCss)?o.customCss:null;
+var css=typeof o.customCss==="string"&&o.customCss.length<20000&&new RegExp(c.css).test(o.customCss)&&o.customCss.split(c.outline).length>2?o.customCss:null;
 var el=document.getElementById(c.styleId);
 if(css){
 if(!el){el=document.createElement("style");el.id=c.styleId;

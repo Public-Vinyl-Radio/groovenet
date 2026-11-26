@@ -172,8 +172,14 @@ describe("chakra theme", () => {
       expect(resolved("gray.border")).toBe("var(--gn-border)");
     });
 
-    it("draws the outline colour from ink", () => {
-      expect(resolved("border.ink")).toBe("var(--gn-ink)");
+    it("draws the outline colour from --gn-outline, and text and fills from ink", () => {
+      expect(resolved("border.ink")).toBe("var(--gn-outline)");
+      expect(resolved("fg")).toBe("var(--gn-ink)");
+      expect(resolved("neutral.solid")).toBe("var(--gn-ink)");
+    });
+
+    it("leaves the soft border to --gn-border", () => {
+      expect(resolved("border")).toBe("var(--gn-border)");
     });
 
     it("gives the solid button an ink outline, hard shadow and a press that respects reduced motion", () => {
