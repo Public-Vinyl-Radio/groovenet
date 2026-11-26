@@ -10,6 +10,7 @@ dependencies = [
     "psycopg2-binary>=2.9.13,<2.10",
     "groovenet-python-client",
     "sentry-sdk>=2.74.0,<3",
+    "mutagen>=1.47,<2",
 ]
 
 [dependency-groups]

@@ -1099,3 +1099,7 @@ brick-coverage:
 # Versioned ARM64 Knulli archive; independent of npm and desktop builds.
 brick-package:
   apps/groovenet-brick/knulli/build.sh
+
+# Check generated ALAC → FLAC in the active downloads + fingerprint worktree stack.
+lossless-test:
+  ./scripts/lossless-smoke.sh

@@ -615,3 +615,22 @@ def test_find_audio_files_tolerates_an_unreadable_directory(tmp_path):
     download._find_audio_files(str(tmp_path / "missing"), found)
 
     assert found == []
+
+
+@pytest.mark.parametrize(
+    "codec,wrapper", [(SongCodec.ALAC_LOSSLESS, None), (SongCodec.ALAC_HIRES, None), (None, "http://stub")]
+)
+def test_run_converts_downloaded_or_cached_alac(gamdl, monkeypatch, codec, wrapper):
+    media = FakeMedia("1")
+    gamdl.media = [media]
+    gamdl.outcomes["1"] = result(media, codec=codec)
+    calls = []
+
+    def convert(path):
+        calls.append(path)
+        return "/out/a.flac"
+
+    monkeypatch.setattr(download, "convert_alac_to_flac", convert)
+    outcomes, _ = gamdl.run(wrapper_url=wrapper)
+    assert outcomes[0].path == "/out/a.flac"
+    assert calls == ["/out/a.m4a"]

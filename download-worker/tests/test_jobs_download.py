@@ -313,3 +313,28 @@ def test_reports_successful_source(
     mock_update.assert_called_once_with(
         {"track_id": "track", "friend_id": 1, "local_audio_url": "track.m4a", "audio_source": source}
     )
+
+
+def test_flac_filename_is_published_and_queued_for_analysis(monkeypatch, fake_redis):
+    from unittest.mock import Mock
+
+    from worker.jobs import download
+
+    client = Mock()
+    monkeypatch.setattr(download.os, "makedirs", lambda *a, **k: None)
+    move = Mock()
+    monkeypatch.setattr(download.shutil, "move", move)
+    monkeypatch.setattr(download, "download_with_gamdl", lambda *a, **k: "/app/downloads/song.flac")
+    monkeypatch.setattr(download, "get_groovenet_client", lambda: client)
+    monkeypatch.setattr(download, "cleanup_download_directory", lambda *a: None)
+    result = download.download_audio(
+        {"track_id": "flac", "friend_id": 1, "job_id": "flac-job", "apple_music_url": "https://example.invalid/song"}
+    )
+    assert result["local_audio_url"] == "flac.flac"
+    client.update_track.assert_called_once_with(
+        {"track_id": "flac", "friend_id": 1, "local_audio_url": "flac.flac", "audio_source": "apple_music"}
+    )
+    move.assert_called_once_with("/app/downloads/song.flac", "/app/audio/flac.flac")
+    import json
+
+    assert json.loads(fake_redis.rpop("download_queue"))["local_audio_url"] == "flac.flac"
