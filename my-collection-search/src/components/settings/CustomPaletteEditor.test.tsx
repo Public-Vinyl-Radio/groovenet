@@ -188,4 +188,85 @@ describe("CustomPaletteEditor", () => {
     });
     expect(hex("Ground (light) hex").value).toBe("#aabbcc");
   });
+  describe("outline", () => {
+    const field = (mode: string, key: string) =>
+      screen
+        .getByTestId("custom-palette-editor")
+        .querySelector(`[data-colour="${mode}-${key}"]`) as HTMLElement;
+
+    it("is its own input after Ink, and Ink is only text", () => {
+      setup();
+      const keys = Array.from(
+        screen.getByTestId("custom-palette-editor").querySelectorAll("[data-colour]"),
+      ).map((el) => el.getAttribute("data-colour"));
+      expect(keys).toEqual([
+        "light-ground",
+        "light-surface",
+        "light-ink",
+        "light-outline",
+        "light-accent",
+        "light-shadow",
+      ]);
+      expect(field("light", "ink").textContent).toContain("Text");
+      expect(field("light", "ink").textContent).not.toContain("outlines");
+      expect(field("light", "outline").textContent).toContain("Outline");
+      expect(field("light", "outline").textContent).toContain("Buttons, cards, inputs and chips");
+      expect(hex("Outline (light) hex").value).toBe(
+        palettes.sleeve.light["--gn-outline"].toLowerCase(),
+      );
+    });
+
+    it("reads against the ground and the surface at 3:1", () => {
+      setup();
+      const text = field("light", "outline").textContent ?? "";
+      expect(text).toMatch(/Outline on ground: \d+\.\d\d:1 · Pass \(needs 3:1\)/);
+      expect(text).toMatch(/Outline on surface: \d+\.\d\d:1 · Pass \(needs 3:1\)/);
+      // Ink keeps its own text checks (4.5:1) and nothing about outlines.
+      const ink = field("light", "ink").textContent ?? "";
+      expect(ink).toMatch(/Ink on ground: .* \(needs 4\.5:1\)/);
+      expect(ink).not.toContain("Outline");
+    });
+
+    it("fails a weak outline like any other input, without touching ink", () => {
+      setup();
+      type("Outline (light) hex", "#f0e8da");
+      expect(field("light", "outline").textContent).toMatch(/Outline on ground: 1\.\d\d:1 · Fail/);
+      expect(field("light", "ink").textContent).not.toContain("Fail");
+      const summary = screen.getByTestId("contrast-summary").textContent ?? "";
+      expect(summary).toMatch(/2 pairs below AA in light/);
+      expect(summary).toMatch(/Outline on ground: 1\.\d\d:1, needs 3:1/);
+      expect(summary).toMatch(/Outline on surface: 1\.\d\d:1, needs 3:1/);
+      expect(hex("Outline (light) hex").value).toBe("#f0e8da");
+    });
+
+    it("edits outline apart from ink and saves both", () => {
+      const { props } = setup();
+      type("Outline (light) hex", "#336699");
+      expect(hex("Ink (light) hex").value).toBe("#1f1a17");
+      fireEvent.click(screen.getByText("Save custom palette"));
+      const saved = vi.mocked(props.onSave).mock.calls[0][0];
+      expect(saved.light).toMatchObject({ ink: "#1f1a17", outline: "#336699" });
+      expect(saved.dark.outline).toBe(saved.dark.ink);
+    });
+
+    it("draws the preview's outlines from the outline colour", () => {
+      setup();
+      type("Outline (light) hex", "#336699");
+      const preview = screen.getByTestId("palette-preview");
+      expect(preview.style.getPropertyValue("--gn-outline")).toBe("#336699");
+      expect(preview.style.getPropertyValue("--gn-ink")).toBe("#1f1a17");
+      expect(preview.style.getPropertyValue("--chakra-colors-border-ink")).toBe(
+        "var(--gn-outline)",
+      );
+      expect(within(preview).getByLabelText("Preview input")).toBeTruthy();
+    });
+
+    it("edits the dark outline on the Dark tab", async () => {
+      const { user } = setup();
+      await user.click(screen.getByText("Dark"));
+      expect(hex("Outline (dark) hex").value).toBe(
+        palettes.sleeve.dark["--gn-outline"].toLowerCase(),
+      );
+    });
+  });
 });

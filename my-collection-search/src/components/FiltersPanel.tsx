@@ -62,7 +62,7 @@ export default function FiltersPanel({
             <Flex
               align="center"
               gap={1}
-              bg="border.ink"
+              bg="fg"
               color="bg"
               pl="14px"
               pr="4px"

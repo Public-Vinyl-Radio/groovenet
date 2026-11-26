@@ -1,4 +1,4 @@
-// The user's own palette. Five colours per mode are stored; everything else is
+// The user's own palette. Six colours per mode are stored; everything else is
 // derived here, so a better derivation later reaches palettes already saved.
 // These values end up inside a <style> block, so nothing but a validated
 // #rrggbb ever passes through this module.
@@ -19,13 +19,20 @@ export const customPaletteId = "custom";
 /** Every id the appearance setting can hold. `custom` only with a stored custom palette. */
 export type AppearancePaletteId = PaletteId | typeof customPaletteId;
 
-export const customColourKeys = ["ground", "surface", "ink", "accent", "shadow"] as const;
+export const customColourKeys = [
+  "ground",
+  "surface",
+  "ink",
+  "outline",
+  "accent",
+  "shadow",
+] as const;
 export type CustomColourKey = (typeof customColourKeys)[number];
 export type CustomColours = Record<CustomColourKey, string>;
 export type CustomMode = "light" | "dark";
 export const customModes: readonly CustomMode[] = ["light", "dark"];
 
-/** What is saved: the preset it started from, and five colours per mode. */
+/** What is saved: the preset it started from, and six colours per mode. */
 export interface CustomPalette {
   base: PaletteId;
   light: CustomColours;
@@ -42,15 +49,27 @@ export const hexColourSchema = z
   .regex(HEX, "must be a #rrggbb colour")
   .transform((value) => value.toLowerCase());
 
+// `outline` came after the first palettes were saved, so it may be absent: it
+// then follows `ink`, which is what drew outlines before the split. The output
+// always carries it, in key order.
 const coloursSchema = z
   .object({
     ground: hexColourSchema,
     surface: hexColourSchema,
     ink: hexColourSchema,
+    outline: hexColourSchema.optional(),
     accent: hexColourSchema,
     shadow: hexColourSchema,
   })
-  .strict();
+  .strict()
+  .transform(({ ground, surface, ink, outline, accent, shadow }): CustomColours => ({
+    ground,
+    surface,
+    ink,
+    outline: outline ?? ink,
+    accent,
+    shadow,
+  }));
 
 export const customPaletteSchema = z
   .object({
@@ -75,12 +94,13 @@ export function resolveAppearancePalette(
   return isPaletteId(value) ? value : defaultPaletteId;
 }
 
-/** The five inputs of a preset, to start a custom palette from it. */
+/** The six inputs of a preset, to start a custom palette from it. */
 export function customFromPreset(base: PaletteId): CustomPalette {
   const pick = (values: PaletteValues): CustomColours => ({
     ground: values["--gn-ground"].toLowerCase(),
     surface: values["--gn-surface"].toLowerCase(),
     ink: values["--gn-ink"].toLowerCase(),
+    outline: values["--gn-outline"].toLowerCase(),
     accent: values["--gn-accent-solid"].toLowerCase(),
     shadow: values["--gn-shadow"].toLowerCase(),
   });
@@ -131,6 +151,8 @@ function deriveMode(base: PaletteId, mode: CustomMode, c: CustomColours): Palett
   const inkMuted = pull(mixHex(c.ink, c.ground, 0.3), c.ink, (x) =>
     on(x, TEXT, c.ground, c.surface),
   );
+  // The soft border (dividers, passive rings) stays a mix of ink, not outline:
+  // a weak outline would otherwise drag every divider below 3:1 with it.
   const border = pull(mixHex(c.ink, c.ground, 0.5), c.ink, (x) =>
     on(x, NON_TEXT, c.ground, c.surface),
   );
@@ -148,6 +170,7 @@ function deriveMode(base: PaletteId, mode: CustomMode, c: CustomColours): Palett
     "--gn-ground": c.ground,
     "--gn-surface": c.surface,
     "--gn-ink": c.ink,
+    "--gn-outline": c.outline,
     "--gn-ink-muted": inkMuted,
     "--gn-border": border,
     "--gn-accent-solid": c.accent,
@@ -196,6 +219,8 @@ const PAIRS: Pair[] = [
   ["--gn-ink", "--gn-surface", TEXT],
   ["--gn-ink-muted", "--gn-ground", TEXT],
   ["--gn-ink-muted", "--gn-surface", TEXT],
+  ["--gn-outline", "--gn-ground", NON_TEXT],
+  ["--gn-outline", "--gn-surface", NON_TEXT],
   ["--gn-border", "--gn-ground", NON_TEXT],
   ["--gn-border", "--gn-surface", NON_TEXT],
   ["--gn-accent-contrast", "--gn-accent-solid", TEXT],

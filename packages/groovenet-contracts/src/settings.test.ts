@@ -52,6 +52,23 @@ describe("settings contracts", () => {
     expect(aiPromptSettingsUpdateSchema.safeParse({ prompt: "x" }).success).toBe(false);
   });
 
+  it("takes an outline colour, and a palette without one", () => {
+    const withOutline = {
+      ...customPalette,
+      light: { ...customPalette.light, outline: "#336699" },
+    };
+    expect(appearanceSettingsUpdateSchema.parse({ customPalette: withOutline })).toEqual({
+      customPalette: withOutline,
+    });
+    // A request or a palette saved before the field existed may leave it out.
+    expect(appearanceSettingsUpdateSchema.safeParse({ customPalette }).success).toBe(true);
+    expect(
+      appearanceSettingsUpdateSchema.safeParse({
+        customPalette: { ...customPalette, dark: { ...customPalette.dark, outline: "blue" } },
+      }).success,
+    ).toBe(false);
+  });
+
   it("limits the recommendation scope to library or all", () => {
     expect(RECOMMENDATION_SCOPES).toEqual(["library", "all"]);
     expect(recommendationSettingsUpdateSchema.safeParse({ friend_id: 1, scope: "x" }).success).toBe(

@@ -108,7 +108,7 @@ export function SectionLabel(props: SectionLabelProps) {
       <LabelRoot as={tagFor(level)} id={id} variant="strip">
         {children}
       </LabelRoot>
-      <Box flex="1" minW={5} h="2px" bg="fg" aria-hidden="true" />
+      <Box flex="1" minW={5} h="2px" bg="border.ink" aria-hidden="true" />
       {meta}
     </Flex>
   );

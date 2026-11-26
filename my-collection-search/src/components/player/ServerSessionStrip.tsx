@@ -36,7 +36,7 @@ export default function ServerSessionStrip() {
         display="inline-flex"
         alignItems="center"
         flexShrink={0}
-        bg="border.ink"
+        bg="fg"
         color="bg"
         fontFamily="mono"
         fontSize="10px"

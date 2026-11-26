@@ -144,7 +144,8 @@ an invalid value the browser drops, so it fails silently.
 - **Colour:** semantic tokens over raw scales — `bg`, `bg.subtle` (toolbars,
   active nav), `bg.muted` (row hover), `bg.panel` (inputs, popovers, dialogs),
   `fg`, `fg.muted` (secondary text), `border` (`border.ink` for the 2px outline of
-  controls and containers). All of them read `--gn-*`
+  controls and containers; it reads `--gn-outline`, not `--gn-ink`, so a fill or
+  text is `fg`, never `border.ink`). All of them read `--gn-*`
   variables, so they follow the palette; raw scales (`gray.500`, `blue.500`)
   do not, and ESLint rejects them (`no-restricted-syntax` in
   `eslint.config.mjs`) in colour props and `colorPalette`.
@@ -162,7 +163,8 @@ an invalid value the browser drops, so it fails silently.
   `data-palette` on `<html>` (server-rendered in `layout.tsx`, so no flash),
   independent of the `.dark` class that `ColorModeProvider` sets. The variable
   list is `paletteVariableNames` in `src/app/palettes/types.ts`: `--gn-ground`
-  (page), `--gn-surface` (panels), `--gn-ink`, `--gn-ink-muted`, `--gn-border`,
+  (page), `--gn-surface` (panels), `--gn-ink` (text and ink fills), `--gn-outline`
+  (the strong 2px outline; equal to ink in every preset), `--gn-ink-muted`, `--gn-border`,
   `--gn-accent-{solid,fg,subtle,contrast,muted,emphasized,focus-ring,border}`,
   `--gn-shadow`, and `--gn-status-{missing,analysis,genre,success}-{fg,subtle,border}`.
   Every palette defines every variable in light and dark. To add one: create
@@ -189,7 +191,9 @@ an invalid value the browser drops, so it fails silently.
   a valid `custom_palette` is stored; otherwise every reader falls back to Sleeve.
   - **Stored shape (`CustomPalette`, nullable `custom_palette jsonb`):** `base`
     (a preset id, supplying the status colours) plus, for `light` and `dark`,
-    exactly five colours `ground`, `surface`, `ink`, `accent`, `shadow`. Inputs only;
+    exactly six colours `ground`, `surface`, `ink`, `outline`, `accent`, `shadow`
+    (`outline` may be missing in stored or submitted data and then equals `ink`, so palettes saved
+    before it existed render unchanged; parsed output always has it). Inputs only;
     everything else is derived at render time, so a better derivation reaches
     palettes already saved. Never store or accept free-form CSS.
   - **Validation:** every colour must match `^#[0-9a-fA-F]{6}$` (lowercased on the
@@ -208,7 +212,8 @@ an invalid value the browser drops, so it fails silently.
     same element when a palette is chosen, saved or deleted, and the hook's
     rollback restores it.
   - **Derivation (`derivePalette`, pure, deterministic):** `ink-muted` and `border`
-    are ink mixed toward ground; accent tint/muted/emphasized are ground mixed toward
+    are ink mixed toward ground (`border`, the soft divider, deliberately not from `outline`: a weak
+    outline would drag every divider below 3:1); `outline` is the typed colour, never altered; accent tint/muted/emphasized are ground mixed toward
     the accent; `accent-fg`, `focus-ring`, `accent-border` start at the accent;
     `accent-contrast` is the first of ground, ink, white, black that reads on the
     accent. Status colours are the base preset's, unchanged. Derived colours are
@@ -216,7 +221,7 @@ an invalid value the browser drops, so it fails silently.
     passes. **Colours the user typed are never altered:** a failure caused by them
     (ink near ground, an accent near the ground, status text on a new ground) is
     reported by `checkContrast`/`contrastFailures`, which hold the same pairs as
-    `palettes.test.ts` at AA. Saving is never blocked: the editor lists failing
+    `palettes.test.ts` at AA (outline on ground and surface at 3:1). Saving is never blocked: the editor lists failing
     pairs per mode, asks to confirm, and stores nothing about the warning.
   - **Changing the derivation safely:** it changes how saved palettes look, so
     edit `deriveMode` in `custom.ts` only with `custom.test.ts` open: the pinned

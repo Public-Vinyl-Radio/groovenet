@@ -72,4 +72,20 @@ describe("appearance schemas", () => {
       }).customPalette,
     ).toBeNull();
   });
+  it("fills in outline from ink for a palette sent or saved without one", () => {
+    const old = structuredClone(custom) as Record<string, any>;
+    delete old.light.outline;
+    delete old.dark.outline;
+    const body = appearanceSettingsPutBodySchema.parse({ customPalette: old });
+    // Sleeve draws its outlines in ink, so the filled-in palette is the complete one.
+    expect(body.customPalette).toEqual(custom);
+    const response = appearanceSettingsResponseSchema.parse({
+      palette: "custom",
+      fonts,
+      customPalette: old,
+      corners: "square",
+    });
+    expect(response.customPalette?.light.outline).toBe(custom.light.ink);
+    expect(response.customPalette?.dark.outline).toBe(custom.dark.ink);
+  });
 });
