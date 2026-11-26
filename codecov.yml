@@ -4,6 +4,9 @@ flag_management:
     carryforward: true
 
 flags:
+  wrapper-compat:
+    paths:
+      - scripts/wrapper/compat/symbol_lookup.hpp
   brick-preview:
     paths:
       - apps/groovenet-brick/src/

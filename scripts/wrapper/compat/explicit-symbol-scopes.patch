@@ -1,0 +1,32 @@
+--- a/native/runtime.hpp
++++ b/native/runtime.hpp
+@@ -3,6 +3,7 @@
+ #include "protocol.hpp"
+ #include "symbols.hpp"
+ #include "abi.hpp"
++#include "symbol_lookup.hpp"
+ #include <memory>
+ #include <functional>
+ #include <dlfcn.h>
+@@ -12,7 +13,7 @@
+ using Shared=std::shared_ptr<void>;
+ static_assert(sizeof(Shared)==16 && sizeof(std::string)==24,"Pinned Android libc++ ABI required");
+ template<class T>T symbol(const char* name) {
+-    auto p=dlsym(RTLD_DEFAULT,name);if(!p)throw Error("missing_native_symbol",false,true);return reinterpret_cast<T>(p);
++    auto p=lookup_native_symbol(name);if(!p)throw Error("missing_native_symbol",false,true);return reinterpret_cast<T>(p);
+ }
+ template<class R,class... Args>R call(const char* name,Args... args){return symbol<R(*)(Args...)>(name)(args...);}
+ struct NativeObject {
+--- a/native/runtime.cpp
++++ b/native/runtime.cpp
+@@ -59,8 +59,9 @@
+     cached_session=stat((directory+"/mpl_db/kvs.sqlitedb").c_str(),&st)==0&&S_ISREG(st.st_mode)&&st.st_size>0;
+     // Hash every ABI-bearing dependency, not just the instrumented library.
+     for(const auto& pair:apple_libraries)if(sha256_file(std::string("/system/lib64/")+pair.first)!=pair.second)throw Error("unsupported_library",false,true);
++    if(!load_symbol_scope(nullptr))throw Error("native_load_failed",false,true);
+     for(const char* name:{"libCoreFP.so","libCoreLSKD.so","libandroidappmusic.so","libstoreservicescore.so","libmediaplatform.so"})
+-        if(!dlopen((std::string("/system/lib64/")+name).c_str(),RTLD_NOW|RTLD_GLOBAL))throw Error("native_load_failed",false,true);
++        if(!load_symbol_scope((std::string("/system/lib64/")+name).c_str()))throw Error("native_load_failed",false,true);
+     std::vector<const char*> servers;for(const auto& ip:dns)servers.push_back(ip.c_str());
+     call<void>(names::resolv,0u,servers.data(),int(servers.size()),".");
+     call<void>(names::FootHillConfig_config,&parts[8]);

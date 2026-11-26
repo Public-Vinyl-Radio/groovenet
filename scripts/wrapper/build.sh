@@ -18,5 +18,13 @@ scratch="$(mktemp -d /tmp/groovenet-wrapper-1.0.0.XXXXXX)"
 trap 'rm -rf "$scratch"' EXIT
 git clone --quiet --depth 1 --branch 1.0.0 https://github.com/glomatico/wrapper-v2.git "$scratch/source"
 [[ "$(git -C "$scratch/source" describe --tags --exact-match)" == 1.0.0 ]]
+if [[ "$arch" == aarch64 ]]; then
+  # Source workaround for GNU-only vDSO mappings on newer ARM64 Linux kernels.
+  # Keep the pinned Android runtime and Apple libraries unchanged.
+  compat="$repo/scripts/wrapper/compat"
+  git -C "$scratch/source" apply --check "$compat/explicit-symbol-scopes.patch"
+  git -C "$scratch/source" apply "$compat/explicit-symbol-scopes.patch"
+  cp "$compat/symbol_lookup.hpp" "$scratch/source/native/symbol_lookup.hpp"
+fi
 export WRAPPER_IMAGE="wrapper-v2:1.0.0-local-$image_arch"
 "$scratch/source/tools/build-docker.sh" "$package" --arch "$arch"

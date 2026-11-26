@@ -1,11 +1,43 @@
 """Command scaffolding with fake git/docker; no real build, APK or session."""
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+# Public 1.0.0 source contexts only; no Android or Apple binaries.
+RUNTIME_HPP_FIXTURE = '''#pragma once
+#include "common.hpp"
+#include "protocol.hpp"
+#include "symbols.hpp"
+#include "abi.hpp"
+#include <memory>
+#include <functional>
+#include <dlfcn.h>
+#include <cstring>
+#include <atomic>
+namespace worker {
+using Shared=std::shared_ptr<void>;
+static_assert(sizeof(Shared)==16 && sizeof(std::string)==24,"Pinned Android libc++ ABI required");
+template<class T>T symbol(const char* name) {
+    auto p=dlsym(RTLD_DEFAULT,name);if(!p)throw Error("missing_native_symbol",false,true);return reinterpret_cast<T>(p);
+}
+template<class R,class... Args>R call(const char* name,Args... args){return symbol<R(*)(Args...)>(name)(args...);}
+struct NativeObject {
+'''
+RUNTIME_CPP_FIXTURE = '''    cached_session=stat((directory+"/mpl_db/kvs.sqlitedb").c_str(),&st)==0&&S_ISREG(st.st_mode)&&st.st_size>0;
+    // Hash every ABI-bearing dependency, not just the instrumented library.
+    for(const auto& pair:apple_libraries)if(sha256_file(std::string("/system/lib64/")+pair.first)!=pair.second)throw Error("unsupported_library",false,true);
+    for(const char* name:{"libCoreFP.so","libCoreLSKD.so","libandroidappmusic.so","libstoreservicescore.so","libmediaplatform.so"})
+        if(!dlopen((std::string("/system/lib64/")+name).c_str(),RTLD_NOW|RTLD_GLOBAL))throw Error("native_load_failed",false,true);
+    std::vector<const char*> servers;for(const auto& ip:dns)servers.push_back(ip.c_str());
+    call<void>(names::resolv,0u,servers.data(),int(servers.size()),".");
+    call<void>(names::FootHillConfig_config,&parts[8]);
+'''
 
 
 class WrapperBuildTest(unittest.TestCase):
@@ -20,6 +52,12 @@ class WrapperBuildTest(unittest.TestCase):
         uname = self.root / "uname"
         uname.write_text('#!/bin/sh\necho "${TEST_HOST_ARCH:-x86_64}"\n')
         uname.chmod(0o755)
+        fixtures = self.root / "native-fixture"
+        fixtures.mkdir()
+        (fixtures / "runtime.hpp").write_text(RUNTIME_HPP_FIXTURE)
+        (fixtures / "runtime.cpp").write_text(RUNTIME_CPP_FIXTURE)
+        self.env["TEST_NATIVE_FIXTURES"] = str(fixtures)
+        self.env["TEST_REAL_GIT"] = shutil.which("git")
         git = self.root / "git"
         git.write_text('''#!/usr/bin/env bash
 set -eu
@@ -27,12 +65,28 @@ if [[ "$1" == clone ]]; then
   [[ "$*" == *"--branch 1.0.0"* ]]
   dest="${@: -1}"
   mkdir -p "$dest/tools"
+  cp -R "$TEST_NATIVE_FIXTURES" "$dest/native"
+  if [[ "${TEST_SOURCE_DRIFT:-}" == 1 ]]; then
+    echo '// incompatible source' > "$dest/native/runtime.hpp"
+  fi
   cat > "$dest/tools/build-docker.sh" <<'BUILD'
 #!/usr/bin/env bash
 set -eu
+source="$(dirname "$0")/../native"
+if [[ "$3" == aarch64 ]]; then
+  test -f "$source/symbol_lookup.hpp"
+  ! grep -q RTLD_DEFAULT "$source/runtime.hpp"
+  grep -q 'load_symbol_scope(nullptr)' "$source/runtime.cpp"
+else
+  test ! -e "$source/symbol_lookup.hpp"
+  grep -q RTLD_DEFAULT "$source/runtime.hpp"
+fi
 printf '%s\\n' "$0" "$WRAPPER_IMAGE" "$@" > "$TEST_TRACE"
+exit "${TEST_BUILD_EXIT:-0}"
 BUILD
   chmod +x "$dest/tools/build-docker.sh"
+elif [[ "$1" == -C && "$3" == apply ]]; then
+  exec "$TEST_REAL_GIT" "$@"
 else
   echo "${TEST_TAG:-1.0.0}"
 fi
@@ -83,6 +137,17 @@ fi
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.trace.read_text().splitlines()[2:], [str(self.package.resolve()), "--arch", "aarch64"])
 
+    def test_compat_patch_drift_never_builds(self):
+        self.env["TEST_SOURCE_DRIFT"] = "1"
+        self.assertNotEqual(self.run_build(self.package, "--arch", "aarch64").returncode, 0)
+        self.assertFalse(self.trace.exists())
+
+    def test_failed_patched_build_still_removes_scratch(self):
+        self.env["TEST_BUILD_EXIT"] = "7"
+        self.assertEqual(self.run_build(self.package, "--arch", "aarch64").returncode, 7)
+        source = Path(self.trace.read_text().splitlines()[0]).parents[1]
+        self.assertFalse(source.exists())
+
     def test_wrong_tag_never_builds(self):
         self.env["TEST_TAG"] = "1.0.1"
         self.assertNotEqual(self.run_build(self.package).returncode, 0)
@@ -98,6 +163,17 @@ fi
         link.symlink_to(ROOT / "README.md")
         self.assertNotEqual(self.run_build(link).returncode, 0)
         self.assertFalse(self.trace.exists())
+
+
+class SymbolLookupTest(unittest.TestCase):
+    def test_fake_loader_never_receives_a_global_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "symbol-lookup-test"
+            subprocess.run([
+                "c++", "-std=c++17", "-Wall", "-Wextra", "-Werror",
+                str(ROOT / "scripts/wrapper/test_symbol_lookup.cpp"), "-o", str(executable),
+            ], check=True, capture_output=True, text=True)
+            subprocess.run([str(executable)], check=True, capture_output=True, text=True)
 
 
 class SessionRecipeTest(unittest.TestCase):

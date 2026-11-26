@@ -62,6 +62,45 @@ or normal source context. Scratch source is removed on exit. The resulting
 proprietary Apple libraries: keep
 it local, never push/export it into the repository, an issue or a PR.
 
+#### ARM64 compatibility on newer Mac VM kernels
+
+ARM64 builds apply the local source patch in
+`scripts/wrapper/compat/explicit-symbol-scopes.patch` after checking the exact
+upstream **1.0.0** tag. The standalone helper is
+`scripts/wrapper/compat/symbol_lookup.hpp`. amd64 builds keep the upstream source.
+A patch that no longer applies aborts the build; do not bypass that check.
+
+The bundled API 22 Android linker crashes when a global
+`dlsym(RTLD_DEFAULT, ...)` lookup reaches a kernel vDSO with only a GNU hash table.
+This was reproduced on the local ARM64 VM kernel 6.18.58. The workaround retains
+explicit handles for the main executable and five already-loaded Apple libraries
+and searches those handles and their dependency scopes. It avoids the global vDSO
+lookup without changing the pinned Android binaries, Apple libraries, protocol,
+capabilities or saved identity/session format. Handles live until worker exit.
+
+Rebuild an existing ARM64 image with the same owner command, then let Compose
+recreate the sidecar from its new image ID:
+
+```bash
+just wrapper-build ~/path/to.apkm
+just worktree-up --profile downloads,lossless
+just wrapper-login
+just wrapper-status
+```
+
+Preserve the named session/identity volume. A successful status says
+`Wrapper v2 1.0.0 arm64-v8a: signed in`. While verifying a real lossless download,
+disable **Retry lossless failures as AAC** so fallback cannot hide a wrapper error,
+and confirm ALAC input becomes a final FLAC file rather than an AAC result.
+
+Validation boundary: fake git/build helpers check ARM64-only patch application,
+source drift rejection and scratch cleanup. A standalone C++ test compiles only
+the public lookup helper against a fake loader that rejects global lookups. An
+isolated, network-disabled debugger probe using the existing image and synthetic
+session state validated the explicit-handle lookup strategy through native
+initialization. The patched source has **not** been built into a real wrapper by
+an agent; owner rebuild, real sign-in and Apple downloads remain unverified.
+
 `lossless` is opt-in and excluded from `all`. `just worktree-up --profile downloads
 --profile lossless` also works after building. The sidecar has no published port,
 uses the selected architecture (`linux/amd64` by default), init and a read-only root, and persists session **and device

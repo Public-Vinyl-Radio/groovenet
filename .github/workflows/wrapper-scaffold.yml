@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - justfile
+      - codecov.yml
       - scripts/wrapper/**
       - scripts/worktree/**
       - .github/workflows/wrapper-scaffold.yml
@@ -10,6 +11,7 @@ on:
     branches: [main]
     paths:
       - justfile
+      - codecov.yml
       - scripts/wrapper/**
       - scripts/worktree/**
       - .github/workflows/wrapper-scaffold.yml
@@ -22,7 +24,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
+      - name: Install coverage tools
+        run: sudo apt-get update && sudo apt-get install -y clang-18 llvm-18
       - name: Test build and session commands with fake git and Docker
         run: python3 -m unittest discover -s scripts/wrapper -p 'test_*.py' -v
       - name: Test profile persistence with fake Docker
         run: ./scripts/worktree/profiles_test.sh
+      - name: Cover the compatibility helper with a fake loader
+        run: |
+          coverage_dir="$RUNNER_TEMP/wrapper-compat-coverage"
+          mkdir -p "$coverage_dir"
+          clang++-18 -std=c++17 -Wall -Wextra -Werror -fprofile-instr-generate -fcoverage-mapping \
+            scripts/wrapper/test_symbol_lookup.cpp -o "$coverage_dir/test-symbol-lookup"
+          LLVM_PROFILE_FILE="$coverage_dir/helper.profraw" "$coverage_dir/test-symbol-lookup"
+          llvm-profdata-18 merge -sparse "$coverage_dir/helper.profraw" -o "$coverage_dir/helper.profdata"
+          llvm-cov-18 report "$coverage_dir/test-symbol-lookup" -instr-profile="$coverage_dir/helper.profdata" \
+            scripts/wrapper/compat/symbol_lookup.hpp
+          llvm-cov-18 export "$coverage_dir/test-symbol-lookup" -instr-profile="$coverage_dir/helper.profdata" \
+            -format=lcov scripts/wrapper/compat/symbol_lookup.hpp > "$coverage_dir/coverage.lcov"
+      - uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ${{ runner.temp }}/wrapper-compat-coverage/coverage.lcov
+          flags: wrapper-compat
