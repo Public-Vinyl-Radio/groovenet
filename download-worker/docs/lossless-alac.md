@@ -1,5 +1,16 @@
 # Lossless ALAC downloads with gamdl (spike, #1147)
 
+> **Update for gamdl 4.1 (#1291).** The wrapper notes below describe gamdl
+> 3.9.1 and wrapper-v2 0.0.2, which gamdl 4 no longer supports. gamdl 4.1
+> decrypts ALAC locally and uses the wrapper only for sign-in and session
+> context, and it requires **Wrapper v2 1.0.0** exactly (`GET /info`). The
+> decrypt socket and `--wrapper-decrypt-host`/`--wrapper-decrypt-port` are
+> gone, and so are `GAMDL_WRAPPER_DECRYPT_HOST`/`_PORT`. The worker now calls
+> gamdl's Python API: lossless means codec priority `alac-lossless,aac` with
+> wrapper auth, and only when `GAMDL_WRAPPER_URL` is set. The codec tiers are
+> `alac-lossless` and `alac-hires`, so a sample-rate cap is now a choice
+> between them. End to end with a real wrapper is still not verified.
+
 Can download-worker fetch Apple Music tracks as lossless ALAC with gamdl
 3.9.1, and what would it take on the homelab? Written 2026-11-09 against
 `main` at `95d89abf`.

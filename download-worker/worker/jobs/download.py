@@ -1,10 +1,26 @@
+import asyncio
 import os
-import re
 import shutil
 import subprocess
 import time
 import traceback
-from urllib.parse import urlparse
+from collections.abc import Callable
+from contextlib import AsyncExitStack
+from dataclasses import dataclass
+
+from gamdl.api import (
+    AppleMusicApi,
+    GamdlApiResponseError,
+    GamdlAuthenticationError,
+    GamdlRateLimitError,
+    WrapperApi,
+)
+from gamdl.download import Downloader, PathFormatter
+from gamdl.drm import Drm, DrmConfigurationError, DrmLicenseError
+from gamdl.exceptions import GamdlError
+from gamdl.media import MediaResolver, SongCodec
+from gamdl.media.exceptions import MediaNotFoundError, MediaNotStreamableError, UnsupportedMediaError
+from gamdl.media.url import AppleMusicUrlInfo
 
 from ..audio_utils import cleanup_download_directory
 from ..config import logger
@@ -42,42 +58,256 @@ def resolve_gamdl_cookie_file() -> str | None:
     return configured_path
 
 
-# gamdl 3.x has no quality flag: what you get is chosen by --song-codec-priority,
-# and its default (aac-web) is already the best lossy stream. ALAC is FairPlay
-# protected and only decrypts through a wrapper-v2 sidecar (#1147), so lossless
-# is requested only when one is configured; every other setting gets the default.
-LOSSLESS_CODEC_PRIORITY = "alac,aac-web"
+# gamdl picks a stream per track from a codec priority list. Its default, HLS
+# `aac`, is the same 256 kbps AAC that 3.x called aac-web. ALAC is decrypted
+# from a Wrapper v2 1.0.0 session (#1147), so lossless is requested only when
+# one is configured; every other setting gets the default.
+DEFAULT_CODEC_PRIORITY = ("aac",)
+LOSSLESS_CODEC_PRIORITY = ("alac-lossless", "aac")
+
+GAMDL_TIMEOUT_SECONDS = 600
+AUDIO_EXTENSIONS = (".m4a", ".mp3", ".aac", ".flac")
 
 
-def gamdl_wrapper_args() -> list[str]:
-    """gamdl's --use-wrapper flags, or [] when GAMDL_WRAPPER_URL is unset."""
-    wrapper_url = (os.getenv("GAMDL_WRAPPER_URL") or "").strip()
-    if not wrapper_url:
-        return []
-
-    # gamdl defaults the TCP decrypt host to 127.0.0.1, which is wrong for a
-    # sidecar container, so fall back to the host in the wrapper's URL.
-    decrypt_host = (os.getenv("GAMDL_WRAPPER_DECRYPT_HOST") or "").strip() or urlparse(wrapper_url).hostname
-    args = ["--use-wrapper", "--wrapper-url", wrapper_url]
-    if decrypt_host:
-        args.extend(["--wrapper-decrypt-host", decrypt_host])
-    decrypt_port = (os.getenv("GAMDL_WRAPPER_DECRYPT_PORT") or "").strip()
-    if decrypt_port:
-        args.extend(["--wrapper-decrypt-port", decrypt_port])
-    return args
+def gamdl_wrapper_url() -> str | None:
+    """The Wrapper v2 base URL from GAMDL_WRAPPER_URL, or None when unset."""
+    return (os.getenv("GAMDL_WRAPPER_URL") or "").strip() or None
 
 
-def gamdl_quality_args(quality: str) -> list[str]:
-    """Map the gamdl_settings audio_quality value onto gamdl 3.9 options."""
+def gamdl_codec_priority(quality: str) -> tuple[str, ...]:
+    """Map the gamdl_settings audio_quality value onto a gamdl codec priority."""
     if quality != "lossless":
-        return []
+        return DEFAULT_CODEC_PRIORITY
 
-    wrapper_args = gamdl_wrapper_args()
-    if not wrapper_args:
+    if not gamdl_wrapper_url():
         logger.warning("Lossless requested but GAMDL_WRAPPER_URL is not set; downloading AAC")
-        return []
+        return DEFAULT_CODEC_PRIORITY
 
-    return [*wrapper_args, "--song-codec-priority", LOSSLESS_CODEC_PRIORITY]
+    return LOSSLESS_CODEC_PRIORITY
+
+
+def usable_gamdl_cookie_file() -> str | None:
+    """The resolved cookie file when it holds Apple entries, else None (with a warning)."""
+    cookie_file = resolve_gamdl_cookie_file()
+    if not cookie_file:
+        logger.info("No cookie file specified")
+        return None
+    if not os.path.exists(cookie_file):
+        logger.warning(f"Cookie file not found: {cookie_file}")
+        return None
+    try:
+        with open(cookie_file) as f:
+            content = f.read().strip()
+    except Exception as e:
+        logger.warning(f"Could not validate cookie file: {e}")
+        return None
+    if not content:
+        logger.warning("Cookie file is empty")
+        return None
+    if "apple" not in content.lower():
+        logger.warning("Cookie file may not contain Apple Music cookies")
+        return None
+
+    apple_lines = [line for line in content.split("\n") if "apple" in line.lower()]
+    logger.info(f"Using gamdl cookie file: {cookie_file}")
+    logger.info(f"Using cookie file with {len(apple_lines)} Apple entries")
+    return cookie_file
+
+
+class WrapperSignInRequired(Exception):
+    """The wrapper asked for an Apple ID login, which a worker cannot answer."""
+
+
+async def _wrapper_sign_in_required(*_args: object) -> str:
+    raise WrapperSignInRequired("Wrapper v2 is signed out - sign in to the wrapper, then retry")
+
+
+@dataclass(frozen=True)
+class GamdlOutcome:
+    """One track gamdl published or found already on disk."""
+
+    media_id: str
+    status: str  # downloaded | overwritten | skipped (already exists)
+    path: str
+    catalog_id: str | None = None
+    album_ids: tuple[str, ...] = ()
+
+
+def describe_gamdl_error(error: Exception, subscription_confirmed: bool = True) -> str:
+    """The message the app shows for a gamdl failure, by exception type."""
+    if isinstance(error, WrapperSignInRequired):
+        return str(error)
+    if isinstance(error, GamdlAuthenticationError):
+        return "Authentication failed - cookie file may be expired or invalid"
+    if isinstance(error, GamdlRateLimitError):
+        return "Rate limited by Apple Music - please try again later"
+    if isinstance(error, MediaNotFoundError):
+        return "Track not found on Apple Music"
+    if isinstance(error, GamdlApiResponseError) and error.status_code == 404:
+        return "Track not found on Apple Music"
+    if isinstance(error, UnsupportedMediaError):
+        return f"Unsupported Apple Music URL: {error}"
+    if not subscription_confirmed and isinstance(error, (MediaNotStreamableError, DrmLicenseError)):
+        return "Apple Music subscription required"
+    if isinstance(error, MediaNotStreamableError):
+        return "Track not available in your region"
+    if isinstance(error, DrmConfigurationError):
+        return f"Decryption backend unavailable: {error}"
+    return f"gamdl failed: {type(error).__name__}: {error}"
+
+
+async def _open_apple_music(
+    stack: AsyncExitStack, cookie_file: str | None, wrapper_url: str | None
+) -> tuple[AppleMusicApi, WrapperApi | None]:
+    if wrapper_url:
+        wrapper = await stack.enter_async_context(
+            await WrapperApi.create(
+                base_url=wrapper_url,
+                get_credentials=_wrapper_sign_in_required,
+                get_2fa_code=_wrapper_sign_in_required,
+            )
+        )
+        api = await stack.enter_async_context(await AppleMusicApi.from_wrapper(wrapper))
+        return api, wrapper
+    api = await stack.enter_async_context(await AppleMusicApi.from_cookies(cookie_file))
+    return api, None
+
+
+async def _catalog_ids(media: object) -> tuple[str | None, tuple[str, ...]]:
+    """The song and album IDs Apple's catalog returned, for the URL-mismatch guard."""
+    try:
+        metadata = await media.get_metadata()
+    except GamdlError:
+        return None, ()
+    albums = metadata.get("relationships", {}).get("albums", {}).get("data", [])
+    return metadata.get("id"), tuple(a["id"] for a in albums if a.get("id"))
+
+
+async def run_gamdl(
+    url: str,
+    output_dir: str,
+    codec_priority: tuple[str, ...],
+    *,
+    cookie_file: str | None,
+    wrapper_url: str | None,
+    log: Callable[[str], None],
+) -> list[GamdlOutcome]:
+    """Download every track `url` resolves to through gamdl's Python API.
+
+    Like `gamdl rip`, a track the storefront cannot play is skipped so the rest
+    of an album still downloads; any other error stops the run (fail-fast). If
+    nothing was published, the first skip reason is raised instead.
+    """
+    outcomes: list[GamdlOutcome] = []
+    skips: list[Exception] = []
+    subscription_confirmed = True
+    try:
+        async with AsyncExitStack() as stack:
+            api, wrapper = await _open_apple_music(stack, cookie_file, wrapper_url)
+            subscription_confirmed = api.active_subscription
+            if not subscription_confirmed:
+                log("Apple Music subscription was not confirmed for this account")
+            downloader = Downloader(
+                drm=Drm.from_widevine(api),
+                wrapper_api=wrapper,
+                path_formatter=PathFormatter(output_dir),
+            )
+            codecs = [SongCodec(codec) for codec in codec_priority]
+            async for media in MediaResolver(api).from_url(url):
+                try:
+                    result = await downloader.download(media, codec_priority=codecs)
+                except (MediaNotFoundError, MediaNotStreamableError) as e:
+                    log(f"gamdl skipped {media.id}: {e}")
+                    skips.append(e)
+                    continue
+                catalog_id, album_ids = await _catalog_ids(media)
+                outcome = GamdlOutcome(result.media_id, result.status.value, str(result.path), catalog_id, album_ids)
+                codec = result.codec.value if result.codec else "existing file"
+                log(f"gamdl {outcome.status} {outcome.media_id} ({codec}): {outcome.path}")
+                outcomes.append(outcome)
+    except Exception as e:
+        raise Exception(describe_gamdl_error(e, subscription_confirmed)) from e
+
+    if not outcomes and skips:
+        raise Exception(describe_gamdl_error(skips[0], subscription_confirmed)) from skips[0]
+    return outcomes
+
+
+def expected_apple_music_ids(url: str) -> tuple[str | None, str | None]:
+    """The (song, album) IDs a URL names; either is None when it names none."""
+    try:
+        info = AppleMusicUrlInfo.parse(url)
+    except UnsupportedMediaError:
+        return None, None
+    if info.sub_id:
+        return info.sub_id, info.media_id if info.kind == "album" else None
+    if info.kind == "song":
+        return info.media_id, None
+    return None, None
+
+
+def check_url_mismatch(url: str, outcomes: list[GamdlOutcome], log: Callable[[str], None]) -> None:
+    """Log loudly when Apple's catalog served a different song or album than the URL names."""
+    song_id, album_id = expected_apple_music_ids(url)
+    if not song_id:
+        return
+    for outcome in outcomes:
+        served_song = outcome.catalog_id or outcome.media_id
+        if served_song != song_id:
+            message = f"URL MISMATCH: Expected {url}, gamdl processed song {served_song}"
+        elif album_id and outcome.album_ids and album_id not in outcome.album_ids:
+            message = (
+                f"URL MISMATCH: Expected {url}, gamdl processed song {served_song} "
+                f"from album {', '.join(outcome.album_ids)}"
+            )
+        else:
+            continue
+        logger.error(message)
+        log(message)
+
+
+def _non_empty_audio_file(path: str) -> bool:
+    return path.endswith(AUDIO_EXTENSIONS) and os.path.isfile(path) and os.path.getsize(path) > 0
+
+
+def _find_audio_files(search_path: str, found: list[str], max_depth: int = 3, current_depth: int = 0) -> None:
+    if current_depth > max_depth:
+        return
+    try:
+        for item in os.listdir(search_path):
+            item_path = os.path.join(search_path, item)
+            if os.path.isfile(item_path):
+                if _non_empty_audio_file(item_path):
+                    found.append(item_path)
+            elif os.path.isdir(item_path) and current_depth < max_depth:
+                _find_audio_files(item_path, found, max_depth, current_depth + 1)
+    except Exception as e:
+        logger.warning(f"Error searching {search_path}: {e}")
+
+
+def _audio_files_since(output_dir: str, before_files: set) -> list[str]:
+    """Audio files new in output_dir since before_files, or every one when none are new."""
+    after_files: set = set()
+    try:
+        after_files = set(os.listdir(output_dir))
+    except Exception:
+        pass
+
+    new_items = after_files - before_files
+    downloaded_files: list[str] = []
+    if not new_items:
+        logger.info("No new items detected, searching entire directory for audio files")
+        _find_audio_files(output_dir, downloaded_files)
+    for item in new_items:
+        item_path = os.path.join(output_dir, item)
+        if os.path.isdir(item_path):
+            _find_audio_files(item_path, downloaded_files)
+        elif _non_empty_audio_file(item_path):
+            downloaded_files.append(item_path)
+
+    if not downloaded_files:
+        logger.error(f"No audio files found. New items: {new_items}")
+    return downloaded_files
 
 
 def has_download_urls(job_data: JobData) -> bool:
@@ -95,44 +325,25 @@ def download_with_gamdl(
     job_data: JobData | None = None,
     log_sink: list[str] | None = None,
 ) -> str | None:
+    def log(message: str) -> None:
+        logger.info(message)
+        if log_sink is not None:
+            log_sink.append(message)
+
     try:
         quality = "best"
         if job_data and "quality" in job_data:
             quality = job_data["quality"]
 
-        cmd = [
-            "gamdl",
-            "--output-path",
-            output_dir,
-            "--log-level",
-            "INFO",
-            "--no-exceptions",
-        ]
-
-        cmd.extend(gamdl_quality_args(quality))
-
-        cookie_file = resolve_gamdl_cookie_file()
-        if cookie_file:
-            if os.path.exists(cookie_file):
-                try:
-                    with open(cookie_file) as f:
-                        content = f.read().strip()
-                    if not content:
-                        logger.warning("Cookie file is empty")
-                    elif "apple" not in content.lower():
-                        logger.warning("Cookie file may not contain Apple Music cookies")
-                    else:
-                        cmd.extend(["--cookies-path", cookie_file])
-                        logger.info(f"Using gamdl cookie file: {cookie_file}")
-                        lines = content.split("\n")
-                        apple_lines = [line for line in lines if "apple" in line.lower()]
-                        logger.info(f"Using cookie file with {len(apple_lines)} Apple entries")
-                except Exception as e:
-                    logger.warning(f"Could not validate cookie file: {e}")
-            else:
-                logger.warning(f"Cookie file not found: {cookie_file}")
-        else:
-            logger.info("No cookie file specified")
+        codec_priority = gamdl_codec_priority(quality)
+        # The wrapper signs in for ALAC only; AAC keeps using the cookie file,
+        # so a broken wrapper never stops the default path.
+        wrapper_url = gamdl_wrapper_url() if codec_priority == LOSSLESS_CODEC_PRIORITY else None
+        cookie_file = None
+        if wrapper_url is None:
+            cookie_file = usable_gamdl_cookie_file()
+            if cookie_file is None:
+                raise Exception("Authentication failed - no usable Apple Music cookie file")
 
         before_files: set = set()
         try:
@@ -140,95 +351,44 @@ def download_with_gamdl(
         except Exception:
             pass
 
-        cmd.append(url)
-        result = run_subprocess(cmd, timeout=600, log_sink=log_sink)
+        log(f"gamdl {url} (codecs: {','.join(codec_priority)}, auth: {'wrapper' if wrapper_url else 'cookies'})")
+        outcomes = asyncio.run(
+            asyncio.wait_for(
+                run_gamdl(
+                    url,
+                    output_dir,
+                    codec_priority,
+                    cookie_file=cookie_file,
+                    wrapper_url=wrapper_url,
+                    log=log,
+                ),
+                GAMDL_TIMEOUT_SECONDS,
+            )
+        )
+        check_url_mismatch(url, outcomes, log)
 
-        if result.stderr:
-            track_matches = re.findall(r'\(Track \d+/\d+ from URL \d+/\d+\) "([^"]+)"', result.stderr)
-            if track_matches:
-                logger.info(f"gamdl processed tracks: {track_matches}")
-            url_matches = re.findall(r'Processing "([^"]+)"', result.stderr)
-            if url_matches and url_matches[0] != url:
-                logger.error(f"URL MISMATCH: Expected {url}, gamdl processed {url_matches[0]}")
-
-        if result.returncode != 0:
-            stderr_lower = result.stderr.lower() if result.stderr else ""
-            if "unauthorized" in stderr_lower or "401" in stderr_lower:
-                raise Exception("Authentication failed - cookie file may be expired or invalid")
-            elif "not found" in stderr_lower or "404" in stderr_lower:
-                raise Exception("Track not found on Apple Music")
-            elif "region" in stderr_lower or "geo" in stderr_lower:
-                raise Exception("Track not available in your region")
-            elif "rate limit" in stderr_lower or "too many requests" in stderr_lower:
-                raise Exception("Rate limited by Apple Music - please try again later")
-            elif "premium" in stderr_lower or "subscription" in stderr_lower:
-                raise Exception("Apple Music subscription required")
-            else:
-                raise Exception(f"gamdl failed: {result.stderr}")
-
-        # Handle "already exists" case
-        if result.stderr:
-            existing_match = re.search(r"Media file already exists at '([^']+)'", result.stderr)
-            if existing_match:
-                existing_file_path = existing_match.group(1)
-                logger.info(f"gamdl found existing file: {existing_file_path}")
-                if os.path.exists(existing_file_path) and os.path.getsize(existing_file_path) > 0:
-                    file_ext = os.path.splitext(existing_file_path)[1]
-                    new_filepath = os.path.join(output_dir, f"{track_id}{file_ext}")
-                    try:
-                        shutil.copy2(existing_file_path, new_filepath)
-                        return new_filepath
-                    except Exception as e:
-                        logger.warning(f"Could not copy file: {e}, using original path")
-                        return existing_file_path
-
-        after_files: set = set()
-        try:
-            after_files = set(os.listdir(output_dir))
-        except Exception:
-            pass
-
-        new_items = after_files - before_files
-        search_all_files = len(new_items) == 0
-        if search_all_files:
-            logger.info("No new items detected, searching entire directory for audio files")
-
-        downloaded_files: list[str] = []
-
-        def find_audio_files(search_path: str, max_depth: int = 3, current_depth: int = 0) -> None:
-            if current_depth > max_depth:
-                return
+        # Handle "already exists": gamdl skipped a file it had published before.
+        for outcome in outcomes:
+            if outcome.status != "skipped" or not _non_empty_audio_file(outcome.path):
+                continue
+            logger.info(f"gamdl found existing file: {outcome.path}")
+            new_filepath = os.path.join(output_dir, f"{track_id}{os.path.splitext(outcome.path)[1]}")
             try:
-                for item in os.listdir(search_path):
-                    item_path = os.path.join(search_path, item)
-                    if os.path.isfile(item_path):
-                        if any(item.endswith(ext) for ext in [".m4a", ".mp3", ".aac", ".flac"]):
-                            if os.path.getsize(item_path) > 0:
-                                downloaded_files.append(item_path)
-                    elif os.path.isdir(item_path) and current_depth < max_depth:
-                        find_audio_files(item_path, max_depth, current_depth + 1)
+                shutil.copy2(outcome.path, new_filepath)
+                return new_filepath
             except Exception as e:
-                logger.warning(f"Error searching {search_path}: {e}")
+                logger.warning(f"Could not copy file: {e}, using original path")
+                return outcome.path
 
-        if search_all_files:
-            find_audio_files(output_dir)
-        else:
-            for item in new_items:
-                item_path = os.path.join(output_dir, item)
-                if os.path.isdir(item_path):
-                    find_audio_files(item_path)
-                elif os.path.isfile(item_path):
-                    if any(item.endswith(ext) for ext in [".m4a", ".mp3", ".aac", ".flac"]):
-                        if os.path.getsize(item_path) > 0:
-                            downloaded_files.append(item_path)
-
+        downloaded_files = [o.path for o in outcomes if o.status != "skipped" and _non_empty_audio_file(o.path)]
         if not downloaded_files:
-            logger.error(f"No audio files found. New items: {new_items}")
+            downloaded_files = _audio_files_since(output_dir, before_files)
+        if not downloaded_files:
             raise Exception(f"Downloaded file not found for track_id {track_id}")
 
         return max(downloaded_files, key=os.path.getsize)
 
-    except subprocess.TimeoutExpired:
+    except TimeoutError:
         raise Exception("Download timeout (10 minutes) - try lower quality or check connection")
     except Exception as e:
         error_msg = str(e)

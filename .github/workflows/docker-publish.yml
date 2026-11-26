@@ -388,14 +388,17 @@ jobs:
 
       # gamdl crashes at import when its pywidevine/protobuf dependency does not
       # support the image's Python (a 3.14 base-image bump did exactly that and
-      # failed every Apple Music download). Runs on every build, so Dependabot
-      # PRs are covered.
+      # failed every Apple Music download). gamdl 4 imports pywidevine lazily, so
+      # `--help` alone no longer reaches it: import the worker's gamdl module and
+      # the Widevine CDM too. Runs on every build, so Dependabot PRs are covered.
       - name: Smoke test gamdl runs in the image
         shell: bash
         run: |
           set -euo pipefail
           img="$(head -n1 <<< "${{ steps.tags.outputs.tags }}")"
           docker run --rm --entrypoint gamdl "$img" --help >/dev/null
+          docker run --rm --entrypoint python "$img" -c \
+            "import worker.jobs.download; from pywidevine import PSSH, Cdm"
 
       - name: Push download worker
         if: env.SHOULD_PUSH == 'true'
