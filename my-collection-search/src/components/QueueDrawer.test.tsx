@@ -34,6 +34,7 @@ vi.mock("@/providers/PlaylistPlayerProvider", () => ({
 const controller = vi.hoisted(() => ({
   mode: "local" as "local" | "server",
   volumeLabel: "VOL",
+  playbackError: null as string | null,
   commitVolume: vi.fn(),
   isPlaying: true,
   canPrev: true,
@@ -85,6 +86,7 @@ beforeEach(() => {
   player.currentTrackIndex = 0;
   controller.isAirPlayAvailable = false;
   controller.mode = "local";
+  controller.playbackError = null;
   controller.volumeLabel = "VOL";
 });
 afterEach(() => setViewportWidth(1280));
@@ -279,4 +281,13 @@ describe("QueueDrawer — desktop panel", () => {
     expect(screen.getByRole("button", { name: "Clear" }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("Queue is empty")).toBeTruthy();
   });
+});
+
+it("keeps browser playback errors visible in phone Now playing", () => {
+  setViewportWidth(390);
+  player.playlist = [track(1)];
+  player.currentTrack = player.playlist[0];
+  controller.playbackError = "This browser can't play ALAC.";
+  renderWithProviders(<QueueDrawer isOpen onClose={() => {}} />);
+  expect(screen.getByRole("alert").textContent).toBe(controller.playbackError);
 });
