@@ -3,6 +3,7 @@ import { contrastRatio } from "./contrast";
 import {
   checkContrast,
   contrastFailures,
+  customColourKeys,
   customFromPreset,
   customPaletteCss,
   customPaletteId,
@@ -62,6 +63,7 @@ describe("derivePalette", () => {
         ground: "#808080",
         surface: "#828282",
         ink: "#858585",
+        outline: "#848484",
         accent: "#777777",
         shadow: "#101010",
       },
@@ -71,6 +73,7 @@ describe("derivePalette", () => {
     expect(light["--gn-ground"]).toBe("#808080");
     expect(light["--gn-surface"]).toBe("#828282");
     expect(light["--gn-ink"]).toBe("#858585");
+    expect(light["--gn-outline"]).toBe("#848484");
     expect(light["--gn-accent-solid"]).toBe("#777777");
     expect(light["--gn-shadow"]).toBe("#101010");
   });
@@ -85,6 +88,7 @@ describe("derivePalette", () => {
       ground: "#ffffff",
       surface: "#f5f5f5",
       ink: "#111111",
+      outline: "#111111",
       accent: "#ffd0c0",
       shadow: "#333333",
     };
@@ -110,6 +114,7 @@ describe("derivePalette", () => {
       ground: colour(),
       surface: colour(),
       ink: colour(),
+      outline: colour(),
       accent: colour(),
       shadow: colour(),
     });
@@ -121,6 +126,114 @@ describe("derivePalette", () => {
         for (const value of Object.values(derived[mode])) expect(value).toMatch(HEX);
       }
     }
+  });
+});
+
+describe("outline", () => {
+  const sleeve = customFromPreset("sleeve");
+  const withOutline = (outline: string): CustomPalette => ({
+    ...sleeve,
+    light: { ...sleeve.light, outline },
+  });
+
+  it("is a colour of its own, after ink", () => {
+    expect(customColourKeys).toEqual(["ground", "surface", "ink", "outline", "accent", "shadow"]);
+    expect(Object.keys(sleeve.light)).toEqual(customColourKeys);
+  });
+
+  it("starts from the preset's outline", () => {
+    for (const id of paletteIds) {
+      const custom = customFromPreset(id);
+      for (const mode of modes) {
+        expect(custom[mode].outline).toBe(palettes[id][mode]["--gn-outline"].toLowerCase());
+      }
+    }
+  });
+
+  it("is emitted as --gn-outline, exactly as typed", () => {
+    expect(derivePalette(withOutline("#336699")).light["--gn-outline"]).toBe("#336699");
+    expect(customPaletteCss(withOutline("#336699"))).toContain("--gn-outline:#336699;");
+  });
+
+  it("leaves the soft border and the muted ink to ink alone", () => {
+    const base = derivePalette(sleeve).light;
+    const changed = derivePalette(withOutline("#336699")).light;
+    expect(changed["--gn-border"]).toBe(base["--gn-border"]);
+    expect(changed["--gn-ink-muted"]).toBe(base["--gn-ink-muted"]);
+    expect(changed["--gn-ink"]).toBe(base["--gn-ink"]);
+  });
+
+  it("is held to 3:1 on the ground and the surface", () => {
+    const pairs = checkContrast(derivePalette(sleeve).light).filter((c) => c.fg === "--gn-outline");
+    expect(pairs.map((c) => [c.bg, c.min])).toEqual([
+      ["--gn-ground", 3],
+      ["--gn-surface", 3],
+    ]);
+  });
+
+  it("warns about a weak outline, per mode, without pulling it toward ink", () => {
+    const custom = withOutline("#f0e8da"); // almost the ground
+    const failures = contrastFailures(custom);
+    expect(failures.dark).toEqual([]);
+    const names = failures.light.map((c) => `${c.fg} on ${c.bg}`);
+    expect(names).toContain("--gn-outline on --gn-ground");
+    expect(names).toContain("--gn-outline on --gn-surface");
+    expect(failures.light.find((c) => c.fg === "--gn-outline")?.min).toBe(3);
+    expect(derivePalette(custom).light["--gn-outline"]).toBe("#f0e8da");
+  });
+
+  it("does not fail text pairs because the outline is weak", () => {
+    const names = contrastFailures(withOutline("#f0e8da")).light.map((c) => c.fg);
+    expect(names.filter((fg) => fg !== "--gn-outline")).toEqual([]);
+  });
+});
+
+describe("a palette saved before outline existed", () => {
+  const current = customFromPreset("riso");
+  const old = (): Record<string, any> => {
+    const copy = structuredClone(current) as Record<string, any>;
+    delete copy.light.outline;
+    delete copy.dark.outline;
+    return copy;
+  };
+
+  it("parses, with outline equal to ink, in key order", () => {
+    const parsed = parseCustomPalette(old());
+    expect(parsed).not.toBeNull();
+    for (const mode of modes) {
+      expect(parsed?.[mode].outline).toBe(parsed?.[mode].ink);
+      expect(Object.keys(parsed?.[mode] ?? {})).toEqual(customColourKeys);
+    }
+  });
+
+  it("follows an upper-case ink", () => {
+    const upper = old();
+    upper.light.ink = "#ABCDEF";
+    expect(parseCustomPalette(upper)?.light.outline).toBe("#abcdef");
+  });
+
+  it("renders exactly as it did when ink drew the outlines", () => {
+    const parsed = parseCustomPalette(old()) as CustomPalette;
+    const derived = derivePalette(parsed);
+    for (const mode of modes) {
+      expect(derived[mode]["--gn-outline"]).toBe(derived[mode]["--gn-ink"]);
+    }
+    const explicit = structuredClone(parsed);
+    explicit.light.outline = parsed.light.ink;
+    explicit.dark.outline = parsed.dark.ink;
+    expect(customPaletteCss(parsed)).toBe(customPaletteCss(explicit));
+  });
+
+  it("keeps an outline that was saved, and lowercases it", () => {
+    const saved = structuredClone(current) as Record<string, any>;
+    saved.light.outline = "#ABCDEF";
+    expect(parseCustomPalette(saved)?.light.outline).toBe("#abcdef");
+  });
+
+  it("rejects an outline that is not a hex colour", () => {
+    const bad = structuredClone(current) as Record<string, any>;
+    bad.dark.outline = "#fff";
+    expect(parseCustomPalette(bad)).toBeNull();
   });
 });
 

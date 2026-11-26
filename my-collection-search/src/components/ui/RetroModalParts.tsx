@@ -50,7 +50,7 @@ export function Tile({
       borderWidth="outline"
       borderRadius="md"
       borderColor="border.ink"
-      bg={solid ? "border.ink" : "bg"}
+      bg={solid ? "fg" : "bg"}
       color={solid ? "bg" : "fg"}
       boxShadow={solid ? "sm" : "xs"}
       _hover={{ filter: "brightness(1.08)" }}
@@ -329,12 +329,12 @@ export function ChipToggle({
       borderWidth="outline"
       borderRadius="md"
       borderColor="border.ink"
-      bg={checked ? "border.ink" : "bg"}
+      bg={checked ? "fg" : "bg"}
       color={checked ? "bg" : "fg"}
       fontFamily="label"
       fontSize="13px"
       fontWeight="semibold"
-      _hover={{ bg: checked ? "border.ink" : "bg.muted" }}
+      _hover={{ bg: checked ? "fg" : "bg.muted" }}
       _disabled={{ opacity: 0.4, cursor: "not-allowed" }}
     >
       {children}

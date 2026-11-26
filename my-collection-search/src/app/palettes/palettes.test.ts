@@ -41,6 +41,8 @@ describe.each(Object.entries(palettes))("palette %s", (_id, palette) => {
       ["--gn-ink", "--gn-surface", text],
       ["--gn-ink-muted", "--gn-ground", text],
       ["--gn-ink-muted", "--gn-surface", text],
+      ["--gn-outline", "--gn-ground", 3],
+      ["--gn-outline", "--gn-surface", 3],
       ["--gn-border", "--gn-ground", 3],
       ["--gn-border", "--gn-surface", 3],
       ["--gn-accent-contrast", "--gn-accent-solid", text],
@@ -64,6 +66,11 @@ describe.each(Object.entries(palettes))("palette %s", (_id, palette) => {
         contrastRatio(c[fg], c[bg]),
         `${_id} ${mode}: ${fg} (${c[fg]}) on ${bg} (${c[bg]}) needs ${min}:1`,
       ).toBeGreaterThanOrEqual(min);
+    });
+
+    // Built-in palettes keep one colour for text and outlines, so the split changes nothing for them.
+    it("draws outlines in the ink colour", () => {
+      expect(c["--gn-outline"]).toBe(c["--gn-ink"]);
     });
 
     // The neutral tint (`bg.muted`, 6% ink over ground) behind muted text: a

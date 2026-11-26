@@ -30,6 +30,7 @@ const KEY_LABELS: Record<CustomColourKey, string> = {
   ground: "Ground",
   surface: "Surface",
   ink: "Ink",
+  outline: "Outline",
   accent: "Accent",
   shadow: "Shadow",
 };
@@ -37,7 +38,8 @@ const KEY_LABELS: Record<CustomColourKey, string> = {
 const KEY_HELP: Record<CustomColourKey, string> = {
   ground: "The page background",
   surface: "Panels, inputs and menus",
-  ink: "Text and outlines",
+  ink: "Text",
+  outline: "Buttons, cards, inputs and chips",
   accent: "Primary actions and selection",
   shadow: "The hard offset shadow",
 };
@@ -50,6 +52,10 @@ const READOUTS: Record<CustomColourKey, [PaletteVariable, PaletteVariable][]> = 
     ["--gn-ink", "--gn-ground"],
     ["--gn-ink", "--gn-surface"],
   ],
+  outline: [
+    ["--gn-outline", "--gn-ground"],
+    ["--gn-outline", "--gn-surface"],
+  ],
   accent: [
     ["--gn-accent-solid", "--gn-ground"],
     ["--gn-accent-contrast", "--gn-accent-solid"],
@@ -60,6 +66,7 @@ const READOUTS: Record<CustomColourKey, [PaletteVariable, PaletteVariable][]> = 
 const PAIR_NAMES: Record<string, string> = {
   "--gn-ink": "Ink",
   "--gn-ink-muted": "Muted ink",
+  "--gn-outline": "Outline",
   "--gn-ground": "ground",
   "--gn-surface": "surface",
   "--gn-border": "Border",
@@ -214,6 +221,7 @@ export function PalettePreview({ values, mode }: { values: PaletteValues; mode: 
         <Text fontSize="sm" color="fg.muted" mb={3}>
           Secondary text sits here.
         </Text>
+        <Input size="sm" readOnly aria-label="Preview input" value="Search" mb={3} />
         <Flex gap={2} flexWrap="wrap">
           <Button size="sm" colorPalette="accent" variant="solid">
             Solid
@@ -343,8 +351,7 @@ export default function CustomPaletteEditor({
         Custom palette
       </SectionHeading>
       <Text color="fg.muted" fontSize="sm" mb={3}>
-        Five colours per mode. The rest, and the status colours, come from the preset it starts
-        from.
+        Six colours per mode. The rest, and the status colours, come from the preset it starts from.
       </Text>
 
       <Flex gap={3} align="center" flexWrap="wrap" mb={3}>
