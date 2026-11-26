@@ -29,6 +29,7 @@ def stub():
         info=dict(INFO),
         state="authenticated",
         restore=False,
+        restore_status=200,
         status=200,
         invalid_json=False,
         malformed_session=False,
@@ -58,7 +59,7 @@ def stub():
             if self.path == "/session/restore":
                 if data.restore:
                     data.state = "authenticated"
-                self.reply({})
+                self.reply({}, data.restore_status)
             elif self.path == "/session/login" and data.two_factor:
                 self.reply(data.challenge, 202)
             else:
@@ -155,7 +156,9 @@ def test_invalid_or_unavailable_response_is_sanitized(stub, kind, monkeypatch):
 
 @pytest.mark.parametrize("error", [requests.Timeout, requests.ConnectionError])
 def test_network_failure_has_no_response_or_url(monkeypatch, error):
-    monkeypatch.setattr(requests, "request", lambda *a, **k: (_ for _ in ()).throw(error("synthetic-sensitive-value")))
+    monkeypatch.setattr(
+        requests.Session, "request", lambda *a, **k: (_ for _ in ()).throw(error("synthetic-sensitive-value"))
+    )
     with pytest.raises(wrapper.WrapperNotReady, match="unreachable") as caught:
         wrapper.check_wrapper_ready("http://synthetic-sensitive-value")
     assert "synthetic-sensitive-value" not in str(caught.value)
@@ -250,3 +253,10 @@ def test_cli_safe_status_and_errors(stub, monkeypatch, action, mode, expected, c
         monkeypatch.setattr(wrapper_cli, "login", lambda url: (_ for _ in ()).throw(error()))
     assert wrapper_cli.main() == expected
     assert "Traceback" not in capsys.readouterr().out
+
+
+def test_missing_cached_session_is_an_actionable_sign_in_error(stub):
+    stub.state = "logged_out"
+    stub.restore_status = 404
+    with pytest.raises(wrapper.WrapperNotReady, match="just wrapper-login"):
+        wrapper.check_wrapper_ready(stub.url)

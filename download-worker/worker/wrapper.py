@@ -18,10 +18,15 @@ def wrapper_url() -> str | None:
     return "http://gamdl-wrapper:80" if "lossless" in profiles else None
 
 
-def request_wrapper(method: str, url: str, endpoint: str, **kwargs) -> requests.Response:
+def request_wrapper(
+    method: str, url: str, endpoint: str, *, allowed_statuses: tuple[int, ...] = (200, 202), **kwargs
+) -> requests.Response:
     try:
-        response = requests.request(method, url.rstrip("/") + endpoint, timeout=(3, 10), **kwargs)
-        if response.status_code not in (200, 202):
+        # Local account material must not inherit proxy or .netrc settings.
+        with requests.Session() as session:
+            session.trust_env = False
+            response = session.request(method, url.rstrip("/") + endpoint, timeout=(3, 10), **kwargs)
+        if response.status_code not in allowed_statuses:
             raise WrapperNotReady("Wrapper v2 request failed; check sidecar status and retry")
         return response
     except requests.RequestException:
@@ -47,7 +52,7 @@ def check_wrapper_ready(url: str) -> None:
     try:
         state = request_wrapper("GET", url, "/session").json().get("state")
         if state == "logged_out":
-            request_wrapper("POST", url, "/session/restore")
+            request_wrapper("POST", url, "/session/restore", allowed_statuses=(200, 202, 404))
             state = request_wrapper("GET", url, "/session").json().get("state")
     except (ValueError, AttributeError):
         raise WrapperNotReady("Wrapper v2 returned invalid session state") from None
