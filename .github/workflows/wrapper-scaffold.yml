@@ -2,12 +2,14 @@ name: wrapper-scaffold
 on:
   pull_request:
     paths:
+      - justfile
       - scripts/wrapper/**
       - scripts/worktree/**
       - .github/workflows/wrapper-scaffold.yml
   push:
     branches: [main]
     paths:
+      - justfile
       - scripts/wrapper/**
       - scripts/worktree/**
       - .github/workflows/wrapper-scaffold.yml
@@ -19,6 +21,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+      - uses: extractions/setup-just@v4
       - name: Test build and session commands with fake git and Docker
         run: python3 -m unittest discover -s scripts/wrapper -p 'test_*.py' -v
       - name: Test profile persistence with fake Docker
