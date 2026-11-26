@@ -540,6 +540,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --group dev
 
+      - name: Verify audio test tools
+        run: |
+          ffmpeg -version
+          ffprobe -version
+
       - name: Run worker tests with coverage
         run: uv run --group dev pytest --cov=. --cov-report=xml:coverage.xml
 

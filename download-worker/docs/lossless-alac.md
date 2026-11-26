@@ -11,6 +11,37 @@
 > `alac-lossless` and `alac-hires`, so a sample-rate cap is now a choice
 > between them. End to end with a real wrapper is still not verified.
 
+## FLAC storage (step 1)
+
+The gamdl Python API result is converted from ALAC to FLAC before publishing
+`local_audio_url`. AAC stays unchanged. The converter uses `ffmpeg -c:a flac`
+without resampling, preserves ordinary tags as Vorbis comments and each embedded
+picture byte-for-byte, and stores every non-cover MP4 tag in the typed JSON
+Vorbis comment `GROOVENET_MP4_TAGS` (binary freeform values are base64). This
+archive preserves fields that have no standard Vorbis equivalent.
+
+The worker verifies the saved FLAC's sample rate, bit depth, channels, tag archive
+and covers, then atomically publishes it and removes the temporary ALAC. Keeping
+both encodings doubles storage without helping browser playback. On conversion
+failure the ALAC is retained and the job fails. The app probes the final FLAC on
+its existing track-update path, so codec, lossless, depth and rate describe the
+served file. `.flac` already has `audio/flac` and range support in `/api/audio`.
+Changing the URL queues fingerprint indexing; the different SHA-256 also causes
+`needs_index` to rebuild an existing reference.
+
+Checks use generated audio, never account data: `uv run --group dev pytest
+ tests/test_lossless.py` in download-worker checks 24/96 PCM MD5, every original
+tag, covers and failure cleanup. `just lossless-test` uses the current worktree's
+`downloads` and `fingerprint` services and scratch `/tmp` files to check the actual
+converter, Essentia, Chromaprint and the SHA-256 re-index decision. It never writes
+the shared music volume. `RUN_E2E_TESTS=1 E2E_BASE_URL=http://localhost:<worktree-port>
+npm run test:e2e --prefix my-collection-search -- audio-codec.spec.ts` checks
+Chromium playback and FLAC 24-bit File info in both layouts.
+
+**Real Apple/wrapper end-to-end downloads are not yet verified.**
+
+## Historical spike
+
 Can download-worker fetch Apple Music tracks as lossless ALAC with gamdl
 3.9.1, and what would it take on the homelab? Written 2026-11-09 against
 `main` at `95d89abf`.

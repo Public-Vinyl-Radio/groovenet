@@ -24,6 +24,7 @@ from gamdl.media.url import AppleMusicUrlInfo
 
 from ..audio_utils import cleanup_download_directory
 from ..config import logger
+from ..lossless import convert_alac_to_flac
 from ..observability import capture_exception
 from ..redis_utils import append_job_logs, enqueue_analyze_job, update_job_status
 from ..subprocess_utils import run_subprocess
@@ -221,7 +222,12 @@ async def run_gamdl(
                     skips.append(e)
                     continue
                 catalog_id, album_ids = await _catalog_ids(media)
-                outcome = GamdlOutcome(result.media_id, result.status.value, str(result.path), catalog_id, album_ids)
+                path = str(result.path)
+                if result.codec in (SongCodec.ALAC_LOSSLESS, SongCodec.ALAC_HIRES) or (
+                    wrapper_url and result.codec is None
+                ):
+                    path = convert_alac_to_flac(path)
+                outcome = GamdlOutcome(result.media_id, result.status.value, path, catalog_id, album_ids)
                 codec = result.codec.value if result.codec else "existing file"
                 log(f"gamdl {outcome.status} {outcome.media_id} ({codec}): {outcome.path}")
                 outcomes.append(outcome)
