@@ -36,6 +36,12 @@ vi.mock("@/server/repositories/rankingProfileRepository", () => ({
 import { GET, POST } from "../route";
 import { setAnalyticsProvider } from "@/lib/analytics/server";
 import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+import { VIEWER } from "@/test/trackRatingMock";
+
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
 
 const analyticsEvents = new MemoryAnalyticsProvider();
 setAnalyticsProvider(analyticsEvents);
@@ -303,7 +309,10 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
     const res = await get("&breakdown=true");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith({ trackId: "seed", friendId: 1 });
+    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith(
+      { trackId: "seed", friendId: 1 },
+      VIEWER.id,
+    );
     expect(body.ranking).toEqual({
       config: "default",
       surface: "recommendations",
@@ -350,7 +359,10 @@ describe("/api/recommendations/candidates — ranking breakdown (#1191)", () => 
 
   it("scores a batch against its last track", async () => {
     const body = await (await post({ breakdown: true, ranker: "mixable" })).json();
-    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith({ trackId: "last", friendId: 2 });
+    expect(retriever.retrieveSeedMetadata).toHaveBeenCalledWith(
+      { trackId: "last", friendId: 2 },
+      VIEWER.id,
+    );
     expect(body.ranking).toEqual({
       config: "mixable",
       surface: "recommendations",

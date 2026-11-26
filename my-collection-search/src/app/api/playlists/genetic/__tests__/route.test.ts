@@ -26,6 +26,18 @@ import { STRICT_RANKING_CONFIG } from "@/lib/ranking/configs";
 import { toOptimizerRanking } from "@/lib/ranking/ordering";
 import { draftToStored, profileToDraft, RANKING_PRESETS } from "@/lib/ranking/profiles";
 
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+vi.mock(
+  "@/server/repositories/trackRatingRepository",
+  async () => (await import("@/test/trackRatingMock")).trackRatingRepositoryMock,
+);
+
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { VIEWER } from "@/test/trackRatingMock";
+
 const repo = rankingProfileRepository as unknown as FakeRankingProfileRepository;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,6 +116,37 @@ describe("POST /api/playlists/genetic — body validation", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toMatch(/invalid/i);
+  });
+});
+
+// ─── Ratings (#1283) ──────────────────────────────────────────────────────────
+
+describe("POST /api/playlists/genetic — the requesting profile's ratings", () => {
+  it("replaces each sent star_rating with the viewer's and drops others' ratings", async () => {
+    vi.mocked(trackRatingRepository.forTracks).mockResolvedValueOnce(
+      new Map([["1:track-1", { rating: 2, others: [] }]]),
+    );
+    const playlist = [
+      makeTrack({ star_rating: 5, other_ratings: [{ user_id: "x", name: "Sam", rating: 4 }] }),
+      makeTrack({ track_id: "track-2", star_rating: 4 }),
+    ];
+    await POST(makeReq({ playlist }));
+    expect(trackRatingRepository.forTracks).toHaveBeenCalledWith(
+      [
+        { track_id: "track-1", friend_id: 1 },
+        { track_id: "track-2", friend_id: 1 },
+      ],
+      VIEWER.id,
+    );
+    const sent = JSON.parse(mockFetch.mock.calls[0][1].body).tracks;
+    expect(sent.map((t: { star_rating: number }) => t.star_rating)).toEqual([2, 0]);
+    expect(sent[0]).not.toHaveProperty("other_ratings");
+  });
+
+  it("adds no rating where none was sent, keeping ga-service's neutral energy fallback", async () => {
+    await POST(makeReq({ playlist: [makeTrack()] }));
+    const sent = JSON.parse(mockFetch.mock.calls[0][1].body).tracks;
+    expect(sent[0]).not.toHaveProperty("star_rating");
   });
 });
 

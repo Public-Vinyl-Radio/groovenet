@@ -303,7 +303,7 @@ export class PlaylistRepository {
       "duration_seconds",
       "notes",
       "local_audio_url",
-      "star_rating",
+      // No star_rating: ratings are per profile (#1283), never a playlist's to write.
       "release_id",
       "mood_happy",
       "mood_sad",
@@ -335,13 +335,6 @@ export class PlaylistRepository {
           : typeof rawTrack.duration_seconds === "string"
             ? Number(rawTrack.duration_seconds)
             : null;
-      const starRatingNumber =
-        typeof rawTrack.star_rating === "number"
-          ? rawTrack.star_rating
-          : typeof rawTrack.star_rating === "string"
-            ? Number(rawTrack.star_rating)
-            : null;
-
       const updateValues: Record<(typeof columns)[number], unknown> = {
         title,
         artist,
@@ -365,7 +358,6 @@ export class PlaylistRepository {
         duration_seconds: Number.isFinite(durationSecondsNumber) ? durationSecondsNumber : null,
         notes: rawTrack.notes ?? null,
         local_audio_url: rawTrack.local_audio_url ?? null,
-        star_rating: Number.isFinite(starRatingNumber) ? starRatingNumber : null,
         release_id: rawTrack.release_id ?? null,
         mood_happy: rawTrack.mood_happy ?? null,
         mood_sad: rawTrack.mood_sad ?? null,

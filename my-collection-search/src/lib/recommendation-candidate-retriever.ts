@@ -15,6 +15,7 @@ import {
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { getServingModel } from "@/lib/embeddings/config";
 import { calculateEnergy, computeEraBucket } from "@/lib/ranking/features";
+import { ratingKey, trackRatingRepository } from "@/server/repositories/trackRatingRepository";
 
 /**
  * Options for candidate retrieval
@@ -40,6 +41,28 @@ export interface RetrieveCandidatesOptions {
 
   /** Only candidates from this library; omitted, every library is searched. */
   libraryFriendId?: number;
+
+  /**
+   * The household profile whose ratings candidates carry and rank by (#1283).
+   * Omitted, every candidate is unrated.
+   */
+  ratingViewerId?: string;
+}
+
+/** Sets each candidate's `starRating` to the viewer's rating, 0 when unrated (as the column read). One query. */
+async function applyViewerRatings(
+  candidates: CandidateTrack[],
+  viewerId: string | undefined,
+): Promise<void> {
+  if (!viewerId || candidates.length === 0) return;
+  const ratings = await trackRatingRepository.forTracks(
+    candidates.map((c) => ({ track_id: c.trackId, friend_id: c.friendId })),
+    viewerId,
+  );
+  for (const candidate of candidates) {
+    candidate.metadata.starRating =
+      ratings.get(ratingKey(candidate.trackId, candidate.friendId))?.rating ?? 0;
+  }
 }
 
 export interface SeedTrackRef {
@@ -258,7 +281,8 @@ export function buildCandidateMetadata(row: EmbeddingQueryResult): CandidateTrac
     album: row.album,
     year: row.year,
     genres: row.genres || [],
-    starRating: row.star_rating,
+    // The viewer's rating, set by `applyViewerRatings` (#1283).
+    starRating: null,
     albumThumbnail: row.album_thumbnail,
     moodHappy: row.mood_happy,
     moodSad: row.mood_sad,
@@ -356,6 +380,7 @@ export async function retrieveCandidates(
   }
 
   const candidates = Array.from(candidateMap.values());
+  await applyViewerRatings(candidates, options.ratingViewerId);
   const totalTime = Date.now() - startTime;
 
   console.log(
@@ -450,13 +475,15 @@ export async function retrieveCandidatesForSeedTracks(
     }
   }
 
+  const candidates = Array.from(candidateMap.values());
+  await applyViewerRatings(candidates, options.ratingViewerId);
   const totalTime = Date.now() - startTime;
   const seed0 = dedupedSeedTracks[0];
 
   return {
     seedTrackId: seed0.trackId,
     seedFriendId: seed0.friendId,
-    candidates: Array.from(candidateMap.values()),
+    candidates,
     stats: {
       identityCount: identityResults.length,
       audioCount: audioResults.length,
@@ -473,9 +500,19 @@ export async function retrieveCandidatesForSeedTracks(
 /** A seed track's own metadata, to score candidates against; null when it is missing or deleted. */
 export async function retrieveSeedMetadata(
   seed: SeedTrackRef,
+  ratingViewerId?: string,
 ): Promise<CandidateTrackMetadata | null> {
   const row = await recommendationRepository.findTrackRow(seed);
-  return row ? buildCandidateMetadata(row) : null;
+  if (!row) return null;
+  const candidate: CandidateTrack = {
+    trackId: seed.trackId,
+    friendId: seed.friendId,
+    simIdentity: null,
+    simAudio: null,
+    metadata: buildCandidateMetadata(row),
+  };
+  await applyViewerRatings([candidate], ratingViewerId);
+  return candidate.metadata;
 }
 
 /**

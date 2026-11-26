@@ -322,7 +322,7 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
       client,
     );
     const updateParams = client.query.mock.calls[0][1];
-    // columns order: ... bpm is index 13, duration_seconds 16, star_rating 19 (0-based)
+    // columns order: ... bpm is index 13, duration_seconds 16 (0-based)
     const columns = [
       "title",
       "artist",
@@ -343,10 +343,17 @@ describe("PlaylistRepository.upsertTracksWithMetadata", () => {
       "duration_seconds",
       "notes",
       "local_audio_url",
-      "star_rating",
     ];
     expect(updateParams[columns.indexOf("bpm")]).toBe(128);
     expect(updateParams[columns.indexOf("duration_seconds")]).toBeNull();
-    expect(updateParams[columns.indexOf("star_rating")]).toBe(4);
+  });
+
+  it("never writes a playlist's star_rating: ratings are per profile (#1283)", async () => {
+    const client = fakeClient(0);
+    await repo().upsertTracksWithMetadata([ptrack({ star_rating: 4, username: "alice" })], client);
+    for (const [sql, params] of client.query.mock.calls) {
+      expect(sql).not.toContain("star_rating");
+      expect(params).not.toContain(4);
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { resolveRatingViewer } from "@/server/services/trackRatingService";
 import { NextRequest, NextResponse } from "next/server";
 import { trackGenreFacetsResponseSchema } from "@/api-contract/schemas";
 import { genreRepository } from "@/server/repositories/genreRepository";
@@ -49,6 +50,10 @@ export async function GET(request: NextRequest) {
         bpmMax: bpm_max,
         key,
         minStarRating: star_rating,
+        // The viewer's ratings (#1283), like the search the counts describe.
+        ...(star_rating !== undefined
+          ? { ratingViewerId: (await resolveRatingViewer(request)).id }
+          : {}),
         artistIds: artists.ids,
       },
     });

@@ -37,6 +37,7 @@ export const playlistTrackInputSchema = z
     key: z.string().nullable().optional(),
     danceability: z.number().nullable().optional(),
     notes: z.string().nullable().optional(),
+    /** Ignored since #1283: ratings are per profile, set through `PATCH /api/tracks`. */
     star_rating: z.number().nullable().optional(),
     release_id: z.string().nullable().optional(),
     mood_happy: z.number().nullable().optional(),

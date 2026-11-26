@@ -3644,7 +3644,8 @@ const trackSearchParameters: Record<string, unknown>[] = [
     in: "query",
     required: false,
     schema: { type: "integer", minimum: 0, maximum: 5 },
-    description: "Minimum star rating.",
+    description:
+      "Minimum star rating, by the requesting profile's own ratings (#1283): the token's or device's profile, else the household owner.",
   },
   {
     name: "genre",

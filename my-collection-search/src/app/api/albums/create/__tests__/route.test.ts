@@ -43,6 +43,18 @@ vi.mock("@/server/repositories/albumRepository", () => ({
 }));
 
 import { POST } from "../route";
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { withViewerRatings } from "@/server/services/trackRatingService";
+import { VIEWER } from "@/test/trackRatingMock";
+
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+vi.mock(
+  "@/server/repositories/trackRatingRepository",
+  async () => (await import("@/test/trackRatingMock")).trackRatingRepositoryMock,
+);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -182,6 +194,31 @@ describe("POST /api/albums/create — success", () => {
     const [, albumArg] = mockUpsertAlbum.mock.calls[0];
     expect(albumArg.release_id).toBe("local-rel-XYZ");
     expect(albumArg.track_count).toBe(1);
+  });
+});
+
+describe("POST /api/albums/create — ratings (#1283)", () => {
+  it("rates a new track as the current profile, in the transaction, never on tracks", async () => {
+    const client = { tx: true };
+    mockWithDbTransaction.mockImplementationOnce(async (cb: (c: unknown) => unknown) => cb(client));
+    mockGenTrackId.mockReturnValueOnce("t-rated").mockReturnValueOnce("t-plain");
+    await POST(
+      makeReq({
+        tracks: [
+          { title: "S1", artist: "A", star_rating: 4 },
+          { title: "S2", artist: "A" },
+        ],
+      }),
+    );
+    expect(trackRatingRepository.set).toHaveBeenCalledOnce();
+    expect(trackRatingRepository.set).toHaveBeenCalledWith(
+      VIEWER.id,
+      { track_id: "t-rated", friend_id: 1 },
+      4,
+      client,
+    );
+    expect(mockInsertTrack.mock.calls[0][1]).not.toContain(4);
+    expect(withViewerRatings).toHaveBeenCalledWith(expect.any(Array), VIEWER);
   });
 });
 

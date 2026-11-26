@@ -35,6 +35,11 @@ vi.mock("@/server/repositories/trackRepository", () => ({
 
 import { DELETE, GET } from "../route";
 
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeReq(query = "") {

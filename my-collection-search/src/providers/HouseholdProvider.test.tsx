@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 const api = vi.hoisted(() => ({ list: vi.fn(), select: vi.fn() }));
 vi.mock("@/services/internalApi/profiles", () => ({ profilesApi: api }));
 import { HouseholdProvider, useHousehold } from "./HouseholdProvider";
+import { useTrackStore } from "@/stores/trackStore";
 const owner = { id: "one", name: "Adam", is_owner: true };
 const other = { id: "two", name: "Sam", is_owner: false };
 function Consumer() {
@@ -69,5 +70,18 @@ describe("household provider", () => {
     );
     expect(screen.getByRole("button", { name: "No selection" })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("drops the previous profile's tracks when switching, so ratings refetch (#1283)", async () => {
+    api.list.mockResolvedValue({ users: [owner, other], current: owner, selected: true });
+    useTrackStore.getState().setTrack({ track_id: "t1", friend_id: 1, star_rating: 5 } as never);
+    const { user } = renderWithProviders(
+      <HouseholdProvider>
+        <Consumer />
+      </HouseholdProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Adam" }));
+    await user.click(await screen.findByRole("button", { name: "Sam" }));
+    await waitFor(() => expect(api.select).toHaveBeenCalledWith("two", expect.anything()));
+    await waitFor(() => expect(useTrackStore.getState().tracks.size).toBe(0));
   });
 });

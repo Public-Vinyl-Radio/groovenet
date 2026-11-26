@@ -40,7 +40,6 @@ export type RecommendationCandidateRow = {
   mood_sad: number | null;
   mood_relaxed: number | null;
   mood_aggressive: number | null;
-  star_rating: number | null;
   album_thumbnail: string | null;
 };
 
@@ -81,7 +80,6 @@ const CANDIDATE_COLUMNS = `
           t.mood_sad,
           t.mood_relaxed,
           t.mood_aggressive,
-          t.star_rating,
           t.local_audio_url,
           ${coverUrlSql("t")} AS album_thumbnail`;
 

@@ -65,13 +65,28 @@ export type TrackAttributeFilters = {
   bpmMax?: number;
   /** Exact, case-insensitive: `A minor` matches `a minor`, not `Am`. */
   key?: string;
-  /** At least this many stars. */
+  /** At least this many stars, by the viewer's own rating (#1283). */
   minStarRating?: number;
+  /** The household profile whose ratings `minStarRating` reads. Required with it. */
+  ratingViewerId?: string;
   /** Any of these genres or their subgenres (#375). */
   genreFilter?: GenreFilter;
   /** Credited to any of these artists (#709), already resolved to ids. */
   artistIds?: number[];
 };
+
+/**
+ * The viewer's rating of the `tracks` row aliased `alias`, 0 when unrated
+ * (#1283): the value the deprecated `tracks.star_rating` held, so filters and
+ * ranking keep their meaning. A correlated subquery with its own alias, so
+ * the caller's unqualified columns stay unambiguous. `viewerRef` is the `$n`
+ * bound to the viewer's user id.
+ */
+export function viewerRatingSql(alias: string, viewerRef: string): string {
+  return `COALESCE((SELECT vr.rating FROM track_ratings vr
+    WHERE vr.user_id = ${viewerRef}::uuid AND vr.track_id = ${alias}.track_id
+      AND vr.friend_id = ${alias}.friend_id), 0)`;
+}
 
 /** Clauses for the set filters, binding each value through `bind` (which returns its `$n`). */
 export function attributeFilterClauses(
@@ -85,7 +100,11 @@ export function attributeFilterClauses(
   if (filters.bpmMax !== undefined) clauses.push(`${col("bpm")} <= ${bind(filters.bpmMax)}`);
   if (filters.key !== undefined) clauses.push(`LOWER(${col("key")}) = LOWER(${bind(filters.key)})`);
   if (filters.minStarRating !== undefined) {
-    clauses.push(`${col("star_rating")} >= ${bind(filters.minStarRating)}`);
+    if (!alias || !filters.ratingViewerId) {
+      throw new Error("A rating filter needs the tracks alias and the viewer");
+    }
+    const viewer = bind(filters.ratingViewerId);
+    clauses.push(`${viewerRatingSql(alias, viewer)} >= ${bind(filters.minStarRating)}`);
   }
   if (filters.genreFilter !== undefined) {
     // The genre subqueries correlate with the outer row, so they need its alias.

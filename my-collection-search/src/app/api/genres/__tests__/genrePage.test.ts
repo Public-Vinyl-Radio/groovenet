@@ -6,6 +6,11 @@ vi.mock("@/server/services/genrePageService", () => ({ getGenrePage }));
 
 import { GET } from "../[id]/route";
 
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+
 const call = (ref: string, query = "") =>
   GET(new NextRequest(`http://localhost/api/genres/${ref}${query}`), {
     params: Promise.resolve({ id: ref }),

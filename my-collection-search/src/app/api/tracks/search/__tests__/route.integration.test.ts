@@ -1,15 +1,18 @@
 /**
  * Lexical `/api/tracks/search` filters (#412) against a real Postgres: the
- * BPM, key and rating clauses in the data query and its count. A mocked
+ * BPM, key and rating clauses in the data query and its count. The rating
+ * is the viewer's (#1283): with no profile chosen, the owner's. A mocked
  * driver accepts any SQL. Run with `just embedding-versions-test`.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { dbPool, dbQuery } from "@/lib/serverDb";
 import { GET } from "../route";
+import { getHouseholdOwner } from "@/server/auth/currentUser";
 
 const dbTest = it.skipIf(process.env.RUN_DB_TESTS !== "1");
 const USERNAME = "search-filters-friend";
+const OTHER = "search-filters-other-profile";
 let friendId = 0;
 
 const TRACKS = [
@@ -22,6 +25,7 @@ const TRACKS = [
 async function cleanup() {
   await dbQuery(`DELETE FROM tracks WHERE username = $1`, [USERNAME]);
   await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME]);
+  await dbQuery(`DELETE FROM users WHERE name = $1`, [OTHER]);
 }
 
 async function search(query: string) {
@@ -44,11 +48,27 @@ beforeAll(async () => {
     [USERNAME],
   );
   friendId = rows[0].id;
+  const owner = (await getHouseholdOwner())!;
+  const other = (
+    await dbQuery<{ id: string }>(`INSERT INTO users (name) VALUES ($1) RETURNING id`, [OTHER])
+  ).rows[0];
   for (const t of TRACKS) {
+    // The deprecated column holds a decoy: the filter must not read it.
     await dbQuery(
       `INSERT INTO tracks (track_id, username, friend_id, title, artist, bpm, key, star_rating)
        VALUES ($1, $2, $3, 'Deep Groove', 'Filter Artist', $4, $5, $6)`,
-      [t.id, USERNAME, friendId, t.bpm, t.key, t.rating],
+      [t.id, USERNAME, friendId, t.bpm, t.key, 5 - t.rating],
+    );
+    if (t.rating > 0) {
+      await dbQuery(
+        `INSERT INTO track_ratings (user_id, track_id, friend_id, rating) VALUES ($1, $2, $3, $4)`,
+        [owner.id, t.id, friendId, t.rating],
+      );
+    }
+    // Another profile rates everything 5; the owner's search ignores that.
+    await dbQuery(
+      `INSERT INTO track_ratings (user_id, track_id, friend_id, rating) VALUES ($1, $2, $3, 5)`,
+      [other.id, t.id, friendId],
     );
   }
 });
@@ -71,8 +91,20 @@ describe("lexical search filters (integration)", () => {
     expect((await search("key=A%20MINOR")).ids).toEqual(["deep-1", "deep-2"]);
   });
 
-  dbTest("star_rating is a minimum", async () => {
+  dbTest("star_rating is a minimum, by the viewer's own ratings", async () => {
     expect((await search("star_rating=4")).ids).toEqual(["deep-1", "deep-4"]);
+  });
+
+  dbTest("hits carry the viewer's rating and the other profile's read-only", async () => {
+    const res = await GET(
+      new NextRequest(`http://localhost/api/tracks/search?friend_id=${friendId}&star_rating=5`),
+    );
+    const [hit] = (await res.json()).hits;
+    expect(hit).toMatchObject({
+      track_id: "deep-1",
+      star_rating: 5,
+      other_ratings: [expect.objectContaining({ name: OTHER, rating: 5 })],
+    });
   });
 
   dbTest("filters combine with each other and the query", async () => {

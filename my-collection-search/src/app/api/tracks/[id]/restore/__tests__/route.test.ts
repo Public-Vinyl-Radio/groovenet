@@ -8,6 +8,11 @@ vi.mock("@/server/repositories/trackRepository", () => ({
 
 import { POST } from "../route";
 
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+
 const call = (query: string) =>
   POST(new NextRequest(`http://localhost/api/tracks/t1/restore${query}`, { method: "POST" }), {
     params: Promise.resolve({ id: "t1" }),

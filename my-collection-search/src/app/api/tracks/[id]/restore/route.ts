@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { toWireRow } from "@/lib/wireRow";
 import { trackRestoreResponseSchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,12 +27,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Track not found or not deleted" }, { status: 404 });
     }
 
+    const [rated] = await withRequestRatings(request, [track]);
     return NextResponse.json(
       trackRestoreResponseSchema.parse({
         success: true,
         track_id,
         friend_id,
-        track: toWireRow(track),
+        track: toWireRow(rated),
       }),
     );
   } catch (error) {

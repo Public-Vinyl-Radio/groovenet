@@ -4,6 +4,7 @@ import { toWireRow } from "@/lib/wireRow";
 import { albumApiService } from "@/server/services/albumApiService";
 import { albumRepository } from "@/server/repositories/albumRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 import { withDbTransaction } from "@/lib/serverDb";
 import { analytics } from "@/lib/analytics/server";
 
@@ -33,7 +34,10 @@ export async function GET(
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    const credited = await withArtistCredits([detail.album], detail.tracks);
+    const credited = await withArtistCredits(
+      [detail.album],
+      await withRequestRatings(request, detail.tracks),
+    );
     return NextResponse.json(
       albumDetailResponseSchema.parse({
         album: toWireRow(credited.albums[0]),

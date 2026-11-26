@@ -2,6 +2,8 @@ import { serviceNotRunning } from "@/lib/serviceConnection";
 import { NextResponse } from "next/server";
 import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
+import { ratingKey, trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { resolveRatingViewer } from "@/server/services/trackRatingService";
 import { playlistGeneticBodySchema, playlistGeneticResponseSchema } from "@/api-contract/schemas";
 import { RANKING_CONFIG_IDS } from "@groovenet/contracts";
 import { optimizerRankingFor } from "@/lib/ranking/ordering";
@@ -77,6 +79,13 @@ export async function POST(req: Request) {
     const embeddingByTrack = new Map(
       embeddingRows.map((row) => [`${row.friend_id}:${row.track_id}`, row.embedding]),
     );
+    // ga-service reads `star_rating` (energy fallback): the requesting
+    // profile's, never the client's value (#1283). Its contract is unchanged.
+    const viewer = await resolveRatingViewer(req);
+    const ratings = await trackRatingRepository.forTracks(
+      lookupRefs.map((ref) => ({ track_id: ref.trackId, friend_id: ref.friendId })),
+      viewer.id,
+    );
 
     const normalizedTracks = inputTracks
       .map((track: Record<string, unknown>) => {
@@ -104,9 +113,19 @@ export async function POST(req: Request) {
           return null;
         }
 
+        // Other profiles' ratings are display-only; the optimiser never sees them.
+        const { other_ratings: _others, ...sent } = track;
         return {
-          ...track,
+          ...sent,
           bpm: Number.isFinite(bpm) ? bpm : undefined,
+          // Replaced only where sent: an absent rating is ga-service's
+          // neutral energy fallback, and Default's request must not change.
+          ...("star_rating" in track && typeof track.friend_id === "number"
+            ? {
+                star_rating:
+                  ratings.get(ratingKey(String(track.track_id), track.friend_id))?.rating ?? 0,
+              }
+            : {}),
           embedding,
         };
       })

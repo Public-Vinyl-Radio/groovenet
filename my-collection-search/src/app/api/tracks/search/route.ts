@@ -22,6 +22,7 @@ import {
   trackGenresSelectSql,
 } from "@/server/repositories/trackGenreRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
+import { resolveRatingViewer, withViewerRatings } from "@/server/services/trackRatingService";
 import { resolveGenreFilter, unknownGenresError } from "@/server/genres/genreFilter";
 import { resolveArtistFilter, unknownArtistsError } from "@/server/artists/artistFilter";
 
@@ -236,11 +237,14 @@ export async function GET(request: NextRequest) {
     if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
       return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
     }
+    // Ratings, and the rating filter, are the current profile's (#1283).
+    const viewer = await resolveRatingViewer(request);
     const attributes: TrackAttributeFilters = {
       bpmMin: bpm_min,
       bpmMax: bpm_max,
       key,
       minStarRating: star_rating,
+      ...(star_rating !== undefined ? { ratingViewerId: viewer.id } : {}),
     };
     const genreResolution = await resolveGenreFilter(genre ?? [], {
       includeSimilar: include_similar,
@@ -281,7 +285,10 @@ export async function GET(request: NextRequest) {
         where: parsedFilter.where,
         whereParams: parsedFilter.params,
       });
-      const { tracks: credited } = await withArtistCredits([], result.hits);
+      const { tracks: credited } = await withArtistCredits(
+        [],
+        await withViewerRatings(result.hits, viewer),
+      );
       const validated = trackSearchGetResponseSchema.parse({
         hits: credited.map(toWireRow),
         // One page: the total is what came back, so clients don't ask for more.
@@ -304,7 +311,10 @@ export async function GET(request: NextRequest) {
       where: parsedFilter.where,
       whereParams: parsedFilter.params,
     });
-    const { tracks: credited } = await withArtistCredits([], response.hits as TrackRow[]);
+    const { tracks: credited } = await withArtistCredits(
+      [],
+      await withViewerRatings(response.hits as TrackRow[], viewer),
+    );
     const validated = trackSearchGetResponseSchema.parse({
       ...response,
       hits: credited.map(toWireRow),

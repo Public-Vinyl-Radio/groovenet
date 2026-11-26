@@ -25,7 +25,7 @@ Switching rotates it. An expired or unknown cookie cannot select a user.
 Server code uses `getCurrentUser(request)` from `src/server/auth/currentUser.ts`:
 a valid bearer token, a valid device cookie, an explicitly mapped Tailscale login,
 then the sole profile, otherwise `null`. The stable UUID identifies the user for
-future personal ratings and playlist ownership; neither feature changes here.
+personal ratings and, later, playlist ownership.
 
 Settings → API tokens lets the owner create a named token for any profile with a
 `read`, `write` or `ingest` scope, see its last use and revoke it. Tokens contain
@@ -46,6 +46,29 @@ and cannot authenticate arbitrary library routes. The player proxy also accepts
 hashed household tokens, forwarding only its configured worker key downstream.
 The CLI keeps `player_api_key` separate for player requests: it may hold the
 legacy player key or a scoped household token. No TLS agent settings change.
+
+## Personal ratings
+
+Star ratings belong to the profile that gave them (#1283), in `track_ratings`,
+one per profile per collection row. The rating stars everywhere, the minimum
+rating filter, suggestions and any ranking profile that weighs rating use the
+current profile's ratings. A track's page also shows the other profiles'
+ratings read-only, by profile name: "You ★5 · Sam ★3". The API keeps
+`star_rating` as the requesting profile's rating (0 when unrated) and adds
+`other_ratings`. Switching profile reloads every list with the new profile's
+ratings.
+
+Machine clients rate as their token's profile, or as the owner without one,
+including `groovenet tracks update --rating` and MCP's `update_track`. The
+playlist optimiser receives the requesting profile's ratings.
+
+Upgrading moves every existing rating to the owner, including ratings on
+friends' collections, so the owner sees exactly what they saw before and other
+profiles start with none. If the app has not created the owner yet, the
+migration creates it as `Owner`, and the app renames it from
+`DISCOGS_USERNAME` on its first request. `tracks.star_rating` is deprecated and
+no longer written; it stays for one release so an older image still starts,
+and rolling the migration back copies the owner's current ratings into it.
 
 ## Opt-in enforcement
 

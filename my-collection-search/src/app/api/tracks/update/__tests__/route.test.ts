@@ -48,8 +48,20 @@ vi.mock("@/server/services/fingerprintIndexService", () => ({
 }));
 
 import { PATCH } from "../../route";
+import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
+import { withViewerRatings } from "@/server/services/trackRatingService";
+import { VIEWER } from "@/test/trackRatingMock";
 import { setAnalyticsProvider } from "@/lib/analytics/server";
 import { MemoryAnalyticsProvider } from "@/lib/analytics/providers/memory";
+
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+vi.mock(
+  "@/server/repositories/trackRatingRepository",
+  async () => (await import("@/test/trackRatingMock")).trackRatingRepositoryMock,
+);
 
 const analyticsEvents = new MemoryAnalyticsProvider();
 setAnalyticsProvider(analyticsEvents);
@@ -187,14 +199,63 @@ describe("PATCH /api/tracks — request validation", () => {
   it("leaves the scalar columns unchecked and passes them to the repository", async () => {
     mockFindTrack.mockResolvedValueOnce(baseTrack());
     mockUpdateTrack.mockResolvedValueOnce(baseTrack());
-    const res = await PATCH(makeReq({ ...PATCH_BODY, bpm: "128", star_rating: null, extra: 1 }));
+    const res = await PATCH(makeReq({ ...PATCH_BODY, bpm: "128", extra: 1 }));
     expect(res.status).toBe(200);
-    expect(mockUpdateTrack).toHaveBeenCalledWith({
-      ...PATCH_BODY,
-      bpm: "128",
-      star_rating: null,
-      extra: 1,
-    });
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ ...PATCH_BODY, bpm: "128", extra: 1 });
+  });
+});
+
+// ─── Per-profile ratings (#1283) ──────────────────────────────────────────────
+
+describe("PATCH /api/tracks — the viewer's rating", () => {
+  const ref = { track_id: "t1", friend_id: 1 };
+
+  beforeEach(() => {
+    vi.mocked(trackRatingRepository.set).mockClear();
+    vi.mocked(withViewerRatings).mockClear();
+  });
+
+  it("writes the rating to the viewer's track_ratings, never to tracks", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    const res = await PATCH(makeReq({ ...ref, star_rating: 4, notes: "x" }));
+    expect(res.status).toBe(200);
+    expect(trackRatingRepository.set).toHaveBeenCalledWith(VIEWER.id, ref, 4);
+    expect(mockUpdateTrack).toHaveBeenCalledWith({ ...ref, notes: "x" });
+    expect(withViewerRatings).toHaveBeenCalledWith([expect.anything()], VIEWER);
+  });
+
+  it.each([
+    [null, null],
+    [0, 0],
+    ["3", 3],
+  ])("accepts %j as %j (null and 0 clear it)", async (sent, stored) => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    const res = await PATCH(makeReq({ ...ref, star_rating: sent }));
+    expect(res.status).toBe(200);
+    expect(trackRatingRepository.set).toHaveBeenCalledWith(VIEWER.id, ref, stored);
+  });
+
+  it.each([6, -1, 2.5, "abc", ""])("rejects %j with a 400", async (sent) => {
+    const res = await PATCH(makeReq({ ...ref, star_rating: sent }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/star_rating/);
+    expect(trackRatingRepository.set).not.toHaveBeenCalled();
+  });
+
+  it("is a 404 for a track that does not exist", async () => {
+    mockFindTrack.mockResolvedValueOnce(null);
+    const res = await PATCH(makeReq({ ...ref, star_rating: 5 }));
+    expect(res.status).toBe(404);
+    expect(trackRatingRepository.set).not.toHaveBeenCalled();
+  });
+
+  it("leaves ratings alone when none is sent", async () => {
+    mockFindTrack.mockResolvedValueOnce(baseTrack());
+    mockUpdateTrack.mockResolvedValueOnce(baseTrack());
+    await PATCH(makeReq({ ...ref, notes: "x" }));
+    expect(trackRatingRepository.set).not.toHaveBeenCalled();
   });
 });
 

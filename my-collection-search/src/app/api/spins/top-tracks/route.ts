@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spinTopTracksQuerySchema, spinTopTracksResponseSchema } from "@/api-contract/schemas";
 import { spinLoggingService } from "@/server/services/spinLoggingService";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const items = await spinLoggingService.listTopTracks(parsedQuery.data);
+    const items = await withRequestRatings(
+      request,
+      await spinLoggingService.listTopTracks(parsedQuery.data),
+    );
     const response = spinTopTracksResponseSchema.parse({
       items,
       limit: parsedQuery.data.limit,

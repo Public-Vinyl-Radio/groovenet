@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackRepository } from "@/server/repositories/trackRepository";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +24,10 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await trackRepository.findDeletedTracks(friend_id, limit, offset);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      tracks: await withRequestRatings(request, result.tracks),
+    });
   } catch (error) {
     console.error("Error listing deleted tracks:", error);
     return NextResponse.json({ error: "Failed to list deleted tracks" }, { status: 500 });

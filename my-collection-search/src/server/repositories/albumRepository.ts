@@ -446,22 +446,26 @@ export class AlbumRepository {
     return rows;
   }
 
+  /**
+   * Values in column order. No `star_rating`: ratings are per profile
+   * (#1283), written to `track_ratings` by the caller.
+   */
   async insertTrack(client: Queryable, values: unknown[]): Promise<Track> {
     const result = await client.query(
       `INSERT INTO tracks (
         track_id, friend_id, username, title, artist, album, year,
         styles, genres, duration, duration_seconds, position,
         discogs_url, apple_music_url, youtube_url, soundcloud_url,
-        album_thumbnail, local_tags, bpm, key, notes, star_rating, release_id,
+        album_thumbnail, local_tags, bpm, key, notes, release_id,
         library_identifier, date_added
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23::text, $24,
-        -- A track's date_added is its album's (#847). $23 is cast in both
+        $21, $22::text, $23,
+        -- A track's date_added is its album's (#847). $22 is cast in both
         -- places, or Postgres deduces two types for it and refuses.
-        (SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)
+        (SELECT date_added FROM albums WHERE release_id = $22::text AND friend_id = $2)
       )
       RETURNING *`,
       values,
@@ -475,16 +479,16 @@ export class AlbumRepository {
         track_id, friend_id, username, title, artist, album, year,
         styles, genres, duration, duration_seconds, position,
         discogs_url, apple_music_url, youtube_url, soundcloud_url,
-        album_thumbnail, local_tags, bpm, key, notes, star_rating, release_id,
+        album_thumbnail, local_tags, bpm, key, notes, release_id,
         library_identifier, date_added
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23::text, $24,
-        -- A track's date_added is its album's (#847). $23 is cast in both
+        $21, $22::text, $23,
+        -- A track's date_added is its album's (#847). $22 is cast in both
         -- places, or Postgres deduces two types for it and refuses.
-        (SELECT date_added FROM albums WHERE release_id = $23::text AND friend_id = $2)
+        (SELECT date_added FROM albums WHERE release_id = $22::text AND friend_id = $2)
       )
       ON CONFLICT (track_id, username)
       DO UPDATE SET
@@ -505,7 +509,6 @@ export class AlbumRepository {
         bpm = EXCLUDED.bpm,
         key = EXCLUDED.key,
         notes = EXCLUDED.notes,
-        star_rating = EXCLUDED.star_rating,
         library_identifier = EXCLUDED.library_identifier,
         date_added = COALESCE(tracks.date_added, EXCLUDED.date_added)
       RETURNING *`,

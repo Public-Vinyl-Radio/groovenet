@@ -9,6 +9,7 @@ import ArtistLink from "@/components/ArtistLink";
 import { ArtworkPlay, NotesIndicator, RatingStars } from "@/components/TrackResult";
 import TrackRatingDialog from "@/components/TrackRatingDialog";
 import TrackGenresSection from "@/components/track-detail/TrackGenresSection";
+import OtherRatings from "@/components/track-detail/OtherRatings";
 import { useTrack } from "@/hooks/useTrack";
 import { useTracksQuery } from "@/hooks/useTracksQuery";
 import { trackPositionFact } from "@/lib/albumTrackPosition";
@@ -418,6 +419,7 @@ export default function TrackHeader({
           )}
           <Box mt={1}>
             <TrackHeaderRating track={track} mobile={isMobile} />
+            <OtherRatings track={track} />
           </Box>
         </Flex>
 

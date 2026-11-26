@@ -547,14 +547,27 @@ describe("updateTrackFields()", () => {
       track_id: "t1",
       friend_id: 1,
       notes: "updated",
-      star_rating: 4,
+      danceability: 0.4,
     });
 
     expect(result).toEqual(updated);
     const [sql] = dbQuery.mock.calls[0];
     expect(sql).toContain("UPDATE tracks");
     expect(sql).toContain("notes");
-    expect(sql).toContain("star_rating");
+    expect(sql).toContain("danceability");
+  });
+
+  it("never writes star_rating: ratings are per profile (#1283)", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [makeTrack()] });
+    await makeRepo().updateTrackFields({
+      track_id: "t1",
+      friend_id: 1,
+      notes: "x",
+      star_rating: 4,
+    } as Parameters<TrackRepository["updateTrackFields"]>[0]);
+    const [sql, values] = dbQuery.mock.calls[0];
+    expect(sql).not.toContain("star_rating");
+    expect(values).toEqual(["x", "t1", 1]);
   });
 
   it("strips null bytes from string values but leaves other types alone", async () => {
@@ -564,11 +577,11 @@ describe("updateTrackFields()", () => {
       track_id: "t1",
       friend_id: 1,
       notes: "bad\u0000 note",
-      star_rating: 4,
+      danceability: 0.4,
     });
 
     const [, values] = dbQuery.mock.calls[0];
-    expect(values).toEqual(["bad note", 4, "t1", 1]);
+    expect(values).toEqual(["bad note", 0.4, "t1", 1]);
   });
 
   it("includes key_confidence as an updatable field", async () => {

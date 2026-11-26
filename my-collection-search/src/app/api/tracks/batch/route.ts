@@ -3,6 +3,7 @@ import { getServingModel } from "@/lib/embeddings/config";
 import { embeddingsRepository } from "@/server/repositories/embeddingsRepository";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 
 /**
  * `audio_vibe` vectors at the serving model, keyed `friend_id:track_id`
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     const rows = await trackRepository.findTracksByRefsPreservingOrder(tracks);
     const vectors = includeVectors ? await loadVectors(tracks) : null;
 
-    const { tracks: credited } = await withArtistCredits([], rows);
+    const { tracks: credited } = await withArtistCredits([], await withRequestRatings(req, rows));
     const ordered = credited.map((t) => {
       const rest = { ...t } as Record<string, unknown>;
       delete rest.ord;

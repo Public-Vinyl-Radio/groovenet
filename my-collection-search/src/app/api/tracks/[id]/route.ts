@@ -3,6 +3,7 @@ import { toWireRow } from "@/lib/wireRow";
 import { trackDeleteResponseSchema, trackEntitySchema } from "@/api-contract/schemas";
 import { trackRepository } from "@/server/repositories/trackRepository";
 import { withArtistCredits } from "@/server/services/artistCreditService";
+import { withRequestRatings } from "@/server/services/trackRatingService";
 
 export async function DELETE(
   request: NextRequest,
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const {
       tracks: [credited],
-    } = await withArtistCredits([], [track]);
+    } = await withArtistCredits([], await withRequestRatings(request, [track]));
     return NextResponse.json(trackEntitySchema.parse(toWireRow(credited)));
   } catch (error) {
     console.error("Error fetching track by id & friend_id:", error);

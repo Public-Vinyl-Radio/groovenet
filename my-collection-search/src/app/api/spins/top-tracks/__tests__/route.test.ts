@@ -10,6 +10,11 @@ vi.mock("@/server/services/spinLoggingService", () => ({
 
 import { GET } from "../route";
 
+vi.mock(
+  "@/server/services/trackRatingService",
+  async () => (await import("@/test/trackRatingMock")).trackRatingServiceMock,
+);
+
 describe("GET /api/spins/top-tracks", () => {
   beforeEach(() => {
     mockListTopTracks.mockReset();

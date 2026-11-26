@@ -18,6 +18,8 @@ const embeddings = new EmbeddingsRepository();
 const MODEL = "context-retrieval-test-model";
 const USERNAME = "context-retrieval-friend";
 let friendId = 0;
+const VIEWER = "context-retrieval-viewer";
+let viewerId = "";
 
 type Fixture = {
   id: string;
@@ -42,6 +44,7 @@ async function cleanup() {
     [friendId],
   );
   await dbQuery(`DELETE FROM friends WHERE username = $1`, [USERNAME]);
+  await dbQuery(`DELETE FROM users WHERE name = $1`, [VIEWER]);
 }
 
 function search(params: Partial<Parameters<EmbeddingsRepository["findContextMatches"]>[1]> = {}) {
@@ -115,9 +118,18 @@ beforeAll(async () => {
     `UPDATE tracks SET key = 'A minor' WHERE track_id = 'cumbia-1' AND friend_id = $1`,
     [friendId],
   );
-  await dbQuery(`UPDATE tracks SET star_rating = 4 WHERE track_id = 'rock-1' AND friend_id = $1`, [
-    friendId,
-  ]);
+  // Ratings are the viewer's (#1283); the deprecated column is never read.
+  viewerId = (
+    await dbQuery<{ id: string }>(`INSERT INTO users (name) VALUES ($1) RETURNING id`, [VIEWER])
+  ).rows[0].id;
+  await dbQuery(
+    `INSERT INTO track_ratings (user_id, track_id, friend_id, rating) VALUES ($1, 'rock-1', $2, 4)`,
+    [viewerId, friendId],
+  );
+  await dbQuery(
+    `UPDATE tracks SET star_rating = 5 WHERE track_id = 'cumbia-1' AND friend_id = $1`,
+    [friendId],
+  );
   // Only cumbia-2 has audio, for the missing-audio chip.
   await dbQuery(
     `UPDATE tracks SET local_audio_url = '/audio/c2.m4a' WHERE track_id = 'cumbia-2' AND friend_id = $1`,
@@ -211,11 +223,12 @@ describe("context retrieval (integration)", () => {
   dbTest("key matches case-insensitively and star_rating is a minimum (#412)", async () => {
     expect(ids(await search({ filters: { key: "a MINOR" } }))).toEqual(["cumbia-1"]);
     expect(ids(await search({ filters: { key: "A major" } }))).toEqual([]);
-    expect(ids(await search({ filters: { minStarRating: 4 } }))).toEqual(["rock-1"]);
-    expect(ids(await search({ filters: { minStarRating: 5 } }))).toEqual([]);
-    expect(
-      ids(await search({ filters: { bpmMin: 90, key: "A minor", minStarRating: 0 } })),
-    ).toEqual(["cumbia-1"]);
+    const rated = (min: number) => ({ minStarRating: min, ratingViewerId: viewerId });
+    expect(ids(await search({ filters: rated(4) }))).toEqual(["rock-1"]);
+    expect(ids(await search({ filters: rated(5) }))).toEqual([]);
+    expect(ids(await search({ filters: { bpmMin: 90, key: "A minor", ...rated(0) } }))).toEqual([
+      "cumbia-1",
+    ]);
   });
 
   dbTest("the search route's missing-field chips filter on the track", async () => {
