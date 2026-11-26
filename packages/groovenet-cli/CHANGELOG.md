@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.1.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v4.0.0...groovenet-cli-v4.1.0) (2026-11-26)
+
+
+### Features
+
+* **auth:** household profiles with a profile picker and API tokens ([#1286](https://github.com/Public-Vinyl-Radio/groovenet/issues/1286)) ([2f3f674](https://github.com/Public-Vinyl-Radio/groovenet/commit/2f3f674f7be954473227d4074fb7cd9f6cc93417))
+* **ratings:** per-profile star ratings ([#1303](https://github.com/Public-Vinyl-Radio/groovenet/issues/1303)) ([5ddc3f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/5ddc3f50740cc53221a7eca0c6d8b65ce1b95e38))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^4.0.0 to ^4.1.0
+    * @groovenet/contracts bumped from 1.11.0 to 1.12.0
+    * @groovenet/player bumped from 0.2.0 to 0.2.1
+
 ## [4.0.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-cli-v3.15.1...groovenet-cli-v4.0.0) (2026-11-25)
 
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.12.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.11.0...groovenet-contracts-v1.12.0) (2026-11-26)
+
+
+### Features
+
+* **appearance:** Maple Mono, a compact font picker, and fonts installed on this device ([#1296](https://github.com/Public-Vinyl-Radio/groovenet/issues/1296)) ([a9da1c7](https://github.com/Public-Vinyl-Radio/groovenet/commit/a9da1c7b3f54e2a2a04e112a60a18ae84b03602d))
+* **appearance:** separate outline colour from ink in custom palettes ([#1297](https://github.com/Public-Vinyl-Radio/groovenet/issues/1297)) ([90b2966](https://github.com/Public-Vinyl-Radio/groovenet/commit/90b296626b227e85d0e773b4cabef12ab4e48d97))
+* **auth:** household profiles with a profile picker and API tokens ([#1286](https://github.com/Public-Vinyl-Radio/groovenet/issues/1286)) ([2f3f674](https://github.com/Public-Vinyl-Radio/groovenet/commit/2f3f674f7be954473227d4074fb7cd9f6cc93417))
+* **download-worker:** scaffold opt-in lossless wrapper and settings ([#1300](https://github.com/Public-Vinyl-Radio/groovenet/issues/1300)) ([a106e97](https://github.com/Public-Vinyl-Radio/groovenet/commit/a106e97572400a5d78e632a419e645d392d20469))
+* **ratings:** per-profile star ratings ([#1303](https://github.com/Public-Vinyl-Radio/groovenet/issues/1303)) ([5ddc3f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/5ddc3f50740cc53221a7eca0c6d8b65ce1b95e38))
+
 ## [1.11.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.10.1...groovenet-contracts-v1.11.0) (2026-11-25)
 
 

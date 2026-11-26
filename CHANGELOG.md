@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.1](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.4.0...v0.4.1) (2026-11-26)
+
+
+### Features
+
+* **appearance:** Maple Mono, a compact font picker, and fonts installed on this device ([#1296](https://github.com/Public-Vinyl-Radio/groovenet/issues/1296)) ([a9da1c7](https://github.com/Public-Vinyl-Radio/groovenet/commit/a9da1c7b3f54e2a2a04e112a60a18ae84b03602d))
+* **appearance:** separate outline colour from ink in custom palettes ([#1297](https://github.com/Public-Vinyl-Radio/groovenet/issues/1297)) ([90b2966](https://github.com/Public-Vinyl-Radio/groovenet/commit/90b296626b227e85d0e773b4cabef12ab4e48d97))
+* **auth:** household profiles with a profile picker and API tokens ([#1286](https://github.com/Public-Vinyl-Radio/groovenet/issues/1286)) ([2f3f674](https://github.com/Public-Vinyl-Radio/groovenet/commit/2f3f674f7be954473227d4074fb7cd9f6cc93417))
+* **download-worker:** build and run the lossless wrapper on arm64 as well as amd64 ([#1304](https://github.com/Public-Vinyl-Radio/groovenet/issues/1304)) ([737773f](https://github.com/Public-Vinyl-Radio/groovenet/commit/737773faa628644e1e82fb69438c763fb1a11124))
+* **download-worker:** scaffold opt-in lossless wrapper and settings ([#1300](https://github.com/Public-Vinyl-Radio/groovenet/issues/1300)) ([a106e97](https://github.com/Public-Vinyl-Radio/groovenet/commit/a106e97572400a5d78e632a419e645d392d20469))
+* **download-worker:** store ALAC downloads as lossless FLAC ([#1299](https://github.com/Public-Vinyl-Radio/groovenet/issues/1299)) ([3a69576](https://github.com/Public-Vinyl-Radio/groovenet/commit/3a6957658df15c4d5e7325f5af3fd6c94ff0de14))
+* **ratings:** per-profile star ratings ([#1303](https://github.com/Public-Vinyl-Radio/groovenet/issues/1303)) ([5ddc3f5](https://github.com/Public-Vinyl-Radio/groovenet/commit/5ddc3f50740cc53221a7eca0c6d8b65ce1b95e38))
+
+
+### Bug Fixes
+
+* **player:** show browser decode failures and stop playback ([#1298](https://github.com/Public-Vinyl-Radio/groovenet/issues/1298)) ([95b7b50](https://github.com/Public-Vinyl-Radio/groovenet/commit/95b7b501491bcf009d5020ff8343b54a522e0740))
+* **worktree:** stream seed restores and stop startup on restore failure ([#1306](https://github.com/Public-Vinyl-Radio/groovenet/issues/1306)) ([f82a118](https://github.com/Public-Vinyl-Radio/groovenet/commit/f82a11866a42e64a56a0e48dc37ce5fa092a065a))
+
 ## [0.4.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.3.22...v0.4.0) (2026-11-25)
 
 
