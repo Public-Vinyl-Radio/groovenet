@@ -10,28 +10,61 @@ first sign-in and real download check **on or after 2026-12-03**.
 ### Build and start
 
 Supply an authorized Apple Music **3.6.0-beta, build 1109** `.apk` or `.apkm`, kept
-outside this repository. Do not download it through an agent. On the amd64 owner
-machine, from this checkout:
+outside this repository. The owner's `.apkm` contains both `x86_64` and
+`arm64_v8a` splits; the build selects and verifies the matching libraries.
+
+#### Apple Silicon Mac — local worktree
+
+With Docker Desktop running, from this checkout:
 
 ```bash
 just wrapper-build ~/path/to.apkm
-just worktree-services add downloads lossless
+just worktree-up --profile downloads,lossless
 just wrapper-login
 just wrapper-status
 ```
 
+The build defaults to `uname -m`, mapping macOS `arm64` to upstream's `aarch64`
+alias. It produces `wrapper-v2:1.0.0-local-arm64`. The worktree flow applies
+`docker-compose.mac.yml`, selecting this image and `linux/arm64` for the wrapper
+and download worker without extra environment settings. The wrapper runs an ARM64
+worker; upstream's Docker build still uses an x86-64 NDK builder stage, which
+Docker Desktop can emulate. No local Android NDK or Rust toolchain is needed.
+
+#### Beelink — amd64 production path
+
+On beelink, from its checkout, the owner builds the amd64 image explicitly and
+starts the opt-in sidecar using the normal production Compose configuration:
+
+```bash
+just wrapper-build ~/path/to.apkm --arch x86_64
+COMPOSE_PROFILES=downloads,lossless docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  up -d download-worker gamdl-wrapper
+just wrapper-login
+just wrapper-status
+```
+
+The base Compose file retains the amd64 image and `linux/amd64` defaults.
+For an amd64 scratch worktree, use `just worktree-up --profile downloads,lossless`
+instead of the production Compose command. Perform the end-to-end checks below
+only in a scratch worktree. These are owner commands; agents must not run real
+builds, sign-ins or production operations.
+
 `wrapper-build` clones **tag 1.0.0 exactly** from
 [glomatico/wrapper-v2](https://github.com/glomatico/wrapper-v2/tree/1.0.0) into a
 scratch directory under `/tmp`, verifies the exact tag, and runs upstream
-`tools/build-docker.sh <package> --arch x86_64`. The helper handles the isolated
+`tools/build-docker.sh <package> --arch <architecture>`. The optional
+`--arch x86_64|aarch64` overrides host detection; upstream also calls ARM64
+`arm64-v8a`. Unsupported targets fail before cloning or building. The helper handles the isolated
 BuildKit package context; our script never copies the package into the checkout
 or normal source context. Scratch source is removed on exit. The resulting
-`wrapper-v2:1.0.0-local-amd64` image contains proprietary Apple libraries: keep
+`wrapper-v2:1.0.0-local-amd64` or `wrapper-v2:1.0.0-local-arm64` image contains
+proprietary Apple libraries: keep
 it local, never push/export it into the repository, an issue or a PR.
 
 `lossless` is opt-in and excluded from `all`. `just worktree-up --profile downloads
 --profile lossless` also works after building. The sidecar has no published port,
-uses `linux/amd64`, init and a read-only root, and persists session **and device
+uses the selected architecture (`linux/amd64` by default), init and a read-only root, and persists session **and device
 identity** in the named `gamdl_wrapper_session` volume. Do not delete that volume
 when resolving an expired session. It uses precisely the
 [1.0.0 upstream Compose capabilities](https://github.com/glomatico/wrapper-v2/blob/1.0.0/compose.yaml):
@@ -85,7 +118,8 @@ of retrying; per-track codec availability fallback still applies. Without a
 configured wrapper, lossless requests use AAC as before. AAC requires valid
 browser cookies independently of the wrapper. Startup readiness warns but keeps
 the worker available for AAC; each lossless session repeats the compatibility
-(version 1.0.0, protocol 1, amd64 profile) and authentication checks.
+(version 1.0.0, protocol 1, exact supported profile matching the worker's
+architecture) and authentication checks.
 
 ### Remaining owner end-to-end check
 

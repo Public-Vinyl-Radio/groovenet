@@ -60,8 +60,8 @@ def main() -> int:
         if action == "login":
             login(url)
         else:
-            check_wrapper_ready(url)
-            print("Wrapper v2 1.0.0 amd64: signed in")
+            architecture = check_wrapper_ready(url)
+            print(f"Wrapper v2 1.0.0 {architecture}: signed in")
         return 0
     except WrapperNotReady as error:
         print(str(error))

@@ -97,9 +97,12 @@ failed. The download job still completes with `analysis_status: 'queued'` and
 completes with `analysis_status: 'failed'` and `analysis_error`.
 
 Audio quality is one of `best`, `high`, `standard`, `lossless`. The first
-three use AAC on cookies. Lossless uses Wrapper v2 **1.0.0** with the amd64
-`apple-music-1109-x86_64` profile, checked at startup and before each lossless
-session. `COMPOSE_PROFILES` containing `lossless` enables the default internal
+three use AAC on cookies. Lossless uses Wrapper v2 **1.0.0** with exactly
+`apple-music-1109-x86_64` (amd64) or `apple-music-1109-arm64-v8a` (ARM64),
+matching the worker's architecture, checked at startup and before each lossless
+session. `just wrapper-build <package> [--arch x86_64|aarch64]` defaults to the
+host architecture; Mac worktrees select the ARM64 image automatically, while
+beelink/production keeps the amd64 default. `COMPOSE_PROFILES` containing `lossless` enables the default internal
 URL; explicit `GAMDL_WRAPPER_URL` overrides it. Startup readiness failures warn
 without stopping AAC. No worker path prompts for Apple credentials.
 

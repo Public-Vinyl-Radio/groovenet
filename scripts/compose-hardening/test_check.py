@@ -274,6 +274,11 @@ class WrapperExceptionTest(unittest.TestCase):
     def test_exact_local_wrapper_is_allowed(self):
         self.assertEqual(check.check_service("gamdl-wrapper", self.wrapper()), [])
 
+    def test_arm64_local_wrapper_is_allowed(self):
+        config = {**self.wrapper(), "image": "wrapper-v2:1.0.0-local-arm64", "platform": "linux/arm64"}
+        self.assertEqual(check.check_service("gamdl-wrapper", config), [])
+        self.assertTrue(check.check_service("gamdl-wrapper", {**config, "platform": "linux/amd64"}))
+
     def test_wrapper_exception_does_not_waive_other_rules(self):
         config = self.wrapper()
         for patch in ({"cap_add": ["SYS_ADMIN", "SYS_CHROOT", "SYS_PTRACE"]}, {"security_opt": []},

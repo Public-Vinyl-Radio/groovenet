@@ -13,10 +13,13 @@ class WrapperBuildTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.package = self.root / "synthetic-package.fixture"
+        self.package = self.root / "synthetic package.fixture"
         self.package.write_text("synthetic test input, not an APK")
         self.trace = self.root / "trace"
         self.env = {**os.environ, "PATH": f"{self.root}:{os.environ['PATH']}", "TEST_TRACE": str(self.trace)}
+        uname = self.root / "uname"
+        uname.write_text('#!/bin/sh\necho "${TEST_HOST_ARCH:-x86_64}"\n')
+        uname.chmod(0o755)
         git = self.root / "git"
         git.write_text('''#!/usr/bin/env bash
 set -eu
@@ -47,6 +50,38 @@ fi
         source = Path(lines[0]).parents[1]
         self.assertFalse(source.exists(), "scratch checkout is removed")
         self.assertEqual(self.package.read_text(), "synthetic test input, not an APK")
+
+    def test_host_defaults_and_explicit_overrides(self):
+        for host, args, arch, image in [
+            ("x86_64", [], "x86_64", "amd64"),
+            ("aarch64", [], "aarch64", "arm64"),
+            ("arm64", [], "aarch64", "arm64"),
+            ("arm64", ["--arch", "x86_64"], "x86_64", "amd64"),
+            ("x86_64", ["--arch", "aarch64"], "aarch64", "arm64"),
+        ]:
+            with self.subTest(host=host, args=args):
+                self.env["TEST_HOST_ARCH"] = host
+                result = self.run_build(self.package, *args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                lines = self.trace.read_text().splitlines()
+                self.assertEqual(lines[1:], [f"wrapper-v2:1.0.0-local-{image}", str(self.package.resolve()), "--arch", arch])
+                self.assertFalse(Path(lines[0]).parents[1].exists())
+
+    def test_bad_arch_and_arguments_never_build(self):
+        for args in [("--arch", ""), ("--arch", "riscv64"), ("--arch",), ("--wrong", "aarch64"), ("extra",)]:
+            with self.subTest(args=args):
+                self.assertEqual(self.run_build(self.package, *args).returncode, 2)
+        self.env["TEST_HOST_ARCH"] = "riscv64"
+        self.assertEqual(self.run_build(self.package).returncode, 2)
+        self.assertFalse(self.trace.exists())
+
+    def test_just_recipe_preserves_argument_boundaries(self):
+        result = subprocess.run(
+            ["just", "wrapper-build", str(self.package), "--arch", "aarch64"],
+            cwd=ROOT, env=self.env, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.trace.read_text().splitlines()[2:], [str(self.package.resolve()), "--arch", "aarch64"])
 
     def test_wrong_tag_never_builds(self):
         self.env["TEST_TAG"] = "1.0.1"

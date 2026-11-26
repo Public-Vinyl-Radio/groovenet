@@ -1129,8 +1129,9 @@ lossless-test:
   ./scripts/lossless-smoke.sh
 
 # Owner-only build: Apple Music 3.6.0-beta build 1109, Wrapper v2 tag 1.0.0.
-wrapper-build package:
-  ./scripts/wrapper/build.sh {{quote(package)}}
+[positional-arguments]
+wrapper-build package *args:
+  ./scripts/wrapper/build.sh "$@"
 
 # Interactive hidden Apple ID/password/2FA input; never pass secrets as arguments.
 wrapper-login:

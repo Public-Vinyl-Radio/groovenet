@@ -223,14 +223,15 @@ def check_service(name: str, svc: dict, relaxed: bool = False) -> list[str]:
     # The pinned, owner-built launcher uses file capabilities to enter its
     # Android chroot. Keep this exception narrower than a profile-wide waiver.
     wrapper = (name == "gamdl-wrapper" and svc.get("profiles") == ["lossless"]
-               and svc.get("image") == "wrapper-v2:1.0.0-local-amd64")
+               and svc.get("image") in {"wrapper-v2:1.0.0-local-amd64", "wrapper-v2:1.0.0-local-arm64"})
     if wrapper:
         if set(svc.get("cap_add") or []) != {"SYS_ADMIN", "SYS_CHROOT"}:
             problems.append("wrapper requires exactly SYS_ADMIN and SYS_CHROOT")
         if svc.get("security_opt") != ["apparmor:unconfined"]:
             problems.append("wrapper requires only apparmor:unconfined (launcher file capabilities)")
-        if svc.get("platform") != "linux/amd64" or svc.get("pull_policy") != "never" or svc.get("build"):
-            problems.append("wrapper must use the locally built amd64 image with pull_policy: never")
+        expected_platform = "linux/arm64" if svc["image"].endswith("-arm64") else "linux/amd64"
+        if svc.get("platform") != expected_platform or svc.get("pull_policy") != "never" or svc.get("build"):
+            problems.append("wrapper must use the locally built architecture-matched image with pull_policy: never")
     if not wrapper and "no-new-privileges:true" not in (svc.get("security_opt") or []):
         problems.append("missing security_opt: no-new-privileges:true")
     if "ALL" not in [str(c).upper() for c in svc.get("cap_drop") or []]:

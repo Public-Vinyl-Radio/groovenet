@@ -309,9 +309,9 @@ services:
   # Private, owner-built Apple libraries. Never push this image to a registry.
   gamdl-wrapper:
     profiles: [lossless]
-    image: wrapper-v2:1.0.0-local-amd64
+    image: ${GAMDL_WRAPPER_IMAGE:-wrapper-v2:1.0.0-local-amd64}
     pull_policy: never
-    platform: linux/amd64
+    platform: ${GAMDL_WRAPPER_PLATFORM:-linux/amd64}
     user: "1000:1000"
     init: true
     read_only: true
