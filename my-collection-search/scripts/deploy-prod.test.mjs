@@ -5,7 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-function deployment({ players = false, template = false, base = true, failBuild = false } = {}) {
+function deployment({
+  players = false,
+  template = false,
+  base = true,
+  failBuild = false,
+  profilesLine,
+  shellProfiles,
+} = {}) {
   const root = mkdtempSync(join(tmpdir(), "groovenet-prod-"));
   try {
     const scripts = join(root, "my-collection-search/scripts");
@@ -15,17 +22,18 @@ function deployment({ players = false, template = false, base = true, failBuild 
     mkdirSync(join(root, "my-collection-search/migrations"));
     writeFileSync(join(root, "my-collection-search/migrations/123_players.js"), "");
     copyFileSync(new URL("./deploy-prod.sh", import.meta.url), join(scripts, "deploy-prod.sh"));
-    if (base) writeFileSync(join(root, ".env"), "POSTGRES_PASSWORD=collection-secret\n");
+    const extra = profilesLine === undefined ? "" : `${profilesLine}\n`;
+    if (base) writeFileSync(join(root, ".env"), `POSTGRES_PASSWORD=collection-secret\n${extra}`);
     if (players)
       writeFileSync(join(root, ".env.players"), "PLAYER_API_KEY=player-secret\n", { mode: 0o600 });
-    if (template) writeFileSync(join(root, ".env.tpl"), "POSTGRES_PASSWORD=op://example\n");
+    if (template) writeFileSync(join(root, ".env.tpl"), `POSTGRES_PASSWORD=op://example\n${extra}`);
     writeFileSync(join(bin, "git"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
     // A fake op only removes its wrapper arguments, then runs fake Docker.
     writeFileSync(join(bin, "op"), '#!/bin/sh\nshift 4\nexec "$@"\n', { mode: 0o755 });
     writeFileSync(
       join(bin, "docker"),
       `#!/bin/sh
-printf '%s\\n' "$*" >> "$DEPLOY_TEST_LOG"
+printf '%s [profiles=%s]\\n' "$*" "$COMPOSE_PROFILES" >> "$DEPLOY_TEST_LOG"
 case "$*" in
   *"build player-clock player-worker"*) exit "$DEPLOY_TEST_BUILD_STATUS" ;;
   *"SELECT EXISTS"*) echo t ;;
@@ -40,6 +48,7 @@ esac
         MIN_FREE_GB: "0",
         DEPLOY_TEST_LOG: log,
         DEPLOY_TEST_BUILD_STATUS: failBuild ? "1" : "0",
+        ...(shellProfiles === undefined ? {} : { COMPOSE_PROFILES: shellProfiles }),
       },
       encoding: "utf8",
     });
@@ -56,6 +65,7 @@ for (const template of [false, true]) {
     assert.ok(run.calls.some((call) => call.includes("up -d --remove-orphans")));
     for (const call of run.calls) {
       assert.ok(!call.includes(".env.players") && !call.includes("docker-compose.players.yml"));
+      assert.ok(call.endsWith("[profiles=all]"), call);
       assert.ok(!call.includes("build player-clock player-worker"));
     }
   });
@@ -63,7 +73,9 @@ for (const template of [false, true]) {
     const run = deployment({ players: true, template, base: !template });
     assert.equal(run.status, 0, run.stderr);
     for (const call of run.calls) {
-      assert.ok(call.includes(`--env-file ${run.root}/.env.players --profile players`));
+      assert.ok(call.includes(`--env-file ${run.root}/.env.players`));
+      assert.ok(!call.includes("--profile"));
+      assert.ok(call.endsWith("[profiles=all,players]"), call);
       assert.ok(call.includes("-p dj-playlist"));
       assert.ok(call.includes("-f docker-compose.players.yml"));
       assert.ok(!call.includes("player-secret") && !call.includes("collection-secret"));
@@ -71,10 +83,64 @@ for (const template of [false, true]) {
     const build = run.calls.findIndex((call) => call.includes("build player-clock player-worker"));
     const up = run.calls.findIndex((call) => call.includes("up -d db redis"));
     assert.ok(build >= 0 && build < up);
-    assert.ok(run.calls.at(-1).endsWith("up -d --remove-orphans"));
+    assert.ok(run.calls.at(-1).includes("up -d --remove-orphans [profiles="));
     assert.ok(!run.calls.find((call) => call.includes(" pull ")).includes("player-worker"));
   });
 }
+
+const profileCases = [
+  ["a .env line", { profilesLine: "COMPOSE_PROFILES=all,lossless" }, "all,lossless,players"],
+  [
+    "a quoted, exported line (last one wins)",
+    { profilesLine: 'COMPOSE_PROFILES=old\nexport COMPOSE_PROFILES="all,lossless"' },
+    "all,lossless,players",
+  ],
+  [
+    "a shell override",
+    { shellProfiles: "analysis", profilesLine: "COMPOSE_PROFILES=all" },
+    "analysis,players",
+  ],
+  ["an empty shell override", { shellProfiles: "" }, "players"],
+  ["players already listed", { profilesLine: "COMPOSE_PROFILES=players,all" }, "players,all"],
+];
+for (const template of [false, true])
+  for (const [name, options, expected] of profileCases)
+    test(`players join the profile list: ${name} (template=${template})`, () => {
+      const run = deployment({ players: true, template, base: !template, ...options });
+      assert.equal(run.status, 0, run.stderr);
+      for (const call of run.calls) {
+        assert.ok(!call.includes("--profile"), call);
+        assert.ok(call.endsWith(`[profiles=${expected}]`), call);
+      }
+    });
+
+// docker-compose.yml interpolates COMPOSE_PROFILES into download-worker, which
+// enables the lossless wrapper URL from it; --profile flags leave it empty.
+test("every compose call's environment carries the full list, including lossless", () => {
+  for (const template of [false, true]) {
+    const run = deployment({
+      players: true,
+      template,
+      base: !template,
+      profilesLine: "COMPOSE_PROFILES=all,lossless",
+    });
+    assert.equal(run.status, 0, run.stderr);
+    assert.ok(run.calls.length > 0);
+    for (const call of run.calls) assert.match(call, /\[profiles=all,lossless,players\]$/);
+  }
+});
+
+test("players enabled with no profiles line defaults to all,players", () => {
+  const run = deployment({ players: true });
+  assert.ok(run.calls.every((call) => call.endsWith("[profiles=all,players]")));
+});
+
+test("without players, an env file line and a shell override are honoured unchanged", () => {
+  const file = deployment({ profilesLine: "COMPOSE_PROFILES=all,lossless" });
+  assert.ok(file.calls.every((call) => call.endsWith("[profiles=all,lossless]")));
+  const shell = deployment({ shellProfiles: "analysis" });
+  assert.ok(shell.calls.every((call) => call.endsWith("[profiles=analysis]")));
+});
 
 test("an image build failure stops deployment before touching running services", () => {
   const run = deployment({ players: true, failBuild: true });

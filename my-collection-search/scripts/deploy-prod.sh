@@ -27,17 +27,35 @@ elif [[ -f "${PROJECT_DIR}/my-collection-search/.env.tpl" ]]; then
 else
   COMPOSE_TEMPLATE_FILE=""
 fi
-# Let an explicit shell or env-file selection override the production default.
+# One effective profile list, exported so every compose call sees it. An
+# explicit `--profile` flag would REPLACE COMPOSE_PROFILES rather than add to
+# it, so server players are appended to the list instead of passed as a flag.
+# Precedence: shell value (even empty) > env file line > production default.
 profile_file="${COMPOSE_ENV_FILE:-$COMPOSE_TEMPLATE_FILE}"
-if [[ -z "${COMPOSE_PROFILES+x}" ]] && { [[ -z "$profile_file" ]] || ! grep -Eq '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file"; }; then
-  export COMPOSE_PROFILES=all
+if [[ -n "${COMPOSE_PROFILES+x}" ]]; then
+  PROFILES="${COMPOSE_PROFILES}"
+elif [[ -n "$profile_file" ]] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file"; then
+  # Read only this line; the file holds secrets, so it is never sourced.
+  PROFILES="$(grep -E '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file" | tail -n 1 |
+    sed -E "s/^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=//; s/\r\$//; s/^[[:space:]]*[\"']//; s/[\"'][[:space:]]*\$//")"
+else
+  PROFILES=all
 fi
+if [[ -f "${PROJECT_DIR}/.env.players" ]]; then
+  case ",${PROFILES// /}," in
+    *,players,*) ;;
+    ,,) PROFILES=players ;;
+    *) PROFILES="${PROFILES},players" ;;
+  esac
+fi
+export COMPOSE_PROFILES="${PROFILES}"
 OP_BIN="$(command -v op || true)"
 COMPOSE_CMD=()
 if [[ -n "${COMPOSE_ENV_FILE}" ]]; then
   COMPOSE_CMD=(docker compose --env-file "${COMPOSE_ENV_FILE}")
 elif [[ -n "${COMPOSE_TEMPLATE_FILE}" && -n "${OP_BIN}" ]]; then
-  COMPOSE_CMD=(op run --env-file "${COMPOSE_TEMPLATE_FILE}" -- docker compose)
+  # `env` re-asserts the list inside op run, so a template line cannot override it.
+  COMPOSE_CMD=(op run --env-file "${COMPOSE_TEMPLATE_FILE}" -- env "COMPOSE_PROFILES=${PROFILES}" docker compose)
 else
   COMPOSE_CMD=(docker compose)
 fi
@@ -46,7 +64,7 @@ fi
 SERVER_PLAYERS_ENABLED=false
 if [[ -f "${PROJECT_DIR}/.env.players" ]]; then
   SERVER_PLAYERS_ENABLED=true
-  COMPOSE_CMD+=(--env-file "${PROJECT_DIR}/.env.players" --profile players)
+  COMPOSE_CMD+=(--env-file "${PROJECT_DIR}/.env.players")
   COMPOSE_FILES+=(-f docker-compose.players.yml)
 fi
 SERVICES=(app migrate essentia ga-service download-worker fingerprint-service fingerprint-set-worker)
