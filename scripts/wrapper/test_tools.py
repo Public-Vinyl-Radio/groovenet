@@ -184,14 +184,20 @@ class SessionRecipeTest(unittest.TestCase):
             docker = root / "docker"
             docker.write_text('''#!/usr/bin/env bash
 if [[ "$1" == ps ]]; then
-  [[ "${TEST_EMPTY:-}" == 1 ]] || echo synthetic-project
+  if [[ "$*" == *"com.docker.compose.service=db"* ]]; then
+    [[ "${TEST_EMPTY:-}" == 1 ]] || echo synthetic-project
+  else
+    [[ "$*" == *"com.docker.compose.project=synthetic-project"* ]]
+    [[ "$*" == *"com.docker.compose.service=download-worker"* ]]
+    [[ "${TEST_NO_WORKER:-}" == 1 ]] || echo synthetic-worker
+  fi
 else
   printf '%s\\n' "$*" >> "$TEST_TRACE"
 fi
 ''')
             docker.chmod(0o755)
             op = root / "op"
-            op.write_text("#!/bin/sh\nexit 1\n")
+            op.write_text('#!/bin/sh\necho unexpected-op-call >> "$TEST_TRACE"\nexit 1\n')
             op.chmod(0o755)
             env = {**os.environ, "PATH": f"{root}:{os.environ['PATH']}", "TEST_TRACE": str(trace)}
             def run(action):
@@ -199,11 +205,17 @@ fi
             self.assertEqual(run("login").returncode, 0)
             self.assertEqual(run("status").returncode, 0)
             text = trace.read_text()
-            self.assertIn("exec download-worker python -m worker.wrapper_cli login", text)
-            self.assertIn("exec -T download-worker python -m worker.wrapper_cli status", text)
+            self.assertEqual(text.splitlines(), [
+                "exec -it synthetic-worker python -m worker.wrapper_cli login",
+                "exec synthetic-worker python -m worker.wrapper_cli status",
+            ])
             self.assertNotEqual(run("invalid").returncode, 0)
+            env["TEST_NO_WORKER"] = "1"
+            self.assertNotEqual(run("login").returncode, 0)
+            self.assertNotEqual(run("status").returncode, 0)
             env["TEST_EMPTY"] = "1"
             self.assertNotEqual(run("status").returncode, 0)
+            self.assertEqual(trace.read_text(), text, "missing containers never exec or invoke op")
 
 
 if __name__ == "__main__":

@@ -121,7 +121,12 @@ API: `/session/credentials` exports account tokens to trusted clients.
 
 ### First sign-in, 2FA and expired sessions
 
-`just wrapper-login` runs the login client inside the download worker. Enter the
+`just wrapper-login` runs the login client inside the existing download worker
+with an explicit Docker TTY (`docker exec -it`). It bypasses Compose/1Password
+injection so output-masking pipes cannot remove the hidden-input terminal; the
+worker already has its configured environment. Run it from an interactive
+terminal, without piping or redirecting it. Status uses a non-TTY exec and works
+unattended. Enter the
 Apple ID and password at the hidden terminal prompts, then the six-digit 2FA
 code if requested. Input stays in process memory: no shell arguments, environment
 variables, files or request bodies are printed. Do not run it under command/body
