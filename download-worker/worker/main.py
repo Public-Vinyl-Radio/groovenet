@@ -115,11 +115,24 @@ def run_once() -> None:
         process_job(job_json)
 
 
+def probe_wrapper() -> None:
+    from .wrapper import WrapperNotReady, check_wrapper_ready, wrapper_url
+
+    url = wrapper_url()
+    if url:
+        try:
+            check_wrapper_ready(url)
+            logger.info("Wrapper v2 1.0.0 amd64 session is ready")
+        except WrapperNotReady as error:
+            logger.warning("Lossless unavailable: %s", error)
+
+
 def main() -> None:
     init_sentry()
     logger.info("Starting download worker...")
     logger.info(f"Connecting to Redis: {redis_conn.connection_pool.connection_kwargs}")
 
+    probe_wrapper()
     if not verify_redis():
         return
 

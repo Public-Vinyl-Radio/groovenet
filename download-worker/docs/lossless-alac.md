@@ -1,21 +1,134 @@
 # Lossless ALAC downloads with gamdl (spike, #1147)
 
-> **Update for gamdl 4.1 (#1291).** The wrapper notes below describe gamdl
-> 3.9.1 and wrapper-v2 0.0.2, which gamdl 4 no longer supports. gamdl 4.1
-> decrypts ALAC locally and uses the wrapper only for sign-in and session
-> context, and it requires **Wrapper v2 1.0.0** exactly (`GET /info`). The
-> decrypt socket and `--wrapper-decrypt-host`/`--wrapper-decrypt-port` are
-> gone, and so are `GAMDL_WRAPPER_DECRYPT_HOST`/`_PORT`. The worker now calls
-> gamdl's Python API: lossless means codec priority `alac-lossless,aac` with
-> wrapper auth, and only when `GAMDL_WRAPPER_URL` is set. The codec tiers are
-> `alac-lossless` and `alac-hires`, so a sample-rate cap is now a choice
-> between them. End to end with a real wrapper is still not verified.
+## Owner runbook — step 1
+
+**End-to-end not yet verified.** Automated checks use generated audio, fake build
+commands and a localhost HTTP Wrapper v2 stub. No Apple ID, APK, real wrapper,
+production stack or real device was used. The owner performs the hands-on build,
+first sign-in and real download check **on or after 2026-12-03**.
+
+### Build and start
+
+Supply an authorized Apple Music **3.6.0-beta, build 1109** `.apk` or `.apkm`, kept
+outside this repository. Do not download it through an agent. On the amd64 owner
+machine, from this checkout:
+
+```bash
+just wrapper-build ~/path/to.apkm
+just worktree-services add downloads lossless
+just wrapper-login
+just wrapper-status
+```
+
+`wrapper-build` clones **tag 1.0.0 exactly** from
+[glomatico/wrapper-v2](https://github.com/glomatico/wrapper-v2/tree/1.0.0) into a
+scratch directory under `/tmp`, verifies the exact tag, and runs upstream
+`tools/build-docker.sh <package> --arch x86_64`. The helper handles the isolated
+BuildKit package context; our script never copies the package into the checkout
+or normal source context. Scratch source is removed on exit. The resulting
+`wrapper-v2:1.0.0-local-amd64` image contains proprietary Apple libraries: keep
+it local, never push/export it into the repository, an issue or a PR.
+
+`lossless` is opt-in and excluded from `all`. `just worktree-up --profile downloads
+--profile lossless` also works after building. The sidecar has no published port,
+uses `linux/amd64`, init and a read-only root, and persists session **and device
+identity** in the named `gamdl_wrapper_session` volume. Do not delete that volume
+when resolving an expired session. It uses precisely the
+[1.0.0 upstream Compose capabilities](https://github.com/glomatico/wrapper-v2/blob/1.0.0/compose.yaml):
+`SYS_ADMIN` for namespaces/mounts and `SYS_CHROOT` for the Android chroot, with
+AppArmor unconfined. It drops all other capabilities. The older `SYS_PTRACE`
+requirement is obsolete. `no-new-privileges` must be absent so the non-root
+launcher's file capabilities work; the hardening checker validates this narrow
+exception. These elevated privileges are a reason to keep the service opt-in.
+
+The worker defaults to `http://gamdl-wrapper:80` only when `COMPOSE_PROFILES`
+contains `lossless`; `GAMDL_WRAPPER_URL` overrides it. Direct Compose users must
+set `COMPOSE_PROFILES=downloads,lossless` or an explicit URL: CLI `--profile` alone
+does not pass that setting into container environments. Never expose the HTTP
+API: `/session/credentials` exports account tokens to trusted clients.
+
+### First sign-in, 2FA and expired sessions
+
+`just wrapper-login` runs the login client inside the download worker. Enter the
+Apple ID and password at the hidden terminal prompts, then the six-digit 2FA
+code if requested. Input stays in process memory: no shell arguments, environment
+variables, files or request bodies are printed. Do not run it under command/body
+tracing or record the terminal. Login calls `/session/login`, then
+`/session/challenge` after HTTP 202. `just wrapper-status` checks `/info` and
+`/session` and prints only compatibility/readiness and signed-in state, never
+raw responses or tokens. The worker never invokes the login endpoints.
+
+On restart the wrapper restores its saved session. The worker also requests
+`/session/restore` if `/session` is logged out. When Apple expires it, status or a
+lossless job explains that sign-in is needed: run `just wrapper-login`, complete
+2FA again, then `just wrapper-status` and retry. Session lifetime remains
+unmeasured. Do not paste credentials, session databases, APKs or token responses
+into logs, git, issues or PRs, and do not delete the identity volume to force a
+login.
+
+### Quality, cap and fallback
+
+Settings → Apple Music applies to the selected library. Default quality remains
+AAC. Lossless is stored as FLAC; the removed `audio_format` setting never affected
+gamdl downloads. `sample_rate_cap` defaults to **48 kHz** (choices 44.1, 48, 96,
+192). gamdl 4.1.1 can choose the `alac-lossless` (up to 48 kHz) or `alac-hires`
+tier, but cannot impose an arbitrary sample-rate ceiling. The worker requests
+the appropriate tiers, then downsamples during FLAC conversion only if needed.
+At or below the cap, conversion is bit-exact. Downsampling deliberately changes
+the PCM while preserving the original bit depth and all tags/covers.
+
+`lossless_fallback` defaults **yes**: a failed lossless attempt (including missing
+or expired wrapper session) retries once as AAC with browser cookies, with a
+job-log entry. A track without an ALAC variant also falls through gamdl's codec
+priority to AAC. Disable the setting to fail on a lossless attempt error instead
+of retrying; per-track codec availability fallback still applies. Without a
+configured wrapper, lossless requests use AAC as before. AAC requires valid
+browser cookies independently of the wrapper. Startup readiness warns but keeps
+the worker available for AAC; each lossless session repeats the compatibility
+(version 1.0.0, protocol 1, amd64 profile) and authentication checks.
+
+### Remaining owner end-to-end check
+
+After `just wrapper-build ~/path/to.apkm`, profile activation and
+`just wrapper-login`, confirm `just wrapper-status` is signed in. In the
+worktree, use a scratch audio volume instead of the shared music directory and:
+
+1. Download one known lossless song, then an album through the worker. Record
+   job success, elapsed time, file sizes and sanitized codec/cap outcomes.
+2. Confirm final `local_audio_url=.flac`, `audio_codec=flac`,
+   `audio_lossless=true`, depth and sample rate match ffprobe. Check tags and
+   cover, Chromium playback and File info, analysis completion and fingerprint
+   indexing/re-indexing. Compare decoded PCM at the same rate when checking
+   bit-exact conversion; a deliberate cap downsample will differ.
+3. Check a track with no ALAC, an unavailable/signed-out stub wrapper with AAC
+   retry on and off, and a restart preserving the named session/identity volume.
+4. Update this runbook with sanitized results and remove the unverified marker
+   only after a real download has completed. Do not test against production.
+
+### Account and operational risks
+
+The spike recorded [gamdl #356](https://github.com/glomatico/gamdl/issues/356):
+wrapper login reported an account disabled while Apple Music still worked. The
+impact on the wider Apple ID is unknown; do not assume only wrapper access can
+be lost. Prefer a dedicated Apple ID, for example an eligible **Family member
+account** with its own Music access, rather than the household organizer or an
+account holding important purchases/data. Use only an account and package you
+are authorized to use. Wrapper 1.0.0 persists a generated per-install device
+identity; the old spike's shared-device description is historical.
+
+Both wrapper and gamdl are brittle dependencies on Apple's private behavior.
+Keep gamdl 4.1.1 and Wrapper v2 1.0.0 paired; mismatches fail readiness. Elevated
+container capabilities, private token-exporting HTTP and locally embedded Apple
+libraries need a trusted Docker host and restricted image/session access.
+Session expiry, real throughput, real ALAC availability and account behavior
+remain unverified. Nothing in these stub/generated-audio checks establishes
+that the Apple download path works end to end.
 
 ## FLAC storage (step 1)
 
 The gamdl Python API result is converted from ALAC to FLAC before publishing
 `local_audio_url`. AAC stays unchanged. The converter uses `ffmpeg -c:a flac`
-without resampling, preserves ordinary tags as Vorbis comments and each embedded
+with resampling only above the configured cap, preserves ordinary tags as Vorbis comments and each embedded
 picture byte-for-byte, and stores every non-cover MP4 tag in the typed JSON
 Vorbis comment `GROOVENET_MP4_TAGS` (binary freeform values are base64). This
 archive preserves fields that have no standard Vorbis equivalent.
@@ -23,7 +136,7 @@ archive preserves fields that have no standard Vorbis equivalent.
 The worker verifies the saved FLAC's sample rate, bit depth, channels, tag archive
 and covers, then atomically publishes it and removes the temporary ALAC. Keeping
 both encodings doubles storage without helping browser playback. On conversion
-failure the ALAC is retained and the job fails. The app probes the final FLAC on
+failure the ALAC is retained; the AAC retry setting determines the job outcome. The app probes the final FLAC on
 its existing track-update path, so codec, lossless, depth and rate describe the
 served file. `.flac` already has `audio/flac` and range support in `/api/audio`.
 Changing the URL queues fingerprint indexing; the different SHA-256 also causes

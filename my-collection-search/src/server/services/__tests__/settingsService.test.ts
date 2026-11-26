@@ -358,9 +358,9 @@ describe("SettingsService — gamdl settings", () => {
 
   it("ensures then applies gamdl updates", async () => {
     repo.updateGamdlSettings.mockResolvedValueOnce({ friend_id: 1 });
-    const res = await settingsService.updateGamdlSettings(1, { audio_format: "mp3" });
+    const res = await settingsService.updateGamdlSettings(1, { sample_rate_cap: 96000 });
     expect(repo.ensureGamdlSettings).toHaveBeenCalledWith(1);
-    expect(repo.updateGamdlSettings).toHaveBeenCalledWith(1, { audio_format: "mp3" });
+    expect(repo.updateGamdlSettings).toHaveBeenCalledWith(1, { sample_rate_cap: 96000 });
     expect(res).toEqual({ friend_id: 1 });
   });
 

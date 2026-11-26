@@ -119,7 +119,9 @@ Before testing, agents should add the profile their issue needs: `downloads`
 for downloads and analysis, `fingerprint` for play tracking, ingest, set
 derivation and fingerprint indexing, and `optimize` for playlist ordering.
 Other work needs no extra services. `analysis` runs Essentia alone; `all` runs
-every optional service. Gated integration recipes start their own dependencies. With [herdr](https://herdr.dev), `just herdr` attaches to
+every optional service except the owner-built wrapper. `lossless` is a separate
+opt-in for Wrapper v2 1.0.0: build it locally first, then add `downloads,lossless`.
+See `download-worker/docs/lossless-alac.md` for owner build/login steps. Gated integration recipes start their own dependencies. With [herdr](https://herdr.dev), `just herdr` attaches to
 the `groovenet` session and `just herdr-task <branch>` (from inside it) opens a
 worktree workspace off `origin/main` in the background (`--focus` switches to
 it), runs `just worktree-setup` (`just bootstrap`, then its stack) and starts a

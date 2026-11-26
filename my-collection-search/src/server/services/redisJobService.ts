@@ -18,7 +18,8 @@ export interface DownloadJobData {
   local_audio_url?: string | null;
   // Gamdl-specific settings
   quality?: "best" | "high" | "standard" | "lossless";
-  format?: "m4a" | "mp3" | "aac" | "flac";
+  sample_rate_cap?: number;
+  lossless_fallback?: boolean;
   save_cover?: boolean;
   cover_format?: "jpg" | "png" | "raw";
   save_lyrics?: boolean;
@@ -129,7 +130,8 @@ export class RedisJobService {
     Pick<
       DownloadJobData,
       | "quality"
-      | "format"
+      | "sample_rate_cap"
+      | "lossless_fallback"
       | "save_cover"
       | "cover_format"
       | "save_lyrics"
@@ -146,7 +148,8 @@ export class RedisJobService {
 
       return {
         quality: settings.audio_quality,
-        format: settings.audio_format,
+        sample_rate_cap: settings.sample_rate_cap,
+        lossless_fallback: settings.lossless_fallback,
         save_cover: settings.save_cover,
         cover_format: settings.cover_format,
         save_lyrics: settings.save_lyrics,
@@ -160,7 +163,8 @@ export class RedisJobService {
       // Return defaults if database fails
       return {
         quality: "best",
-        format: "m4a",
+        sample_rate_cap: 48000,
+        lossless_fallback: true,
         save_cover: false,
         cover_format: "jpg",
         save_lyrics: false,

@@ -35,7 +35,8 @@ class JobData(_JobDataRequired, total=False):
     soundcloud_url: str
     # gamdl settings
     quality: str
-    format: str
+    sample_rate_cap: int
+    lossless_fallback: bool
     save_cover: bool
     cover_format: str
     save_lyrics: bool

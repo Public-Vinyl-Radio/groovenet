@@ -303,7 +303,7 @@ ensure_worktree_db_password() {
 normalize_profiles() {
   local input="${1//,/ }" profile result=""
   for profile in $input; do
-    case "$profile" in analysis|downloads|fingerprint|optimize|all) ;; *) usage_error "Unknown profile: $profile" ;; esac
+    case "$profile" in analysis|downloads|fingerprint|optimize|lossless|all) ;; *) usage_error "Unknown profile: $profile" ;; esac
     case ",$result," in *",$profile,"*) ;; *) result="${result:+$result,}$profile" ;; esac
   done
   printf '%s' "$result"

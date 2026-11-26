@@ -290,9 +290,9 @@ describe("OpenAPI contract coverage", () => {
     expect(schemas.AiPromptSettingsUpdate.additionalProperties).toBeUndefined();
     expect(schemas.GamdlSettingsUpdate.additionalProperties).toBeUndefined();
     expect(schemas.AppearanceSettingsUpdate.additionalProperties).toBe(false);
-    expect(schemas.GamdlSettings.properties?.audio_format).toMatchObject({
-      enum: ["m4a", "mp3", "aac", "flac"],
-    });
+    expect(schemas.GamdlSettings.properties).not.toHaveProperty("audio_format");
+    expect(schemas.GamdlSettings.properties).toHaveProperty("sample_rate_cap");
+    expect(schemas.GamdlSettings.properties).toHaveProperty("lossless_fallback");
 
     type Content = { content?: { "application/json"?: { schema?: { $ref?: string } } } };
     const ref = (c?: Content) => c?.content?.["application/json"]?.schema?.$ref;

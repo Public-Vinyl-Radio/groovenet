@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 import traceback
 from collections.abc import Callable
@@ -30,6 +31,7 @@ from ..redis_utils import append_job_logs, enqueue_analyze_job, update_job_statu
 from ..subprocess_utils import run_subprocess
 from ..track_api import get_groovenet_client, report_job_outcome
 from ..types import JobData, JobResult
+from ..wrapper import WrapperNotReady, check_wrapper_ready, wrapper_url
 from .analyze import analyze_local_audio
 
 
@@ -72,7 +74,7 @@ AUDIO_EXTENSIONS = (".m4a", ".mp3", ".aac", ".flac")
 
 def gamdl_wrapper_url() -> str | None:
     """The Wrapper v2 base URL from GAMDL_WRAPPER_URL, or None when unset."""
-    return (os.getenv("GAMDL_WRAPPER_URL") or "").strip() or None
+    return wrapper_url()
 
 
 def gamdl_codec_priority(quality: str) -> tuple[str, ...]:
@@ -136,7 +138,7 @@ class GamdlOutcome:
 
 def describe_gamdl_error(error: Exception, subscription_confirmed: bool = True) -> str:
     """The message the app shows for a gamdl failure, by exception type."""
-    if isinstance(error, WrapperSignInRequired):
+    if isinstance(error, (WrapperSignInRequired, WrapperNotReady)):
         return str(error)
     if isinstance(error, GamdlAuthenticationError):
         return "Authentication failed - cookie file may be expired or invalid"
@@ -161,14 +163,24 @@ async def _open_apple_music(
     stack: AsyncExitStack, cookie_file: str | None, wrapper_url: str | None
 ) -> tuple[AppleMusicApi, WrapperApi | None]:
     if wrapper_url:
-        wrapper = await stack.enter_async_context(
-            await WrapperApi.create(
-                base_url=wrapper_url,
-                get_credentials=_wrapper_sign_in_required,
-                get_2fa_code=_wrapper_sign_in_required,
+        check_wrapper_ready(wrapper_url)
+        try:
+            wrapper = await stack.enter_async_context(
+                await WrapperApi.create(
+                    base_url=wrapper_url,
+                    get_credentials=_wrapper_sign_in_required,
+                    get_2fa_code=_wrapper_sign_in_required,
+                )
             )
-        )
-        api = await stack.enter_async_context(await AppleMusicApi.from_wrapper(wrapper))
+            api = await stack.enter_async_context(await AppleMusicApi.from_wrapper(wrapper))
+        except WrapperSignInRequired:
+            raise
+        except Exception:
+            # The trusted credentials endpoint can return tokens. Never expose
+            # response bodies or library exception details in job errors/logs.
+            raise WrapperNotReady(
+                "Wrapper v2 session could not be opened; run just wrapper-status and sign in again"
+            ) from None
         return api, wrapper
     api = await stack.enter_async_context(await AppleMusicApi.from_cookies(cookie_file))
     return api, None
@@ -192,6 +204,7 @@ async def run_gamdl(
     cookie_file: str | None,
     wrapper_url: str | None,
     log: Callable[[str], None],
+    sample_rate_cap: int = 48000,
 ) -> list[GamdlOutcome]:
     """Download every track `url` resolves to through gamdl's Python API.
 
@@ -223,10 +236,8 @@ async def run_gamdl(
                     continue
                 catalog_id, album_ids = await _catalog_ids(media)
                 path = str(result.path)
-                if result.codec in (SongCodec.ALAC_LOSSLESS, SongCodec.ALAC_HIRES) or (
-                    wrapper_url and result.codec is None
-                ):
-                    path = convert_alac_to_flac(path)
+                if result.codec in (SongCodec.ALAC_LOSSLESS, SongCodec.ALAC_HIRES) or (result.codec is None):
+                    path = convert_alac_to_flac(path, sample_rate_cap=sample_rate_cap)
                 outcome = GamdlOutcome(result.media_id, result.status.value, path, catalog_id, album_ids)
                 codec = result.codec.value if result.codec else "existing file"
                 log(f"gamdl {outcome.status} {outcome.media_id} ({codec}): {outcome.path}")
@@ -341,10 +352,13 @@ def download_with_gamdl(
         if job_data and "quality" in job_data:
             quality = job_data["quality"]
 
+        sample_rate_cap = (job_data or {}).get("sample_rate_cap", 48000)
         codec_priority = gamdl_codec_priority(quality)
+        if codec_priority == LOSSLESS_CODEC_PRIORITY and sample_rate_cap > 48000:
+            codec_priority = ("alac-hires", "alac-lossless", "aac")
         # The wrapper signs in for ALAC only; AAC keeps using the cookie file,
         # so a broken wrapper never stops the default path.
-        wrapper_url = gamdl_wrapper_url() if codec_priority == LOSSLESS_CODEC_PRIORITY else None
+        wrapper_url = gamdl_wrapper_url() if quality == "lossless" else None
         cookie_file = None
         if wrapper_url is None:
             cookie_file = usable_gamdl_cookie_file()
@@ -367,6 +381,7 @@ def download_with_gamdl(
                     cookie_file=cookie_file,
                     wrapper_url=wrapper_url,
                     log=log,
+                    sample_rate_cap=sample_rate_cap,
                 ),
                 GAMDL_TIMEOUT_SECONDS,
             )
@@ -394,11 +409,20 @@ def download_with_gamdl(
 
         return max(downloaded_files, key=os.path.getsize)
 
-    except TimeoutError:
-        raise Exception("Download timeout (10 minutes) - try lower quality or check connection")
     except Exception as e:
-        error_msg = str(e)
-        if "gamdl error:" not in error_msg:
+        if quality == "lossless" and gamdl_wrapper_url() and (job_data or {}).get("lossless_fallback", True):
+            reason = str(e) if str(e).startswith("Wrapper v2 ") else "download or conversion error"
+            log(f"Lossless download failed ({reason}); retrying as AAC using cookies (lossless_fallback enabled)")
+            # A failed ALAC conversion can leave gamdl's original .m4a in
+            # its cache. Retry in a fresh directory so AAC cannot skip/reuse it.
+            retry_dir = tempfile.mkdtemp(prefix="aac-retry-", dir=output_dir)
+            return download_with_gamdl(url, retry_dir, track_id, {**(job_data or {}), "quality": "best"}, log_sink)
+        error_msg = (
+            "Download timeout (10 minutes) - try lower quality or check connection"
+            if isinstance(e, TimeoutError)
+            else str(e)
+        )
+        if not isinstance(e, TimeoutError) and "gamdl error:" not in error_msg:
             error_msg = f"gamdl error: {error_msg}"
         logger.error(f"gamdl download failed for {url}: {error_msg}")
         raise Exception(error_msg)

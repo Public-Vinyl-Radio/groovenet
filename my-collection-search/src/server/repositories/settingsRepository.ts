@@ -6,7 +6,8 @@ import type { RecommendationScope } from "@/types/recommendations";
 
 const GAMDL_ALLOWED_FIELDS = [
   "audio_quality",
-  "audio_format",
+  "sample_rate_cap",
+  "lossless_fallback",
   "save_cover",
   "cover_format",
   "save_lyrics",

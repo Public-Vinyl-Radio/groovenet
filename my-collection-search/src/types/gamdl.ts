@@ -21,16 +21,9 @@ export type {
 
 export const AUDIO_QUALITY_OPTIONS = [
   { value: "best", label: "Best Available", description: "Highest quality available" },
-  { value: "lossless", label: "Lossless", description: "ALAC lossless (if available)" },
+  { value: "lossless", label: "Lossless", description: "FLAC lossless via the opt-in wrapper" },
   { value: "high", label: "High (256kbps)", description: "AAC 256kbps" },
   { value: "standard", label: "Standard", description: "Lower quality for faster downloads" },
-] as const;
-
-export const AUDIO_FORMAT_OPTIONS = [
-  { value: "m4a", label: "M4A (AAC)", description: "Apple's native format, best compatibility" },
-  { value: "mp3", label: "MP3", description: "Universal compatibility" },
-  { value: "aac", label: "AAC", description: "Advanced Audio Codec" },
-  { value: "flac", label: "FLAC", description: "Lossless compression (if available)" },
 ] as const;
 
 export const COVER_FORMAT_OPTIONS = [

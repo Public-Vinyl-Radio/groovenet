@@ -31,7 +31,8 @@ const gamdl = {
   id: 1,
   friend_id: 2,
   audio_quality: "best",
-  audio_format: "m4a",
+  sample_rate_cap: 48000,
+  lossless_fallback: true,
   save_cover: true,
   cover_format: "jpg",
   save_lyrics: false,
@@ -161,7 +162,7 @@ describe("settings contracts", () => {
       max_retries: 5,
     });
     expect(gamdlSettingsChangesSchema.safeParse({ lyrics_format: "txt" }).success).toBe(false);
-    expect(gamdlSettingsUpdateSchema.safeParse({ audio_format: "mp3" }).success).toBe(false);
+    expect(gamdlSettingsUpdateSchema.safeParse({ sample_rate_cap: 96000 }).success).toBe(false);
   });
 
   it("types the GAMDL actions and every response an action can return", () => {
@@ -206,4 +207,25 @@ describe("settings contracts", () => {
     ]);
     expect(Object.keys(schemas.GamdlActionResponse)).toContain("anyOf");
   });
+});
+
+it("validates lossless sample-rate caps and removes the unused audio format", () => {
+  for (const sample_rate_cap of [44100, 48000, 96000, 192000]) {
+    expect(
+      gamdlSettingsUpdateSchema.safeParse({
+        friend_id: 2,
+        sample_rate_cap,
+        lossless_fallback: false,
+      }).success,
+    ).toBe(true);
+  }
+  expect(
+    gamdlSettingsUpdateSchema.safeParse({ friend_id: 2, sample_rate_cap: 12345 }).success,
+  ).toBe(false);
+  expect(
+    gamdlSettingsUpdateSchema.safeParse({ friend_id: 2, lossless_fallback: "yes" }).success,
+  ).toBe(false);
+  expect(
+    gamdlSettingsUpdateSchema.parse({ friend_id: 2, audio_format: "flac" }),
+  ).not.toHaveProperty("audio_format");
 });

@@ -26,7 +26,7 @@ root = Path(sys.argv[1])
 alac = root / "sample.m4a"
 subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=96000:duration=30", "-c:a", "alac", "-sample_fmt", "s32p", str(alac)], check=True)
 def md5(path):
-    return subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path), "-f", "md5", "-"]).strip().decode()
+    return subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path), "-c:a", "pcm_s32le", "-f", "md5", "-"]).strip().decode()
 expected = md5(alac)
 old_hash = hashlib.sha256(alac.read_bytes()).hexdigest()
 flac = Path(convert_alac_to_flac(str(alac)))

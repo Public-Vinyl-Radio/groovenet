@@ -299,6 +299,8 @@ class FakeGamdl:
         monkeypatch.setattr(
             download, "AppleMusicApi", SimpleNamespace(from_cookies=from_cookies, from_wrapper=from_wrapper)
         )
+        monkeypatch.setattr(download, "convert_alac_to_flac", lambda path, **kwargs: path)
+        monkeypatch.setattr(download, "check_wrapper_ready", lambda url: None)
         monkeypatch.setattr(download, "WrapperApi", SimpleNamespace(create=create))
         monkeypatch.setattr(download, "Drm", SimpleNamespace(from_widevine=lambda api: ("widevine", api)))
         monkeypatch.setattr(download, "Downloader", Downloader)
@@ -430,7 +432,7 @@ class StubRun:
         self.delay = delay
         self.kwargs = None
 
-    async def __call__(self, url, output_dir, codec_priority, *, cookie_file, wrapper_url, log):
+    async def __call__(self, url, output_dir, codec_priority, *, cookie_file, wrapper_url, log, sample_rate_cap=48000):
         self.kwargs = dict(
             url=url,
             output_dir=output_dir,
@@ -618,7 +620,8 @@ def test_find_audio_files_tolerates_an_unreadable_directory(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "codec,wrapper", [(SongCodec.ALAC_LOSSLESS, None), (SongCodec.ALAC_HIRES, None), (None, "http://stub")]
+    "codec,wrapper",
+    [(SongCodec.ALAC_LOSSLESS, None), (SongCodec.ALAC_HIRES, None), (None, "http://stub"), (None, None)],
 )
 def test_run_converts_downloaded_or_cached_alac(gamdl, monkeypatch, codec, wrapper):
     media = FakeMedia("1")
@@ -626,7 +629,8 @@ def test_run_converts_downloaded_or_cached_alac(gamdl, monkeypatch, codec, wrapp
     gamdl.outcomes["1"] = result(media, codec=codec)
     calls = []
 
-    def convert(path):
+    def convert(path, *, sample_rate_cap):
+        assert sample_rate_cap == 48000
         calls.append(path)
         return "/out/a.flac"
 
@@ -634,3 +638,78 @@ def test_run_converts_downloaded_or_cached_alac(gamdl, monkeypatch, codec, wrapp
     outcomes, _ = gamdl.run(wrapper_url=wrapper)
     assert outcomes[0].path == "/out/a.flac"
     assert calls == ["/out/a.m4a"]
+
+
+def test_hires_cap_requests_hires_then_lossless(cookies, stub, tmp_path):
+    path = write_audio(tmp_path / "x.m4a")
+    run = stub([GamdlOutcome("1", "downloaded", path)])
+    from unittest.mock import patch
+
+    with patch.dict(os.environ, {"GAMDL_WRAPPER_URL": "http://stub"}):
+        assert (
+            download_with_gamdl(TRACK_URL, str(tmp_path), "1", {"quality": "lossless", "sample_rate_cap": 96000})
+            == path
+        )
+    assert run.kwargs["codec_priority"] == ("alac-hires", "alac-lossless", "aac")
+
+
+@pytest.mark.parametrize("fallback", [True, False])
+def test_failed_lossless_aac_retry_is_opt_out(cookies, tmp_path, monkeypatch, fallback):
+    path = write_audio(tmp_path / "aac.m4a")
+    calls = []
+
+    async def run(url, output_dir, codec_priority, **kwargs):
+        calls.append(codec_priority)
+        if codec_priority != ("aac",):
+            raise Exception("Wrapper v2 is signed out")
+        return [GamdlOutcome("1", "downloaded", path)]
+
+    monkeypatch.setattr(download, "run_gamdl", run)
+    monkeypatch.setenv("GAMDL_WRAPPER_URL", "http://stub")
+    logs = []
+    if fallback:
+        assert download_with_gamdl(TRACK_URL, str(tmp_path), "1", {"quality": "lossless"}, logs) == path
+        assert calls == [LOSSLESS_CODEC_PRIORITY, DEFAULT_CODEC_PRIORITY]
+        assert any("retrying as AAC" in line for line in logs)
+    else:
+        with pytest.raises(Exception, match="signed out"):
+            download_with_gamdl(
+                TRACK_URL, str(tmp_path), "1", {"quality": "lossless", "lossless_fallback": False}, logs
+            )
+        assert calls == [LOSSLESS_CODEC_PRIORITY]
+
+
+@pytest.mark.parametrize("kind", ["private-error", "signed-out"])
+def test_wrapper_session_setup_never_exposes_token_response(gamdl, monkeypatch, kind):
+    async def fail(wrapper):
+        if kind == "signed-out":
+            raise WrapperSignInRequired("Wrapper v2 is signed out")
+        raise GamdlApiResponseError("synthetic-private-token-response")
+
+    monkeypatch.setattr(download.AppleMusicApi, "from_wrapper", fail)
+    with pytest.raises(Exception) as caught:
+        gamdl.run(wrapper_url="http://stub")
+    assert "synthetic-private-token-response" not in str(caught.value)
+    assert "Wrapper v2" in str(caught.value)
+
+
+def test_aac_retry_cannot_reuse_an_alac_file_after_failed_conversion(cookies, tmp_path, monkeypatch):
+    attempted_dirs = []
+
+    async def run(url, output_dir, codec_priority, **kwargs):
+        attempted_dirs.append(Path(output_dir))
+        path = Path(output_dir) / "same-song.m4a"
+        if codec_priority != DEFAULT_CODEC_PRIORITY:
+            path.write_bytes(b"synthetic leftover ALAC marker")
+            raise Exception("FLAC conversion failed")
+        assert not path.exists(), "AAC must not reuse ALAC from a failed attempt"
+        path.write_bytes(b"synthetic AAC marker")
+        return [GamdlOutcome("1", "downloaded", str(path))]
+
+    monkeypatch.setattr(download, "run_gamdl", run)
+    monkeypatch.setenv("GAMDL_WRAPPER_URL", "http://stub")
+    path = download_with_gamdl(TRACK_URL, str(tmp_path), "1", {"quality": "lossless"})
+    assert Path(path).read_bytes() == b"synthetic AAC marker"
+    assert attempted_dirs[0] == tmp_path
+    assert attempted_dirs[1].parent == tmp_path
+    assert attempted_dirs[0] != attempted_dirs[1]

@@ -41,7 +41,9 @@ def _tag_value(value):
     return value
 
 
-def convert_alac_to_flac(file_path: str, *, log_sink: list[str] | None = None) -> str:
+def convert_alac_to_flac(
+    file_path: str, *, sample_rate_cap: int | None = None, log_sink: list[str] | None = None
+) -> str:
     """Replace ALAC after a complete conversion; leave other codecs untouched.
 
     The original remains on any failure. Use a sibling temporary file so the
@@ -50,6 +52,10 @@ def convert_alac_to_flac(file_path: str, *, log_sink: list[str] | None = None) -
     source = MP4(file_path)
     if source.info.codec != "alac":
         return file_path
+    if sample_rate_cap is not None and sample_rate_cap not in (44100, 48000, 96000, 192000):
+        raise ValueError("Invalid lossless sample-rate cap")
+    output_rate = min(source.info.sample_rate, sample_rate_cap or source.info.sample_rate)
+    resample = ["-ar", str(output_rate)] if output_rate < source.info.sample_rate else []
     target = Path(file_path).with_suffix(".flac")
     tags = source.tags or {}
     with NamedTemporaryFile(dir=target.parent, suffix=".flac", delete=False) as scratch:
@@ -70,6 +76,7 @@ def convert_alac_to_flac(file_path: str, *, log_sink: list[str] | None = None) -
                 "0",
                 "-c:a",
                 "flac",
+                *resample,
                 str(temporary),
             ],
             timeout=300,
@@ -94,7 +101,7 @@ def convert_alac_to_flac(file_path: str, *, log_sink: list[str] | None = None) -
         output.save()
         verified = FLAC(temporary)
         if (
-            verified.info.sample_rate != source.info.sample_rate
+            verified.info.sample_rate != output_rate
             or verified.info.bits_per_sample != source.info.bits_per_sample
             or verified.info.channels != source.info.channels
             or verified[MP4_TAG_ARCHIVE] != output[MP4_TAG_ARCHIVE]

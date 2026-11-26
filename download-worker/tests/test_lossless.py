@@ -153,3 +153,16 @@ def test_failure_retains_original_and_cleans_scratch(alac, monkeypatch, failure)
         lossless.convert_alac_to_flac(str(alac))
     assert alac.read_bytes() == original
     assert list(alac.parent.iterdir()) == [alac]
+
+
+@pytest.mark.parametrize("cap,expected", [(44100, 44100), (48000, 48000), (96000, 96000), (192000, 96000)])
+def test_sample_rate_cap(alac, cap, expected):
+    output = FLAC(lossless.convert_alac_to_flac(str(alac), sample_rate_cap=cap))
+    assert output.info.sample_rate == expected
+    assert output.info.bits_per_sample == 24
+
+
+def test_invalid_cap_keeps_original(alac):
+    with pytest.raises(ValueError, match="sample-rate cap"):
+        lossless.convert_alac_to_flac(str(alac), sample_rate_cap=12345)
+    assert alac.exists()

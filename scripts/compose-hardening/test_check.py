@@ -265,5 +265,29 @@ class MainTest(unittest.TestCase):
         self.assertEqual(self.run_main({"services": {"db": {}}}), 1)
 
 
+class WrapperExceptionTest(unittest.TestCase):
+    def wrapper(self, **patch):
+        return svc(image="wrapper-v2:1.0.0-local-amd64", profiles=["lossless"],
+                   cap_add=["SYS_ADMIN", "SYS_CHROOT"], security_opt=["apparmor:unconfined"],
+                   platform="linux/amd64", pull_policy="never", **patch)
+
+    def test_exact_local_wrapper_is_allowed(self):
+        self.assertEqual(check.check_service("gamdl-wrapper", self.wrapper()), [])
+
+    def test_wrapper_exception_does_not_waive_other_rules(self):
+        config = self.wrapper()
+        for patch in ({"cap_add": ["SYS_ADMIN", "SYS_CHROOT", "SYS_PTRACE"]}, {"security_opt": []},
+                      {"platform": "linux/arm64"}, {"pull_policy": "always"}, {"ports": [{"published": "80"}]},
+                      {"read_only": False}, {"user": "0"}, {"mem_limit": None}):
+            with self.subTest(patch=patch):
+                self.assertTrue(check.check_service("gamdl-wrapper", {**config, **patch}))
+
+    def test_exception_is_exact_service_profile_and_image(self):
+        config = self.wrapper()
+        self.assertTrue(check.check_service("other-wrapper", config))
+        for patch in ({"profiles": ["all", "lossless"]}, {"image": "wrapper-v2:local"}):
+            self.assertTrue(check.check_service("gamdl-wrapper", {**config, **patch}))
+
+
 if __name__ == "__main__":
     unittest.main()
