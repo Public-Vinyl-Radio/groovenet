@@ -72,6 +72,6 @@ Do not remove Compose volumes to update the app: they hold your collection and a
 `just worktree-services add downloads lossless` enable the private, locally built
 Wrapper v2 1.0.0 sidecar. `all` deliberately excludes it. The image must already
 exist; nothing is pulled from a registry and no wrapper port is published.
-Read the [owner runbook](../../download-worker/docs/lossless-alac.md) before
+Read the [owner runbook](https://github.com/Public-Vinyl-Radio/groovenet/blob/main/download-worker/docs/lossless-alac.md) before
 building or signing in. With direct Compose, use `COMPOSE_PROFILES=downloads,lossless`
 so the worker receives the active profiles, or explicitly set `GAMDL_WRAPPER_URL`.
