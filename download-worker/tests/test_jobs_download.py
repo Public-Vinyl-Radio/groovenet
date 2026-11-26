@@ -377,3 +377,92 @@ def test_published_file_is_0644_despite_0600_source_and_umask(
         os.umask(old)
     assert result["success"] is True
     assert stat.S_IMODE((final_dir / "track-perm.m4a").stat().st_mode) == 0o644
+
+
+# ---------------------------------------------------------------------------
+# AAC and FLAC kept side by side (#1310)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def audio_dir(tmp_path):
+    def put(name, size=10):
+        (tmp_path / name).write_bytes(b"x" * size)
+
+    return tmp_path, put
+
+
+class TestPlanAudioLinks:
+    def test_lossless_download_keeps_an_existing_aac(self, audio_dir):
+        from worker.jobs.download import plan_audio_links
+
+        directory, put = audio_dir
+        put("t.m4a")
+        assert plan_audio_links(str(directory), "t", "t.flac") == ("t.flac", "t.m4a")
+
+    def test_lossless_download_with_no_aac_has_no_alternate(self, audio_dir):
+        from worker.jobs.download import plan_audio_links
+
+        directory, put = audio_dir
+        put("t.m4a", size=0)  # an empty file is not a copy
+        assert plan_audio_links(str(directory), "t", "t.flac") == ("t.flac", None)
+
+    def test_aac_download_never_replaces_an_existing_flac(self, audio_dir):
+        from worker.jobs.download import plan_audio_links
+
+        directory, put = audio_dir
+        put("t.flac")
+        assert plan_audio_links(str(directory), "t", "t.m4a") == ("t.flac", "t.m4a")
+
+    def test_lone_download_is_its_own_primary(self, audio_dir):
+        from worker.jobs.download import plan_audio_links
+
+        directory, _ = audio_dir
+        assert plan_audio_links(str(directory), "t", "t.m4a") == ("t.m4a", None)
+
+
+def _run_download(monkeypatch, fake_redis, filename, plan):
+    from unittest.mock import Mock
+
+    from worker.jobs import download
+
+    client = Mock()
+    monkeypatch.setattr(download.os, "makedirs", lambda *a, **k: None)
+    monkeypatch.setattr(download.shutil, "move", Mock())
+    monkeypatch.setattr(download, "make_library_readable", lambda *a: None)
+    monkeypatch.setattr(download, "download_with_gamdl", lambda *a, **k: f"/app/downloads/{filename}")
+    monkeypatch.setattr(download, "get_groovenet_client", lambda: client)
+    monkeypatch.setattr(download, "cleanup_download_directory", lambda *a: None)
+    monkeypatch.setattr(download, "plan_audio_links", lambda *a: plan)
+    result = download.download_audio(
+        {"track_id": "t", "friend_id": 1, "job_id": "alt-job", "apple_music_url": "https://example.invalid/s"}
+    )
+    return result, client
+
+
+def test_lossless_download_links_the_existing_aac_as_an_alternate(monkeypatch, fake_redis):
+    import json
+
+    result, client = _run_download(monkeypatch, fake_redis, "song.flac", ("t.flac", "t.m4a"))
+    assert result["local_audio_url"] == "t.flac"
+    client.update_track.assert_called_once_with(
+        {
+            "track_id": "t",
+            "friend_id": 1,
+            "audio_source": "apple_music",
+            "local_audio_url": "t.flac",
+            "alternate_audio_url": "t.m4a",
+        }
+    )
+    assert json.loads(fake_redis.rpop("download_queue"))["local_audio_url"] == "t.flac"
+
+
+def test_aac_redownload_leaves_the_flac_primary_and_analyses_it(monkeypatch, fake_redis):
+    import json
+
+    result, client = _run_download(monkeypatch, fake_redis, "song.m4a", ("t.flac", "t.m4a"))
+    assert result["local_audio_url"] == "t.flac"
+    payload = client.update_track.call_args.args[0]
+    assert "local_audio_url" not in payload
+    assert payload["alternate_audio_url"] == "t.m4a"
+    assert json.loads(fake_redis.rpop("download_queue"))["local_audio_url"] == "t.flac"

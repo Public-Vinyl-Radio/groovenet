@@ -33,6 +33,15 @@ vi.mock("@/server/repositories/trackRepository", () => ({
   },
 }));
 
+vi.mock("@/server/services/trackAudioFileService", () => ({
+  trackAudioFileService: {
+    listFiles: async () => [
+      { filename: "t1.flac", primary: true },
+      { filename: "t1.m4a", primary: false },
+    ],
+  },
+}));
+
 import { DELETE, GET } from "../route";
 
 vi.mock(
@@ -137,6 +146,10 @@ describe("GET /api/tracks/[id]", () => {
     const body = await res.json();
     expect(body).toMatchObject(track);
     expect(body.artists).toEqual([expect.objectContaining({ slug: "a", role: "primary" })]);
+    expect(body.audio_files.map((f: { filename: string }) => f.filename)).toEqual([
+      "t1.flac",
+      "t1.m4a",
+    ]);
   });
 
   it("serialises Date columns and 500s on a row that breaks the contract", async () => {

@@ -13,6 +13,10 @@ import { embeddingQueueService } from "@/server/services/embeddingQueueService";
 import type { EmbeddingJob } from "@/types/embeddingQueue";
 import { normalizeIsrc } from "@/lib/isrc";
 import { isrcService } from "@/server/services/isrcService";
+import {
+  AlternateAudioError,
+  trackAudioFileService,
+} from "@/server/services/trackAudioFileService";
 import { trackRatingRepository } from "@/server/repositories/trackRatingRepository";
 import { resolveRatingViewer, withViewerRatings } from "@/server/services/trackRatingService";
 
@@ -46,8 +50,21 @@ export async function PATCH(req: Request) {
       );
     }
     const body = parsed.data;
-    const { genres, descriptors, genre_source, star_rating: rawRating, ...fields } = body;
+    const {
+      genres,
+      descriptors,
+      genre_source,
+      star_rating: rawRating,
+      alternate_audio_url: alternateAudioUrl,
+      ...fields
+    } = body;
     const data = fields as UpdateTrackInput;
+    // With no new primary, `audio_source` describes the alternate, so it must not
+    // overwrite the primary's own source column (#1310).
+    const alternateSource = data.audio_source;
+    if (alternateAudioUrl !== undefined && data.local_audio_url === undefined) {
+      delete data.audio_source;
+    }
     const hasRating = rawRating !== undefined;
     const rating = parseRating(rawRating);
     if (hasRating && rating === undefined) {
@@ -126,6 +143,20 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Track not found" }, { status: 404 });
     }
 
+    // Another format of the same recording (#1310), linked beside the primary.
+    // After the update, so a lossless download that sets both sends them together.
+    if (alternateAudioUrl !== undefined) {
+      try {
+        await trackAudioFileService.linkAlternate(updated, alternateAudioUrl, alternateSource);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not link audio file";
+        if (error instanceof AlternateAudioError || message === "Local audio file not found") {
+          return NextResponse.json({ error: message }, { status: 400 });
+        }
+        throw error;
+      }
+    }
+
     // A new Apple Music link makes the stored ISRC stale. Resolve the new one
     // (or take the one the caller already has) so the two never disagree (#1156).
     let result = updated;
@@ -201,7 +232,10 @@ export async function PATCH(req: Request) {
     );
 
     const [rated] = await withViewerRatings([result], viewer);
-    return NextResponse.json(rated);
+    return NextResponse.json({
+      ...rated,
+      audio_files: await trackAudioFileService.listFiles(updated),
+    });
   } catch (error) {
     console.error("Error updating track:", error);
     return NextResponse.json({ error: "Failed to update track" }, { status: 500 });

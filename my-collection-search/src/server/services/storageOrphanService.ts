@@ -105,6 +105,11 @@ export async function scanOrphans(now = Date.now()): Promise<OrphanScanResult> {
     if (resolved) referenced.add(resolved);
     else tracks.push(row);
   }
+  // A linked alternate (the AAC beside a FLAC, #1310) is referenced too.
+  for (const filename of await storageOrphanRepository.listAlternateFilenames()) {
+    const resolved = audioService.resolveAudioFilePath(filename);
+    if (resolved) referenced.add(resolved);
+  }
 
   const files: OrphanFile[] = onDisk
     .filter((file) => !referenced.has(file.full))

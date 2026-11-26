@@ -313,6 +313,32 @@ Chromium playback and FLAC 24-bit File info in both layouts.
 
 **Real Apple/wrapper end-to-end downloads are not yet verified.**
 
+## AAC kept beside the FLAC (#1310)
+
+A track can have two files: `<track_id>.flac` (the lossless master) and
+`<track_id>.m4a` (a small AAC copy). Both are linked to the track.
+
+- **Primary vs alternate.** `tracks.local_audio_url` is the primary file and
+  every consumer reads it: web player, OwnTone server players, Essentia
+  analysis, fingerprint indexing, exports. FLAC is primary when it exists, so
+  only one file per track is analysed or fingerprinted. Other formats are
+  alternates in `track_audio_files` (codec, container, lossless, size per file,
+  so the backup of the AAC copy, #1311, can pick it by format). They are the
+  fallback for a client that can't decode FLAC.
+- **Downloads.** A lossless download keeps an AAC already beside it and links it
+  (`alternate_audio_url` on `PATCH /api/tracks`); it does not fetch a second AAC.
+  An AAC download for a track that already has a FLAC links the new `.m4a` as
+  the alternate and leaves the FLAC primary, so a re-download never clobbers it.
+  See `plan_audio_links` in `worker/jobs/download.py`.
+- **API and UI.** `GET /api/tracks/{id}` and the `PATCH` response carry
+  `audio_files` (primary first); the track's file info lists "Also stored".
+  The orphan scan treats linked alternates as referenced.
+- **Backfill.** `groovenet files alternates` (`POST /api/tracks/audio-files/backfill`)
+  links every `<stem>.m4a` that sits beside a linked `<stem>.flac`. It runs in
+  the app, which has the audio volume. Idempotent.
+- **Deleting.** Nothing in the app deletes audio files. Deleting a track row
+  removes its alternate links; the files are left for the orphan scan to list.
+
 ## Historical spike
 
 Can download-worker fetch Apple Music tracks as lossless ALAC with gamdl

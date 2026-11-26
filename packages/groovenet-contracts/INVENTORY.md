@@ -217,6 +217,7 @@ is closed; #606 owns them (its album half is migrated).
 | PATCH | `/api/tracks` | tracks | contracts |  |
 | DELETE | `/api/tracks/{id}` | tracks | contracts |  |
 | GET | `/api/tracks/{id}` | tracks | contracts |  |
+| POST | `/api/tracks/audio-files/backfill` | tracks | contracts |  |
 | POST | `/api/tracks/audio-metadata/backfill` | tracks | contracts |  |
 | GET | `/api/tracks/audio-metadata/backfill/{runId}` | tracks | contracts |  |
 | POST | `/api/tracks/embedded-tags/backfill` | tracks | contracts |  |

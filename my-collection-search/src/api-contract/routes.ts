@@ -3,6 +3,7 @@ import { artistReviewContracts } from "./artistReview";
 import {
   audioMetadataBackfillRequestSchema,
   audioMetadataBackfillRunSchema,
+  trackAudioFilesBackfillResponseSchema,
   embeddedTagsBackfillRequestSchema,
   embeddedTagsBackfillRunSchema,
   isrcBackfillRequestSchema,
@@ -1171,6 +1172,32 @@ const fingerprintContracts: ApiContractRoute[] = [
         "404": {
           description: "Run not found or expired",
           content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+        "500": {
+          description: "Server error",
+          content: { "application/json": { schema: errorResponseSchemaObject } },
+        },
+      },
+    },
+  },
+];
+
+const trackAudioFilesContracts: ApiContractRoute[] = [
+  {
+    operationId: "backfillTrackAudioFiles",
+    method: "post",
+    path: "/api/tracks/audio-files/backfill",
+    summary: "Link AAC files that sit beside a linked lossless FLAC as alternates of the track",
+    tags: ["Tracks"],
+    successSchema: trackAudioFilesBackfillResponseSchema,
+    errorSchema: apiErrorSchema,
+    openapi: {
+      responses: {
+        "200": {
+          description: "Counts of what was scanned and linked; idempotent",
+          content: {
+            "application/json": { schema: componentRef("TrackAudioFilesBackfillResponse") },
+          },
         },
         "500": {
           description: "Server error",
@@ -6947,6 +6974,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...audioMetadataBackfillContracts,
+  ...trackAudioFilesContracts,
   ...embeddedTagsBackfillContracts,
   ...trackLyricsContracts,
   ...isrcBackfillContracts,

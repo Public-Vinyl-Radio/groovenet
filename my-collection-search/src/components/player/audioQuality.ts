@@ -80,3 +80,21 @@ export const fileSources = {
   upload: { label: "Upload", stroke: "dotted" },
   unknown: { label: "Unknown", stroke: "double" },
 } as const;
+
+/**
+ * The other formats linked beside a track's primary file (#1310), as short
+ * labels: `AAC · 9.7 MB`. Empty when the track has only one file.
+ */
+export function alternateFormats(track: Track): string[] {
+  return (track.audio_files ?? [])
+    .filter((file) => !file.primary)
+    .map((file) =>
+      [
+        (file.codec ?? file.container ?? "audio").toUpperCase(),
+        file.lossless === true ? "lossless" : null,
+        file.size_bytes ? formatFileSize(file.size_bytes) : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    );
+}

@@ -58,6 +58,36 @@ export const trackAudioFileFieldsSchema = z.object({
 });
 export type TrackAudioFileFields = z.infer<typeof trackAudioFileFieldsSchema>;
 
+/**
+ * One audio file linked to a track (#1310). `primary` is `tracks.local_audio_url`,
+ * the file playback, analysis and fingerprinting read; the others are alternate
+ * copies of the same recording, such as the AAC kept beside a lossless FLAC.
+ */
+export const trackAudioFileSchema = z.object({
+  filename: z.string(),
+  primary: z.boolean(),
+  container: z.string().nullish(),
+  codec: z.string().nullish(),
+  lossless: z.boolean().nullish(),
+  sample_rate: z.number().int().nullish(),
+  bit_depth: z.number().int().nullish(),
+  bitrate: z.number().int().nullish(),
+  channels: z.number().int().nullish(),
+  // pg returns bigint columns as decimal strings.
+  size_bytes: z.union([z.number().int().nonnegative(), z.string().regex(/^\d+$/)]).nullish(),
+  source: audioSourceSchema.nullish(),
+});
+export type TrackAudioFile = z.infer<typeof trackAudioFileSchema>;
+
+/** `POST /api/tracks/audio-files/backfill`: link `<stem>.m4a` files that sit beside a linked `<stem>.flac`. */
+export const trackAudioFilesBackfillResponseSchema = z.object({
+  scanned: z.number().int(),
+  linked: z.number().int(),
+  already_linked: z.number().int(),
+  failed: z.number().int(),
+});
+export type TrackAudioFilesBackfillResponse = z.infer<typeof trackAudioFilesBackfillResponseSchema>;
+
 /** Which tracks a backfill probes: everything unless narrowed to one friend's library. */
 export const audioMetadataBackfillRequestSchema = z.object({
   friend_id: z.number().int().optional(),
@@ -234,6 +264,8 @@ const trackShape = z.object({
   mood_aggressive: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
   local_audio_url: z.string().nullable().optional(),
+  /** Every linked audio file, the primary first (#1310). Present on single-track reads. */
+  audio_files: z.array(trackAudioFileSchema).optional(),
   audio_file_album_art_url: z.string().nullable().optional(),
   /** The viewer's own rating (#1283): the current profile's, 0 when unrated. */
   star_rating: z.number().nullable().optional(),
@@ -549,6 +581,7 @@ export const trackJsonSchemas = {
     io: "input",
   }),
   AudioMetadataBackfillRun: z.toJSONSchema(audioMetadataBackfillRunSchema),
+  TrackAudioFilesBackfillResponse: z.toJSONSchema(trackAudioFilesBackfillResponseSchema),
   EmbeddedTagsBackfillRequest: z.toJSONSchema(embeddedTagsBackfillRequestSchema, {
     io: "input",
   }),

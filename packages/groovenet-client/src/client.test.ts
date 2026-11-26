@@ -1509,6 +1509,17 @@ describe("GroovenetClient audio metadata backfill endpoints (#1049)", () => {
     );
   });
 
+  it("links AAC files beside lossless FLACs", async () => {
+    const client = clientReturning({ scanned: 2, linked: 1, already_linked: 1, failed: 0 });
+
+    const result = await client.backfillTrackAudioFiles();
+
+    expect(result.linked).toBe(1);
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "POST", url: "/tracks/audio-files/backfill" }),
+    );
+  });
+
   it("reads a run and escapes its id", async () => {
     const client = clientReturning({ run_id: "r", probed: 4 });
 

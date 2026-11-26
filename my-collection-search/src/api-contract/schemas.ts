@@ -1089,6 +1089,8 @@ export const trackUpdateBodySchema = z
   .object({
     ...trackAudioFileFieldsSchema.shape,
     local_audio_url: z.string().nullish(),
+    /** Link another format of the same recording beside the primary file (#1310). */
+    alternate_audio_url: z.string().min(1).optional(),
     track_id: z
       .string({ error: "track_id and friend_id are required" })
       .min(1, { error: "track_id and friend_id are required" }),

@@ -28,6 +28,12 @@ export const storageOrphanRepository = {
     return rows;
   },
 
+  /** Alternate copies linked beside a track's primary file (#1310): referenced, not orphans. */
+  async listAlternateFilenames(): Promise<string[]> {
+    const { rows } = await dbQuery<{ filename: string }>(`SELECT filename FROM track_audio_files`);
+    return rows.map((row) => row.filename);
+  },
+
   async saveResult(scan: {
     scannedAt: Date;
     durationMs: number;

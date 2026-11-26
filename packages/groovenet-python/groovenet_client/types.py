@@ -7,6 +7,7 @@ class TrackUpdate(TypedDict):
     track_id: str
     friend_id: int
     local_audio_url: NotRequired[str]
+    alternate_audio_url: NotRequired[str]
     audio_source: NotRequired[Literal["apple_music", "youtube", "soundcloud", "upload", "unknown"]]
     duration_seconds: NotRequired[int]
     audio_file_album_art_url: NotRequired[str]
