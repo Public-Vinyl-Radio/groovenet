@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 import traceback
 from collections.abc import Callable
@@ -235,9 +236,7 @@ async def run_gamdl(
                     continue
                 catalog_id, album_ids = await _catalog_ids(media)
                 path = str(result.path)
-                if result.codec in (SongCodec.ALAC_LOSSLESS, SongCodec.ALAC_HIRES) or (
-                    wrapper_url and result.codec is None
-                ):
+                if result.codec in (SongCodec.ALAC_LOSSLESS, SongCodec.ALAC_HIRES) or (result.codec is None):
                     path = convert_alac_to_flac(path, sample_rate_cap=sample_rate_cap)
                 outcome = GamdlOutcome(result.media_id, result.status.value, path, catalog_id, album_ids)
                 codec = result.codec.value if result.codec else "existing file"
@@ -414,7 +413,10 @@ def download_with_gamdl(
         if quality == "lossless" and gamdl_wrapper_url() and (job_data or {}).get("lossless_fallback", True):
             reason = str(e) if str(e).startswith("Wrapper v2 ") else "download or conversion error"
             log(f"Lossless download failed ({reason}); retrying as AAC using cookies (lossless_fallback enabled)")
-            return download_with_gamdl(url, output_dir, track_id, {**(job_data or {}), "quality": "best"}, log_sink)
+            # A failed ALAC conversion can leave gamdl's original .m4a in
+            # its cache. Retry in a fresh directory so AAC cannot skip/reuse it.
+            retry_dir = tempfile.mkdtemp(prefix="aac-retry-", dir=output_dir)
+            return download_with_gamdl(url, retry_dir, track_id, {**(job_data or {}), "quality": "best"}, log_sink)
         error_msg = (
             "Download timeout (10 minutes) - try lower quality or check connection"
             if isinstance(e, TimeoutError)

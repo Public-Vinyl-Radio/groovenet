@@ -299,6 +299,7 @@ class FakeGamdl:
         monkeypatch.setattr(
             download, "AppleMusicApi", SimpleNamespace(from_cookies=from_cookies, from_wrapper=from_wrapper)
         )
+        monkeypatch.setattr(download, "convert_alac_to_flac", lambda path, **kwargs: path)
         monkeypatch.setattr(download, "check_wrapper_ready", lambda url: None)
         monkeypatch.setattr(download, "WrapperApi", SimpleNamespace(create=create))
         monkeypatch.setattr(download, "Drm", SimpleNamespace(from_widevine=lambda api: ("widevine", api)))
@@ -619,7 +620,8 @@ def test_find_audio_files_tolerates_an_unreadable_directory(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "codec,wrapper", [(SongCodec.ALAC_LOSSLESS, None), (SongCodec.ALAC_HIRES, None), (None, "http://stub")]
+    "codec,wrapper",
+    [(SongCodec.ALAC_LOSSLESS, None), (SongCodec.ALAC_HIRES, None), (None, "http://stub"), (None, None)],
 )
 def test_run_converts_downloaded_or_cached_alac(gamdl, monkeypatch, codec, wrapper):
     media = FakeMedia("1")
@@ -689,3 +691,25 @@ def test_wrapper_session_setup_never_exposes_token_response(gamdl, monkeypatch, 
         gamdl.run(wrapper_url="http://stub")
     assert "synthetic-private-token-response" not in str(caught.value)
     assert "Wrapper v2" in str(caught.value)
+
+
+def test_aac_retry_cannot_reuse_an_alac_file_after_failed_conversion(cookies, tmp_path, monkeypatch):
+    attempted_dirs = []
+
+    async def run(url, output_dir, codec_priority, **kwargs):
+        attempted_dirs.append(Path(output_dir))
+        path = Path(output_dir) / "same-song.m4a"
+        if codec_priority != DEFAULT_CODEC_PRIORITY:
+            path.write_bytes(b"synthetic leftover ALAC marker")
+            raise Exception("FLAC conversion failed")
+        assert not path.exists(), "AAC must not reuse ALAC from a failed attempt"
+        path.write_bytes(b"synthetic AAC marker")
+        return [GamdlOutcome("1", "downloaded", str(path))]
+
+    monkeypatch.setattr(download, "run_gamdl", run)
+    monkeypatch.setenv("GAMDL_WRAPPER_URL", "http://stub")
+    path = download_with_gamdl(TRACK_URL, str(tmp_path), "1", {"quality": "lossless"})
+    assert Path(path).read_bytes() == b"synthetic AAC marker"
+    assert attempted_dirs[0] == tmp_path
+    assert attempted_dirs[1].parent == tmp_path
+    assert attempted_dirs[0] != attempted_dirs[1]
