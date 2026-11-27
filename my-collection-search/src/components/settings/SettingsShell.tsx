@@ -12,6 +12,7 @@ import AboutSection from "./AboutSection";
 import AiPromptSettingsSection, { AI_METADATA_INTRO } from "./AiPromptSettingsSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
 import AppleMusicSettingsSection, { APPLE_MUSIC_INTRO } from "./AppleMusicSettingsSection";
+import IntegrationsSettingsSection, { INTEGRATIONS_INTRO } from "./IntegrationsSettingsSection";
 import LibrariesSettingsSection, {
   AddLibraryButton,
   AddLibraryHeaderButton,
@@ -36,6 +37,7 @@ const SECTION_CONTENT: Record<SettingsSectionId, () => React.ReactNode> = {
   ranking: () => <RankingSettingsSection />,
   "apple-music": () => <AppleMusicSettingsSection />,
   "ai-metadata": () => <AiPromptSettingsSection />,
+  integrations: () => <IntegrationsSettingsSection />,
   about: () => <AboutSection />,
 };
 
@@ -59,6 +61,7 @@ const SECTION_FRAMES: Partial<Record<SettingsSectionId, SectionFrame>> = {
   ranking: { intro: RANKING_INTRO },
   "apple-music": { intro: APPLE_MUSIC_INTRO },
   "ai-metadata": { intro: AI_METADATA_INTRO },
+  integrations: { intro: INTEGRATIONS_INTRO },
 };
 
 function SettingsIndexList() {

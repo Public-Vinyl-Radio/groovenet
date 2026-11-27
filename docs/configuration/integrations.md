@@ -5,6 +5,8 @@ sidebar:
   order: 2
 ---
 
+The owner profile can see which optional keys are configured, and what each unlocks, under **Settings → Integrations**. It reports presence only: keys are set in `.env`, and their values never appear in the app or API.
+
 ## Apple Music and YouTube
 
 Apple Music metadata uses `APPLE_MUSIC_TEAM_ID`, `APPLE_MUSIC_KEY_ID` and `APPLE_MUSIC_PRIVATE_KEY`. Paste the full `.p8` key, with escaped newlines as shown in [`.env.example`](https://github.com/Public-Vinyl-Radio/groovenet/blob/main/.env.example).

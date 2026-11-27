@@ -1,3 +1,4 @@
+import { integrationContracts } from "./integrations";
 import { profileContracts } from "./profiles";
 import { artistReviewContracts } from "./artistReview";
 import {
@@ -6983,6 +6984,7 @@ export const apiContractRoutes: ApiContractRoute[] = [
     },
   },
   ...profileContracts,
+  ...integrationContracts,
   ...remainingTracksContracts,
   ...fingerprintContracts,
   ...audioMetadataBackfillContracts,

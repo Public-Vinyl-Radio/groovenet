@@ -13,6 +13,7 @@ export const queryKeys = {
   playlistTracksRoot: () => ["playlist-tracks"] as const,
   homeRoot: () => ["home"] as const,
   recentAlbums: (friendId?: number) => ["albums", "recent", friendId ?? null] as const,
+  integrations: () => ["settings", "integrations"] as const,
   appearance: () => ["settings", "appearance"] as const,
   defaultLibrary: () => ["settings", "default-library"] as const,
   aiPromptSettings: (friend_id?: number) => ["settings", "ai-prompt", friend_id ?? null] as const,

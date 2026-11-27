@@ -195,6 +195,7 @@ is closed; #606 owns them (its album half is migrated).
 | PUT | `/api/settings/default-library` | friends & library settings | contracts |  |
 | GET | `/api/settings/embedding-model` | embeddings | contracts |  |
 | PATCH | `/api/settings/embedding-model` | embeddings | contracts |  |
+| GET | `/api/settings/integrations` | settings | #552 | App-local Zod schema in `src/api-contract/integrations.ts` (#1279); owner only, key presence never values; no machine consumer yet. |
 | GET | `/api/settings/gamdl` | settings | contracts |  |
 | PUT | `/api/settings/gamdl` | settings | contracts |  |
 | PUT | `/api/settings/gamdl-cookies` | settings | contracts |  |

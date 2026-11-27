@@ -10,6 +10,7 @@ export const settingsSectionIds = [
   "ranking",
   "apple-music",
   "ai-metadata",
+  "integrations",
   "about",
 ] as const;
 
@@ -40,6 +41,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     sections: [
       { id: "apple-music", label: "Apple Music" },
       { id: "ai-metadata", label: "AI metadata" },
+      { id: "integrations", label: "Integrations" },
     ],
   },
   { label: "About", sections: [{ id: "about", label: "About GrooveNet" }] },
