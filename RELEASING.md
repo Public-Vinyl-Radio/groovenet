@@ -272,7 +272,9 @@ node packages/groovenet-cli/build/bin/groovenet.js sets derive set.mp3 --playlis
 > `just release` no longer tags/builds/deploys in one shot — releases are cut by
 > release-please.
 
-Production deploys default to `COMPOSE_PROFILES=all`, starting all optional services. Set `COMPOSE_PROFILES` explicitly to select a different set. When the host has a `.env.players` file (server players), `deploy-prod.sh` adds `players` to the effective list, once, and exports it for every compose call; the shell value wins over the `COMPOSE_PROFILES=` line in `.env`/`.env.tpl`, which wins over `all`.
+Production deploys default to `COMPOSE_PROFILES=all`, starting all optional services. Set `COMPOSE_PROFILES` explicitly to select a different set. When the host has a `.env.players` file (server players), `deploy-prod.sh` adds `players` to the effective list, once, and exports it for every compose call; the shell value wins over `.env.host`, which wins over the `COMPOSE_PROFILES=` line in `.env`/`.env.tpl`, which wins over `all`.
+
+`just deploy` renders `.env` on the deploying machine and copies it over the host's `.env` every time, so a host-specific setting such as `COMPOSE_PROFILES=all,lossless` cannot live there. Put it in `.env.host` in the stack directory on the production host (start from `.env.host.example`). It is untracked, is created and edited on the host only, and `deploy-prod-remote` never writes or overwrites it. `deploy-prod.sh` reads `COMPOSE_PROFILES` (and `GAMDL_WRAPPER_IMAGE`) from it line by line, never sourcing it, passes it to every compose call as an extra `--env-file` after `.env`, and prints the effective profile list and where it came from. When `lossless` is enabled it checks that the wrapper image exists locally and aborts before pulling or recreating anything if not.
 
 ## Brick Knulli assets
 

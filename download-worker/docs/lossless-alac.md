@@ -70,6 +70,13 @@ pins the project name, and keep `lossless` in the deployed `.env`:
    steps call the scripts directly. `ssh -t` needs a real terminal; it does not
    work from Claude Code's `!` prompt.
 
+   Enable the profile in the host-local `.env.host`, not in `.env`: `just deploy`
+   overwrites the host's `.env` with one rendered on the deploying machine.
+   Copy `.env.host.example` to `.env.host` in `/srv/docker/groovenet` on the host
+   and set `COMPOSE_PROFILES=all,lossless`. Deploys never touch that file, and
+   `deploy-prod.sh` stops before pulling anything if the wrapper image above is
+   missing.
+
 5. Set Settings → Apple Music → Download quality to **Lossless** for the
    library, download one track, and confirm its file is FLAC.
 

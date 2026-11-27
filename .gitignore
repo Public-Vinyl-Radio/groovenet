@@ -12,6 +12,7 @@ eval-data/
 .env
 .env.*
 !.env.example
+!.env.host.example
 !.env.tpl
 !.env.players.tpl
 !.env.player-web.tpl

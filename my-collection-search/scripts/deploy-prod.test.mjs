@@ -12,6 +12,9 @@ function deployment({
   failBuild = false,
   profilesLine,
   shellProfiles,
+  hostEnv,
+  missingImage = false,
+  shellEnv = {},
 } = {}) {
   const root = mkdtempSync(join(tmpdir(), "groovenet-prod-"));
   try {
@@ -24,6 +27,7 @@ function deployment({
     copyFileSync(new URL("./deploy-prod.sh", import.meta.url), join(scripts, "deploy-prod.sh"));
     const extra = profilesLine === undefined ? "" : `${profilesLine}\n`;
     if (base) writeFileSync(join(root, ".env"), `POSTGRES_PASSWORD=collection-secret\n${extra}`);
+    if (hostEnv !== undefined) writeFileSync(join(root, ".env.host"), hostEnv);
     if (players)
       writeFileSync(join(root, ".env.players"), "PLAYER_API_KEY=player-secret\n", { mode: 0o600 });
     if (template) writeFileSync(join(root, ".env.tpl"), `POSTGRES_PASSWORD=op://example\n${extra}`);
@@ -35,6 +39,7 @@ function deployment({
       `#!/bin/sh
 printf '%s [profiles=%s]\\n' "$*" "$COMPOSE_PROFILES" >> "$DEPLOY_TEST_LOG"
 case "$*" in
+  *"image inspect"*) exit "$DEPLOY_TEST_IMAGE_STATUS" ;;
   *"build player-clock player-worker"*) exit "$DEPLOY_TEST_BUILD_STATUS" ;;
   *"SELECT EXISTS"*) echo t ;;
 esac
@@ -48,6 +53,8 @@ esac
         MIN_FREE_GB: "0",
         DEPLOY_TEST_LOG: log,
         DEPLOY_TEST_BUILD_STATUS: failBuild ? "1" : "0",
+        DEPLOY_TEST_IMAGE_STATUS: missingImage ? "1" : "0",
+        ...shellEnv,
         ...(shellProfiles === undefined ? {} : { COMPOSE_PROFILES: shellProfiles }),
       },
       encoding: "utf8",
@@ -140,6 +147,109 @@ test("without players, an env file line and a shell override are honoured unchan
   assert.ok(file.calls.every((call) => call.endsWith("[profiles=all,lossless]")));
   const shell = deployment({ shellProfiles: "analysis" });
   assert.ok(shell.calls.every((call) => call.endsWith("[profiles=analysis]")));
+});
+
+const hostCases = [
+  [
+    "host over .env",
+    { hostEnv: "COMPOSE_PROFILES=all,lossless\n", profilesLine: "COMPOSE_PROFILES=analysis" },
+    "all,lossless",
+    ".env.host",
+  ],
+  [
+    "shell over host",
+    { hostEnv: "COMPOSE_PROFILES=all\n", shellProfiles: "analysis" },
+    "analysis",
+    "shell",
+  ],
+  ["empty shell over host", { hostEnv: "COMPOSE_PROFILES=all\n", shellProfiles: "" }, "", "shell"],
+  [
+    "host without a profiles line falls to .env",
+    { hostEnv: "OTHER=1\n", profilesLine: "COMPOSE_PROFILES=analysis" },
+    "analysis",
+    ".env",
+  ],
+  ["no host file falls to the default", {}, "all", "default"],
+  [
+    "quoted host line with players",
+    { hostEnv: "export COMPOSE_PROFILES='all,lossless'\n", players: true },
+    "all,lossless,players",
+    ".env.host",
+  ],
+];
+for (const template of [false, true])
+  for (const [name, options, expected, source] of hostCases)
+    test(`.env.host profile precedence: ${name} (template=${template})`, () => {
+      const run = deployment({ template, base: !template, ...options });
+      assert.equal(run.status, 0, run.stderr);
+      for (const call of run.calls) assert.ok(call.endsWith(`[profiles=${expected}]`), call);
+      assert.match(
+        run.stdout,
+        new RegExp(
+          `==> Compose profiles: ${expected || "<none>"} \\(from [^)]*${source.replace(".", "\\.")}[^)]*\\)`,
+        ),
+      );
+    });
+
+test(".env.host is passed to every compose call as an extra env file, after .env", () => {
+  const run = deployment({ hostEnv: "COMPOSE_PROFILES=all\n", players: true });
+  assert.equal(run.status, 0, run.stderr);
+  for (const call of run.calls) {
+    const base = call.indexOf(`--env-file ${run.root}/.env `);
+    const host = call.indexOf(`--env-file ${run.root}/.env.host`);
+    const players = call.indexOf(`--env-file ${run.root}/.env.players`);
+    assert.ok(base >= 0 && base < host && host < players, call);
+  }
+});
+
+test("without .env.host no extra env file is passed", () => {
+  const run = deployment();
+  assert.ok(run.calls.every((call) => !call.includes(".env.host")));
+});
+
+test(".env.host is read as data, never executed", () => {
+  const run = deployment({ hostEnv: "COMPOSE_PROFILES=all\n$(touch pwned)\nFOO=`touch pwned`\n" });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(!run.stdout.includes("pwned"));
+});
+
+test("lossless with the wrapper image present deploys and checks the default image", () => {
+  const run = deployment({ hostEnv: "COMPOSE_PROFILES=all,lossless\n" });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(
+    run.calls.some((call) => call.startsWith("image inspect wrapper-v2:1.0.0-local-amd64")),
+  );
+});
+
+for (const [name, options, image] of [
+  ["default", { hostEnv: "COMPOSE_PROFILES=all,lossless\n" }, "wrapper-v2:1.0.0-local-amd64"],
+  [
+    "from .env.host",
+    { hostEnv: 'COMPOSE_PROFILES=lossless\nGAMDL_WRAPPER_IMAGE="w:host"\n' },
+    "w:host",
+  ],
+  ["from .env", { profilesLine: "COMPOSE_PROFILES=lossless\nGAMDL_WRAPPER_IMAGE=w:env" }, "w:env"],
+  [
+    "from the shell",
+    {
+      hostEnv: "COMPOSE_PROFILES=lossless\nGAMDL_WRAPPER_IMAGE=w:host\n",
+      shellEnv: { GAMDL_WRAPPER_IMAGE: "w:shell" },
+    },
+    "w:shell",
+  ],
+])
+  test(`a missing wrapper image stops the deploy before pulling anything (${name})`, () => {
+    const run = deployment({ ...options, missingImage: true });
+    assert.equal(run.status, 1);
+    assert.match(run.stdout, new RegExp(`wrapper image ${image} is not on this host`));
+    assert.equal(run.calls.length, 1, run.calls.join("\n"));
+    assert.ok(run.calls[0].startsWith(`image inspect ${image}`));
+  });
+
+test("a missing wrapper image does not matter without the lossless profile", () => {
+  const run = deployment({ hostEnv: "COMPOSE_PROFILES=all\n", missingImage: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.ok(run.calls.every((call) => !call.startsWith("image inspect")));
 });
 
 test("an image build failure stops deployment before touching running services", () => {
