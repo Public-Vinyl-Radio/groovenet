@@ -48,4 +48,19 @@ describe("trackAudioFileRepository", () => {
     expect(await trackAudioFileRepository.listFlacPrimaries()).toEqual([{ track_id: "t" }]);
     expect(dbQuery.mock.calls[0][0]).toContain("'%.flac'");
   });
+
+  it("lists every tracked file with whether it is lossless, primaries and alternates together", async () => {
+    dbQuery.mockResolvedValue({
+      rows: [
+        { filename: "a.flac", lossless: true },
+        { filename: "a.m4a", lossless: false },
+        { filename: "new.m4a", lossless: null },
+      ],
+    });
+    const formats = await trackAudioFileRepository.listAudioFormats();
+    expect(formats).toHaveLength(3);
+    const sql = String(dbQuery.mock.calls[0][0]);
+    expect(sql).toContain("FROM tracks");
+    expect(sql).toContain("FROM track_audio_files");
+  });
 });

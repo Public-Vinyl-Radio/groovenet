@@ -1,15 +1,26 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { backupPolicyService } from "@/server/services/backupPolicyService";
 import { backupStatusService } from "@/server/services/backupStatusService";
 import { createBackup } from "@/server/services/databaseBackupService";
+import {
+  checkLocalBackupMount,
+  localBackupDir,
+  localRepositoryPath,
+  missingEnv,
+  planAudio,
+  resticEnv,
+  writeExcludeFile,
+} from "@/server/services/backupTargets";
 import type {
   BackupPolicy,
   BackupRetentionPreset,
   BackupSnapshotSummary,
   BackupStatus,
+  BackupTarget,
 } from "@/types/backup";
 
 const execFileAsync = promisify(execFile);
@@ -25,6 +36,7 @@ type BackupRunResult = {
   backedUpPaths?: string[];
   snapshot?: BackupSnapshotSummary | null;
   missingEnv?: string[];
+  target?: BackupTarget;
 };
 
 const GLOBAL_SCHEDULER_KEY = "__groovenetBackupSchedulerStarted";
@@ -150,41 +162,36 @@ function cronMatches(cron: string, now: Date): boolean {
   );
 }
 
-function requiredEnvConfigured(): { ok: boolean; missing: string[] } {
-  const required = ["RESTIC_REPOSITORY", "RESTIC_PASSWORD"];
-  const missing = required.filter((name) => !process.env[name]);
-  return { ok: missing.length === 0, missing };
-}
+type BackupPlan = { paths: string[]; excludes: string[] };
 
-function collectBackupPaths(policy: BackupPolicy): string[] {
+/**
+ * What one target snapshots. The remote adds the extras (Discogs exports, Essentia
+ * files, uploads); every target has its own database, covers and audio choices, and
+ * audio is split by format (see `planAudio`).
+ */
+async function collectBackupPlan(policy: BackupPolicy, target: BackupTarget): Promise<BackupPlan> {
+  const choices = policy[target];
   const paths: string[] = [];
+  const excludes: string[] = [];
+  const add = (relative: string, enabled: boolean) => {
+    if (!enabled) return;
+    const found = getExistingPath(path.resolve(process.cwd(), relative));
+    if (found) paths.push(found);
+  };
 
-  if (policy.include_database) {
-    const dumpsPath = getExistingPath(path.resolve(process.cwd(), "dumps"));
-    if (dumpsPath) paths.push(dumpsPath);
+  add("dumps", choices.include_database);
+  const audio = await planAudio(path.resolve(process.cwd(), "audio"), choices);
+  if (audio.path) {
+    paths.push(audio.path);
+    excludes.push(...audio.excluded);
   }
-  if (policy.include_audio_files) {
-    const audioPath = getExistingPath(path.resolve(process.cwd(), "audio"));
-    if (audioPath) paths.push(audioPath);
+  add("public/uploads/album-covers", choices.include_album_covers);
+  if (target === "remote") {
+    add("discogs_exports", policy.include_discogs_exports);
+    add("essentia-data", policy.include_essentia_files);
+    add("uploads", policy.include_uploads);
   }
-  if (policy.include_album_covers) {
-    const coversPath = getExistingPath(path.resolve(process.cwd(), "public/uploads/album-covers"));
-    if (coversPath) paths.push(coversPath);
-  }
-  if (policy.include_discogs_exports) {
-    const discogsExportsPath = getExistingPath(path.resolve(process.cwd(), "discogs_exports"));
-    if (discogsExportsPath) paths.push(discogsExportsPath);
-  }
-  if (policy.include_essentia_files) {
-    const essentiaPath = getExistingPath(path.resolve(process.cwd(), "essentia-data"));
-    if (essentiaPath) paths.push(essentiaPath);
-  }
-  if (policy.include_uploads) {
-    const uploadsPath = getExistingPath(path.resolve(process.cwd(), "uploads"));
-    if (uploadsPath) paths.push(uploadsPath);
-  }
-
-  return paths;
+  return { paths, excludes };
 }
 
 function parseSnapshotsOutput(raw: string): BackupSnapshotSummary | null {
@@ -222,15 +229,17 @@ function parseSnapshotsOutput(raw: string): BackupSnapshotSummary | null {
   return snapshots[0] ?? null;
 }
 
-async function getLatestSnapshotSummary(): Promise<BackupSnapshotSummary | null> {
+async function getLatestSnapshotSummary(
+  target: BackupTarget,
+): Promise<BackupSnapshotSummary | null> {
   const snapshots = await execFileAsync("restic", ["snapshots", "--json"], {
-    env: process.env,
+    env: resticEnv(target),
     maxBuffer: 1024 * 1024 * 10,
   });
   return parseSnapshotsOutput(`${snapshots.stdout || ""}${snapshots.stderr || ""}`);
 }
 
-function persistStatus(result: BackupRunResult): void {
+function persistStatus(result: BackupRunResult, target: BackupTarget): void {
   const status: Omit<BackupStatus, "stored_at"> = {
     started_at: result.startedAt,
     finished_at: result.finishedAt,
@@ -243,20 +252,32 @@ function persistStatus(result: BackupRunResult): void {
   };
 
   try {
-    backupStatusService.writeStatus(status);
+    backupStatusService.writeStatus(status, target);
   } catch (error) {
     console.error("[backup-status] failed to persist backup status:", error);
   }
 }
 
+/** True once the local disk is configured on this host (`LOCAL_BACKUP_PATH` is set). */
+export function localTargetConfigured(): boolean {
+  return localBackupDir() !== null;
+}
+
+// A repository on the disk is created on first use, after the mount checks passed.
+async function ensureLocalRepository(repo: string, env: NodeJS.ProcessEnv): Promise<void> {
+  if (fs.existsSync(path.join(repo, "config"))) return;
+  await execFileAsync("restic", ["init"], { env, maxBuffer: 1024 * 1024 * 10 });
+}
+
 export async function runBackupNow(
   reason: "manual" | "scheduled" = "manual",
+  target: BackupTarget = "remote",
 ): Promise<BackupRunResult> {
   const g = globalThis as GlobalWithBackup;
   const startedAt = new Date().toISOString();
-  const finish = (result: BackupRunResult): BackupRunResult => {
-    persistStatus(result);
-    return result;
+  const finish = (result: BackupRunResult, persist = true): BackupRunResult => {
+    if (persist) persistStatus(result, target);
+    return { ...result, target };
   };
 
   if (g[GLOBAL_BACKUP_RUNNING_KEY]) {
@@ -271,6 +292,7 @@ export async function runBackupNow(
   g[GLOBAL_BACKUP_RUNNING_KEY] = true;
   let releaseRunLock: (() => void) | null = null;
   let resticDumpPath: string | null = null;
+  let excludeFile: string | null = null;
   try {
     releaseRunLock = acquireBackupRunLock();
     if (!releaseRunLock) {
@@ -291,27 +313,66 @@ export async function runBackupNow(
         reason: "policy-disabled",
       });
     }
+    // A switched-off target leaves its last result alone rather than overwriting it.
+    if (!policy[target].enabled) {
+      return finish(
+        {
+          startedAt,
+          finishedAt: new Date().toISOString(),
+          status: "skipped",
+          reason: "target-disabled",
+        },
+        false,
+      );
+    }
 
-    const envCheck = requiredEnvConfigured();
-    if (!envCheck.ok) {
-      return finish({
+    const failed = (reasonCode: string, error: string, extra: Partial<BackupRunResult> = {}) =>
+      finish({
         startedAt,
         finishedAt: new Date().toISOString(),
         status: "failed",
-        reason: "missing-env",
-        error: `Missing env vars: ${envCheck.missing.join(", ")}`,
-        missingEnv: envCheck.missing,
+        reason: reasonCode,
+        error,
+        ...extra,
+      });
+
+    if (target === "local") {
+      const dir = localBackupDir();
+      if (!dir)
+        return finish(
+          {
+            startedAt,
+            finishedAt: new Date().toISOString(),
+            status: "skipped",
+            reason: "not-configured",
+          },
+          false,
+        );
+      // Before anything touches the disk, including the dump: an unmounted path is
+      // just a directory on the root filesystem, and nothing may be written there.
+      const mount = checkLocalBackupMount(dir);
+      if (!mount.ok) return failed(`mount-${mount.reason}`, mount.message);
+    }
+
+    const envCheck = missingEnv(target);
+    if (envCheck.length > 0) {
+      return failed("missing-env", `Missing env vars: ${envCheck.join(", ")}`, {
+        missingEnv: envCheck,
       });
     }
 
-    if (policy.include_database) {
+    const env = resticEnv(target);
+    const choices = policy[target];
+    if (choices.include_database) {
       // restic snapshots the dumps directory; the dump is removed afterwards so
       // runs don't pile up on local disk.
-      resticDumpPath = (await createBackup({ prefix: "pg-backup-restic" })).path;
+      resticDumpPath = (
+        await createBackup({ prefix: `pg-backup-restic${target === "local" ? "-local" : ""}` })
+      ).path;
     }
 
-    const backupPaths = collectBackupPaths(policy);
-    if (backupPaths.length === 0) {
+    const plan = await collectBackupPlan(policy, target);
+    if (plan.paths.length === 0) {
       return finish({
         startedAt,
         finishedAt: new Date().toISOString(),
@@ -321,20 +382,23 @@ export async function runBackupNow(
       });
     }
 
-    const tag = `groovenet-${reason}`;
-    const snapshot = await execFileAsync(
-      "restic",
-      ["backup", ...backupPaths, "--tag", tag, "--json"],
-      { env: process.env, maxBuffer: 1024 * 1024 * 10 },
-    );
+    if (target === "local")
+      await ensureLocalRepository(localRepositoryPath(localBackupDir()!), env);
+
+    const args = ["backup", ...plan.paths, "--tag", `groovenet-${reason}`, "--json"];
+    if (plan.excludes.length > 0) {
+      excludeFile = writeExcludeFile(os.tmpdir(), plan.excludes);
+      args.push("--exclude-file", excludeFile);
+    }
+    const snapshot = await execFileAsync("restic", args, { env, maxBuffer: 1024 * 1024 * 10 });
 
     const prune = await execFileAsync(
       "restic",
       ["forget", "--prune", ...retentionArgs(policy.retention_preset)],
-      { env: process.env, maxBuffer: 1024 * 1024 * 10 },
+      { env, maxBuffer: 1024 * 1024 * 10 },
     );
 
-    const latestSnapshot = await getLatestSnapshotSummary();
+    const latestSnapshot = await getLatestSnapshotSummary(target);
 
     return finish({
       startedAt,
@@ -343,7 +407,7 @@ export async function runBackupNow(
       reason,
       snapshotOutput: `${snapshot.stdout || ""}${snapshot.stderr || ""}`.trim(),
       pruneOutput: `${prune.stdout || ""}${prune.stderr || ""}`.trim(),
-      backedUpPaths: backupPaths,
+      backedUpPaths: plan.paths,
       snapshot: latestSnapshot,
     });
   } catch (error) {
@@ -358,9 +422,24 @@ export async function runBackupNow(
     if (resticDumpPath) {
       fs.rmSync(resticDumpPath, { force: true });
     }
+    if (excludeFile) fs.rmSync(excludeFile, { force: true });
     releaseRunLock?.();
     g[GLOBAL_BACKUP_RUNNING_KEY] = false;
   }
+}
+
+/**
+ * Every target that applies on this host, one after the other (they share one lock,
+ * and the disk and the network should not compete for the same dump). The local
+ * target runs first so a slow upload never delays the disk copy.
+ */
+export async function runAllBackups(
+  reason: "manual" | "scheduled" = "manual",
+): Promise<Partial<Record<BackupTarget, BackupRunResult>>> {
+  const results: Partial<Record<BackupTarget, BackupRunResult>> = {};
+  if (localTargetConfigured()) results.local = await runBackupNow(reason, "local");
+  results.remote = await runBackupNow(reason, "remote");
+  return results;
 }
 
 async function scheduledTick(): Promise<void> {
@@ -374,11 +453,13 @@ async function scheduledTick(): Promise<void> {
   if (!policy.enabled) return;
   if (!cronMatches(policy.schedule_cron, now)) return;
 
-  const result = await runBackupNow("scheduled");
-  if (result.status === "failed") {
-    console.error("[backup-scheduler] backup failed:", result.error);
-  } else if (result.status === "success") {
-    console.log("[backup-scheduler] backup succeeded at", result.finishedAt);
+  const results = await runAllBackups("scheduled");
+  for (const [target, result] of Object.entries(results)) {
+    if (result.status === "failed") {
+      console.error(`[backup-scheduler] ${target} backup failed:`, result.error);
+    } else if (result.status === "success") {
+      console.log(`[backup-scheduler] ${target} backup succeeded at`, result.finishedAt);
+    }
   }
 }
 

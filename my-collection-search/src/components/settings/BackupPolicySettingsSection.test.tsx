@@ -23,9 +23,20 @@ const policy = {
   provider: "b2" as const,
   schedule_cron: "0 3 * * *",
   retention_preset: "balanced" as const,
-  include_database: true,
-  include_audio_files: false,
-  include_album_covers: false,
+  remote: {
+    enabled: true,
+    include_database: true,
+    include_album_covers: false,
+    include_aac_audio: false,
+    include_lossless_audio: false,
+  },
+  local: {
+    enabled: true,
+    include_database: false,
+    include_album_covers: false,
+    include_aac_audio: false,
+    include_lossless_audio: true,
+  },
   include_discogs_exports: false,
   include_essentia_files: false,
   include_uploads: false,
@@ -44,6 +55,25 @@ describe("BackupPolicySettingsSection", () => {
     expect(screen.getByRole("checkbox", { name: "Enable remote backups" })).toBeTruthy();
   });
 
+  it("saves the remote's database and cover choices", async () => {
+    mocks.updateBackupPolicy.mockResolvedValue({ policy });
+    const { user } = renderWithProviders(<BackupPolicySettingsSection />);
+    await screen.findByDisplayValue("0 3 * * *");
+    await user.click(screen.getByRole("checkbox", { name: "Include database dumps" }));
+    await user.click(screen.getByRole("checkbox", { name: "Include album covers" }));
+    await user.click(screen.getByRole("button", { name: "Save Policy" }));
+    await waitFor(() =>
+      expect(mocks.updateBackupPolicy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remote: expect.objectContaining({
+            include_database: !policy.remote.include_database,
+            include_album_covers: !policy.remote.include_album_covers,
+          }),
+        }),
+      ),
+    );
+  });
+
   it("says so when the policy can't be loaded", async () => {
     mocks.fetchBackupPolicy.mockRejectedValue(new Error("boom"));
     renderWithProviders(<BackupPolicySettingsSection />);
@@ -52,17 +82,19 @@ describe("BackupPolicySettingsSection", () => {
 
   it("toggles a checkbox and saves the updated policy", async () => {
     mocks.updateBackupPolicy.mockResolvedValue({
-      policy: { ...policy, include_audio_files: true },
+      policy: { ...policy, remote: { ...policy.remote, include_aac_audio: true } },
     });
     const { user } = renderWithProviders(<BackupPolicySettingsSection />);
     await screen.findByDisplayValue("0 3 * * *");
 
-    await user.click(screen.getByRole("checkbox", { name: "Include audio files" }));
+    await user.click(screen.getByRole("checkbox", { name: "Include AAC audio files" }));
     await user.click(screen.getByRole("button", { name: "Save Policy" }));
 
     await waitFor(() =>
       expect(mocks.updateBackupPolicy).toHaveBeenCalledWith(
-        expect.objectContaining({ include_audio_files: true }),
+        expect.objectContaining({
+          remote: expect.objectContaining({ include_aac_audio: true }),
+        }),
       ),
     );
     await waitFor(() =>

@@ -43,9 +43,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
         enabled: policy.enabled,
         schedule_cron: policy.schedule_cron,
         retention_preset: policy.retention_preset,
-        include_database: policy.include_database,
-        include_audio_files: policy.include_audio_files,
-        include_album_covers: policy.include_album_covers,
+        remote: policy.remote,
         include_discogs_exports: policy.include_discogs_exports,
         include_essentia_files: policy.include_essentia_files,
         include_uploads: policy.include_uploads,
@@ -149,11 +147,12 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             </Checkbox.Root>
 
             <Checkbox.Root
-              checked={policy.include_database}
+              checked={policy.remote.include_database}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev ? { ...prev, include_database: Boolean(details.checked) } : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_database: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />
@@ -162,24 +161,26 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             </Checkbox.Root>
 
             <Checkbox.Root
-              checked={policy.include_audio_files}
+              checked={policy.remote.include_aac_audio}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev ? { ...prev, include_audio_files: Boolean(details.checked) } : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_aac_audio: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />
               <Checkbox.Control />
-              <Checkbox.Label>Include audio files</Checkbox.Label>
+              <Checkbox.Label>Include AAC audio files</Checkbox.Label>
             </Checkbox.Root>
 
             <Checkbox.Root
-              checked={policy.include_album_covers}
+              checked={policy.remote.include_album_covers}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev ? { ...prev, include_album_covers: Boolean(details.checked) } : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_album_covers: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />

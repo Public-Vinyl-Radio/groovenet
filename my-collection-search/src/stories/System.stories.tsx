@@ -30,9 +30,20 @@ const meta: Meta<typeof SystemPage> = {
       provider: "restic-b2",
       schedule_cron: parameters.customCron ? "0 3 * * *" : "0 */6 * * *",
       retention_preset: "balanced",
-      include_database: true,
-      include_audio_files: true,
-      include_album_covers: true,
+      remote: {
+        enabled: true,
+        include_database: true,
+        include_album_covers: true,
+        include_aac_audio: true,
+        include_lossless_audio: false,
+      },
+      local: {
+        enabled: true,
+        include_database: false,
+        include_album_covers: false,
+        include_aac_audio: false,
+        include_lossless_audio: true,
+      },
       include_discogs_exports: true,
       include_essentia_files: true,
       include_uploads: true,
@@ -91,10 +102,30 @@ const meta: Meta<typeof SystemPage> = {
         if (init?.method === "PUT") policy = { ...policy, ...JSON.parse(String(init.body)) };
         return Response.json({ policy });
       }
-      if (url.includes("/api/settings/backup/"))
+      if (url.includes("/api/settings/backup/")) {
+        const ok = { status: "success", finished_at: "2026-11-01T12:00:00Z" };
+        // A host with a mounted backup disk adds a `local` block; without one it is absent.
         return Response.json({
-          status: { status: "success", finished_at: "2026-11-01T12:00:00Z" },
+          status: ok,
+          health: { healthy: true, status: "ok", age_hours: 1 },
+          max_age_hours: 12,
+          ...(parameters.localBackup
+            ? {
+                local: {
+                  status: ok,
+                  health: { healthy: true, status: "ok", age_hours: 1 },
+                  metrics: {
+                    captured_at: "2026-11-01T12:00:00Z",
+                    local_source_bytes: 3e9,
+                    snapshot_count: 12,
+                    remote_repository_bytes: 3.1e9,
+                    recent_snapshots: [],
+                  },
+                },
+              }
+            : {}),
         });
+      }
       if (url.endsWith("/api/backups")) return Response.json({ backups: [], files: [] });
       return Response.json({ message: "Demo operation complete" });
     };
@@ -112,3 +143,4 @@ export const Errors: Story = { parameters: { apiError: true } };
 export const Status: Story = { render: () => <SystemStatus /> };
 export const Backups: Story = { render: () => <SystemBackups /> };
 export const Restore: Story = { render: () => <DatabaseRestore /> };
+export const WithLocalDisk: Story = { parameters: { localBackup: true } };

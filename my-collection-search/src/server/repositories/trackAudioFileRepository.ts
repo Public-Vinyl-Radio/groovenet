@@ -93,4 +93,21 @@ export const trackAudioFileRepository = {
     );
     return rows;
   },
+
+  /**
+   * Every audio file the library tracks, with whether it is lossless (#1310): the
+   * primary of each live track plus every linked alternate. `lossless` is null for
+   * a file whose format was never probed. Backups use it to split lossless from AAC
+   * without trusting the extension, because ALAC lives in `.m4a` beside AAC.
+   */
+  async listAudioFormats(): Promise<Array<{ filename: string; lossless: boolean | null }>> {
+    const { rows } = await dbQuery<{ filename: string; lossless: boolean | null }>(
+      `SELECT local_audio_url AS filename, audio_lossless AS lossless
+         FROM tracks
+        WHERE local_audio_url IS NOT NULL AND btrim(local_audio_url) <> ''
+       UNION ALL
+       SELECT filename, lossless FROM track_audio_files`,
+    );
+    return rows;
+  },
 };

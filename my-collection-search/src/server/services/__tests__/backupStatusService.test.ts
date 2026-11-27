@@ -56,3 +56,29 @@ describe("BackupStatusService.writeStatus()", () => {
     expect(reread?.backed_up_paths).toEqual(["/app/dumps", "/app/audio"]);
   });
 });
+
+describe("per-target status files", () => {
+  const base = {
+    started_at: "2026-01-01T00:00:00.000Z",
+    finished_at: "2026-01-01T00:01:00.000Z",
+    status: "failed" as const,
+    reason: "mount-marker-missing",
+    backed_up_paths: [],
+    snapshot: null,
+  };
+
+  it("keeps the local target apart from the remote's file", () => {
+    service.writeStatus({ ...base, status: "success", reason: "manual" });
+    service.writeStatus(base, "local");
+
+    expect(fs.existsSync(statusPath())).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "dumps", "backup-status-local.json"))).toBe(true);
+    expect(service.getStatus("remote")?.status).toBe("success");
+    expect(service.getStatus("local")?.reason).toBe("mount-marker-missing");
+  });
+
+  it("has no local status until one is written", () => {
+    service.writeStatus({ ...base, status: "success", reason: "manual" });
+    expect(service.getStatus("local")).toBeNull();
+  });
+});
