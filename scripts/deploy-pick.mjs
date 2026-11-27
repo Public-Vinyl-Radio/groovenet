@@ -259,8 +259,8 @@ function pickWithFzf(rows, ctx) {
     { env: ctx.env, input, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"] },
   );
   if (result.status !== 0) return null; // Esc / Ctrl-C / no match
-  const index = Number(result.stdout.split("\t")[0]);
-  return Number.isInteger(index) && rows[index] ? rows[index] : null;
+  const field = result.stdout.split("\t")[0];
+  return /^\d+$/.test(field) ? (rows[Number(field)] ?? null) : null;
 }
 
 // Lines are queued as they arrive: piped input delivers several at once, and

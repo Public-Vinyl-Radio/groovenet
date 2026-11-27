@@ -101,7 +101,7 @@ test-web:
 test-packages:
   {{mise_exec}} node scripts/check-npm-toolchain.mjs
   {{mise_exec}} npm ci --no-fund --no-audit
-  {{mise_exec}} node --test scripts/npm-toolchain.test.mjs
+  {{mise_exec}} node --test scripts/npm-toolchain.test.mjs scripts/deploy-pick.test.mjs
   {{mise_exec}} npm run build --workspace=@groovenet/contracts
   {{mise_exec}} npm run test:coverage --workspace=@groovenet/contracts
   {{mise_exec}} npm run test --workspace=packages/groovenet-client
@@ -589,6 +589,12 @@ deploy-rc commit="origin/main":
   fi
   echo
   just registry="{{registry}}" prod_host="{{prod_host}}" prod_stack_dir="{{prod_stack_dir}}" deploy "$image_tag"
+
+# Pick a release or candidate from a list with its image status and what prod
+# runs now, then run `deploy` / `deploy-rc` for it. `--list` only prints.
+# See "Picking what to deploy" in RELEASING.md.
+deploy-pick *args:
+  node scripts/deploy-pick.mjs --host "{{prod_host}}" --stack-dir "{{prod_stack_dir}}" --registry "{{registry}}" {{args}}
 
 # Keep the list in step with SERVICES in deploy-prod.sh and `promote` in
 # docker-publish.yml (fingerprint-set-worker runs the fingerprint-service image).

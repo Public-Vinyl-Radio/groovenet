@@ -276,6 +276,45 @@ Production deploys default to `COMPOSE_PROFILES=all`, starting all optional serv
 
 `just deploy` renders `.env` on the deploying machine and copies it over the host's `.env` every time, so a host-specific setting such as `COMPOSE_PROFILES=all,lossless` cannot live there. Put it in `.env.host` in the stack directory on the production host (start from `.env.host.example`). It is untracked, is created and edited on the host only, and `deploy-prod-remote` never writes or overwrites it. `deploy-prod.sh` reads `COMPOSE_PROFILES` (and `GAMDL_WRAPPER_IMAGE`) from it line by line, never sourcing it, passes it to every compose call as an extra `--env-file` after `.env`, and prints the effective profile list and where it came from. When `lossless` is enabled it checks that the wrapper image exists locally and aborts before pulling or recreating anything if not.
 
+## Picking what to deploy
+
+`just deploy-pick` lists the last 5 release tags and the last 5 commits on
+`origin/main`, newest first, then runs `just deploy vX.Y.Z` or
+`just deploy-rc <sha>` for the one you choose. It only chooses a ref; those
+recipes are unchanged and still do the deploying.
+
+```bash
+just deploy-pick                # choose from the list, confirm, deploy
+just deploy-pick --list         # print the table and stop: no prompt, no deploy
+just deploy-pick --limit 10     # rows of each kind (default 5)
+just deploy-pick --no-fzf       # numbered prompt even when fzf is installed
+```
+
+```
+  KIND     REF           BUILT             IMAGES     SUMMARY
+  main     sha-4c5f38d   2026-11-27 15:14  building   feat(backup): keep lossless out of the remote…
+  main     sha-f3f0a2e   2026-11-27 12:55  ready  ●   feat(settings): contextual guidance for missing…
+  release  v0.4.2        2026-11-26 12:02  ready      chore: release main (#1309)
+```
+
+- **BUILT** is the commit's time, in your local time zone.
+- **IMAGES** comes from that commit's **Build and Publish Docker Images** run
+  (`gh run list --json`, one call per invocation; a main row matches by commit
+  sha, a release by its tag): `ready` (the run succeeded; for a release that
+  includes `promote`), `building`, `failed`, or `no run` when CI never built it.
+  Only `ready` rows can be picked. Pick one that is not and it refuses.
+- **●** marks the ref production runs now, read over SSH from the `app`
+  container's image tag (5 s connect timeout). If SSH fails the picker warns,
+  shows no marker and carries on.
+- With [fzf](https://github.com/junegunn/fzf) installed you pick in fzf;
+  otherwise it prints a numbered list and asks. Either way it shows the exact
+  `just` command and the target `host:stack dir`, and waits for `y`.
+
+It needs `gh` (logged in) and `git`, and never writes to GitHub. It uses the
+same `PROD_HOST` and `PROD_STACK_DIR` as `deploy`, and refuses to run while
+`PROD_HOST` is still the placeholder. Export them in your shell profile or a
+direnv `.envrc` (copy `.envrc.example`); no host belongs in the repo.
+
 ## Brick Knulli assets
 
 `brick-release.yml` cross-compiles the existing Brick package independently of npm.

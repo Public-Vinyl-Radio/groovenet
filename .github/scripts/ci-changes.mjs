@@ -106,7 +106,7 @@ export function classify(files, { full = false, mainPush = false } = {}) {
       )
     )
       enable("cli");
-    if (file.startsWith("scripts/") && /npm.*toolchain|check-npm-toolchain/.test(file))
+    if (file.startsWith("scripts/") && /npm.*toolchain|check-npm-toolchain|deploy-pick/.test(file))
       enable("client", "lint");
     if (file.startsWith("packages/groovenet-python/"))
       enable("python", "download", "fingerprint", "download_worker", "fingerprint_service");
