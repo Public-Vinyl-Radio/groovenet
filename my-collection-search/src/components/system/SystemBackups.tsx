@@ -90,7 +90,7 @@ function TargetRow({
           checked={target.enabled}
           disabled={saving}
           onCheckedChange={(d) => set({ enabled: d.checked })}
-          aria-label={`${label} backups`}
+          aria-label={`${label} target`}
         >
           <Switch.HiddenInput checked={target.enabled} readOnly />
           <Switch.Control>
@@ -108,12 +108,12 @@ function TargetRow({
         </StatusTag>
         {status && (
           <Text fontFamily="mono" fontSize="xs" color="fg.muted">
-            LAST RUN {new Date(status.finished_at).toLocaleString()} · {status.status.toUpperCase()}
+            LATEST {new Date(status.finished_at).toLocaleString()} · {status.status.toUpperCase()}
             {maxAge !== undefined ? ` · ALERTS AFTER ${maxAge}H` : ""}
           </Text>
         )}
       </Flex>
-      {status?.status === "failed" && status.error && (
+      {name === "local" && status?.status === "failed" && status.error && (
         <Text role="alert" color="fg.error" mb={3}>
           {status.error}
         </Text>

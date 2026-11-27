@@ -31,9 +31,21 @@ describe("BackupPolicyService.getPolicy()", () => {
     expect(policy.provider).toBe("restic-b2");
     expect(policy.schedule_cron).toBe("0 */6 * * *");
     expect(policy.retention_preset).toBe("balanced");
-    expect(policy.include_database).toBe(true);
-    expect(policy.include_audio_files).toBe(true);
-    expect(policy.include_album_covers).toBe(true);
+    // The remote keeps AAC but not lossless; the local disk is lossless only.
+    expect(policy.remote).toEqual({
+      enabled: true,
+      include_database: true,
+      include_album_covers: true,
+      include_aac_audio: true,
+      include_lossless_audio: false,
+    });
+    expect(policy.local).toEqual({
+      enabled: true,
+      include_database: false,
+      include_album_covers: false,
+      include_aac_audio: false,
+      include_lossless_audio: true,
+    });
     expect(policy.include_discogs_exports).toBe(true);
     expect(policy.include_essentia_files).toBe(true);
     expect(policy.include_uploads).toBe(false);
@@ -66,11 +78,61 @@ describe("BackupPolicyService.getPolicy()", () => {
     expect(policy.enabled).toBe(true);
     expect(policy.schedule_cron).toBe("0 2 * * *");
     expect(policy.retention_preset).toBe("archive");
-    expect(policy.include_audio_files).toBe(false);
+    // A file from before targets existed: its flat choices become the remote's.
+    expect(policy.remote).toMatchObject({
+      include_database: true,
+      include_aac_audio: false,
+      include_album_covers: false,
+      include_lossless_audio: false,
+    });
     expect(policy.include_discogs_exports).toBe(false);
     expect(policy.include_essentia_files).toBe(false);
     expect(policy.include_uploads).toBe(true);
     expect(policy.updated_at).toBe("2024-06-01T00:00:00.000Z");
+  });
+
+  it("reads an existing install's flat file as the remote, with lossless now excluded", () => {
+    fs.mkdirSync(path.join(tmpDir, "config"), { recursive: true });
+    fs.writeFileSync(
+      policyPath(),
+      yaml.stringify({
+        enabled: true,
+        provider: "restic-b2",
+        include_database: true,
+        include_audio_files: true,
+        include_album_covers: true,
+      }),
+      "utf8",
+    );
+    const policy = service.getPolicy();
+    expect(policy.remote).toMatchObject({ include_aac_audio: true, include_lossless_audio: false });
+    // Nothing flat is carried forward.
+    expect(policy).not.toHaveProperty("include_audio_files");
+  });
+
+  it("reads nested target choices, which win over legacy keys", () => {
+    fs.mkdirSync(path.join(tmpDir, "config"), { recursive: true });
+    fs.writeFileSync(
+      policyPath(),
+      yaml.stringify({
+        include_audio_files: false,
+        remote: { enabled: false, include_aac_audio: true, include_lossless_audio: true },
+        local: { include_database: true, include_aac_audio: true },
+      }),
+      "utf8",
+    );
+    const policy = service.getPolicy();
+    expect(policy.remote).toMatchObject({
+      enabled: false,
+      include_aac_audio: true,
+      include_lossless_audio: true,
+    });
+    expect(policy.local).toMatchObject({
+      enabled: true,
+      include_database: true,
+      include_aac_audio: true,
+      include_lossless_audio: true,
+    });
   });
 
   it("falls back to a current timestamp when updated_at is absent in the file", () => {
@@ -166,6 +228,36 @@ describe("BackupPolicyService.updatePolicy()", () => {
     expect(() => service.updatePolicy({ retention_preset: "never" as never })).toThrow(
       "Invalid retention preset",
     );
+  });
+
+  it("merges a partial target update without touching the other target", () => {
+    service.getPolicy();
+    const updated = service.updatePolicy({
+      local: { include_aac_audio: true },
+      remote: { include_lossless_audio: true },
+    });
+    expect(updated.local).toMatchObject({ include_aac_audio: true, include_lossless_audio: true });
+    expect(updated.remote).toMatchObject({ include_lossless_audio: true, include_aac_audio: true });
+    expect(service.getPolicy().local.include_aac_audio).toBe(true);
+  });
+
+  it("maps flat keys from an older client onto the remote and does not persist them", () => {
+    service.getPolicy();
+    const updated = service.updatePolicy({
+      include_database: false,
+      include_album_covers: false,
+      include_audio_files: false,
+      include_uploads: true,
+    } as never);
+    expect(updated.remote).toMatchObject({
+      include_database: false,
+      include_album_covers: false,
+      include_aac_audio: false,
+    });
+    expect(updated.include_uploads).toBe(true);
+    const written = yaml.parse(fs.readFileSync(policyPath(), "utf8"));
+    expect(written).not.toHaveProperty("include_audio_files");
+    expect(written).not.toHaveProperty("include_database");
   });
 
   it("trims whitespace from schedule_cron", () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
 const api = vi.hoisted(() => ({
@@ -17,9 +17,20 @@ const policy = {
   provider: "restic-b2",
   schedule_cron: "0 */6 * * *",
   retention_preset: "balanced",
-  include_database: true,
-  include_audio_files: true,
-  include_album_covers: true,
+  remote: {
+    enabled: true,
+    include_database: true,
+    include_album_covers: true,
+    include_aac_audio: true,
+    include_lossless_audio: false,
+  },
+  local: {
+    enabled: true,
+    include_database: false,
+    include_album_covers: false,
+    include_aac_audio: false,
+    include_lossless_audio: true,
+  },
   include_discogs_exports: true,
   include_essentia_files: true,
   include_uploads: true,
@@ -34,7 +45,7 @@ beforeEach(() => {
 it("loads all rows and immediately saves a switch change with undo", async () => {
   const { user } = renderWithProviders(<SystemBackups />);
   await screen.findByRole("combobox", { name: "Schedule" });
-  for (const label of ["Remote backups", "Schedule", "Keep", "Include", "Local database backups"])
+  for (const label of ["Remote backups", "Schedule", "Keep", "Remote", "Local database backups"])
     expect(screen.getByRole("heading", { name: label })).toBeTruthy();
   await user.click(screen.getByRole("checkbox", { name: "Remote backups" }));
   await screen.findByText("SAVED ·");
@@ -50,7 +61,8 @@ it("loads all rows and immediately saves a switch change with undo", async () =>
 });
 it.each([
   "Database dumps",
-  "Audio files",
+  "AAC audio",
+  "Lossless audio (FLAC)",
   "Album covers",
   "Discogs JSON exports",
   "Essentia analysis files",
@@ -60,6 +72,116 @@ it.each([
   await user.click(await screen.findByRole("checkbox", { name }));
   await screen.findByText("SAVED ·");
   expect(api.updateBackupPolicy).toHaveBeenCalledTimes(1);
+});
+it("shows no local disk row when the host has none", async () => {
+  renderWithProviders(<SystemBackups />);
+  await screen.findByRole("heading", { name: "Remote" });
+  expect(screen.queryByRole("heading", { name: "Local disk" })).toBeNull();
+  expect(screen.queryByTestId("backup-target-local")).toBeNull();
+});
+it("saves a remote lossless change under remote, leaving local alone", async () => {
+  const { user } = renderWithProviders(<SystemBackups />);
+  await user.click(await screen.findByRole("checkbox", { name: "Lossless audio (FLAC)" }));
+  await screen.findByText("SAVED ·");
+  const body = api.updateBackupPolicy.mock.calls[0][0];
+  expect(body.remote.include_lossless_audio).toBe(true);
+  expect(body.local).toEqual(policy.local);
+});
+
+const localStatus = (over = {}) => ({
+  status: {
+    started_at: "2026-10-01T00:00:00Z",
+    finished_at: "2026-10-01T00:01:00Z",
+    status: "success",
+    ...over,
+  },
+  metrics: {
+    captured_at: "2026-10-01T00:00:00Z",
+    local_source_bytes: 0,
+    snapshot_count: 3,
+    remote_repository_bytes: 2048,
+    recent_snapshots: [],
+  },
+  health: { healthy: true, status: "ok", age_hours: 2 },
+});
+describe("with a local disk configured", () => {
+  beforeEach(() => {
+    api.fetchBackupStatus.mockResolvedValue({
+      status: null,
+      health: { healthy: false, status: "unhealthy", reason: "no-backup-status" },
+      max_age_hours: 12,
+      local: localStatus(),
+    });
+  });
+
+  it("shows both targets with their own health against the max age", async () => {
+    renderWithProviders(<SystemBackups />);
+    expect(await screen.findByRole("heading", { name: "Local disk" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Scheduled backups" })).toBeTruthy();
+    expect(await screen.findByText("UNHEALTHY · NO RUN YET")).toBeTruthy();
+    expect(screen.getByText("HEALTHY · 2h ago")).toBeTruthy();
+    expect(screen.getByText(/ALERTS AFTER 12H/)).toBeTruthy();
+    expect(screen.getByText("3 SNAPSHOTS · 2.0 KiB ON DISK")).toBeTruthy();
+  });
+
+  it("saves a local include change under local only", async () => {
+    const { user } = renderWithProviders(<SystemBackups />);
+    await screen.findByTestId("backup-target-local");
+    const boxes = screen.getAllByRole("checkbox", { name: "AAC audio" });
+    await user.click(boxes[1]);
+    await screen.findByText("SAVED ·");
+    const body = api.updateBackupPolicy.mock.calls[0][0];
+    expect(body.local.include_aac_audio).toBe(true);
+    expect(body.remote).toEqual(policy.remote);
+  });
+
+  it("shows why the disk run failed, e.g. a missing marker", async () => {
+    api.fetchBackupStatus.mockResolvedValue({
+      status: null,
+      local: {
+        ...localStatus({
+          status: "failed",
+          error: "Marker file .groovenet-backup-disk is missing",
+        }),
+        health: { healthy: false, status: "unhealthy", reason: "backup-failed" },
+      },
+    });
+    renderWithProviders(<SystemBackups />);
+    expect(await screen.findByText("UNHEALTHY · LAST RUN FAILED")).toBeTruthy();
+    expect((await screen.findByRole("alert")).textContent).toContain("Marker file");
+  });
+
+  it("explains an unreachable repository and an overdue run", async () => {
+    api.fetchBackupStatus.mockResolvedValue({
+      status: null,
+      local: {
+        ...localStatus(),
+        metrics: { ...localStatus().metrics, error: "wrong password" },
+        health: { healthy: false, status: "unhealthy", reason: "backup-overdue" },
+      },
+    });
+    renderWithProviders(<SystemBackups />);
+    expect(await screen.findByText("UNHEALTHY · OVERDUE")).toBeTruthy();
+    expect(screen.getByText("REPOSITORY UNAVAILABLE · wrong password")).toBeTruthy();
+  });
+
+  it("marks a switched-off target OFF and saves the switch under that target", async () => {
+    api.fetchBackupPolicy.mockResolvedValue({
+      policy: { ...policy, local: { ...policy.local, enabled: false } },
+    });
+    const { user } = renderWithProviders(<SystemBackups />);
+    expect(await screen.findByText("OFF")).toBeTruthy();
+    await user.click(screen.getByRole("checkbox", { name: "Local disk target" }));
+    await screen.findByText("SAVED ·");
+    expect(api.updateBackupPolicy.mock.calls[0][0].local.enabled).toBe(true);
+  });
+
+  it("reloads health after a manual run", async () => {
+    api.runBackupNow.mockResolvedValue({ status: null, local: { status: null } });
+    const { user } = renderWithProviders(<SystemBackups />);
+    await user.click(await screen.findByRole("button", { name: "RUN BACKUP NOW" }));
+    await waitFor(() => expect(api.fetchBackupStatus).toHaveBeenCalledTimes(2));
+  });
 });
 it.each(["AGGRESSIVE", "ARCHIVE"])("saves retention %s", async (name) => {
   const { user } = renderWithProviders(<SystemBackups />);

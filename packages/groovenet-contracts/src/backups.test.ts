@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   BACKUP_PROVIDERS,
+  BACKUP_TARGETS,
   BACKUP_RETENTION_PRESETS,
   backupListResponseSchema,
+  backupHealthResponseSchema,
   backupPolicyUpdateSchema,
+  backupStatusGetResponseSchema,
+  backupStatusRunResponseSchema,
   backupStatusSchema,
 } from "./backups.js";
 
@@ -19,6 +23,50 @@ describe("backup contracts", () => {
       future_option: "kept",
     });
     expect(backupPolicyUpdateSchema.safeParse({ provider: "unknown" }).success).toBe(false);
+  });
+
+  it("validates per-target policy updates and keeps unknown target fields", () => {
+    expect(
+      backupPolicyUpdateSchema.parse({
+        remote: { include_lossless_audio: false, future: 1 },
+        local: { enabled: true },
+      }),
+    ).toEqual({
+      remote: { include_lossless_audio: false, future: 1 },
+      local: { enabled: true },
+    });
+    expect(
+      backupPolicyUpdateSchema.safeParse({ local: { include_lossless_audio: "yes" } }).success,
+    ).toBe(false);
+    expect(BACKUP_TARGETS).toEqual(["remote", "local"]);
+  });
+
+  it("carries an optional local target in the status response", () => {
+    const status = {
+      started_at: "a",
+      finished_at: "b",
+      stored_at: "c",
+      status: "failed",
+      reason: "mount-marker-missing",
+      backed_up_paths: [],
+      snapshot: null,
+      error: "no marker",
+    };
+    const health = { healthy: false, status: "unhealthy", reason: "backup-failed" };
+    expect(backupStatusGetResponseSchema.parse({ status: null }).local).toBeUndefined();
+    expect(
+      backupStatusGetResponseSchema.parse({ status: null, local: { status, health } }).local
+        ?.health,
+    ).toEqual(health);
+    expect(
+      backupStatusRunResponseSchema.parse({ status, local: { status } }).local?.status,
+    ).toEqual(status);
+    expect(
+      backupHealthResponseSchema.parse({
+        status: "unhealthy",
+        local: { healthy: false, status: "unhealthy" },
+      }).local?.healthy,
+    ).toBe(false);
   });
 
   it("preserves additional backup wire fields", () => {
