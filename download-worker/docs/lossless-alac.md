@@ -330,7 +330,7 @@ A track can have two files: `<track_id>.flac` (the lossless master) and
   analysis, fingerprint indexing, exports. FLAC is primary when it exists, so
   only one file per track is analysed or fingerprinted. Other formats are
   alternates in `track_audio_files` (codec, container, lossless, size per file,
-  so the backup of the AAC copy, #1311, can pick it by format). They are the
+  so backups can pick files by format, #1311). They are the
   fallback for a client that can't decode FLAC.
 - **Downloads.** A lossless download keeps an AAC already beside it and links it
   (`alternate_audio_url` on `PATCH /api/tracks`); it does not fetch a second AAC.
@@ -345,6 +345,25 @@ A track can have two files: `<track_id>.flac` (the lossless master) and
   the app, which has the audio volume. Idempotent.
 - **Deleting.** Nothing in the app deletes audio files. Deleting a track row
   removes its alternate links; the files are left for the orphan scan to list.
+
+## Backing up lossless files (#1311)
+
+FLACs are large and re-downloadable, so the remote backup **excludes them by
+default** and keeps the AAC. They are backed up to an optional **local disk**
+instead, a second restic repository with its own include policy, snapshots and
+retention. Which files are lossless comes from the per-file format in
+`track_audio_files` and the track's own record, so an ALAC `.m4a` counts as
+lossless; the extension is used only for files with no recorded format.
+
+- **Set up.** Mount a disk on the host, create `.groovenet-backup-disk` on it,
+  then set `LOCAL_BACKUP_PATH` and `LOCAL_BACKUP_RESTIC_PASSWORD` in `.env.host`.
+  Unset means no local target. Step by step: [Backups](../../docs/configuration/integrations.md#adding-a-local-backup-disk).
+- **Safe by construction.** Every run checks the marker and that the path is a
+  separate device, and writes nothing if either fails; the System page says why.
+- **Restore.** `restic restore latest --include '**/*.flac'` against the local
+  repository; see [Restoring FLACs](../../docs/configuration/integrations.md#restoring-flacs-from-the-local-repository).
+- **If the host and the disk both fail,** the FLACs are gone but can be
+  downloaded again; the AAC copies, database and covers are in the remote.
 
 ## Historical spike
 
