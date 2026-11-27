@@ -27,19 +27,39 @@ elif [[ -f "${PROJECT_DIR}/my-collection-search/.env.tpl" ]]; then
 else
   COMPOSE_TEMPLATE_FILE=""
 fi
+# Read one KEY= line from an env file (last wins). The files hold secrets, so
+# they are never sourced; only this line is parsed.
+env_file_value() {
+  local file="$1" key="$2"
+  grep -E "^[[:space:]]*(export[[:space:]]+)?${key}=" "$file" | tail -n 1 |
+    sed -E "s/^[[:space:]]*(export[[:space:]]+)?${key}=//; s/\r\$//; s/^[[:space:]]*[\"']//; s/[\"'][[:space:]]*\$//"
+}
+env_file_has() {
+  [[ -n "$1" && -f "$1" ]] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?$2=" "$1"
+}
+
+# Host-local deploy settings (COMPOSE_PROFILES, GAMDL_WRAPPER_IMAGE, ...). Never
+# rendered from 1Password and never overwritten by a deploy, so a host keeps its
+# own choices across releases.
+HOST_ENV_FILE="${PROJECT_DIR}/.env.host"
+
 # One effective profile list, exported so every compose call sees it. An
 # explicit `--profile` flag would REPLACE COMPOSE_PROFILES rather than add to
 # it, so server players are appended to the list instead of passed as a flag.
-# Precedence: shell value (even empty) > env file line > production default.
+# Precedence: shell value (even empty) > .env.host > .env/.env.tpl > default.
 profile_file="${COMPOSE_ENV_FILE:-$COMPOSE_TEMPLATE_FILE}"
 if [[ -n "${COMPOSE_PROFILES+x}" ]]; then
   PROFILES="${COMPOSE_PROFILES}"
-elif [[ -n "$profile_file" ]] && grep -Eq '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file"; then
-  # Read only this line; the file holds secrets, so it is never sourced.
-  PROFILES="$(grep -E '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=' "$profile_file" | tail -n 1 |
-    sed -E "s/^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES=//; s/\r\$//; s/^[[:space:]]*[\"']//; s/[\"'][[:space:]]*\$//")"
+  PROFILES_SOURCE="shell"
+elif env_file_has "$HOST_ENV_FILE" COMPOSE_PROFILES; then
+  PROFILES="$(env_file_value "$HOST_ENV_FILE" COMPOSE_PROFILES)"
+  PROFILES_SOURCE="${HOST_ENV_FILE}"
+elif env_file_has "$profile_file" COMPOSE_PROFILES; then
+  PROFILES="$(env_file_value "$profile_file" COMPOSE_PROFILES)"
+  PROFILES_SOURCE="${profile_file}"
 else
   PROFILES=all
+  PROFILES_SOURCE="default"
 fi
 if [[ -f "${PROJECT_DIR}/.env.players" ]]; then
   case ",${PROFILES// /}," in
@@ -58,6 +78,10 @@ elif [[ -n "${COMPOSE_TEMPLATE_FILE}" && -n "${OP_BIN}" ]]; then
   COMPOSE_CMD=(op run --env-file "${COMPOSE_TEMPLATE_FILE}" -- env "COMPOSE_PROFILES=${PROFILES}" docker compose)
 else
   COMPOSE_CMD=(docker compose)
+fi
+# .env.host comes after .env so a host-local value wins over the rendered one.
+if [[ -f "${HOST_ENV_FILE}" ]]; then
+  COMPOSE_CMD+=(--env-file "${HOST_ENV_FILE}")
 fi
 # Keep host-private player settings separate from the .env rendered on deploy.
 # File presence is the explicit opt-in; preserve players during --remove-orphans.
@@ -132,6 +156,26 @@ elif [[ -n "${COMPOSE_TEMPLATE_FILE}" && -n "${OP_BIN}" ]]; then
   echo "==> Using 1Password template ${COMPOSE_TEMPLATE_FILE}"
 else
   echo "WARNING: no .env or usable .env.tpl found"
+fi
+
+echo "==> Compose profiles: ${PROFILES:-<none>} (from ${PROFILES_SOURCE})"
+
+# The lossless wrapper is built locally and never pulled; a missing image would
+# otherwise fail only after the pull has already replaced running services.
+if [[ ",${PROFILES// /}," == *,lossless,* ]]; then
+  WRAPPER_IMAGE="${GAMDL_WRAPPER_IMAGE:-}"
+  if [[ -z "${WRAPPER_IMAGE}" ]] && env_file_has "$HOST_ENV_FILE" GAMDL_WRAPPER_IMAGE; then
+    WRAPPER_IMAGE="$(env_file_value "$HOST_ENV_FILE" GAMDL_WRAPPER_IMAGE)"
+  fi
+  if [[ -z "${WRAPPER_IMAGE}" ]] && env_file_has "$profile_file" GAMDL_WRAPPER_IMAGE; then
+    WRAPPER_IMAGE="$(env_file_value "$profile_file" GAMDL_WRAPPER_IMAGE)"
+  fi
+  WRAPPER_IMAGE="${WRAPPER_IMAGE:-wrapper-v2:1.0.0-local-amd64}"
+  if ! docker image inspect "${WRAPPER_IMAGE}" >/dev/null 2>&1; then
+    echo "ERROR: the lossless profile is enabled but wrapper image ${WRAPPER_IMAGE} is not on this host."
+    echo "Build it first (see download-worker/docs/lossless-alac.md) or remove lossless from COMPOSE_PROFILES."
+    exit 1
+  fi
 fi
 
 echo "==> Checking disk space"
