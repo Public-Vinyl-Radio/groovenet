@@ -83,7 +83,13 @@ export default function IntegrationsSettingsSection(): React.JSX.Element {
           {needsCutoverLink(guidance) ? (
             <>
               {" "}
-              <Link href={EMBEDDING_CUTOVER_URL} target="_blank" rel="noreferrer">
+              <Link
+                href={EMBEDDING_CUTOVER_URL}
+                target="_blank"
+                rel="noreferrer"
+                color="fg"
+                textDecoration="underline"
+              >
                 Switching a kind’s model
               </Link>
             </>

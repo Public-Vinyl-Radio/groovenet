@@ -69,7 +69,7 @@ export default function ApiKeyNotice({ keys }: { keys: readonly IntegrationKeyId
         <Text flex="1" fontSize="sm" lineHeight="20px">
           No {names} API key is configured.{" "}
           {relevant.map((id) => INTEGRATION_KEYS[id].unlocks).join(" ")}{" "}
-          <Link asChild fontWeight="semibold">
+          <Link asChild fontWeight="semibold" textDecoration="underline">
             <NextLink href={settingsHref("integrations")}>See how to add it</NextLink>
           </Link>
         </Text>
