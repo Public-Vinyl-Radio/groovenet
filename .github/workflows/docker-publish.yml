@@ -83,6 +83,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -213,6 +214,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.essentia == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -272,6 +274,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.ga_service == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -331,6 +334,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.download_worker == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -417,6 +421,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.fingerprint_service == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -479,6 +484,7 @@ jobs:
       (github.event_name == 'pull_request' || needs.test.result == 'success') &&
       github.ref_type != 'tag' && (needs.changes.outputs.force_all == 'true' || needs.changes.outputs.webapp == 'true')
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -540,6 +546,8 @@ jobs:
     needs: changes
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    # Waits up to 30 min for the candidate images, then retags them.
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
