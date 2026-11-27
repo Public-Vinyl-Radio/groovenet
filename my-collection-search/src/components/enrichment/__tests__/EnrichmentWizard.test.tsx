@@ -13,6 +13,9 @@ vi.mock("@/services/internalApi/settings", () => ({
 vi.mock("@/hooks/useTrack", () => ({ useTrack: () => undefined }));
 vi.mock("@/lib/analytics/client", () => ({ analytics: { track: vi.fn() } }));
 vi.mock("../EnrichmentTrackStep", () => ({ default: () => null }));
+vi.mock("@/components/settings/ApiKeyNotice", () => ({
+  default: ({ keys }: { keys: string[] }) => <div data-testid="api-key-notice">{keys.join()}</div>,
+}));
 
 import EnrichmentWizard from "../EnrichmentWizard";
 
@@ -30,6 +33,11 @@ describe("EnrichmentWizard header", () => {
     renderWithProviders(<EnrichmentWizard />);
     expect(screen.getByRole("heading", { level: 1, name: "Enrich" })).toBeTruthy();
     expect(screen.getByTestId("page-header-meta").textContent).toBe("2 tracks");
+  });
+
+  it("points at the YouTube key guidance on the setup step (#1279)", () => {
+    renderWithProviders(<EnrichmentWizard />);
+    expect(screen.getByTestId("api-key-notice").textContent).toBe("youtube");
   });
 
   it("singularises a one-track queue", () => {

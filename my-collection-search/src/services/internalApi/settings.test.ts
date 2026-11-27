@@ -6,6 +6,7 @@ vi.mock("@/services/http", () => ({ http: httpMock }));
 
 import {
   fetchAppearanceSettings,
+  fetchIntegrationStatus,
   fetchRecommendationSettings,
   updateAppearanceSettings,
   updateRecommendationSettings,
@@ -64,6 +65,21 @@ describe("appearance settings", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ palette: "sleeve" }),
+    });
+  });
+});
+
+describe("integration status", () => {
+  it("reads which optional keys are configured, uncached", async () => {
+    const status = {
+      keys: { openai: { configured: false }, youtube: { configured: true } },
+      embedding_models: [],
+    };
+    httpMock.mockResolvedValue(status);
+    await expect(fetchIntegrationStatus()).resolves.toEqual(status);
+    expect(httpMock).toHaveBeenCalledWith("/api/settings/integrations", {
+      method: "GET",
+      cache: "no-store",
     });
   });
 });

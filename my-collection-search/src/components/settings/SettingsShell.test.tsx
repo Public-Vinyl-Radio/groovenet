@@ -62,7 +62,7 @@ describe("SettingsShell on desktop", () => {
     ).toEqual([
       ["You", ["Appearance", "Profiles", "API tokens"]],
       ["Library", ["Libraries", "Ranking"]],
-      ["Services", ["Apple Music", "AI metadata"]],
+      ["Services", ["Apple Music", "AI metadata", "Integrations"]],
       ["About", ["About GrooveNet"]],
     ]);
   });
