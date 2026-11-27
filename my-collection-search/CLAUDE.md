@@ -1319,7 +1319,6 @@ Tables
     - duration_seconds integer
     - notes text default ''
     - local_audio_url text
-    - star_rating integer default 0
     - embedding vector(1536) (pgvector; optional)
   - Indexes/constraints:
     - tracks_compound_pk on (track_id, username)
@@ -1481,7 +1480,7 @@ A route that returns tracks passes them through `withViewerRatings` /
 `withRequestRatings` (`trackRatingService.ts`), which set `star_rating` to the
 viewer's rating (`resolveRatingViewer`: current profile, else the owner) and add
 `other_ratings`. Filters and ranking read `viewerRatingSql` or the retriever's
-`ratingViewerId`. Never read or write the deprecated `tracks.star_rating`. Playlists have an
+`ratingViewerId`. The old `tracks.star_rating` column is gone (#1302). Playlists have an
 owner and a `visibility` (#1284): every query that lists playlists or takes a
 playlist id filters with `playlistVisibleSql` (`playlistRepository.ts`) for the
 viewer from `resolveViewer` (`src/server/auth/viewer.ts`), so someone else's

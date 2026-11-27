@@ -66,9 +66,9 @@ Upgrading moves every existing rating to the owner, including ratings on
 friends' collections, so the owner sees exactly what they saw before and other
 profiles start with none. If the app has not created the owner yet, the
 migration creates it as `Owner`, and the app renames it from
-`DISCOGS_USERNAME` on its first request. `tracks.star_rating` is deprecated and
-no longer written; it stays for one release so an older image still starts,
-and rolling the migration back copies the owner's current ratings into it.
+`DISCOGS_USERNAME` on its first request. The old `tracks.star_rating` column
+was dropped afterwards (#1302); rolling that migration back re-adds it and copies
+the owner's current ratings into it.
 
 ## Playlist owners
 

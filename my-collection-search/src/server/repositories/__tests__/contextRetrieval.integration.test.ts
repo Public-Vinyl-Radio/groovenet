@@ -118,17 +118,13 @@ beforeAll(async () => {
     `UPDATE tracks SET key = 'A minor' WHERE track_id = 'cumbia-1' AND friend_id = $1`,
     [friendId],
   );
-  // Ratings are the viewer's (#1283); the deprecated column is never read.
+  // Ratings are the viewer's (#1283).
   viewerId = (
     await dbQuery<{ id: string }>(`INSERT INTO users (name) VALUES ($1) RETURNING id`, [VIEWER])
   ).rows[0].id;
   await dbQuery(
     `INSERT INTO track_ratings (user_id, track_id, friend_id, rating) VALUES ($1, 'rock-1', $2, 4)`,
     [viewerId, friendId],
-  );
-  await dbQuery(
-    `UPDATE tracks SET star_rating = 5 WHERE track_id = 'cumbia-1' AND friend_id = $1`,
-    [friendId],
   );
   // Only cumbia-2 has audio, for the missing-audio chip.
   await dbQuery(

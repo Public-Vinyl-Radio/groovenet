@@ -172,6 +172,45 @@ describe("track_ratings migration (integration)", () => {
     },
     120_000,
   );
+
+  dbTest(
+    "drops tracks.star_rating, and its rollback restores the owner's ratings",
+    async () => {
+      const hasColumn = async () =>
+        (
+          await dbQuery(
+            `SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'tracks' AND column_name = 'star_rating'`,
+          )
+        ).rows.length > 0;
+      const ownerId = (await dbQuery<{ id: string }>("SELECT id FROM users WHERE is_owner")).rows[0]
+        .id;
+
+      migrate("up");
+      expect(await hasColumn()).toBe(false);
+      await repo.set(ownerId, { track_id: "r1283-n", friend_id: friendIds[MINE] }, 4);
+      await repo.set(ownerId, { track_id: "r1283-f", friend_id: friendIds[FRIEND] }, 0);
+      const current = await ownerView();
+
+      migrate("down", "1");
+      expect(await hasColumn()).toBe(true);
+      expect(await before()).toEqual(current);
+      const { rows } = await dbQuery<{ column_default: string }>(
+        `SELECT column_default FROM information_schema.columns
+         WHERE table_name = 'tracks' AND column_name = 'star_rating'`,
+      );
+      expect(rows[0].column_default).toBe("0");
+
+      migrate("up");
+      expect(await hasColumn()).toBe(false);
+      expect(await ownerView()).toEqual(current);
+
+      // Put the two ratings this test changed back for the suites below.
+      await repo.set(ownerId, { track_id: "r1283-n", friend_id: friendIds[MINE] }, 0);
+      await repo.set(ownerId, { track_id: "r1283-f", friend_id: friendIds[FRIEND] }, 2);
+    },
+    120_000,
+  );
 });
 
 describe("track ratings repository (integration)", () => {
