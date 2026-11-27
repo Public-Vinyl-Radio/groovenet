@@ -76,11 +76,11 @@ beforeAll(async () => {
   await dbQuery(
     `INSERT INTO tracks (track_id, username, friend_id, title, artist, album, year, styles, genres,
        duration, position, duration_seconds, bpm, key, danceability, mood_happy, mood_sad, mood_relaxed,
-       mood_aggressive, key_confidence, bpm_confidence, star_rating, notes, local_tags, composer,
+       mood_aggressive, key_confidence, bpm_confidence, notes, local_tags, composer,
        local_audio_url, audio_file_album_art_url, release_id, library_identifier, date_added,
        discogs_url, apple_music_url, youtube_url, spotify_url, soundcloud_url, album_thumbnail)
      VALUES ('ent-full', $1, $2, 'Entity Full', 'Entity Artist', 'Entity Full', '1999', '{House}',
-       '{Electronic}', '5:30', 'A1', 330, 124.5, 'A minor', 0.8, 0.1, 0.2, 0.3, 0.4, 0.7, 0.6, 4,
+       '{Electronic}', '5:30', 'A1', 330, 124.5, 'A minor', 0.8, 0.1, 0.2, 0.3, 0.4, 0.7, 0.6,
        'n', 'tag', 'Composer', '/audio/f.m4a', '/covers/f.jpg', $3, 'TRK-1', '2024-03-04 05:06:07',
        'https://discogs/t', 'https://am/t', 'https://yt/t', 'https://sp/t', 'https://sc/t', 'https://img/t.jpg')`,
     [USERNAME, friendId, RELEASE_FULL],

@@ -53,11 +53,10 @@ beforeAll(async () => {
     await dbQuery<{ id: string }>(`INSERT INTO users (name) VALUES ($1) RETURNING id`, [OTHER])
   ).rows[0];
   for (const t of TRACKS) {
-    // The deprecated column holds a decoy: the filter must not read it.
     await dbQuery(
-      `INSERT INTO tracks (track_id, username, friend_id, title, artist, bpm, key, star_rating)
-       VALUES ($1, $2, $3, 'Deep Groove', 'Filter Artist', $4, $5, $6)`,
-      [t.id, USERNAME, friendId, t.bpm, t.key, 5 - t.rating],
+      `INSERT INTO tracks (track_id, username, friend_id, title, artist, bpm, key)
+       VALUES ($1, $2, $3, 'Deep Groove', 'Filter Artist', $4, $5)`,
+      [t.id, USERNAME, friendId, t.bpm, t.key],
     );
     if (t.rating > 0) {
       await dbQuery(
