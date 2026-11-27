@@ -30,7 +30,7 @@ vi.mock("@/server/services/backupTargets", async (importOriginal) => ({
   checkLocalBackupMount: mockMount,
 }));
 
-import { runAllBackups, runBackupNow } from "../backupRunnerService";
+import { runAllBackups, runBackupNow, startBackupScheduler } from "../backupRunnerService";
 
 let tmpDir: string;
 
@@ -352,5 +352,175 @@ describe("runAllBackups()", () => {
     mockGetPolicy.mockReturnValue({ ...policy, enabled: false });
     const results = await runAllBackups("scheduled");
     expect(results.remote?.reason).toBe("policy-disabled");
+  });
+});
+
+describe("runBackupNow() concurrency", () => {
+  it("skips while another run is in this process", async () => {
+    const g = globalThis as Record<string, unknown>;
+    g.__groovenetBackupRunning = true;
+    try {
+      expect(await runBackupNow("manual")).toMatchObject({
+        status: "skipped",
+        reason: "backup-already-running",
+      });
+    } finally {
+      g.__groovenetBackupRunning = false;
+    }
+  });
+
+  it("skips while another process holds the run lock", async () => {
+    const status = path.join(tmpDir, "status");
+    fs.mkdirSync(status, { recursive: true });
+    fs.writeFileSync(path.join(status, ".backup-run.lock"), "{}");
+    expect(await runBackupNow("manual")).toMatchObject({
+      status: "skipped",
+      reason: "backup-already-running",
+    });
+    expect(mockExecFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("startBackupScheduler()", () => {
+  const g = globalThis as Record<string, unknown>;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-27T03:00:30Z"));
+    delete g.__groovenetBackupSchedulerStarted;
+    delete g.__groovenetBackupSchedulerLastMinute;
+    vi.stubEnv("LOCAL_BACKUP_DIR", "");
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    delete g.__groovenetBackupSchedulerStarted;
+    delete g.__groovenetBackupSchedulerLastMinute;
+  });
+
+  it("runs each target on its cron minute, logs the outcome, and starts only once", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    startBackupScheduler();
+    startBackupScheduler();
+    await vi.waitFor(() =>
+      expect(log).toHaveBeenCalledWith(
+        "[backup-scheduler] remote backup succeeded at",
+        expect.any(String),
+      ),
+    );
+    expect(log).toHaveBeenCalledWith("[backup-scheduler] started");
+    expect(log.mock.calls.filter(([m]) => m === "[backup-scheduler] started")).toHaveLength(1);
+  });
+
+  it("logs a failed target", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.stubEnv("RESTIC_PASSWORD", "");
+    startBackupScheduler();
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "[backup-scheduler] remote backup failed:",
+        expect.stringContaining("RESTIC_PASSWORD"),
+      ),
+    );
+  });
+
+  it("does nothing off the cron minute, while disabled, or twice in one minute", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    mockGetPolicy.mockReturnValue({ ...policy, schedule_cron: "5 3 * * *" });
+    startBackupScheduler();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockExecFile).not.toHaveBeenCalled();
+
+    mockGetPolicy.mockReturnValue({ ...policy, enabled: false, schedule_cron: "* * * * *" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(mockExecFile).not.toHaveBeenCalled();
+  });
+
+  it("runs the local disk first when one is configured", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.stubEnv("LOCAL_BACKUP_DIR", path.join(tmpDir, "disk"));
+    vi.stubEnv("LOCAL_BACKUP_RESTIC_PASSWORD", "pw");
+    mockGetPolicy.mockReturnValue({ ...policy, schedule_cron: "* * * * *" });
+    startBackupScheduler();
+    await vi.waitFor(() => expect(mockWriteStatus).toHaveBeenCalledTimes(2));
+    expect(mockWriteStatus.mock.calls.map(([, target]) => target)).toEqual(["local", "remote"]);
+  });
+});
+
+describe("remote-only extras and the recorded snapshot", () => {
+  it("includes covers and the remote extras for the remote only", async () => {
+    for (const dir of [
+      "public/uploads/album-covers",
+      "discogs_exports",
+      "essentia-data",
+      "uploads",
+    ]) {
+      fs.mkdirSync(path.join(tmpDir, dir), { recursive: true });
+    }
+    const all = {
+      include_discogs_exports: true,
+      include_essentia_files: true,
+      include_uploads: true,
+    };
+    vi.stubEnv("LOCAL_BACKUP_DIR", path.join(tmpDir, "disk"));
+    vi.stubEnv("LOCAL_BACKUP_RESTIC_PASSWORD", "pw");
+    mockGetPolicy.mockReturnValue({
+      ...policy,
+      ...all,
+      remote: target({ include_database: false, include_album_covers: true }),
+      local: target({ include_database: false, include_album_covers: true }),
+    });
+
+    await runBackupNow("manual", "remote");
+    const remotePaths: string[] = backupCall()?.[1] ?? [];
+    for (const dir of [
+      "public/uploads/album-covers",
+      "discogs_exports",
+      "essentia-data",
+      "uploads",
+    ]) {
+      expect(remotePaths).toContain(path.join(tmpDir, dir));
+    }
+
+    mockExecFile.mockClear();
+    await runBackupNow("manual", "local");
+    const localPaths: string[] = backupCall()?.[1] ?? [];
+    expect(localPaths).toContain(path.join(tmpDir, "public/uploads/album-covers"));
+    expect(localPaths).not.toContain(path.join(tmpDir, "uploads"));
+    expect(localPaths).not.toContain(path.join(tmpDir, "discogs_exports"));
+  });
+
+  it("records the newest snapshot and survives a failing status write", async () => {
+    mockExecFile.mockImplementation(
+      (_c: string, args: string[], _o: unknown, cb: (e: Error | null, r?: unknown) => void) =>
+        cb(null, {
+          stdout:
+            args[0] === "snapshots"
+              ? JSON.stringify([
+                  { id: "old", time: "2026-01-01T00:00:00Z" },
+                  {
+                    id: "new",
+                    short_id: "nw",
+                    time: "2026-02-01T00:00:00Z",
+                    paths: ["/a"],
+                    tags: ["t"],
+                  },
+                  { id: 5 },
+                ])
+              : "[]",
+          stderr: "",
+        }),
+    );
+    mockWriteStatus.mockImplementation(() => {
+      throw new Error("disk full");
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await runBackupNow("manual");
+
+    expect(result.snapshot).toMatchObject({ id: "new", short_id: "nw", tags: ["t"] });
+    expect(error).toHaveBeenCalledWith(
+      "[backup-status] failed to persist backup status:",
+      expect.any(Error),
+    );
   });
 });

@@ -153,7 +153,7 @@ function TargetRow({
         <Text fontFamily="mono" fontSize="xs" color="fg.muted" mt={3}>
           {metrics.error
             ? `REPOSITORY UNAVAILABLE · ${metrics.error}`
-            : `${metrics.snapshot_count ?? 0} SNAPSHOTS · ${formatBytes(metrics.remote_repository_bytes)} ON DISK`}
+            : `${metrics.snapshot_count ?? 0} SNAPSHOT${metrics.snapshot_count === 1 ? "" : "S"} · ${formatBytes(metrics.remote_repository_bytes)} ON DISK`}
         </Text>
       )}
     </SystemRow>

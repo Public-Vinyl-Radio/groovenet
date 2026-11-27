@@ -7,9 +7,9 @@ services:
   app:
     environment:
       # The app treats a set LOCAL_BACKUP_DIR as "a local target exists".
-      LOCAL_BACKUP_DIR: /app/local-backup
+      LOCAL_BACKUP_DIR: /mnt/local-backup
       LOCAL_BACKUP_RESTIC_PASSWORD: ${LOCAL_BACKUP_RESTIC_PASSWORD:-}
     volumes:
       # Host path of the mounted disk. `:?` fails the deploy loudly rather than
       # mounting an empty string if this file is used without the variable.
-      - ${LOCAL_BACKUP_PATH:?set LOCAL_BACKUP_PATH to the mounted backup disk}:/app/local-backup
+      - ${LOCAL_BACKUP_PATH:?set LOCAL_BACKUP_PATH to the mounted backup disk}:/mnt/local-backup
