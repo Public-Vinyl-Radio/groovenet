@@ -13,6 +13,7 @@ import { useTrack } from "@/hooks/useTrack";
 import { saveTrack, analyzeTrackAsync } from "@/services/internalApi/tracks";
 import { fetchAiPromptSettings } from "@/services/internalApi/settings";
 import type { TrackEditFormProps } from "@/components/track-edit/types";
+import ApiKeyNotice from "@/components/settings/ApiKeyNotice";
 import EnrichmentTrackStep from "./EnrichmentTrackStep";
 import { analytics } from "@/lib/analytics/client";
 import { useEnrichSessionEnd, type Phase } from "./useEnrichSessionEnd";
@@ -162,6 +163,7 @@ export default function EnrichmentWizard() {
             p={5}
             borderRadius="md"
           >
+            <ApiKeyNotice keys={["youtube"]} />
             <SectionHeading mb={4}>Data sources</SectionHeading>
             <Flex direction="column" gap={4}>
               <Flex justify="space-between" align="center">

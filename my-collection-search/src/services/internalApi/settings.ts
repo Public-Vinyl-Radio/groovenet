@@ -19,6 +19,7 @@ import {
   recommendationSettingsPutBodySchema,
   recommendationSettingsResponseSchema,
 } from "@/api-contract/schemas";
+import type { IntegrationStatus } from "@/lib/integrationKeys";
 import { http } from "@/services/http";
 import type {
   BackupPolicyGetResponse,
@@ -202,5 +203,13 @@ export async function updateAppearanceSettings(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+/** Which optional keys are configured (owner only). Presence, never values (#1279). */
+export async function fetchIntegrationStatus(): Promise<IntegrationStatus> {
+  return await http<IntegrationStatus>("/api/settings/integrations", {
+    method: "GET",
+    cache: "no-store",
   });
 }
