@@ -15,6 +15,7 @@ import {
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusTag } from "@/components/ui/RoleTags";
 import DatabaseBackups from "@/components/settings/DatabaseBackups";
+import { formatBytes } from "@/components/settings/BackupStatusSection";
 import {
   fetchBackupPolicy,
   updateBackupPolicy,
@@ -22,23 +23,150 @@ import {
   runBackupNow,
   type BackupPolicy,
   type BackupStatus,
+  type BackupStatusResponse,
 } from "@/services/internalApi/settings";
 import { BACKUP_RETENTION_PRESETS } from "@/types/backup";
 import SystemRow from "./SystemRow";
 import { nextScheduledRun, schedulePreset, SCHEDULE_PRESETS } from "./backupSchedule";
 
-const INCLUDES = [
+// What each target can include. The remote also carries the extras below.
+const TARGET_INCLUDES = [
   ["include_database", "Database dumps"],
-  ["include_audio_files", "Audio files"],
   ["include_album_covers", "Album covers"],
+  ["include_aac_audio", "AAC audio"],
+  ["include_lossless_audio", "Lossless audio (FLAC)"],
+] as const;
+const REMOTE_EXTRAS = [
   ["include_discogs_exports", "Discogs JSON exports"],
   ["include_essentia_files", "Essentia analysis files"],
   ["include_uploads", "Uploads directory"],
 ] as const;
+type TargetName = "remote" | "local";
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+function ageText(hours: number | undefined): string {
+  if (hours === undefined) return "";
+  return hours < 1 ? "under 1h ago" : `${Math.round(hours)}h ago`;
+}
+
+type TargetRowProps = {
+  name: TargetName;
+  policy: BackupPolicy;
+  saving: boolean;
+  status: BackupStatus | null;
+  health: BackupStatusResponse["health"];
+  metrics: NonNullable<BackupStatusResponse["local"]>["metrics"];
+  maxAge: number | undefined;
+  onChange: (next: BackupPolicy) => void;
+};
+
+// One backup target: its own include choices, and whether its last run is recent
+// enough, against BACKUP_HEALTH_MAX_AGE_HOURS.
+function TargetRow({
+  name,
+  policy,
+  saving,
+  status,
+  health,
+  metrics,
+  maxAge,
+  onChange,
+}: TargetRowProps) {
+  const label = name === "remote" ? "Remote" : "Local disk";
+  const target = policy[name];
+  const unhealthy = health && !health.healthy;
+  const set = (patch: Partial<typeof target>) =>
+    onChange({ ...policy, [name]: { ...target, ...patch } });
+  return (
+    <SystemRow
+      label={label}
+      help={
+        name === "remote"
+          ? "What the remote snapshot contains."
+          : "A second restic repository on the attached disk. Lossless audio belongs here."
+      }
+    >
+      <Flex align="center" gap={3} flexWrap="wrap" mb={3} data-testid={`backup-target-${name}`}>
+        <Switch.Root
+          checked={target.enabled}
+          disabled={saving}
+          onCheckedChange={(d) => set({ enabled: d.checked })}
+          aria-label={`${label} backups`}
+        >
+          <Switch.HiddenInput checked={target.enabled} readOnly />
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch.Root>
+        <StatusTag tone={unhealthy ? "missing" : "neutral"}>
+          {!target.enabled
+            ? "OFF"
+            : unhealthy
+              ? `UNHEALTHY · ${health?.reason === "backup-overdue" ? "OVERDUE" : health?.reason === "backup-failed" ? "LAST RUN FAILED" : "NO RUN YET"}`
+              : health?.status === "ok"
+                ? `HEALTHY · ${ageText(health.age_hours)}`
+                : "Never run"}
+        </StatusTag>
+        {status && (
+          <Text fontFamily="mono" fontSize="xs" color="fg.muted">
+            LAST RUN {new Date(status.finished_at).toLocaleString()} · {status.status.toUpperCase()}
+            {maxAge !== undefined ? ` · ALERTS AFTER ${maxAge}H` : ""}
+          </Text>
+        )}
+      </Flex>
+      {status?.status === "failed" && status.error && (
+        <Text role="alert" color="fg.error" mb={3}>
+          {status.error}
+        </Text>
+      )}
+      <Grid
+        templateColumns={{ base: "1fr", md: "1fr 1fr" }}
+        gap={{ base: 5, md: 2 }}
+        py={{ base: 2, md: 0 }}
+      >
+        {TARGET_INCLUDES.map(([key, text]) => (
+          <Checkbox.Root
+            key={key}
+            checked={target[key]}
+            disabled={saving}
+            onCheckedChange={(d) => set({ [key]: Boolean(d.checked) })}
+          >
+            <Checkbox.HiddenInput checked={target[key]} readOnly />
+            <Checkbox.Control />
+            <Checkbox.Label>{text}</Checkbox.Label>
+          </Checkbox.Root>
+        ))}
+        {name === "remote" &&
+          REMOTE_EXTRAS.map(([key, text]) => (
+            <Checkbox.Root
+              key={key}
+              checked={policy[key]}
+              disabled={saving}
+              onCheckedChange={(d) => onChange({ ...policy, [key]: Boolean(d.checked) })}
+            >
+              <Checkbox.HiddenInput checked={policy[key]} readOnly />
+              <Checkbox.Control />
+              <Checkbox.Label>{text}</Checkbox.Label>
+            </Checkbox.Root>
+          ))}
+      </Grid>
+      {metrics && (
+        <Text fontFamily="mono" fontSize="xs" color="fg.muted" mt={3}>
+          {metrics.error
+            ? `REPOSITORY UNAVAILABLE · ${metrics.error}`
+            : `${metrics.snapshot_count ?? 0} SNAPSHOTS · ${formatBytes(metrics.remote_repository_bytes)} ON DISK`}
+        </Text>
+      )}
+    </SystemRow>
+  );
+}
+
 export default function SystemBackups() {
   const [policy, setPolicy] = React.useState<BackupPolicy | null>(null);
   const [status, setStatus] = React.useState<BackupStatus | null>(null);
+  // The local disk's block, present only when the host mounted one.
+  const [local, setLocal] = React.useState<BackupStatusResponse["local"]>(undefined);
+  const [health, setHealth] = React.useState<BackupStatusResponse["health"]>(undefined);
+  const [maxAge, setMaxAge] = React.useState<number | undefined>(undefined);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [running, setRunning] = React.useState(false);
@@ -65,7 +193,11 @@ export default function SystemBackups() {
       });
     void fetchBackupStatus()
       .then((data) => {
-        if (active) setStatus(data.status);
+        if (!active) return;
+        setStatus(data.status);
+        setLocal(data.local);
+        setHealth(data.health);
+        setMaxAge(data.max_age_hours);
       })
       .catch((e) => {
         if (active) setStatusError(message(e));
@@ -102,6 +234,10 @@ export default function SystemBackups() {
     try {
       const data = await runBackupNow();
       setStatus(data.status);
+      // Health is judged server-side; reload it so the tags match the new run.
+      const fresh = await fetchBackupStatus();
+      setHealth(fresh.health);
+      setLocal(fresh.local);
     } catch (e) {
       setStatusError(message(e));
     } finally {
@@ -143,15 +279,19 @@ export default function SystemBackups() {
         ) : policy ? (
           <>
             <SystemRow
-              label="Remote backups"
-              help="Restic snapshots to B2. The password and keys stay on the server."
+              label={local ? "Scheduled backups" : "Remote backups"}
+              help={
+                local
+                  ? "Snapshots the remote and the local disk on the schedule below."
+                  : "Restic snapshots to your remote. The password and keys stay on the server."
+              }
             >
               <Flex align="center" gap={3} flexWrap="wrap">
                 <Switch.Root
                   checked={policy.enabled}
                   disabled={saving}
                   onCheckedChange={(d) => void save({ ...policy, enabled: d.checked })}
-                  aria-label="Remote backups"
+                  aria-label={local ? "Scheduled backups" : "Remote backups"}
                   position={{ base: "absolute", md: "static" }}
                   top={4}
                   right={4}
@@ -268,26 +408,19 @@ export default function SystemBackups() {
                 ))}
               </Flex>
             </SystemRow>
-            <SystemRow label="Include" help="What each snapshot contains.">
-              <Grid
-                templateColumns={{ base: "1fr", md: "1fr 1fr" }}
-                gap={{ base: 5, md: 2 }}
-                py={{ base: 2, md: 0 }}
-              >
-                {INCLUDES.map(([key, label]) => (
-                  <Checkbox.Root
-                    key={key}
-                    checked={policy[key]}
-                    disabled={saving}
-                    onCheckedChange={(d) => void save({ ...policy, [key]: Boolean(d.checked) })}
-                  >
-                    <Checkbox.HiddenInput checked={policy[key]} readOnly />
-                    <Checkbox.Control />
-                    <Checkbox.Label>{label}</Checkbox.Label>
-                  </Checkbox.Root>
-                ))}
-              </Grid>
-            </SystemRow>
+            {(["remote", ...(local ? ["local"] : [])] as TargetName[]).map((name) => (
+              <TargetRow
+                key={name}
+                name={name}
+                policy={policy}
+                saving={saving}
+                status={name === "remote" ? status : (local?.status ?? null)}
+                health={name === "remote" ? health : local?.health}
+                metrics={name === "remote" ? undefined : local?.metrics}
+                maxAge={maxAge}
+                onChange={(next) => void save(next)}
+              />
+            ))}
           </>
         ) : null}
         <SystemRow

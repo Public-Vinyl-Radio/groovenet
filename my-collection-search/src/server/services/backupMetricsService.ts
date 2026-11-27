@@ -3,11 +3,17 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { backupPolicyService } from "@/server/services/backupPolicyService";
-import type { BackupMetrics, BackupSnapshotSummary } from "@/types/backup";
+import {
+  checkLocalBackupMount,
+  localBackupDir,
+  planAudio,
+  resticEnv,
+} from "@/server/services/backupTargets";
+import type { BackupMetrics, BackupSnapshotSummary, BackupTarget } from "@/types/backup";
 
 const execFileAsync = promisify(execFile);
 const METRICS_CACHE_MS = 60_000;
-let cached: { value: BackupMetrics; expiresAt: number } | null = null;
+const cached: Partial<Record<BackupTarget, { value: BackupMetrics; expiresAt: number }>> = {};
 
 function directorySize(directory: string): number {
   let total = 0;
@@ -24,28 +30,41 @@ function directorySize(directory: string): number {
   return total;
 }
 
-function selectedPaths(): string[] {
+async function selectedBytes(target: BackupTarget): Promise<number> {
   const policy = backupPolicyService.getPolicy();
+  const choices = policy[target];
+  const resolve = (relativePath: string) =>
+    // These paths are runtime backup volumes, not server bundle dependencies.
+    path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath);
   const candidates: Array<[boolean, string]> = [
-    [policy.include_database, "dumps"],
-    [policy.include_audio_files, "audio"],
-    [policy.include_album_covers, "public/uploads/album-covers"],
-    [policy.include_discogs_exports, "discogs_exports"],
-    [policy.include_essentia_files, "essentia-data"],
-    [policy.include_uploads, "uploads"],
+    [choices.include_database, "dumps"],
+    [choices.include_album_covers, "public/uploads/album-covers"],
   ];
-  return (
-    candidates
-      // These paths are runtime backup volumes, not server bundle dependencies.
-      .filter(
-        ([enabled, relativePath]) =>
-          enabled &&
-          fs.existsSync(path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath)),
-      )
-      .map(([, relativePath]) =>
-        path.resolve(/* turbopackIgnore: true */ process.cwd(), relativePath),
-      )
-  );
+  if (target === "remote") {
+    candidates.push(
+      [policy.include_discogs_exports, "discogs_exports"],
+      [policy.include_essentia_files, "essentia-data"],
+      [policy.include_uploads, "uploads"],
+    );
+  }
+  let total = candidates
+    .filter(([enabled, relativePath]) => enabled && fs.existsSync(resolve(relativePath)))
+    .reduce((sum, [, relativePath]) => sum + directorySize(resolve(relativePath)), 0);
+
+  // Audio is counted by the same split the backup uses, so a remote that skips FLACs
+  // does not report their size as data it holds.
+  const audio = await planAudio(resolve("audio"), choices);
+  if (audio.path) {
+    total += directorySize(audio.path);
+    for (const file of audio.excluded) {
+      try {
+        total -= fs.statSync(file).size;
+      } catch {
+        // The file went away since the listing.
+      }
+    }
+  }
+  return total;
 }
 
 export function parseSnapshots(raw: string): BackupSnapshotSummary[] {
@@ -74,24 +93,34 @@ export function parseSnapshots(raw: string): BackupSnapshotSummary[] {
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 }
 
-export async function getBackupMetrics(): Promise<BackupMetrics> {
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
+export async function getBackupMetrics(target: BackupTarget = "remote"): Promise<BackupMetrics> {
+  const hit = cached[target];
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
 
-  const localSourceBytes = selectedPaths().reduce(
-    (total, sourcePath) => total + directorySize(sourcePath),
-    0,
-  );
   const capturedAt = new Date().toISOString();
+  const localSourceBytes = await selectedBytes(target);
+  const unavailable = (error: string): BackupMetrics => ({
+    captured_at: capturedAt,
+    local_source_bytes: localSourceBytes,
+    snapshot_count: null,
+    remote_repository_bytes: null,
+    recent_snapshots: [],
+    error,
+  });
+
+  if (target === "local") {
+    // Even a read must not poke at an unmounted path, so check first.
+    const dir = localBackupDir();
+    if (!dir) return unavailable("Local backup is not configured.");
+    const mount = checkLocalBackupMount(dir);
+    if (!mount.ok) return unavailable(mount.message);
+  }
+
+  const env = resticEnv(target);
   try {
     const [snapshotsResult, statsResult] = await Promise.all([
-      execFileAsync("restic", ["snapshots", "--json"], {
-        env: process.env,
-        maxBuffer: 1024 * 1024 * 10,
-      }),
-      execFileAsync("restic", ["stats", "--json"], {
-        env: process.env,
-        maxBuffer: 1024 * 1024 * 10,
-      }),
+      execFileAsync("restic", ["snapshots", "--json"], { env, maxBuffer: 1024 * 1024 * 10 }),
+      execFileAsync("restic", ["stats", "--json"], { env, maxBuffer: 1024 * 1024 * 10 }),
     ]);
     const snapshots = parseSnapshots(String(snapshotsResult.stdout));
     const stats = JSON.parse(String(statsResult.stdout)) as { total_size?: unknown };
@@ -99,19 +128,14 @@ export async function getBackupMetrics(): Promise<BackupMetrics> {
       captured_at: capturedAt,
       local_source_bytes: localSourceBytes,
       snapshot_count: snapshots.length,
+      // For the local target this is the repository on the disk; the field keeps its
+      // wire name for the remote's sake.
       remote_repository_bytes: typeof stats.total_size === "number" ? stats.total_size : null,
       recent_snapshots: snapshots.slice(0, 20),
     };
-    cached = { value, expiresAt: Date.now() + METRICS_CACHE_MS };
+    cached[target] = { value, expiresAt: Date.now() + METRICS_CACHE_MS };
     return value;
   } catch (error) {
-    return {
-      captured_at: capturedAt,
-      local_source_bytes: localSourceBytes,
-      snapshot_count: null,
-      remote_repository_bytes: null,
-      recent_snapshots: [],
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return unavailable(error instanceof Error ? error.message : String(error));
   }
 }

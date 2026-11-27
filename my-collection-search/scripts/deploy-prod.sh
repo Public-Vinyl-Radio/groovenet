@@ -91,6 +91,11 @@ if [[ -f "${PROJECT_DIR}/.env.players" ]]; then
   COMPOSE_CMD+=(--env-file "${PROJECT_DIR}/.env.players")
   COMPOSE_FILES+=(-f docker-compose.players.yml)
 fi
+# The local backup disk is opt-in by variable: only a host that sets LOCAL_BACKUP_PATH
+# in .env.host gets the extra mount.
+if [[ -f "${HOST_ENV_FILE}" && -n "$(env_file_value "$HOST_ENV_FILE" LOCAL_BACKUP_PATH || true)" ]]; then
+  COMPOSE_FILES+=(-f docker-compose.local-backup.yml)
+fi
 SERVICES=(app migrate essentia ga-service download-worker fingerprint-service fingerprint-set-worker)
 MIN_FREE_GB="${MIN_FREE_GB:-5}"
 PGUSER="${POSTGRES_USER:-djplaylist}"

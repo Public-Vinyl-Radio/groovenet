@@ -6,33 +6,52 @@ export const backupProviderSchema = z.enum(BACKUP_PROVIDERS);
 export const backupRetentionPresetSchema = z.enum(BACKUP_RETENTION_PRESETS);
 export type BackupProvider = z.infer<typeof backupProviderSchema>;
 export type BackupRetentionPreset = z.infer<typeof backupRetentionPresetSchema>;
+/** What one backup target (the remote or the optional local disk) includes. */
+export const BACKUP_TARGETS = ["remote", "local"] as const;
+export const backupTargetSchema = z.enum(BACKUP_TARGETS);
+export type BackupTarget = z.infer<typeof backupTargetSchema>;
+const backupTargetPolicyShape = z.object({
+  enabled: z.boolean(),
+  include_database: z.boolean(),
+  include_album_covers: z.boolean(),
+  include_aac_audio: z.boolean(),
+  include_lossless_audio: z.boolean(),
+});
+export const backupTargetPolicySchema = backupTargetPolicyShape.passthrough();
+export type BackupTargetPolicy = z.infer<typeof backupTargetPolicyShape>;
 const backupPolicyShape = z.object({
   enabled: z.boolean(),
   provider: backupProviderSchema,
   schedule_cron: z.string().min(1),
   retention_preset: backupRetentionPresetSchema,
-  include_database: z.boolean(),
-  include_audio_files: z.boolean(),
-  include_album_covers: z.boolean(),
+  /** Remote-only extras; the local disk carries the four media/database choices. */
   include_discogs_exports: z.boolean(),
   include_essentia_files: z.boolean(),
   include_uploads: z.boolean(),
+  remote: backupTargetPolicySchema,
+  local: backupTargetPolicySchema,
   updated_at: z.string(),
 });
 export const backupPolicySchema = backupPolicyShape.passthrough();
 export type BackupPolicy = z.infer<typeof backupPolicyShape>;
+const backupTargetPolicyUpdateShape = z.object({
+  enabled: z.boolean().optional(),
+  include_database: z.boolean().optional(),
+  include_album_covers: z.boolean().optional(),
+  include_aac_audio: z.boolean().optional(),
+  include_lossless_audio: z.boolean().optional(),
+});
 export const backupPolicyUpdateSchema = z
   .object({
     enabled: z.boolean().optional(),
     provider: backupProviderSchema.optional(),
     schedule_cron: z.string().min(1).optional(),
     retention_preset: backupRetentionPresetSchema.optional(),
-    include_database: z.boolean().optional(),
-    include_audio_files: z.boolean().optional(),
-    include_album_covers: z.boolean().optional(),
     include_discogs_exports: z.boolean().optional(),
     include_essentia_files: z.boolean().optional(),
     include_uploads: z.boolean().optional(),
+    remote: backupTargetPolicyUpdateShape.passthrough().optional(),
+    local: backupTargetPolicyUpdateShape.passthrough().optional(),
   })
   .passthrough();
 export type BackupPolicyUpdate = z.infer<typeof backupPolicyUpdateSchema>;
@@ -77,12 +96,36 @@ const backupMetricsShape = z.object({
 });
 export const backupMetricsSchema = backupMetricsShape.passthrough();
 export type BackupMetrics = z.infer<typeof backupMetricsShape>;
+/** One target's verdict against `BACKUP_HEALTH_MAX_AGE_HOURS`, as the System page shows it. */
+export const backupTargetHealthSchema = z.object({
+  healthy: z.boolean(),
+  status: z.enum(["ok", "disabled", "unhealthy"]),
+  reason: z.enum(["no-backup-status", "backup-failed", "backup-overdue"]).optional(),
+  age_hours: z.number().optional(),
+});
+export type BackupTargetHealth = z.infer<typeof backupTargetHealthSchema>;
+/**
+ * The local disk target. Present only when the host configured one
+ * (`LOCAL_BACKUP_PATH`); absent means no local target and nothing to show.
+ */
+export const backupLocalTargetStatusSchema = z.object({
+  status: backupStatusSchema.nullable(),
+  metrics: backupMetricsSchema.optional(),
+  health: backupTargetHealthSchema.optional(),
+});
+export type BackupLocalTargetStatus = z.infer<typeof backupLocalTargetStatusSchema>;
 export const backupStatusGetResponseSchema = z.object({
   status: backupStatusSchema.nullable(),
   metrics: backupMetricsSchema.optional(),
+  health: backupTargetHealthSchema.optional(),
+  max_age_hours: z.number().optional(),
+  local: backupLocalTargetStatusSchema.optional(),
 });
 export type BackupStatusGetResponse = z.infer<typeof backupStatusGetResponseSchema>;
-export const backupStatusRunResponseSchema = z.object({ status: backupStatusSchema.nullable() });
+export const backupStatusRunResponseSchema = z.object({
+  status: backupStatusSchema.nullable(),
+  local: z.object({ status: backupStatusSchema.nullable() }).optional(),
+});
 export type BackupStatusRunResponse = z.infer<typeof backupStatusRunResponseSchema>;
 export const backupFileSchema = z
   .object({
@@ -130,6 +173,17 @@ export const backupHealthResponseSchema = z
     age_hours: z.number().optional(),
     finished_at: z.string().optional(),
     max_age_hours: z.number().optional(),
+    /** The local disk target's own verdict, when one is configured. */
+    local: z
+      .object({
+        healthy: z.boolean(),
+        status: z.enum(["ok", "disabled", "unhealthy"]),
+        reason: z.enum(["no-backup-status", "backup-failed", "backup-overdue"]).optional(),
+        age_hours: z.number().optional(),
+        finished_at: z.string().optional(),
+        error: z.string().optional(),
+      })
+      .optional(),
   })
   .passthrough();
 export type BackupHealthResponse = z.infer<typeof backupHealthResponseSchema>;
@@ -137,6 +191,8 @@ export type BackupHealthResponse = z.infer<typeof backupHealthResponseSchema>;
 export const backupJsonSchemas = {
   BackupProvider: z.toJSONSchema(backupProviderSchema),
   BackupRetentionPreset: z.toJSONSchema(backupRetentionPresetSchema),
+  BackupTarget: z.toJSONSchema(backupTargetSchema),
+  BackupTargetPolicy: z.toJSONSchema(backupTargetPolicySchema),
   BackupPolicy: z.toJSONSchema(backupPolicySchema),
   BackupPolicyUpdate: z.toJSONSchema(backupPolicyUpdateSchema, { io: "input" }),
   BackupPolicyGetResponse: z.toJSONSchema(backupPolicyGetResponseSchema),
@@ -144,6 +200,7 @@ export const backupJsonSchemas = {
   BackupSnapshotSummary: z.toJSONSchema(backupSnapshotSummarySchema),
   BackupStatus: z.toJSONSchema(backupStatusSchema),
   BackupMetrics: z.toJSONSchema(backupMetricsSchema),
+  BackupTargetHealth: z.toJSONSchema(backupTargetHealthSchema),
   BackupStatusGetResponse: z.toJSONSchema(backupStatusGetResponseSchema),
   BackupStatusRunResponse: z.toJSONSchema(backupStatusRunResponseSchema),
   BackupFile: z.toJSONSchema(backupFileSchema),

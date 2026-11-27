@@ -450,3 +450,17 @@ test("deploy preserves manual web settings without the explicit op marker", () =
   assert.ok(!run.calls.includes("chmod 600 /fixture/.env.player-web"));
   assert.equal(run.webRendered, "");
 });
+
+test("adds the local backup mount only when .env.host sets LOCAL_BACKUP_PATH", () => {
+  const withDisk = deployment({ hostEnv: "LOCAL_BACKUP_PATH=/mnt/example\n" });
+  assert.equal(withDisk.status, 0, withDisk.stderr);
+  for (const call of withDisk.calls.filter((c) => c.includes("-f docker-compose.yml"))) {
+    assert.ok(call.includes("-f docker-compose.local-backup.yml"), call);
+  }
+
+  for (const hostEnv of [undefined, "COMPOSE_PROFILES=all\n", "LOCAL_BACKUP_PATH=\n"]) {
+    const without = deployment({ hostEnv });
+    assert.equal(without.status, 0, without.stderr);
+    assert.ok(!without.calls.some((call) => call.includes("docker-compose.local-backup.yml")));
+  }
+});
