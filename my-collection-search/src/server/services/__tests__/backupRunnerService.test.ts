@@ -524,3 +524,57 @@ describe("remote-only extras and the recorded snapshot", () => {
     );
   });
 });
+
+describe("remaining runner branches", () => {
+  it("skips a selected directory that does not exist", async () => {
+    mockGetPolicy.mockReturnValue({
+      ...policy,
+      remote: target({ include_database: false, include_album_covers: true }),
+    });
+    expect((await runBackupNow("manual")).reason).toBe("no-paths-selected");
+  });
+
+  it("dumps under a local prefix for the local target", async () => {
+    vi.stubEnv("LOCAL_BACKUP_DIR", path.join(tmpDir, "disk"));
+    vi.stubEnv("LOCAL_BACKUP_RESTIC_PASSWORD", "pw");
+    mockGetPolicy.mockReturnValue({ ...policy, local: target() });
+    await runBackupNow("manual", "local");
+    expect(mockCreateBackup).toHaveBeenCalledWith({ prefix: "pg-backup-restic-local" });
+  });
+
+  it("copes with restic printing nothing", async () => {
+    mockExecFile.mockImplementation(
+      (_c: string, _a: string[], _o: unknown, cb: (e: Error | null, r?: unknown) => void) =>
+        cb(null, {}),
+    );
+    expect(await runBackupNow("manual")).toMatchObject({ status: "success", snapshot: null });
+  });
+
+  it("reports a thrown non-Error", async () => {
+    mockCreateBackup.mockRejectedValue("plain string");
+    expect((await runBackupNow("manual")).error).toBe("plain string");
+  });
+
+  it("does not tick twice in the same minute", async () => {
+    const g = globalThis as Record<string, unknown>;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-27T03:00:30Z"));
+    vi.stubEnv("LOCAL_BACKUP_DIR", "");
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      delete g.__groovenetBackupSchedulerStarted;
+      delete g.__groovenetBackupSchedulerLastMinute;
+      startBackupScheduler();
+      await vi.waitFor(() => expect(mockExecFile).toHaveBeenCalled());
+      const calls = mockExecFile.mock.calls.length;
+      delete g.__groovenetBackupSchedulerStarted;
+      startBackupScheduler();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(mockExecFile.mock.calls.length).toBe(calls);
+    } finally {
+      vi.useRealTimers();
+      delete g.__groovenetBackupSchedulerStarted;
+      delete g.__groovenetBackupSchedulerLastMinute;
+    }
+  });
+});

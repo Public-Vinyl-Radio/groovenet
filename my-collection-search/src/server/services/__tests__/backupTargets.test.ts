@@ -143,6 +143,12 @@ describe("configuration", () => {
     expect(resticEnv("local")).toMatchObject({ RESTIC_REPOSITORY: "", RESTIC_PASSWORD: "" });
   });
 
+  it("gives the local target an empty password when none is set", () => {
+    vi.stubEnv("LOCAL_BACKUP_DIR", "/mnt/x");
+    delete process.env.LOCAL_BACKUP_RESTIC_PASSWORD;
+    expect(resticEnv("local").RESTIC_PASSWORD).toBe("");
+  });
+
   it("names the env vars each target is missing", () => {
     vi.stubEnv("RESTIC_REPOSITORY", "");
     vi.stubEnv("RESTIC_PASSWORD", "x");
@@ -222,6 +228,18 @@ describe("planAudio()", () => {
   it("excludes AAC for a lossless-only target", async () => {
     const plan = await planAudio(dir, { include_aac_audio: false, include_lossless_audio: true });
     expect(plan.excluded.sort()).toEqual([path.join(dir, "a.m4a"), path.join(dir, "sub/d.m4a")]);
+  });
+
+  it("keeps the first probed answer when a file is listed twice, and skips non-files", async () => {
+    mockFormats.mockResolvedValue([
+      { filename: "a.m4a", lossless: true },
+      { filename: "a.m4a", lossless: false },
+    ]);
+    fs.symlinkSync(path.join(dir, "nowhere"), path.join(dir, "dangling.flac"));
+    const plan = await planAudio(dir, { include_aac_audio: false, include_lossless_audio: true });
+    // a.m4a is lossless per tracking, so it stays; the AAC-by-extension files are excluded.
+    expect(plan.excluded).not.toContain(path.join(dir, "a.m4a"));
+    expect(plan.excluded).not.toContain(path.join(dir, "dangling.flac"));
   });
 
   it("fails rather than guess when tracking cannot be read", async () => {

@@ -149,14 +149,10 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             <Checkbox.Root
               checked={policy.remote.include_database}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        remote: { ...prev.remote, include_database: Boolean(details.checked) },
-                      }
-                    : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_database: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />
@@ -167,14 +163,10 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             <Checkbox.Root
               checked={policy.remote.include_aac_audio}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        remote: { ...prev.remote, include_aac_audio: Boolean(details.checked) },
-                      }
-                    : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_aac_audio: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />
@@ -185,14 +177,10 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
             <Checkbox.Root
               checked={policy.remote.include_album_covers}
               onCheckedChange={(details) =>
-                setPolicy((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        remote: { ...prev.remote, include_album_covers: Boolean(details.checked) },
-                      }
-                    : prev,
-                )
+                setPolicy({
+                  ...policy,
+                  remote: { ...policy.remote, include_album_covers: Boolean(details.checked) },
+                })
               }
             >
               <Checkbox.HiddenInput />

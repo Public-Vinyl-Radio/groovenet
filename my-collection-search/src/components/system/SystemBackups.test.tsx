@@ -124,6 +124,32 @@ describe("with a local disk configured", () => {
     expect(screen.getByText("3 SNAPSHOTS · 2.0 KiB ON DISK")).toBeTruthy();
   });
 
+  it("words age and snapshot counts for every case", async () => {
+    api.fetchBackupStatus.mockResolvedValue({
+      status: null,
+      health: { healthy: true, status: "ok" },
+      local: {
+        ...localStatus(),
+        status: null,
+        metrics: { ...localStatus().metrics, snapshot_count: 1 },
+        health: { healthy: true, status: "ok", age_hours: 0.2 },
+      },
+    });
+    renderWithProviders(<SystemBackups />);
+    expect(await screen.findByText("HEALTHY · under 1h ago")).toBeTruthy();
+    expect(screen.getByText("HEALTHY ·")).toBeTruthy();
+    expect(screen.getByText("1 SNAPSHOT · 2.0 KiB ON DISK")).toBeTruthy();
+  });
+
+  it("shows a repository with no snapshot count", async () => {
+    api.fetchBackupStatus.mockResolvedValue({
+      status: null,
+      local: { ...localStatus(), metrics: { ...localStatus().metrics, snapshot_count: null } },
+    });
+    renderWithProviders(<SystemBackups />);
+    expect(await screen.findByText("0 SNAPSHOTS · 2.0 KiB ON DISK")).toBeTruthy();
+  });
+
   it("saves a local include change under local only", async () => {
     const { user } = renderWithProviders(<SystemBackups />);
     await screen.findByTestId("backup-target-local");

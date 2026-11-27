@@ -55,6 +55,25 @@ describe("BackupPolicySettingsSection", () => {
     expect(screen.getByRole("checkbox", { name: "Enable remote backups" })).toBeTruthy();
   });
 
+  it("saves the remote's database and cover choices", async () => {
+    mocks.updateBackupPolicy.mockResolvedValue({ policy });
+    const { user } = renderWithProviders(<BackupPolicySettingsSection />);
+    await screen.findByDisplayValue("0 3 * * *");
+    await user.click(screen.getByRole("checkbox", { name: "Include database dumps" }));
+    await user.click(screen.getByRole("checkbox", { name: "Include album covers" }));
+    await user.click(screen.getByRole("button", { name: "Save Policy" }));
+    await waitFor(() =>
+      expect(mocks.updateBackupPolicy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remote: expect.objectContaining({
+            include_database: !policy.remote.include_database,
+            include_album_covers: !policy.remote.include_album_covers,
+          }),
+        }),
+      ),
+    );
+  });
+
   it("says so when the policy can't be loaded", async () => {
     mocks.fetchBackupPolicy.mockRejectedValue(new Error("boom"));
     renderWithProviders(<BackupPolicySettingsSection />);

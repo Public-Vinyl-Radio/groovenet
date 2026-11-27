@@ -408,19 +408,28 @@ export default function SystemBackups() {
                 ))}
               </Flex>
             </SystemRow>
-            {(["remote", ...(local ? ["local"] : [])] as TargetName[]).map((name) => (
+            <TargetRow
+              name="remote"
+              policy={policy}
+              saving={saving}
+              status={status}
+              health={health}
+              metrics={undefined}
+              maxAge={maxAge}
+              onChange={(next) => void save(next)}
+            />
+            {local && (
               <TargetRow
-                key={name}
-                name={name}
+                name="local"
                 policy={policy}
                 saving={saving}
-                status={name === "remote" ? status : (local?.status ?? null)}
-                health={name === "remote" ? health : local?.health}
-                metrics={name === "remote" ? undefined : local?.metrics}
+                status={local.status}
+                health={local.health}
+                metrics={local.metrics}
                 maxAge={maxAge}
                 onChange={(next) => void save(next)}
               />
-            ))}
+            )}
           </>
         ) : null}
         <SystemRow

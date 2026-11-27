@@ -121,6 +121,12 @@ describe("parseSnapshots", () => {
   });
 });
 
+describe("parseSnapshots edge cases", () => {
+  it("drops entries that are not objects", () => {
+    expect(parseSnapshots(JSON.stringify([null, "x", 3]))).toEqual([]);
+  });
+});
+
 describe("getBackupMetrics", () => {
   it("measures enabled, existing runtime backup sources without tracing them", async () => {
     const metrics = await getBackupMetrics();
@@ -219,5 +225,19 @@ describe("getBackupMetrics caching", () => {
     mocks.existsSync.mockClear();
     await getBackupMetrics("local");
     expect(mocks.existsSync).not.toHaveBeenCalledWith(path.resolve(process.cwd(), "uploads"));
+  });
+});
+
+describe("getBackupMetrics odd restic output", () => {
+  it("reports no size when stats has no total_size", async () => {
+    mocks.execFileAsync.mockImplementation((_c: string, args: string[]) =>
+      Promise.resolve({ stdout: args[0] === "snapshots" ? "[]" : "{}", stderr: "" }),
+    );
+    expect((await getBackupMetrics("remote")).remote_repository_bytes).toBeNull();
+  });
+
+  it("stringifies a thrown non-Error", async () => {
+    mocks.execFileAsync.mockRejectedValue("boom");
+    expect((await getBackupMetrics("remote")).error).toBe("boom");
   });
 });
