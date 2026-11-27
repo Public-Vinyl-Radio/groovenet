@@ -12,17 +12,17 @@ import { reconciliationError } from "@/server/genres/reconciliationRoute";
  */
 export async function GET(request: NextRequest) {
   const query = genreReconciliationCoverageQuerySchema.safeParse(
-    Object.fromEntries(request.nextUrl.searchParams.entries()),
+    Object.fromEntries(request.nextUrl.searchParams.entries())
   );
   if (!query.success) {
     return NextResponse.json(
       { error: "Invalid coverage query", details: query.error.flatten() },
-      { status: 400 },
+      { status: 400 }
     );
   }
   try {
     return NextResponse.json(
-      genreReconciliationCoverageSchema.parse(await getCoverage(query.data.friend_id ?? null)),
+      genreReconciliationCoverageSchema.parse(await getCoverage(query.data.friend_id ?? null))
     );
   } catch (error) {
     return reconciliationError(error);
