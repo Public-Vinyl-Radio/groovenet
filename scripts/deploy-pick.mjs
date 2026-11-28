@@ -186,10 +186,15 @@ function must(command, args, ctx) {
 
 function readCurrentTag({ host, stackDir, env }, warn) {
   const remote = `cd ${shellQuote(stackDir)} && docker compose ps app --format '{{.Image}}'`;
-  const result = run("ssh", ["-o", "ConnectTimeout=5", "-o", "BatchMode=yes", host, remote], {
-    env,
-    timeout: 20000,
-  });
+  let result;
+  try {
+    result = run("ssh", ["-o", "ConnectTimeout=5", "-o", "BatchMode=yes", host, remote], {
+      env,
+      timeout: 20000,
+    });
+  } catch (error) {
+    result = { status: 1, error };
+  }
   const tag = result.status === 0 ? parseImageTag(result.stdout) : null;
   if (!tag) {
     const why = result.error

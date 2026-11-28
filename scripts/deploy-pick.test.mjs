@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -102,6 +111,13 @@ function sandbox(
 ) {
   const dir = mkdtempSync(join(tmpdir(), "deploy-pick-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // Only the coreutils the stubs call: a runner's own gh, ssh or fzf must not leak in.
+  const sys = join(dir, "sys");
+  mkdirSync(sys);
+  for (const tool of ["cat", "head", "sed"]) {
+    const real = ["/usr/bin", "/bin"].map((d) => join(d, tool)).find((f) => existsSync(f));
+    symlinkSync(real, join(sys, tool));
+  }
   for (const name of stubs) {
     writeFileSync(join(dir, name), STUBS[name]);
     chmodSync(join(dir, name), 0o755);
@@ -117,7 +133,7 @@ function sandbox(
       existsSync(join(dir, "calls.log"))
         ? readFileSync(join(dir, "calls.log"), "utf8").trim().split("\n")
         : [],
-    env: { PATH: `${dir}:/usr/bin:/bin`, STUB_DIR: dir, TZ: "UTC", ...env },
+    env: { PATH: `${dir}:${sys}`, STUB_DIR: dir, TZ: "UTC", ...env },
   };
 }
 
