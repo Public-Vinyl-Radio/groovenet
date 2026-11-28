@@ -1,11 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-import yaml from "yaml";
+import { settingsRepository } from "@/server/repositories/settingsRepository";
 import type { BackupPolicy, BackupPolicyUpdate, BackupTargetPolicy } from "@/types/backup";
 import { BACKUP_PROVIDERS, BACKUP_RETENTION_PRESETS } from "@/types/backup";
-
-const CONFIG_DIR = path.resolve(process.cwd(), "config");
-const POLICY_PATH = path.join(CONFIG_DIR, "backup-policy.yml");
 
 // The remote keeps AAC but not lossless FLACs (they are re-downloadable and large);
 // the local disk is the opposite, so lossless has a home that is not metered storage.
@@ -72,12 +67,12 @@ function parsePolicy(raw: unknown): Omit<BackupPolicy, "updated_at"> {
 
   const provider = String(obj.provider ?? DEFAULT_POLICY.provider);
   if (!BACKUP_PROVIDERS.includes(provider as (typeof BACKUP_PROVIDERS)[number])) {
-    throw new Error("Invalid backup provider in policy file");
+    throw new Error("Invalid backup provider in stored backup policy");
   }
 
   const retention = String(obj.retention_preset ?? DEFAULT_POLICY.retention_preset);
   if (!BACKUP_RETENTION_PRESETS.includes(retention as (typeof BACKUP_RETENTION_PRESETS)[number])) {
-    throw new Error("Invalid retention preset in policy file");
+    throw new Error("Invalid retention preset in stored backup policy");
   }
 
   return {
@@ -101,45 +96,18 @@ function parsePolicy(raw: unknown): Omit<BackupPolicy, "updated_at"> {
   };
 }
 
-function ensureConfigDir(): void {
-  if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  }
-}
-
-function writePolicyFile(policy: BackupPolicy): void {
-  ensureConfigDir();
-  const doc = yaml.stringify(policy);
-  fs.writeFileSync(POLICY_PATH, doc, "utf8");
-}
-
+// Stored in Postgres (`backup_settings`), not a file: the root filesystem is
+// read-only (#1074), and a file in the image was replaced on every deploy.
 export class BackupPolicyService {
-  getPolicy(): BackupPolicy {
-    if (!fs.existsSync(POLICY_PATH)) {
-      const policy: BackupPolicy = {
-        ...DEFAULT_POLICY,
-        updated_at: new Date().toISOString(),
-      };
-      writePolicyFile(policy);
-      return policy;
-    }
-
-    const rawText = fs.readFileSync(POLICY_PATH, "utf8");
-    const parsed = yaml.parse(rawText);
-    const normalized = parsePolicy(parsed);
-    const updated_at =
-      typeof (parsed as { updated_at?: unknown })?.updated_at === "string"
-        ? (parsed as { updated_at: string }).updated_at
-        : new Date().toISOString();
-
-    return {
-      ...normalized,
-      updated_at,
-    };
+  /** The saved policy, or the default before anything is saved. */
+  async getPolicy(): Promise<BackupPolicy> {
+    const row = await settingsRepository.findBackupPolicy();
+    if (!row) return { ...DEFAULT_POLICY };
+    return { ...parsePolicy(row.policy), updated_at: new Date(row.updated_at).toISOString() };
   }
 
-  updatePolicy(updates: BackupPolicyUpdate): BackupPolicy {
-    const current = this.getPolicy();
+  async updatePolicy(updates: BackupPolicyUpdate): Promise<BackupPolicy> {
+    const current = await this.getPolicy();
 
     // Clients from before targets existed send the remote's choices as flat keys.
     const {
@@ -176,8 +144,10 @@ export class BackupPolicyService {
       throw new Error("Invalid retention preset");
     }
 
-    writePolicyFile(next);
-    return next;
+    const { updated_at: _ignored, ...stored } = next;
+    void _ignored;
+    const row = await settingsRepository.upsertBackupPolicy(stored);
+    return { ...next, updated_at: new Date(row.updated_at).toISOString() };
   }
 }
 

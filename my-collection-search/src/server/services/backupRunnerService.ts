@@ -304,7 +304,7 @@ export async function runBackupNow(
       });
     }
 
-    const policy = backupPolicyService.getPolicy();
+    const policy = await backupPolicyService.getPolicy();
     if (reason === "scheduled" && !policy.enabled) {
       return finish({
         startedAt,
@@ -449,7 +449,7 @@ async function scheduledTick(): Promise<void> {
   if (g[GLOBAL_LAST_TICK_MINUTE_KEY] === minuteKey) return;
   g[GLOBAL_LAST_TICK_MINUTE_KEY] = minuteKey;
 
-  const policy = backupPolicyService.getPolicy();
+  const policy = await backupPolicyService.getPolicy();
   if (!policy.enabled) return;
   if (!cronMatches(policy.schedule_cron, now)) return;
 

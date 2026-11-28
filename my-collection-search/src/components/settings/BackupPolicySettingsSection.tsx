@@ -67,8 +67,7 @@ export default function BackupPolicySettingsSection(): React.JSX.Element {
         Remote Backup Policy
       </SectionHeading>
       <Text color="fg.muted" mb={4}>
-        Configures file-based backup policy in <code>config/backup-policy.yml</code>. Secrets such
-        as restic password and B2 keys remain server-side.
+        Saved in the database. Secrets such as the restic password and B2 keys remain server-side.
       </Text>
 
       {loading ? (

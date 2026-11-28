@@ -11,7 +11,7 @@ const maxAgeHours = Number(process.env.BACKUP_HEALTH_MAX_AGE_HOURS ?? "12");
 
 export async function GET() {
   try {
-    const policy = backupPolicyService.getPolicy();
+    const policy = await backupPolicyService.getPolicy();
     const now = Date.now();
 
     // Each target is measured against the same max age. A target switched off, or no

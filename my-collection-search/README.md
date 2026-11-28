@@ -72,7 +72,7 @@ at runtime for another server. For the hot-reload app, point it at
 
 ## Remote Backups (Restic + Backblaze B2)
 
-The app can run scheduled remote backups using policy from `config/backup-policy.yml`.
+The app can run scheduled remote backups. The policy (schedule, retention, what each target includes) is saved in Postgres (`backup_settings`) and edited on the System page or with `PUT /api/settings/backup`.
 
 Required environment variables:
 
