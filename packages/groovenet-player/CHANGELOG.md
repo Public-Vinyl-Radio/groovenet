@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.2.2...groovenet-player-v0.2.3) (2026-11-28)
+
+
+### Features
+
+* **cli:** single-match queue add, replace help, friend and audio filters on search ([#1328](https://github.com/Public-Vinyl-Radio/groovenet/issues/1328)) ([9e51fba](https://github.com/Public-Vinyl-Radio/groovenet/commit/9e51fba4b5e49486007ca6e785f202d2f2e34c00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/client bumped from ^4.2.0 to ^4.3.0
+    * @groovenet/contracts bumped from 1.13.0 to 1.14.0
+
 ## [0.2.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-player-v0.2.1...groovenet-player-v0.2.2) (2026-11-26)
 
 

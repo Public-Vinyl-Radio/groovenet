@@ -1,7 +1,7 @@
 {
-  ".": "0.4.2",
-  "packages/groovenet-client": "4.2.0",
-  "packages/groovenet-player": "0.2.2",
-  "packages/groovenet-cli": "4.2.0",
-  "packages/groovenet-contracts": "1.13.0"
+  ".": "0.4.3",
+  "packages/groovenet-client": "4.3.0",
+  "packages/groovenet-player": "0.2.3",
+  "packages/groovenet-cli": "4.3.0",
+  "packages/groovenet-contracts": "1.14.0"
 }

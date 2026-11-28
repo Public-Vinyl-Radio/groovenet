@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.3](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.4.2...v0.4.3) (2026-11-28)
+
+
+### Features
+
+* **backup:** keep lossless out of the remote, add an optional local backup disk ([#1320](https://github.com/Public-Vinyl-Radio/groovenet/issues/1320)) ([4c5f38d](https://github.com/Public-Vinyl-Radio/groovenet/commit/4c5f38d98a9bbeace20517770d7d6a8935fe8d89))
+* **cli:** single-match queue add, replace help, friend and audio filters on search ([#1328](https://github.com/Public-Vinyl-Radio/groovenet/issues/1328)) ([9e51fba](https://github.com/Public-Vinyl-Radio/groovenet/commit/9e51fba4b5e49486007ca6e785f202d2f2e34c00))
+* **deploy:** host-local .env.host for deploy settings ([#1316](https://github.com/Public-Vinyl-Radio/groovenet/issues/1316)) ([aaf1079](https://github.com/Public-Vinyl-Radio/groovenet/commit/aaf1079dc92701f491a87da984d30a32c2991f39))
+* **deploy:** interactive picker for recent releases and release candidates ([#1322](https://github.com/Public-Vinyl-Radio/groovenet/issues/1322)) ([9cc166d](https://github.com/Public-Vinyl-Radio/groovenet/commit/9cc166d6f0e9d46a61ff2d52f453bc74057aa401))
+* **deploy:** read a 1Password service account token from a file ([#1324](https://github.com/Public-Vinyl-Radio/groovenet/issues/1324)) ([fc190ad](https://github.com/Public-Vinyl-Radio/groovenet/commit/fc190ad0ae7ed0c9cf27873b87fd3a0fbb3d0e2e))
+* **settings:** contextual guidance for missing optional API keys ([#1319](https://github.com/Public-Vinyl-Radio/groovenet/issues/1319)) ([f3f0a2e](https://github.com/Public-Vinyl-Radio/groovenet/commit/f3f0a2e94acc389dcb786a0220f8bdb780965bd0))
+
+
+### Bug Fixes
+
+* **backup:** store the backup policy in Postgres ([#1325](https://github.com/Public-Vinyl-Radio/groovenet/issues/1325)) ([1105518](https://github.com/Public-Vinyl-Radio/groovenet/commit/11055189c577fdb465becc37818404de00e6f443))
+* **deploy:** stop deploy-pick hanging when git fetch waits on SSH ([#1323](https://github.com/Public-Vinyl-Radio/groovenet/issues/1323)) ([f69f960](https://github.com/Public-Vinyl-Radio/groovenet/commit/f69f96023d57a91dc9b386a7a7ca5d6f9eef2d2e))
+
 ## [0.4.2](https://github.com/Public-Vinyl-Radio/groovenet/compare/v0.4.1...v0.4.2) (2026-11-26)
 
 
