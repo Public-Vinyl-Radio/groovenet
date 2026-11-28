@@ -500,6 +500,17 @@ deploy-prod-local:
 deploy-prod-remote:
   #!/usr/bin/env bash
   set -euo pipefail
+  # A 1Password service account lets a deploy run where the desktop app can't
+  # prompt (an SSH session). The token is read from a file, only for this
+  # recipe, so other `op` uses keep the operator's own account.
+  if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && [ -n "${OP_SERVICE_ACCOUNT_TOKEN_FILE:-}" ]; then
+    if [ ! -s "${OP_SERVICE_ACCOUNT_TOKEN_FILE}" ]; then
+      echo "OP_SERVICE_ACCOUNT_TOKEN_FILE=${OP_SERVICE_ACCOUNT_TOKEN_FILE} is missing or empty." >&2
+      exit 1
+    fi
+    OP_SERVICE_ACCOUNT_TOKEN="$(tr -d '[:space:]' < "${OP_SERVICE_ACCOUNT_TOKEN_FILE}")"
+    export OP_SERVICE_ACCOUNT_TOKEN
+  fi
   tmp_env="$(mktemp)"
   tmp_player_env="$(mktemp)"
   tmp_web_env="$(mktemp)"
