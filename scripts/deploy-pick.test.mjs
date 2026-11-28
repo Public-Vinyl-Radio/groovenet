@@ -66,7 +66,10 @@ const STUBS = {
   git: `#!/bin/bash
 echo "git $*" >> "$STUB_DIR/calls.log"
 case "$1" in
-  fetch) exit "\${STUB_GIT_FETCH_EXIT:-0}" ;;
+  fetch)
+    echo "fetch-env prompt=$GIT_TERMINAL_PROMPT ssh=$GIT_SSH_COMMAND" >> "$STUB_DIR/calls.log"
+    [[ -n "$STUB_GIT_FETCH_HANG" ]] && exec /bin/sleep 30
+    exit "\${STUB_GIT_FETCH_EXIT:-0}" ;;
   tag) cat "$STUB_DIR/tags" ;;
   log)
     if [[ " $* " == *" --no-walk=unsorted "* ]]; then
@@ -496,6 +499,29 @@ test("a failed git fetch warns and uses local refs", async (t) => {
   assert.equal(code, 0);
   assert.match(err, /git fetch failed/);
   assert.match(out, /sha-bbbbbbb/);
+});
+
+test("a hung git fetch times out instead of blocking the picker", async (t) => {
+  const box = sandbox(t, {
+    env: { STUB_GIT_FETCH_HANG: "1", DEPLOY_PICK_FETCH_TIMEOUT_MS: "500" },
+  });
+  const started = Date.now();
+  const { code, err, out } = await pick(box, ["--list"]);
+  assert.ok(Date.now() - started < 10000, "fetch was not cut off");
+  assert.equal(code, 0);
+  assert.match(err, /git fetch timed out/);
+  assert.match(out, /sha-bbbbbbb/);
+});
+
+test("git fetch never prompts and runs ssh in batch mode", async (t) => {
+  const box = sandbox(t);
+  await pick(box, ["--list"]);
+  const calls = readFileSync(join(box.dir, "calls.log"), "utf8");
+  assert.match(calls, /fetch-env prompt=0 ssh=ssh -o BatchMode=yes -o ConnectTimeout=10/);
+
+  const custom = sandbox(t, { env: { GIT_SSH_COMMAND: "ssh -i key" } });
+  await pick(custom, ["--list"]);
+  assert.match(readFileSync(join(custom.dir, "calls.log"), "utf8"), /ssh=ssh -i key/);
 });
 
 test("no tags and no runs still lists main commits as no run", async (t) => {
