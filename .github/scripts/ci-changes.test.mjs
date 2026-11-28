@@ -122,6 +122,7 @@ test("workspace manifests affect installation and npm toolchain checks retain co
   assert.equal(classify(["packages/groovenet-cli/package.json"]).webapp, true);
   assert.equal(classify(["package-lock.json"]).client, true);
   assert.equal(classify(["scripts/check-npm-toolchain.mjs"]).client, true);
+  assert.equal(classify(["scripts/deploy-pick.mjs"]).client, true);
 });
 
 test("git comparison handles diverged PR bases, multi-commit pushes, renames and deletes", () => {

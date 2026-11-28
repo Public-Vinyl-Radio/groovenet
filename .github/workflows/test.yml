@@ -286,6 +286,15 @@ jobs:
           --test-reporter-destination=packages/groovenet-client/coverage/npm-toolchain.lcov
           scripts/npm-toolchain.test.mjs
 
+      - name: Test deploy picker with coverage
+        run: >-
+          node --test --experimental-test-coverage
+          --test-coverage-include=scripts/deploy-pick.mjs
+          --test-reporter=spec --test-reporter=lcov
+          --test-reporter-destination=stdout
+          --test-reporter-destination=packages/groovenet-client/coverage/deploy-pick.lcov
+          scripts/deploy-pick.test.mjs
+
       - name: Upload client coverage to Codecov
         uses: codecov/codecov-action@v7
         env:
@@ -303,6 +312,16 @@ jobs:
         with:
           files: packages/groovenet-client/coverage/npm-toolchain.lcov
           flags: npm-toolchain
+          disable_search: true
+          fail_ci_if_error: false
+
+      - name: Upload deploy picker coverage to Codecov
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: packages/groovenet-client/coverage/deploy-pick.lcov
+          flags: deploy-pick
           disable_search: true
           fail_ci_if_error: false
 

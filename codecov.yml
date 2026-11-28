@@ -29,6 +29,9 @@ flags:
   npm-toolchain:
     paths:
       - scripts/check-npm-toolchain.mjs
+  deploy-pick:
+    paths:
+      - scripts/deploy-pick.mjs
   download-worker:
     paths:
       - download-worker/
