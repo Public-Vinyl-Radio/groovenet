@@ -44,7 +44,36 @@ export interface AppearanceRow {
 /** Columns to change; undefined leaves one alone, null resets it. `custom_palette` is JSON text. */
 export type AppearancePatch = Partial<Record<AppearanceColumn, string | null>>;
 
+export interface BackupPolicyRow {
+  /** Unvalidated JSON; the service parses it. */
+  policy: unknown;
+  updated_at: Date;
+}
+
 export class SettingsRepository {
+  /** The saved backup policy, or null before anything is saved. */
+  async findBackupPolicy(): Promise<BackupPolicyRow | null> {
+    const { rows } = await dbQuery<BackupPolicyRow>(
+      "SELECT policy, updated_at FROM backup_settings WHERE id = 1",
+    );
+    return rows[0] ?? null;
+  }
+
+  /** Replaces the whole policy (`updated_at` excluded). */
+  async upsertBackupPolicy(policy: Record<string, unknown>): Promise<BackupPolicyRow> {
+    const { rows } = await dbQuery<BackupPolicyRow>(
+      `
+      INSERT INTO backup_settings (id, policy, updated_at)
+      VALUES (1, $1::jsonb, current_timestamp)
+      ON CONFLICT (id)
+      DO UPDATE SET policy = EXCLUDED.policy, updated_at = current_timestamp
+      RETURNING policy, updated_at
+      `,
+      [JSON.stringify(policy)],
+    );
+    return rows[0];
+  }
+
   async findDefaultLibraryFriendId(): Promise<number | null> {
     const { rows } = await dbQuery<{ friend_id: number | null }>(
       "SELECT friend_id FROM default_library_settings WHERE id = 1 LIMIT 1",

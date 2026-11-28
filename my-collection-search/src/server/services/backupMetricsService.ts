@@ -31,7 +31,7 @@ function directorySize(directory: string): number {
 }
 
 async function selectedBytes(target: BackupTarget): Promise<number> {
-  const policy = backupPolicyService.getPolicy();
+  const policy = await backupPolicyService.getPolicy();
   const choices = policy[target];
   const resolve = (relativePath: string) =>
     // These paths are runtime backup volumes, not server bundle dependencies.

@@ -10,16 +10,13 @@ export const runtime = "nodejs";
 
 const maxAgeHours = Number(process.env.BACKUP_HEALTH_MAX_AGE_HOURS ?? "12");
 
-function healthOf(
-  target: "remote" | "local",
-  status: ReturnType<typeof backupStatusService.getStatus>,
-) {
+function healthOf(enabled: boolean, status: ReturnType<typeof backupStatusService.getStatus>) {
   const {
     healthy,
     status: verdict,
     reason,
     age_hours,
-  } = backupPolicyService.getPolicy()[target].enabled
+  } = enabled
     ? evaluateBackupHealth(status, Date.now(), maxAgeHours)
     : { healthy: true, status: "disabled" as const, reason: undefined, age_hours: undefined };
   return { healthy, status: verdict, reason, age_hours };
@@ -27,9 +24,10 @@ function healthOf(
 
 export async function GET() {
   try {
-    const [status, metrics] = await Promise.all([
+    const [status, metrics, policy] = await Promise.all([
       Promise.resolve(backupStatusService.getStatus("remote")),
       getBackupMetrics("remote"),
+      backupPolicyService.getPolicy(),
     ]);
     // `local` appears only when the host mounted a backup disk; absent means no UI for it.
     const localStatus = backupStatusService.getStatus("local");
@@ -37,14 +35,14 @@ export async function GET() {
       ? {
           status: localStatus,
           metrics: await getBackupMetrics("local"),
-          health: healthOf("local", localStatus),
+          health: healthOf(policy.local.enabled, localStatus),
         }
       : undefined;
     return NextResponse.json(
       backupStatusGetResponseSchema.parse({
         status,
         metrics,
-        health: healthOf("remote", status),
+        health: healthOf(policy.remote.enabled, status),
         max_age_hours: maxAgeHours,
         local,
       }),

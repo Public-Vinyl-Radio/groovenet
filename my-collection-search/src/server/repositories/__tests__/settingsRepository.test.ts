@@ -22,6 +22,28 @@ const ROW = {
   serving_template_version: 1,
 };
 
+describe("backup policy", () => {
+  const row = { policy: { enabled: true }, updated_at: new Date("2026-11-27T00:00:00Z") };
+
+  it("reads the saved row, or null when nothing is saved", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] }).mockResolvedValueOnce({ rows: [] });
+
+    await expect(makeRepo().findBackupPolicy()).resolves.toEqual(row);
+    await expect(makeRepo().findBackupPolicy()).resolves.toBeNull();
+    expect(dbQuery.mock.calls[0][0]).toContain("FROM backup_settings WHERE id = 1");
+  });
+
+  it("upserts the whole policy as JSON and returns the saved row", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [row] });
+
+    await expect(makeRepo().upsertBackupPolicy({ enabled: true })).resolves.toEqual(row);
+    const [sql, params] = dbQuery.mock.calls[0];
+    expect(sql).toContain("INSERT INTO backup_settings");
+    expect(sql).toContain("ON CONFLICT (id)");
+    expect(params).toEqual(['{"enabled":true}']);
+  });
+});
+
 describe("appearance", () => {
   const row = { palette: "riso", font_display: null, font_body: "inter", font_label: null };
 

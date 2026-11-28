@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const policy = backupPolicyService.getPolicy();
+    const policy = await backupPolicyService.getPolicy();
     return NextResponse.json(backupPolicyGetResponseSchema.parse({ policy }));
   } catch (error) {
     console.error("Failed to get backup policy:", error);
@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest) {
         { status: 400 },
       );
     }
-    const policy = backupPolicyService.updatePolicy(parsed.data);
+    const policy = await backupPolicyService.updatePolicy(parsed.data);
     return NextResponse.json(
       backupPolicyPutResponseSchema.parse({
         success: true,
