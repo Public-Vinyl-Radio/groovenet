@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.3.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v4.2.0...groovenet-client-v4.3.0) (2026-11-28)
+
+
+### Features
+
+* **backup:** keep lossless out of the remote, add an optional local backup disk ([#1320](https://github.com/Public-Vinyl-Radio/groovenet/issues/1320)) ([4c5f38d](https://github.com/Public-Vinyl-Radio/groovenet/commit/4c5f38d98a9bbeace20517770d7d6a8935fe8d89))
+* **cli:** single-match queue add, replace help, friend and audio filters on search ([#1328](https://github.com/Public-Vinyl-Radio/groovenet/issues/1328)) ([9e51fba](https://github.com/Public-Vinyl-Radio/groovenet/commit/9e51fba4b5e49486007ca6e785f202d2f2e34c00))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @groovenet/contracts bumped from 1.13.0 to 1.14.0
+
 ## [4.2.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-client-v4.1.0...groovenet-client-v4.2.0) (2026-11-26)
 
 

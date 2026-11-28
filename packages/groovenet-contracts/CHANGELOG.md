@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.13.0...groovenet-contracts-v1.14.0) (2026-11-28)
+
+
+### Features
+
+* **backup:** keep lossless out of the remote, add an optional local backup disk ([#1320](https://github.com/Public-Vinyl-Radio/groovenet/issues/1320)) ([4c5f38d](https://github.com/Public-Vinyl-Radio/groovenet/commit/4c5f38d98a9bbeace20517770d7d6a8935fe8d89))
+* **settings:** contextual guidance for missing optional API keys ([#1319](https://github.com/Public-Vinyl-Radio/groovenet/issues/1319)) ([f3f0a2e](https://github.com/Public-Vinyl-Radio/groovenet/commit/f3f0a2e94acc389dcb786a0220f8bdb780965bd0))
+
 ## [1.13.0](https://github.com/Public-Vinyl-Radio/groovenet/compare/groovenet-contracts-v1.12.0...groovenet-contracts-v1.13.0) (2026-11-26)
 
 
