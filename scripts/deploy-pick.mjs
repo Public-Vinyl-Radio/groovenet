@@ -209,8 +209,21 @@ function readCurrentTag({ host, stackDir, env }, warn) {
 
 export function gather(ctx, warn) {
   const { limit } = ctx;
-  const fetched = run("git", ["fetch", "--quiet", "--tags", "origin", "main"], { env: ctx.env });
-  if (fetched.status !== 0) warn("warning: git fetch failed; showing what is already local.");
+  // Never wait on a prompt: an SSH remote whose agent is locked or awaiting
+  // approval would otherwise hang here silently, with stdin closed.
+  const fetchEnv = {
+    ...ctx.env,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_SSH_COMMAND: ctx.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes -o ConnectTimeout=10",
+  };
+  const fetched = run("git", ["fetch", "--quiet", "--tags", "origin", "main"], {
+    env: fetchEnv,
+    timeout: Number(ctx.env.DEPLOY_PICK_FETCH_TIMEOUT_MS) || 15000,
+  });
+  if (fetched.status !== 0) {
+    const why = fetched.error?.code === "ETIMEDOUT" ? "timed out" : "failed";
+    warn(`warning: git fetch ${why}; showing what is already local.`);
+  }
 
   const tags = must("git", ["tag", "--list", "v*", "--sort=-v:refname"], ctx)
     .split("\n")
