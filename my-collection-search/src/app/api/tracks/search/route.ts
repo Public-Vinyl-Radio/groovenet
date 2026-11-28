@@ -233,6 +233,7 @@ export async function GET(request: NextRequest) {
       similar_limit,
       similar_exclude,
       artist,
+      has_audio,
     } = parsedQuery.data;
     if (bpm_min !== undefined && bpm_max !== undefined && bpm_min > bpm_max) {
       return NextResponse.json({ error: "bpm_min must not exceed bpm_max" }, { status: 400 });
@@ -244,6 +245,7 @@ export async function GET(request: NextRequest) {
       bpmMax: bpm_max,
       key,
       minStarRating: star_rating,
+      hasAudio: has_audio,
       ...(star_rating !== undefined ? { ratingViewerId: viewer.id } : {}),
     };
     const genreResolution = await resolveGenreFilter(genre ?? [], {

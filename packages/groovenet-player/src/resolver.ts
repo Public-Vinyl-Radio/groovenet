@@ -11,10 +11,19 @@ export interface ResolverConfig {
   audioLibraryRoot?: string;
 }
 
+/**
+ * Whether a track has downloaded audio, the precondition of `audioSource`: its
+ * `NO_AUDIO` failure is this being false. The search API's `has_audio` filter
+ * applies the same rule in SQL; keep the two in step.
+ */
+export function hasPlayableAudio(track: Pick<Track, "local_audio_url">): boolean {
+  return Boolean(track.local_audio_url?.trim());
+}
+
 /** Resolve downloaded audio through the app, or an explicit engine-side library. */
 export function audioSource(track: Track, config: ResolverConfig): PlaybackSource | null {
-  const filename = track.local_audio_url?.trim();
-  if (!filename) return null;
+  if (!hasPlayableAudio(track)) return null;
+  const filename = track.local_audio_url!.trim();
   if (config.audioLibraryRoot !== undefined) {
     if (!posix.isAbsolute(config.audioLibraryRoot))
       throw new PlayerError(

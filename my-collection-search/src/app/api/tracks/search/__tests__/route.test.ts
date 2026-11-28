@@ -453,6 +453,29 @@ describe("GET /api/tracks/search — attribute filters", () => {
     expect(countParams).toEqual([6, 120.5, 126, "A minor", VIEWER.id, 4, "house"]);
   });
 
+  it("keeps only tracks with a playable source when has_audio is set", async () => {
+    stubDb([], "0");
+    await GET(req("?q=house&has_audio=1"));
+    const [dataSql, dataParams] = mockDbQuery.mock.calls[0];
+    expect(dataSql).toContain("NULLIF(BTRIM(t.local_audio_url), '') IS NOT NULL");
+    expect(dataParams).toEqual(["house", 20, 0]);
+    expect(mockDbQuery.mock.calls[1][0]).toContain("NULLIF(BTRIM(t.local_audio_url), '')");
+  });
+
+  it("does not filter on audio unless has_audio is on", async () => {
+    stubDb([], "0");
+    await GET(req("?q=house&has_audio=0"));
+    expect(mockDbQuery.mock.calls[0][0]).not.toContain("local_audio_url");
+  });
+
+  it("passes has_audio to the semantic leg", async () => {
+    mockSemanticSearch.mockResolvedValue(semanticResult([]));
+    await GET(req("?mode=semantic&q=dub&has_audio=true"));
+    expect(mockSemanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ attributes: expect.objectContaining({ hasAudio: true }) }),
+    );
+  });
+
   it("filters an empty-query listing too", async () => {
     stubDb([], "0");
     await GET(req("?key=%20Eb%20major%20"));

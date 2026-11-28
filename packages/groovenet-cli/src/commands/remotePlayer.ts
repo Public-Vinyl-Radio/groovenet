@@ -177,9 +177,12 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
     if (method === "queue.add") {
       if (!p.playlistId && (typeof p.query !== "string" || !p.query.trim()))
         throw new Error("Provide a search query or --playlist-id.");
+      // An explicit limit (the CLI sends 1 for "the best match"); 30 otherwise.
+      const limit = typeof p.limit === "number" && p.limit >= 1 ? Math.floor(p.limit) : 30;
       const tracks = p.playlistId
         ? (await this.api.getPlaylistTracks(String(p.playlistId))).track_refs
-        : (await this.api.searchTracks({ query: String(p.query), limit: 30 })).tracks;
+        : (await this.api.searchTracks({ query: String(p.query), limit })).tracks;
+      if (tracks.length === 0) throw new Error(noMatchMessage(p.playlistId ? undefined : p.query));
       return this.edit({
         type: "queue.add",
         tracks: tracks.map((track) => ({ track_id: track.track_id, friend_id: track.friend_id })),
@@ -233,6 +236,13 @@ export class RemotePlayerController extends EventEmitter implements PlayerContro
     this.session.close();
     this.removeAllListeners();
   }
+}
+
+/** What `queue add` says when nothing matched. */
+export function noMatchMessage(query: unknown): string {
+  return query === undefined
+    ? "The playlist has no tracks."
+    : `No tracks match "${String(query)}".`;
 }
 
 export function formatRemoteDevice(device: ServerPlayerDevice): string {

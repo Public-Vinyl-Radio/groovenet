@@ -300,6 +300,7 @@ export class GroovenetClient {
       key: query.filters?.key,
       star_rating: query.filters?.star_rating,
       genre: query.filters?.genre?.length ? query.filters.genre : undefined,
+      has_audio: query.filters?.has_audio ? 1 : undefined,
       mode: query.mode && query.mode !== "lexical" ? query.mode : undefined,
     };
     const result = await this.request<{

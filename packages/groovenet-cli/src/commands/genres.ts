@@ -1,5 +1,4 @@
 import { Command, InvalidArgumentError } from "commander";
-import { loadConfig } from "@groovenet/client";
 import type {
   GroovenetClient,
   GenreProposal,
@@ -13,6 +12,9 @@ import chalk from "chalk";
 import Table from "cli-table3";
 import { printError } from "../output.js";
 import { boundedIntOption, intOption } from "../options.js";
+import { resolveFriendId, type FriendScopeOptions } from "./friendScope.js";
+
+export { resolveFriendId, type FriendScopeOptions };
 import { consoleIO, makeClient, type FingerprintLibraryIO } from "./fingerprintLibrary.js";
 import { readlineAsk } from "./setsReview.js";
 import {
@@ -65,27 +67,6 @@ export type ReconcileClient = Pick<
   GroovenetClient,
   "startGenreReconciliation" | "getGenreReconciliationRun" | "getGenreReconciliationCoverage"
 >;
-
-/** Which friend's tracks a command covers. */
-export interface FriendScopeOptions {
-  friendId?: number;
-  allFriends?: boolean;
-}
-
-/**
- * `--friend-id`, else the configured `default_friend_id`, else everyone.
- * `--all-friends` always means everyone; giving both is an error.
- */
-export function resolveFriendId(
-  opts: FriendScopeOptions,
-  defaultFriendId: number | undefined = loadConfig().default_friend_id,
-): number | undefined {
-  if (opts.allFriends && opts.friendId !== undefined) {
-    throw new Error("Choose --friend-id or --all-friends, not both");
-  }
-  if (opts.allFriends) return undefined;
-  return opts.friendId ?? defaultFriendId;
-}
 
 export interface ReconcileOptions extends FriendScopeOptions {
   ai?: boolean;

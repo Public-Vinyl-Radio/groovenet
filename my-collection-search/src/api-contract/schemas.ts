@@ -542,6 +542,8 @@ export const trackSearchGetQuerySchema = sharedTrackSearchQuerySchema.extend({
   similar_exclude: genreQueryParamSchema,
   /** Artist slugs or ids (#709), ORed, matched through the credit tables. */
   artist: genreQueryParamSchema,
+  /** Only tracks the player can play (a non-blank `local_audio_url`). Applied in every mode. */
+  has_audio: booleanFlagSchema.optional(),
 });
 
 export const embeddingPreviewTypeSchema = trackEmbeddingPreviewTypeSchema;

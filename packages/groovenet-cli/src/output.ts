@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import Table from "cli-table3";
 import type { Track, Playlist, Friend } from "@groovenet/client";
+import { hasPlayableAudio } from "@groovenet/player";
 
 export function printJson(data: unknown): void {
   process.stdout.write(JSON.stringify(data, null, 2) + "\n");
@@ -12,6 +13,11 @@ export function printError(msg: string): void {
 
 export function printSuccess(msg: string): void {
   process.stdout.write(chalk.green(msg) + "\n");
+}
+
+/** `yes` when the player can play the track, `no` when it would fail NO_AUDIO. */
+export function audioLabel(track: Pick<Track, "local_audio_url">): string {
+  return hasPlayableAudio(track) ? chalk.green("yes") : chalk.dim("no");
 }
 
 export function printTracks(tracks: Track[], json: boolean): void {
@@ -31,8 +37,10 @@ export function printTracks(tracks: Track[], json: boolean): void {
       chalk.cyan("BPM"),
       chalk.cyan("Key"),
       chalk.cyan("Rating"),
+      chalk.cyan("Friend"),
+      chalk.cyan("Audio"),
     ],
-    colWidths: [36, 36, 24, 6, 12, 7],
+    colWidths: [36, 32, 24, 6, 12, 7, 8, 7],
     wordWrap: true,
   });
   for (const t of tracks) {
@@ -43,6 +51,8 @@ export function printTracks(tracks: Track[], json: boolean): void {
       t.bpm ?? "-",
       t.key ?? "-",
       t.star_rating != null ? `★${t.star_rating}` : "-",
+      t.friend_id ?? "-",
+      audioLabel(t),
     ]);
   }
   console.log(table.toString());

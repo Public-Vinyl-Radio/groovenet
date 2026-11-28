@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`player CLI commands > keeps the queue add and replace help text stable 1`] = `
+"Usage:  player queue add [options] [query]
+
+Add the best match for a search, or a playlist, to the queue
+
+Options:
+  --all               queue every match instead of only the best one
+  --limit <n>         queue up to n matches, best first
+  --playlist-id <id>  add tracks from a playlist
+  --json              print machine-readable output
+  -h, --help          display help for command
+
+By default one track is queued: the top result, in the same order as
+\`groovenet tracks search\`. Use --limit <n> for the first n, or --all for every
+match (up to 50 locally, 30 on a --remote player). A query with no match is an
+error and queues nothing. Use \`tracks search\` first to see what would match.
+
+---
+Usage:  player queue replace [options] <replacement-json>
+
+Atomically replace a remote queue with {entries, current_entry_id?, position?,
+play?}
+
+Options:
+  --json      print machine-readable output
+  -h, --help  display help for command
+
+Example:
+  groovenet player --remote lounge queue replace \\
+    '{"entries":[{"track_id":"TRACK_ID","friend_id":1}],"play":true}'
+
+Payload (a JSON object):
+  entries           [{ "track_id": string, "friend_id": number, "id"?: uuid }]
+                    in play order; an unresolved track rejects the whole command.
+                    Give "id" to keep an existing entry's identity.
+  current_entry_id  entry to treat as current; omit to keep the present one,
+                    null to clear it
+  position          seconds into the current entry
+  play              true to start (or resume) playback after replacing
+
+Playback: removing or changing the current entry stops playback unless you pass
+"play": true. Keeping it (same "id") keeps its playing or paused state. An empty
+"entries" clears the queue and cannot be played. Playback still needs the speaker
+to be available: see --allow-unknown and --takeover.
+"
+`;
