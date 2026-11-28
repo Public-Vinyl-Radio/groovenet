@@ -163,6 +163,35 @@ export GROOVENET_OP_MQTT_ITEM=Broker
 just deploy v1.2.0
 ```
 
+### Deploying over SSH with a 1Password service account
+
+`op` normally authorizes through the 1Password desktop app, which asks for
+approval on the deploying machine's screen. In an SSH session nobody sees that
+prompt, so rendering `.env` fails with `authorization prompt dismissed`. Use a
+[service account](https://developer.1password.com/docs/service-accounts/) with
+read access to the vault above instead:
+
+```bash
+# Once: save the token to a file only you can read.
+install -m 600 /dev/null ~/.config/op/groovenet-deploy-token
+"$EDITOR" ~/.config/op/groovenet-deploy-token
+
+# In the shell, or the checkout's direnv .envrc:
+export OP_SERVICE_ACCOUNT_TOKEN_FILE="$HOME/.config/op/groovenet-deploy-token"
+just deploy v1.2.0
+```
+
+The deploy recipes read the token from that file only while they run, so
+other `op` uses in the repo keep your own account. An exported
+`OP_SERVICE_ACCOUNT_TOKEN` takes precedence over the file. A missing or empty
+file stops the deploy before anything is rendered or copied.
+
+The deploy also runs `git fetch` against GitHub. Over SSH with an SSH remote,
+forward your agent (`ssh -A`, or `ForwardAgent yes` for that host) so the key
+prompt reaches the machine you're sitting at. `direnv` doesn't load in a
+non-interactive `ssh host "command"`, so wrap the command in
+`direnv exec . just deploy-pick`.
+
 Create both items in the selected vault with the following exact field names:
 
 - `GROOVENET_OP_ITEM`: `POSTGRES_PASSWORD`, `DATABASE_URL`, `OPENAI_API_KEY`, `APPLE_MUSIC_TEAM_ID`, `APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_PRIVATE_KEY`, `DISCOGS_USER_TOKEN`, `DISCOGS_USERNAME`, `YOUTUBE_API_KEY`, `NEXT_PUBLIC_POSTHOG_KEY`, `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `B2_ACCOUNT_ID`, `B2_ACCOUNT_KEY`.
