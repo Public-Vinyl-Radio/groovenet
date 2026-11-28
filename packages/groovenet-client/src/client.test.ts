@@ -314,6 +314,22 @@ describe("GroovenetClient.searchTracks", () => {
     });
   });
 
+  it("sends has_audio=1 only when asked for playable tracks", async () => {
+    const client = clientReturning({
+      hits: [],
+      estimatedTotalHits: 0,
+      offset: 0,
+      limit: 10,
+      processingTimeMs: 1,
+    });
+
+    await client.searchTracks({ filters: { has_audio: true } });
+    await client.searchTracks({ filters: { has_audio: false } });
+
+    expect(requestMock.mock.calls[0][0].params.has_audio).toBe(1);
+    expect(requestMock.mock.calls[1][0].params.has_audio).toBeUndefined();
+  });
+
   it("sends genres as a repeated param, and no param for none (#375)", async () => {
     const client = clientReturning({
       hits: [],

@@ -194,6 +194,11 @@ export interface TrackSearchQuery {
      * when it has none. An unknown genre is an error.
      */
     genre?: string[];
+    /**
+     * Only tracks the player can play (a non-blank `local_audio_url`, the
+     * player's NO_AUDIO rule). Applied by the server in every mode.
+     */
+    has_audio?: boolean;
   };
 }
 

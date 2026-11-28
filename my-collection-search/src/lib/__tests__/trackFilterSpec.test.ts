@@ -81,6 +81,18 @@ describe("attributeFilterClauses", () => {
     expect(values).toEqual([120, 126, "A minor", "u1", 4]);
   });
 
+  it("keeps only playable tracks: a non-blank local_audio_url, binding nothing", () => {
+    const { values, bind } = binder();
+    expect(attributeFilterClauses({ hasAudio: true }, bind, "t")).toEqual([
+      "NULLIF(BTRIM(t.local_audio_url), '') IS NOT NULL",
+    ]);
+    expect(attributeFilterClauses({ hasAudio: true }, bind)).toEqual([
+      "NULLIF(BTRIM(local_audio_url), '') IS NOT NULL",
+    ]);
+    expect(attributeFilterClauses({ hasAudio: false }, bind, "t")).toEqual([]);
+    expect(values).toEqual([]);
+  });
+
   it("keeps a zero, which is a real bound", () => {
     const { values, bind } = binder();
     expect(attributeFilterClauses({ minStarRating: 0, ratingViewerId: "u1" }, bind, "t")).toEqual([

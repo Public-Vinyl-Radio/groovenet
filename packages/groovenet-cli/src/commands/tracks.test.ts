@@ -87,6 +87,50 @@ describe("tracks search --mode", () => {
   });
 });
 
+describe("tracks search --friend-id and --has-audio (#1327)", () => {
+  it("searches the configured default friend when --friend-id is not given", async () => {
+    mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api", default_friend_id: 6 });
+    await run("blue");
+    expect(mocks.client.searchTracks).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: { friend_id: 6 } }),
+    );
+  });
+
+  it("lets --friend-id override the default", async () => {
+    mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api", default_friend_id: 6 });
+    await run("blue", "--friend-id", "2");
+    expect(mocks.client.searchTracks).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: { friend_id: 2 } }),
+    );
+  });
+
+  it("searches every friend with --all-friends, and with no default configured", async () => {
+    mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api", default_friend_id: 6 });
+    await run("blue", "--all-friends");
+    mocks.loadConfig.mockReturnValue({ api_base: "http://example.test/api" });
+    await run("blue");
+    expect(mocks.client.searchTracks.mock.calls.map(([query]) => query.filters)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("refuses --friend-id with --all-friends before calling the API", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    await run("blue", "--friend-id", "2", "--all-friends");
+    expect(mocks.printError).toHaveBeenCalledWith("Choose --friend-id or --all-friends, not both");
+    expect(mocks.client.searchTracks).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+
+  it("asks the server for playable tracks only with --has-audio", async () => {
+    await run("blue", "--has-audio");
+    await run("blue");
+    expect(mocks.client.searchTracks.mock.calls[0]![0].filters).toEqual({ has_audio: true });
+    expect(mocks.client.searchTracks.mock.calls[1]![0].filters).toBeUndefined();
+  });
+});
+
 describe("tracks search filters (#412)", () => {
   it("forwards BPM, key and minimum rating", async () => {
     await run(

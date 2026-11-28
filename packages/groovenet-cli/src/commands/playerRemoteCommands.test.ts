@@ -7,6 +7,9 @@ const { api } = vi.hoisted(() => ({
     commandServerPlayer: vi.fn(),
     listServerPlayers: vi.fn(),
     listServerPlayerDevices: vi.fn(),
+    searchTracks: vi.fn(),
+    batchGetTracks: vi.fn(),
+    getPlaylistTracks: vi.fn(),
   },
 }));
 vi.mock("./remotePlayer.js", async (original) => ({
@@ -239,4 +242,100 @@ it("replaces a remote queue atomically and rejects malformed/local replacements"
   await run("queue", "replace", JSON.stringify(replacement));
   expect(api.commandServerPlayer).toHaveBeenCalledTimes(1);
   expect(error.mock.calls.flat().join("")).toContain("requires --remote");
+});
+
+describe("queue add and list", () => {
+  const entry = {
+    id: "00000000-0000-4000-8000-000000000001",
+    track_id: "track",
+    friend_id: 1,
+    artist: "Artist",
+    title: "Song",
+  };
+  const match = (n: number) => ({ track_id: `t${n}`, friend_id: 2 });
+
+  it("queues the single best match by default", async () => {
+    api.getServerPlayer.mockResolvedValue(state);
+    api.commandServerPlayer.mockResolvedValue({ player: state });
+    api.searchTracks.mockResolvedValue({ tracks: [match(1)] });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("--remote", "room", "queue", "add", "blue", "--json");
+    expect(api.searchTracks).toHaveBeenCalledWith({ query: "blue", limit: 1 });
+    expect(api.commandServerPlayer).toHaveBeenCalledWith("room", {
+      type: "queue.add",
+      tracks: [{ track_id: "t1", friend_id: 2 }],
+      expected_revision: 2,
+    });
+  });
+
+  it("honours --limit and keeps 30 for --all", async () => {
+    api.getServerPlayer.mockResolvedValue(state);
+    api.commandServerPlayer.mockResolvedValue({ player: state });
+    api.searchTracks.mockResolvedValue({ tracks: [match(1), match(2)] });
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("--remote", "room", "queue", "add", "blue", "--limit", "7", "--json");
+    await run("--remote", "room", "queue", "add", "blue", "--all", "--json");
+    expect(api.searchTracks.mock.calls).toEqual([
+      [{ query: "blue", limit: 7 }],
+      [{ query: "blue", limit: 30 }],
+    ]);
+  });
+
+  it("fails without queueing when nothing matches, or the playlist is empty", async () => {
+    api.getServerPlayer.mockResolvedValue(state);
+    api.searchTracks.mockResolvedValue({ tracks: [] });
+    const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    await run("--remote", "room", "queue", "add", "zzz");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('No tracks match "zzz".'));
+    expect(process.exitCode).toBe(1);
+    expect(api.commandServerPlayer).not.toHaveBeenCalled();
+  });
+
+  it("fails when the playlist has no tracks", async () => {
+    api.getServerPlayer.mockResolvedValue(state);
+    api.getPlaylistTracks.mockResolvedValue({ track_refs: [] });
+    const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    await run("--remote", "room", "queue", "add", "--playlist-id", "9");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("The playlist has no tracks."));
+    expect(api.commandServerPlayer).not.toHaveBeenCalled();
+  });
+
+  it("marks each remote entry with whether its track has playable audio", async () => {
+    api.getServerPlayer.mockResolvedValue({
+      ...state,
+      state: {
+        ...state.state,
+        queue: [entry, { ...entry, id: "00000000-0000-4000-8000-000000000002", track_id: "b" }],
+      },
+    });
+    api.batchGetTracks.mockResolvedValue([
+      { track_id: "track", friend_id: 1, local_audio_url: "a.mp3" },
+      { track_id: "b", friend_id: 1, local_audio_url: null },
+    ]);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await run("--remote", "room", "queue", "list");
+    expect(api.batchGetTracks).toHaveBeenCalledWith([
+      { track_id: "track", friend_id: 1 },
+      { track_id: "b", friend_id: 1 },
+    ]);
+    expect(log).toHaveBeenCalledWith(`1. Song — Artist [${entry.id}] · audio`);
+    expect(log).toHaveBeenCalledWith(
+      "2. Song — Artist [00000000-0000-4000-8000-000000000002] · no audio",
+    );
+  });
+
+  it("reports audio as unknown when the lookup fails or omits a track", async () => {
+    api.getServerPlayer.mockResolvedValue({
+      ...state,
+      state: { ...state.state, queue: [entry] },
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    api.batchGetTracks.mockRejectedValueOnce(new Error("offline"));
+    await run("--remote", "room", "queue", "list");
+    api.batchGetTracks.mockResolvedValueOnce([]);
+    await run("--remote", "room", "queue", "list");
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenNthCalledWith(1, `1. Song — Artist [${entry.id}] · audio ?`);
+    expect(log).toHaveBeenNthCalledWith(2, `1. Song — Artist [${entry.id}] · audio ?`);
+  });
 });

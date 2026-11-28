@@ -64,6 +64,14 @@ describe("GET /api/tracks/search/facets", () => {
     expect(trackFacets).toHaveBeenCalledWith(["friend_id = $1"], [6]);
   });
 
+  it("narrows the counts to playable tracks with has_audio", async () => {
+    await GET(req("?has_audio=1"));
+    expect(trackFacets).toHaveBeenCalledWith(
+      ["NULLIF(BTRIM(t.local_audio_url), '') IS NOT NULL"],
+      [],
+    );
+  });
+
   it("refuses semantic or hybrid words, which a count can't describe", async () => {
     const res = await GET(req("?mode=hybrid&q=dusty%20cumbia"));
     expect(res.status).toBe(400);

@@ -56,6 +56,23 @@ snapshot contains private notes; `eval-data/` is ignored and output is mode 0600
 This is a point-in-time _API pagination_ export, not a database transaction;
 retry if pagination detects a changing collection.
 
+## Building a queue (#1327)
+
+`player queue add <query>` queues the **best match only**: the CLI sends
+`limit: 1` with `queue.add`, and the daemon and the remote controller pass it to
+the search, so the first result in `tracks search` order is the one queued.
+`--limit <n>` queues the first n, `--all` omits the limit and restores the old
+counts (50 locally, 30 for `--remote`). A search with no match is an error and
+queues nothing. The MCP `player_queue_add` tool sends no limit and is unchanged.
+
+`tracks search` filters to `--friend-id`, else `default_friend_id`, else everyone
+(`--all-friends` forces everyone, like `genres`; both is an error). `--has-audio`
+is applied by the server (`has_audio=1`): a non-blank `local_audio_url`, the same
+rule as `hasPlayableAudio` in `@groovenet/player`, whose failure is the player's
+`NO_AUDIO`. The tables show `Friend` and `Audio`; `player queue list` marks each
+entry `audio` / `no audio` (`audio ?` when a remote lookup failed) and `--json`
+adds an `audio` field to every entry.
+
 ## Layout
 
 ```

@@ -45,7 +45,7 @@ class FakeSocket extends EventEmitter {
 }
 
 function makePlayer(
-  searchTracks?: (query: string) => Promise<{ tracks: Track[] }>,
+  searchTracks?: (query: { query?: string; limit?: number }) => Promise<{ tracks: Track[] }>,
   backend = new TestPlaybackBackend(),
 ) {
   const client = {
@@ -378,6 +378,9 @@ describe("PlayerDaemon", () => {
         [1, "queue.remove", {}],
         [2, "devices.select", { id: "" }],
         [3, "queue.add", { query: "  " }],
+        [31, "queue.add", { query: "blue", limit: 0 }],
+        [32, "queue.add", { query: "blue", limit: "all" }],
+        [33, "queue.add", { query: "blue", limit: 1.5 }],
         [4, "queue.addTrack", { track: [] }],
         [5, "seek", { seconds: "soon" }],
         [6, "volume", { volume: Number.NaN }],
@@ -385,7 +388,37 @@ describe("PlayerDaemon", () => {
         const result = await send(socket, request(id, method, params));
         expect(result.error).toBeDefined();
       }
-      expect(socket.responses).toHaveLength(10);
+      expect(socket.responses).toHaveLength(13);
+    } finally {
+      await daemon.stop();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("passes an explicit queue.add limit to the search, and keeps 50 without one", async () => {
+    const found = [1, 2].map(
+      (n) =>
+        ({ track_id: `t${n}`, friend_id: 1, title: `T${n}`, local_audio_url: "a.mp3" }) as Track,
+    );
+    const searchTracks = vi.fn(async () => ({ tracks: found }));
+    const { dir, server, daemon } = await makeDaemon(makePlayer(searchTracks));
+    const socket = new FakeSocket();
+    const request = (id: number, params: Record<string, unknown>) => ({
+      jsonrpc: "2.0",
+      version: 1,
+      id,
+      method: "queue.add",
+      params,
+    });
+    try {
+      await daemon.start();
+      server.accept?.(socket as unknown as Socket);
+      await send(socket, request(1, { query: "blue", limit: 1 }));
+      await send(socket, request(2, { query: "blue" }));
+      expect(searchTracks.mock.calls).toEqual([
+        [{ query: "blue", limit: 1 }],
+        [{ query: "blue", limit: 50 }],
+      ]);
     } finally {
       await daemon.stop();
       await rm(dir, { recursive: true, force: true });

@@ -6,7 +6,7 @@ import { GroovenetClient, loadConfig } from "@groovenet/client";
 import { OwnToneBackend, MpvBackend, PlayLogger, PlayerControlClient } from "@groovenet/player";
 import { PlayerDaemon } from "@groovenet/player";
 import { runPlayerTui } from "./playerTui.js";
-import { addPlayerCommands, createPlayerDaemon } from "./player.js";
+import { addPlayerCommands, createPlayerDaemon, withAudioAvailability } from "./player.js";
 
 // Any readable file: the real client reads the CA bundle when it is built.
 const CA_CERT = fileURLToPath(import.meta.url);
@@ -112,8 +112,8 @@ describe("player CLI commands", () => {
     await makeProgram().parseAsync(["node", "test", "player", "status"]);
     await makeProgram().parseAsync(["node", "test", "player", "status", "--json"]);
     expect(request).toHaveBeenCalledTimes(3);
-    expect(log).toHaveBeenCalledWith("1. Unknown artist — Unknown artist [entry-1]");
-    expect(log).toHaveBeenCalledWith("2. Unknown track — Unknown artist []");
+    expect(log).toHaveBeenCalledWith("1. Unknown artist — Unknown artist [entry-1] · no audio");
+    expect(log).toHaveBeenCalledWith("2. Unknown track — Unknown artist [] · no audio");
     expect(log).toHaveBeenCalledWith("3. Built in [device-1]");
     expect(log).toHaveBeenCalledWith("4. Unknown device []");
     expect(log).toHaveBeenCalledWith("Status: stopped");
@@ -138,6 +138,111 @@ describe("player CLI commands", () => {
     ]);
     expect(request).toHaveBeenCalledWith("queue.add", { playlistId: "18" });
     expect(log).toHaveBeenCalledWith("1. Blue Train — John Coltrane [entry-1]");
+  });
+
+  it("queues only the best match by default, and says so in the help", async () => {
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue([{ id: "entry-1", track: { title: "Blue Train", artist: "Coltrane" } }]);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await makeProgram().parseAsync(["node", "test", "player", "queue", "add", "blue train"]);
+    expect(request).toHaveBeenCalledWith("queue.add", { query: "blue train", limit: 1 });
+    expect(log).toHaveBeenCalledWith("1. Blue Train — Coltrane [entry-1]");
+  });
+
+  it("queues n matches with --limit and every match with --all", async () => {
+    const request = vi
+      .spyOn(PlayerControlClient.prototype, "request")
+      .mockResolvedValue([{ id: "entry-1", track: { title: "A" } }]);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await makeProgram().parseAsync([
+      "node",
+      "test",
+      "player",
+      "queue",
+      "add",
+      "blue",
+      "--limit",
+      "5",
+    ]);
+    await makeProgram().parseAsync(["node", "test", "player", "queue", "add", "blue", "--all"]);
+    expect(request.mock.calls).toEqual([
+      ["queue.add", { query: "blue", limit: 5 }],
+      ["queue.add", { query: "blue" }],
+    ]);
+  });
+
+  it("fails, queueing nothing, when the search has no match", async () => {
+    vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue([]);
+    const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    await makeProgram().parseAsync(["node", "test", "player", "queue", "add", "zzz"]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('No tracks match "zzz".'));
+    expect(process.exitCode).toBe(1);
+  });
+
+  it.each([
+    [["--all", "--limit", "3", "x"], "Choose --all or --limit, not both."],
+    [["--all", "--playlist-id", "4"], "apply to a search query"],
+    [["--limit", "2", "--playlist-id", "4"], "apply to a search query"],
+  ])("rejects conflicting queue add options %j", async (args, message) => {
+    const request = vi.spyOn(PlayerControlClient.prototype, "request");
+    const error = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    await makeProgram().parseAsync(["node", "test", "player", "queue", "add", ...args]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining(message));
+    expect(request).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("marks queue entries that have no playable audio, locally", async () => {
+    vi.spyOn(PlayerControlClient.prototype, "request").mockResolvedValue([
+      { id: "a", track: { title: "Has", artist: "X", local_audio_url: "a.mp3" } },
+      { id: "b", track: { title: "Lacks", artist: "X", local_audio_url: " " } },
+      { id: "c" },
+    ]);
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await makeProgram().parseAsync(["node", "test", "player", "queue", "list"]);
+    expect(log).toHaveBeenCalledWith("1. Has — X [a] · audio");
+    expect(log).toHaveBeenCalledWith("2. Lacks — X [b] · no audio");
+  });
+
+  it("leaves empty or non-list queues alone and gives refs with no track an unknown audio state", async () => {
+    expect(await withAudioAvailability([], false)).toEqual([]);
+    expect(await withAudioAvailability(undefined as never, true)).toBeUndefined();
+    expect(await withAudioAvailability([{ id: "x" }], false)).toEqual([{ id: "x", audio: null }]);
+    // A remote entry with no track ref is not looked up and stays unknown.
+    expect(await withAudioAvailability([{ id: "x" }], true)).toEqual([{ id: "x", audio: null }]);
+  });
+
+  it("keeps the queue add and replace help text stable", () => {
+    const player = makeProgram().commands.find((c) => c.name() === "player")!;
+    const queue = player.commands.find((c) => c.name() === "queue")!;
+    const helps = ["add", "replace"].map((name) => {
+      const command = queue.commands.find((c) => c.name() === name)!;
+      let text = "";
+      command.configureOutput({ writeOut: (s) => (text += s), writeErr: () => undefined });
+      command.outputHelp();
+      return text;
+    });
+    expect(helps.join("\n---\n")).toMatchSnapshot();
+  });
+
+  it("documents the replace payload and the playback rule, and what --allow-unknown is for", () => {
+    const program = makeProgram();
+    const player = program.commands.find((c) => c.name() === "player")!;
+    const replace = player.commands
+      .find((c) => c.name() === "queue")!
+      .commands.find((c) => c.name() === "replace")!;
+    const help = replace.helpInformation() + replace.options.map((o) => o.description).join();
+    let after = "";
+    replace.configureOutput({ writeOut: (s) => (after += s) });
+    replace.outputHelp();
+    expect(after).toContain('{"entries":[{"track_id":"TRACK_ID","friend_id":1}],"play":true}');
+    expect(after).toContain('stops playback unless you pass\n"play": true');
+    expect(after).toContain("keeps its playing or paused state");
+    expect(help).toContain("replace");
+    const allow = player.options.find((o) => o.long === "--allow-unknown")!;
+    expect(allow.description).toContain("AVAILABILITY_UNKNOWN");
+    expect(allow.description).toContain("normal way");
   });
 
   it("toggles pause to resume when playback is already paused", async () => {

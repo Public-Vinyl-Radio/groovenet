@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { playlistOwner, printPlaylists, printTrack } from "./output.js";
+import { audioLabel, playlistOwner, printPlaylists, printTrack, printTracks } from "./output.js";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -48,5 +48,28 @@ describe("playlist owners (#1284)", () => {
     const out = log.mock.calls.flat().join("\n");
     expect(out).toContain("Owner");
     expect(out).toContain("Sam");
+  });
+});
+
+describe("track tables (#1327)", () => {
+  it("labels whether the player can play a track, by the NO_AUDIO rule", () => {
+    expect(audioLabel({ local_audio_url: "a.mp3" })).toContain("yes");
+    for (const missing of [undefined, null, "", "  "])
+      expect(audioLabel({ local_audio_url: missing })).toContain("no");
+  });
+
+  it("adds Friend and Audio columns", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    printTracks(
+      [
+        { track_id: "t1", title: "Has", artist: "A", friend_id: 6, local_audio_url: "a.mp3" },
+        { track_id: "t2", title: "Lacks", artist: "A" },
+      ] as Parameters<typeof printTracks>[0],
+      false,
+    );
+    const table = String(log.mock.calls[0]![0]).replace(/\u001b\[[0-9;]*m/g, "");
+    expect(table).toMatch(/Friend\s*│\s*Audio/);
+    expect(table).toMatch(/Has[\s\S]*6\s*│\s*yes/);
+    expect(table).toMatch(/Lacks[\s\S]*-\s*│\s*no/);
   });
 });

@@ -4,6 +4,7 @@ import type { SimilarTrack, RecommendationCandidate, TrackSearchQuery } from "@g
 import { printTracks, printTrack, printJson, printSuccess, printError } from "../output.js";
 import chalk from "chalk";
 import { collectOption, intOption, searchModeOption, type SearchModeOption } from "../options.js";
+import { resolveFriendId } from "./friendScope.js";
 
 function makeClient(): GroovenetClient {
   const cfg = loadConfig();
@@ -32,6 +33,16 @@ export function addTracksCommands(program: Command): void {
     )
     .option("--limit <n>", "Number of results", intOption, 20)
     .option(
+      "--friend-id <n>",
+      "Only this friend's tracks (defaults to config default_friend_id)",
+      intOption,
+    )
+    .option("--all-friends", "Search every friend's tracks, ignoring default_friend_id")
+    .option(
+      "--has-audio",
+      "Only tracks the player can play (downloaded audio); the rest would fail with NO_AUDIO",
+    )
+    .option(
       "--mode <mode>",
       'lexical (match words, default), semantic (match meaning, e.g. "dusty 70s cumbia with brass") or hybrid (both); semantic and hybrid return up to 50 results',
       searchModeOption,
@@ -48,6 +59,9 @@ export function addTracksCommands(program: Command): void {
           rating?: number;
           genre?: string[];
           limit: number;
+          friendId?: number;
+          allFriends?: boolean;
+          hasAudio?: boolean;
           json?: boolean;
         },
       ) => {
@@ -59,6 +73,9 @@ export function addTracksCommands(program: Command): void {
           if (opts.key) filters.key = opts.key;
           if (opts.rating != null) filters.star_rating = opts.rating;
           if (opts.genre) filters.genre = opts.genre;
+          const friendId = resolveFriendId(opts);
+          if (friendId !== undefined) filters.friend_id = friendId;
+          if (opts.hasAudio) filters.has_audio = true;
 
           const result = await client.searchTracks({
             query: query ?? "",

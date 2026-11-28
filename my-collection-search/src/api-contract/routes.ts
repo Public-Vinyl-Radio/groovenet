@@ -3682,6 +3682,14 @@ const trackSearchParameters: Record<string, unknown>[] = [
       "Minimum star rating, by the requesting profile's own ratings (#1283): the token's or device's profile, else the household owner.",
   },
   {
+    name: "has_audio",
+    in: "query",
+    required: false,
+    schema: { type: "integer", enum: [0, 1], default: 0 },
+    description:
+      "Only tracks the player can play: a non-blank local_audio_url, the rule behind the player's NO_AUDIO error. Applied in every mode. Off by default.",
+  },
+  {
     name: "genre",
     in: "query",
     required: false,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GroovenetClient, Track } from "@groovenet/client";
-import { audioSource, TrackResolver } from "./resolver.js";
+import { audioSource, hasPlayableAudio, TrackResolver } from "./resolver.js";
 
 const track = (track_id: string, local_audio_url?: string) =>
   ({
@@ -9,6 +9,17 @@ const track = (track_id: string, local_audio_url?: string) =>
     title: track_id,
     local_audio_url,
   }) as unknown as Track;
+
+describe("hasPlayableAudio", () => {
+  it("is the precondition audioSource's NO_AUDIO check relies on", () => {
+    expect(hasPlayableAudio(track("a", "a.mp3"))).toBe(true);
+    for (const missing of [undefined, null, "", "   "] as const) {
+      const t = track("b", missing as string | undefined);
+      expect(hasPlayableAudio(t)).toBe(false);
+      expect(audioSource(t, { apiBase: "http://host/api" })).toBeNull();
+    }
+  });
+});
 
 describe("audioSource", () => {
   it("resolves downloaded audio against the configured API base and carries auth", () => {

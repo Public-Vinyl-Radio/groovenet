@@ -1,4 +1,9 @@
-import { RemotePlayerController, makeRemoteApi, type PlayerController } from "./remotePlayer.js";
+import {
+  RemotePlayerController,
+  makeRemoteApi,
+  noMatchMessage,
+  type PlayerController,
+} from "./remotePlayer.js";
 import { errorDetail } from "./playerTuiError.js";
 import { spawn } from "node:child_process";
 import { Command } from "commander";
@@ -12,8 +17,10 @@ import {
   PlayerDaemon,
   TrackResolver,
   defaultPlayerPaths,
+  hasPlayableAudio,
 } from "@groovenet/player";
 import { printError, printJson, printSuccess } from "../output.js";
+import { boundedIntOption } from "../options.js";
 import { buildKeymap } from "./playerKeymap.js";
 import { formatKeymap, keymapJson } from "./playerKeys.js";
 
@@ -98,6 +105,46 @@ async function reportFailure(action: () => Promise<unknown>, json: boolean): Pro
   }
 }
 
+/** A queue entry as `queue list` returns it: local entries carry the whole track, remote ones a ref. */
+interface QueueListEntry {
+  id?: string;
+  track?: { track_id?: string; friend_id?: number; local_audio_url?: string | null };
+  audio?: boolean | null;
+}
+
+/**
+ * Adds `audio` to each entry: whether the player can play it (the same rule as
+ * the NO_AUDIO check). A remote queue holds refs only, so its tracks are looked
+ * up; if that fails the field is `null` (unknown), never a wrong "no".
+ */
+export async function withAudioAvailability(
+  entries: QueueListEntry[],
+  remote: boolean,
+): Promise<QueueListEntry[]> {
+  if (!Array.isArray(entries) || entries.length === 0) return entries;
+  if (!remote)
+    return entries.map((entry) => ({
+      ...entry,
+      audio: entry.track ? hasPlayableAudio(entry.track) : null,
+    }));
+  let tracks: { track_id: string; friend_id: number; local_audio_url?: string | null }[] = [];
+  try {
+    const refs = entries.flatMap(({ track }) =>
+      track?.track_id !== undefined && track.friend_id !== undefined
+        ? [{ track_id: track.track_id, friend_id: track.friend_id }]
+        : [],
+    );
+    tracks = await makeRemoteApi().batchGetTracks(refs);
+  } catch {
+    return entries.map((entry) => ({ ...entry, audio: null }));
+  }
+  const found = new Map(tracks.map((track) => [`${track.friend_id}:${track.track_id}`, track]));
+  return entries.map((entry) => {
+    const track = entry.track && found.get(`${entry.track.friend_id}:${entry.track.track_id}`);
+    return { ...entry, audio: track ? hasPlayableAudio(track) : null };
+  });
+}
+
 function printPlayerResult(result: unknown, json: boolean): void {
   if (json) {
     printJson(result);
@@ -114,10 +161,11 @@ function printPlayerResult(result: unknown, json: boolean): void {
         name?: string;
         description?: string;
         track?: { title?: string; artist?: string };
+        audio?: boolean | null;
       };
       if (entry.track)
         console.log(
-          `${index + 1}. ${entry.track.title ?? "Unknown track"} — ${entry.track.artist ?? "Unknown artist"} [${entry.id ?? ""}]`,
+          `${index + 1}. ${entry.track.title ?? "Unknown track"} — ${entry.track.artist ?? "Unknown artist"} [${entry.id ?? ""}]${entry.audio === undefined ? "" : entry.audio === null ? " · audio ?" : entry.audio ? " · audio" : " · no audio"}`,
         );
       else
         console.log(
@@ -186,7 +234,10 @@ export function addPlayerCommands(program: Command): void {
     .command("player")
     .description("Control local playback or an explicit named server player")
     .option("--remote <player-id>", "control a persistent server player; never falls back to local")
-    .option("--allow-unknown", "explicitly allow connecting to unknown speaker activity")
+    .option(
+      "--allow-unknown",
+      "play to a speaker that never reports whether it is in use (AVAILABILITY_UNKNOWN) — the normal way to use such speakers; see `player set <id> --availability allow_unknown` to make it stick",
+    )
     .option("--takeover", "explicitly take over occupied activity (not another player claim)");
   async function withClient<T>(action: (client: PlayerController) => Promise<T>): Promise<T> {
     const opts = player.opts<{ remote?: string; allowUnknown?: boolean; takeover?: boolean }>();
@@ -457,20 +508,38 @@ export function addPlayerCommands(program: Command): void {
   const queue = player.command("queue").description("Manage the playback queue");
   queue
     .command("add [query]")
-    .description("Search for tracks or add a playlist to the queue")
+    .description("Add the best match for a search, or a playlist, to the queue")
+    .option("--all", "queue every match instead of only the best one")
+    .option("--limit <n>", "queue up to n matches, best first", boundedIntOption(1))
     .option("--playlist-id <id>", "add tracks from a playlist")
     .option("--json", "print machine-readable output")
-    .action(async (query: string | undefined, options: { playlistId?: string; json?: boolean }) =>
-      reportFailure(
-        () =>
-          withClient((client) =>
-            client.request(
-              "queue.add",
-              options.playlistId ? { playlistId: options.playlistId } : { query },
-            ),
-          ),
-        options.json ?? false,
-      ),
+    .addHelpText(
+      "after",
+      `
+By default one track is queued: the top result, in the same order as
+\`groovenet tracks search\`. Use --limit <n> for the first n, or --all for every
+match (up to 50 locally, 30 on a --remote player). A query with no match is an
+error and queues nothing. Use \`tracks search\` first to see what would match.`,
+    )
+    .action(
+      async (
+        query: string | undefined,
+        options: { all?: boolean; limit?: number; playlistId?: string; json?: boolean },
+      ) =>
+        reportFailure(async () => {
+          if (options.all && options.limit !== undefined)
+            throw new Error("Choose --all or --limit, not both.");
+          if (options.playlistId && (options.all || options.limit !== undefined))
+            throw new Error("--all and --limit apply to a search query, not --playlist-id.");
+          const params = options.playlistId
+            ? { playlistId: options.playlistId }
+            : { query, ...(options.all ? {} : { limit: options.limit ?? 1 }) };
+          const result = await withClient((client) => client.request("queue.add", params));
+          // A local daemon answers a search with no match as an empty list.
+          if (!options.playlistId && Array.isArray(result) && result.length === 0)
+            throw new Error(noMatchMessage(query));
+          return result;
+        }, options.json ?? false),
     );
   queue
     .command("remove <id-or-index>")
@@ -490,11 +559,15 @@ export function addPlayerCommands(program: Command): void {
     );
   queue
     .command("list")
-    .description("Show the playback queue")
+    .description("Show the playback queue, with whether each track has playable audio")
     .option("--json", "print machine-readable output")
     .action(async (options: { json?: boolean }) =>
       reportFailure(
-        () => withClient((client) => client.request("queue.list")),
+        async () =>
+          withAudioAvailability(
+            await withClient((client) => client.request<QueueListEntry[]>("queue.list")),
+            Boolean(player.opts().remote),
+          ),
         options.json ?? false,
       ),
     );
@@ -513,6 +586,27 @@ export function addPlayerCommands(program: Command): void {
       "Atomically replace a remote queue with {entries, current_entry_id?, position?, play?}",
     )
     .option("--json", "print machine-readable output")
+    .addHelpText(
+      "after",
+      `
+Example:
+  groovenet player --remote lounge queue replace \\
+    '{"entries":[{"track_id":"TRACK_ID","friend_id":1}],"play":true}'
+
+Payload (a JSON object):
+  entries           [{ "track_id": string, "friend_id": number, "id"?: uuid }]
+                    in play order; an unresolved track rejects the whole command.
+                    Give "id" to keep an existing entry's identity.
+  current_entry_id  entry to treat as current; omit to keep the present one,
+                    null to clear it
+  position          seconds into the current entry
+  play              true to start (or resume) playback after replacing
+
+Playback: removing or changing the current entry stops playback unless you pass
+"play": true. Keeping it (same "id") keeps its playing or paused state. An empty
+"entries" clears the queue and cannot be played. Playback still needs the speaker
+to be available: see --allow-unknown and --takeover.`,
+    )
     .action(async (replacement: string, options: { json?: boolean }) =>
       reportFailure(async () => {
         if (!player.opts().remote) throw new Error("Queue replace requires --remote <player-id>.");

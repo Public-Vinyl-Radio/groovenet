@@ -73,6 +73,11 @@ export type TrackAttributeFilters = {
   genreFilter?: GenreFilter;
   /** Credited to any of these artists (#709), already resolved to ids. */
   artistIds?: number[];
+  /**
+   * Only tracks the player can play: a non-blank `local_audio_url`, the same
+   * rule as `audioSource` (@groovenet/player), which fails NO_AUDIO without it.
+   */
+  hasAudio?: boolean;
 };
 
 /**
@@ -115,6 +120,7 @@ export function attributeFilterClauses(
     if (!alias) throw new Error("An artist filter needs the tracks alias");
     clauses.push(trackArtistFilterClause(filters.artistIds, bind, alias));
   }
+  if (filters.hasAudio) clauses.push(`NULLIF(BTRIM(${col("local_audio_url")}), '') IS NOT NULL`);
   return clauses;
 }
 

@@ -329,7 +329,14 @@ export class PlayerDaemon {
           return player.enqueuePlaylist(params.playlistId);
         if (typeof params.query !== "string" || !params.query.trim())
           throw new Error("Queue add requires a search query or playlist id.");
-        return player.enqueueSearch(params.query);
+        // `limit` is optional so older clients and the MCP tool keep the
+        // player's default; the CLI sends 1 for "the best match".
+        if (
+          params.limit !== undefined &&
+          (typeof params.limit !== "number" || !Number.isInteger(params.limit) || params.limit < 1)
+        )
+          throw new Error("Queue add limit must be a positive integer.");
+        return player.enqueueSearch(params.query, params.limit);
       }
       case "queue.addTrack": {
         if (

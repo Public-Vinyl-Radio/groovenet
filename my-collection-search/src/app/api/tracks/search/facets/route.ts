@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const { q, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating, artist } =
+    const { q, filter, friend_id, mode, bpm_min, bpm_max, key, star_rating, artist, has_audio } =
       parsedQuery.data;
     const words = q.trim();
     if (mode !== "lexical" && words.length > 0) {
@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         bpmMax: bpm_max,
         key,
         minStarRating: star_rating,
+        hasAudio: has_audio,
         // The viewer's ratings (#1283), like the search the counts describe.
         ...(star_rating !== undefined
           ? { ratingViewerId: (await resolveRatingViewer(request)).id }
