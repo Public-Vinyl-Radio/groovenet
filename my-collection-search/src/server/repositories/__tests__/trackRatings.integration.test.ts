@@ -17,6 +17,7 @@ import { TrackRatingRepository } from "../trackRatingRepository";
 const enabled = process.env.RUN_DB_TESTS === "1";
 const dbTest = it.skipIf(!enabled);
 const PREVIOUS = "1795000000000_household-profiles";
+const DROP_STAR_RATING = "1796000000000_drop-tracks-star-rating";
 const MINE = "ratings-1283-owner-collection";
 const FRIEND = "ratings-1283-friend-collection";
 const SAM = "Sam (ratings-1283)";
@@ -36,6 +37,15 @@ async function migrateDownToPrevious() {
   const { rows } = await dbQuery<{ n: number }>(
     "SELECT count(*)::int AS n FROM pgmigrations WHERE name > $1",
     [PREVIOUS],
+  );
+  if (rows[0].n > 0) migrate("down", String(rows[0].n));
+}
+
+/** Rolls back `migration` and every one after it, however many later ones exist. */
+async function migrateDownThrough(migration: string) {
+  const { rows } = await dbQuery<{ n: number }>(
+    "SELECT count(*)::int AS n FROM pgmigrations WHERE name >= $1",
+    [migration],
   );
   if (rows[0].n > 0) migrate("down", String(rows[0].n));
 }
@@ -192,7 +202,7 @@ describe("track_ratings migration (integration)", () => {
       await repo.set(ownerId, { track_id: "r1283-f", friend_id: friendIds[FRIEND] }, 0);
       const current = await ownerView();
 
-      migrate("down", "1");
+      await migrateDownThrough(DROP_STAR_RATING);
       expect(await hasColumn()).toBe(true);
       expect(await before()).toEqual(current);
       const { rows } = await dbQuery<{ column_default: string }>(
